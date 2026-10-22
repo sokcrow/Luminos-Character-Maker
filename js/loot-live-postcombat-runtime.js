@@ -484,6 +484,21 @@
     };
   }
 
+  function mergeCompendiumFacts(raw, playerId, unitId, facts, options = {}) {
+    const base = raw && typeof raw === "object" ? clone(raw) : knowledge().createCompendium(playerId, { now: options.now });
+    for (const entry of Object.values(base.units || {})) {
+      entry.facts = Object.fromEntries(Object.values(entry.facts || {}).map(fact => [fact.id, fact]));
+    }
+    const saved = clone(knowledge().mergeFacts(base, normalizeId(unitId), facts, {
+      visibility: options.visibility || "private", now: options.now ?? Date.now(),
+    }));
+    for (const entry of Object.values(saved.units || {})) {
+      entry.facts = Object.fromEntries(Object.values(entry.facts || {}).map(fact =>
+        [encodeURIComponent(fact.id).split(".").join("%2E"), fact]));
+    }
+    return saved;
+  }
+
   function applyPendingToPlayer(player = {}, pending = {}, options = {}) {
     const playerId = clean(options.playerId || player.id || player.playerId);
     const deliveryId = clean(pending.id);
@@ -529,6 +544,12 @@
       deliveredAt: now,
     };
     next.lootRecoveryReceipts[deliveryId] = receipt;
+    // Inventory, currency, receipt and Compendium facts must be committed
+    // together. Parent/child RTDB transactions running concurrently can race.
+    if (options.knowledgeFacts?.length) {
+      next.compendium = mergeCompendiumFacts(next.compendium, playerId,
+        options.knowledgeUnitId, options.knowledgeFacts, options);
+    }
     return { player: next, receipt, duplicate: false, blocked: false };
   }
 
@@ -632,15 +653,6 @@
       : [];
     const facts = [...(reserved.knowledgeFacts || []), ...materialFacts];
     let compendium = null;
-    if (facts.length) {
-      compendium = await persistKnowledgeFacts({
-        ...options,
-        playerId,
-        unitId: locked.sourceUnitId,
-        facts,
-      });
-    }
-
     let deliveryResult = null;
     if (reserved.pending?.id) {
       deliveryResult = await deliverPending({
@@ -649,6 +661,20 @@
         deliveryId: reserved.pending.id,
         interactionState: reserved.state,
         playerId,
+        knowledgeUnitId: locked.sourceUnitId,
+        knowledgeFacts: facts,
+      });
+      if (facts.length && deliveryResult.delivered) {
+        compendium = { saved: true, compendium: clone(deliveryResult.player?.compendium) };
+      }
+    }
+    // Capacity-blocked deliveries still save discoveries, without granting items.
+    if (facts.length && (!reserved.pending?.id || !deliveryResult?.delivered)) {
+      compendium = await persistKnowledgeFacts({
+        ...options,
+        playerId,
+        unitId: locked.sourceUnitId,
+        facts,
       });
     }
 
@@ -736,13 +762,16 @@
     const playerId = clean(options.playerId), lootInstanceId = clean(options.lootInstanceId);
     if (!db?.ref || !user || !playerId || !lootInstanceId) throw Error('Entra con tu personaje para recuperar el botín.');
     const actionId = normalizeId(options.actionId || 'claim');
-    const occupation = await onceValue(db,`${ROOTS.claims}/${lootInstanceId}`);
+    const targetResourceId = clean(options.targetResourceId), deliveryId = clean(options.deliveryId);
+    let key = [lootInstanceId, actionId, targetResourceId, deliveryId].map(v => encodeURIComponent(v).replace(/\./g, '%2E')).join('|');
+    const [occupation, existingInitial] = await Promise.all([
+      onceValue(db,`${ROOTS.claims}/${lootInstanceId}`),
+      onceValue(db, `${ROOTS.requests}/${playerId}/${key}`),
+    ]);
     if (!occupation || occupation.uid !== user.uid || occupation.playerId !== playerId || Number(occupation.expiresAt) <= Date.now()) {
       throw Error("Selecciona un cadáver libre antes de empezar a saquearlo.");
     }
-    const targetResourceId = clean(options.targetResourceId), deliveryId = clean(options.deliveryId);
-    let key = [lootInstanceId, actionId, targetResourceId, deliveryId].map(v => encodeURIComponent(v).replace(/\./g, '%2E')).join('|');
-    let existing = await onceValue(db, `${ROOTS.requests}/${playerId}/${key}`);
+    let existing = existingInitial;
     if (existing?.status === 'rejected' || (actionId === 'claim' && existing?.status === 'resolved' && !existing.response?.delivered)) {
       key += '|'+db.ref(`${ROOTS.requests}/${playerId}`).push().key;existing=null;
     }
@@ -773,11 +802,10 @@
   const authorities = new Map();
   async function resolveRequest(db, playerId, row) {
     await ensureDependencies();
-    const [actor,locked] = await Promise.all([onceValue(db,`${ROOTS.players}/${playerId}`),onceValue(db,`${ROOTS.lootInstances}/${row.lootInstanceId}`)]);
+    const [actor,locked,occupation] = await Promise.all([onceValue(db,`${ROOTS.players}/${playerId}`),onceValue(db,`${ROOTS.lootInstances}/${row.lootInstanceId}`),onceValue(db,`${ROOTS.claims}/${row.lootInstanceId}`)]);
     const owner = actor?.uid || actor?.vinculado_a || actor?.vinculo_jugador;
     const meta = locked && await onceValue(db,`${ROOTS.encounterLoot}/${safeKey(locked.encounterId)}/meta`);
     if (!owner || owner !== row.uid || row.playerId !== playerId || !locked?.locked || meta?.participants?.[playerId] !== true || meta.open === false || meta.result !== 'victory') throw Error('Tu personaje no participa en este botín.');
-    const occupation = await onceValue(db,`${ROOTS.claims}/${row.lootInstanceId}`);
     if (!occupation || occupation.uid !== row.uid || occupation.playerId !== playerId || Number(occupation.expiresAt) <= Date.now()) {
       throw Error("Este cadáver está ocupado por otro personaje o la reserva de saqueo expiró.");
     }

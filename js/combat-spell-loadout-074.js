@@ -63,15 +63,33 @@
   }
 
   function rawSpellIdsFor(source = {}) {
-    const selected = selectionSource(source).map((entry) => clean(entry?.spellId || entry?.id || entry)).filter(Boolean);
+    // Explicit empty player/caster selections are authoritative: never resurrect an old Unit deck.
+    const selected = selectionSource(source).map((entry) => clean(entry?.spellId || entry?.id || entry).replace(/^spell:/, "")).filter(Boolean);
+    const explicit = ["spellIds", "spells", "spell_ids", "spellSelections", "spellSelectionIndex"].some((key) => source[key] != null || source.characterBuild?.[key] != null);
+    const legacy = !explicit && source.isPlayer !== true
+      ? [source.action_slots, source.skillSlotIds, source.skillIds, source.mechanics?.skills]
+          .flatMap((list) => Array.isArray(list) ? list : [])
+          .map((entry) => clean(entry?.id || entry?.skillId || entry))
+          .filter((id) => id.startsWith("spell:")).map((id) => id.slice(6))
+      : [];
     const wizardIds = wizardRuntime()?.spellIdsForCombat?.(source) || [];
-    return [...new Set([...selected, ...wizardIds].map(clean).filter(Boolean))];
+    return [...new Set([...selected, ...legacy, ...wizardIds].map((id) => clean(id).replace(/^spell:/, "")).filter(Boolean))];
+  }
+
+  function npcCastingProfile(source = {}) {
+    if (source.isPlayer === true || source.actorCategory === "player" || source.canonicalScope === "player") return null;
+    const profile = source.mechanics?.spellcasting || source.spellcasting;
+    if (!profile || typeof profile !== "object") return null;
+    const ability = normalizeId(profile.ability || profile.abilityId || profile.stat);
+    if (!ability) return null;
+    return { ability, classId: normalizeId(profile.classId || profile.sourceClassId || "innate"), spellSlots: profile.spellSlots || profile.slots || null };
   }
 
   function classIdsFor(source = {}) {
     const ids = [];
     const add = (value) => { const id = normalizeId(value); if (id && !ids.includes(id)) ids.push(id); };
     add(source.classId || source.class_id || source.class);
+    add(source.mechanics?.spellcasting?.classId || source.spellcasting?.classId);
     add(source.characterBuild?.classId || source.characterBuild?.class_id);
     const lists = [source.classIds, source.classes, source.multiclass, source.characterBuild?.classIds, source.characterBuild?.classes];
     lists.forEach((list) => (Array.isArray(list) ? list : []).forEach((entry) => add(entry?.classId || entry?.class_id || entry?.id || entry)));
@@ -92,7 +110,12 @@
     return false;
   }
 
-  function castingClassIdsFor(source = {}) { return classIdsFor(source).filter(isCastingClass); }
+  function castingClassIdsFor(source = {}) {
+    const existing = classIdsFor(source).filter(isCastingClass);
+    if (existing.length) return existing;
+    const npc = npcCastingProfile(source);
+    return npc ? [isCastingClass(npc.classId) ? npc.classId : "innate"] : [];
+  }
   function canCastSpells(source = {}) { return castingClassIdsFor(source).length > 0; }
 
   function registerAvailableSpellCatalog() {
@@ -167,7 +190,9 @@
       if (!owned.includes(forced)) return { ok: false, reason: "SPELL_CASTING_CLASS_NOT_FOUND", classId: null };
       return { ok: true, reason: null, classId: forced, override: true, abilityId: override.abilityId || null };
     }
-    const legal = (id) => Boolean(id && owned.includes(id) && (!allowed.length || allowed.includes(id)));
+    // An explicitly configured NPC innate caster uses its own granted spell list.
+    // Player class restrictions remain authoritative and unchanged.
+    const legal = (id) => Boolean(id && owned.includes(id) && (id === "innate" || !allowed.length || allowed.includes(id)));
     if (requested) return legal(requested) ? { ok: true, reason: null, classId: requested } : { ok: false, reason: "SPELL_CLASS_NOT_AVAILABLE", classId: null };
     const sourceClass = normalizeId(spell.sourceClassId || spell.classId || spell.class_id);
     if (legal(sourceClass)) return { ok: true, reason: null, classId: sourceClass };
@@ -214,11 +239,17 @@
     const ids = spellIdsFor(source);
     const spellsById = {};
     const entries = [];
-    ids.forEach((id) => {
-      const definition = resolveSpellDefinition(id);
-      if (!definition.ok) return;
-      spellsById[id] = definition.spell;
-      entries.push({ spellId: id, status: "ready", reason: null, spell: definition.spell });
+    const invalidIds = [];
+    const missingIds = [];
+    rawSpellIdsFor(source).forEach((id) => {
+      const result = resolveSpellForCombatant(source, id);
+      if (!result.ok) {
+        (result.reason === "SPELL_DEFINITION_NOT_FOUND" ? missingIds : invalidIds).push(id);
+        entries.push({ spellId: id, status: "unavailable", reason: result.reason, spell: null });
+        return;
+      }
+      spellsById[id] = result.spell;
+      entries.push({ spellId: id, status: "ready", reason: null, spell: result.spell });
     });
     return {
       canCastSpells: canCastSpells(source),
@@ -228,16 +259,17 @@
       spellsById,
       spells: ids.map((id) => spellsById[id]).filter(Boolean),
       entries,
-      missingIds: [],
-      invalidIds: [],
-      ready: true,
-      hasErrors: false
+      missingIds,
+      invalidIds,
+      ready: !missingIds.length && !invalidIds.length,
+      hasErrors: Boolean(missingIds.length || invalidIds.length)
     };
   }
 
   return Object.freeze({
     version: VERSION,
     rawSpellIdsFor,
+    npcCastingProfile,
     spellIdsFor,
     buildSpellSelectionIndex,
     ownsSpell,

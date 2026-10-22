@@ -141,7 +141,16 @@
     ], 1) || 1);
     const hp = Math.max(0, firstNumber(material, ['hp', 'currentHp', 'currentHP', 'hp_actual', 'combatStats.hp_actual'], maxHp) ?? maxHp);
     const sp = firstNumber(material, ['sp', 'currentSp', 'currentSP', 'sp_actual', 'mechanics.sp', 'combatStats.sp_actual'], 0) || 0;
-    const skills = skillIdsFor(material);
+    const allSkillRefs = skillIdsFor(material);
+    // Universal separation: legacy NPC loadouts may contain spell: IDs.
+    // Keep Spells in the canonical Spell loadout and Skills in the Coin/action deck.
+    const skills = allSkillRefs.filter((id) => !id.startsWith('spell:'));
+    const spellSelections = [material.spellIds, material.spellSelections, material.spells, material.characterBuild?.spellIds]
+      .find((value) => Array.isArray(value));
+    const spellIds = [...new Set([
+      ...(spellSelections || []).map((item) => clean(item?.spellId || item?.id || item).replace(/^spell:/, '')),
+      ...allSkillRefs.filter((id) => id.startsWith('spell:')).map((id) => id.slice(6)),
+    ].filter(Boolean))];
     const actionSlots = actionSlotsFor(material);
     let speedRange = speedRangeFor(material);
     let speedFallback = false;
@@ -177,6 +186,13 @@
       skillIds: skills,
       skillSlotIds: skills,
       action_slots: skills,
+      ...(spellIds.length || spellSelections ? { spellIds } : {}),
+      ...(material.mechanics?.skills ? { mechanics: {
+        ...clone(material.mechanics),
+        skills: Array.isArray(material.mechanics.skills)
+          ? material.mechanics.skills.filter((id) => !clean(id).startsWith('spell:'))
+          : material.mechanics.skills,
+      } } : {}),
       equippedSkillIndex: Object.fromEntries(skills.map((id) => [id, true])),
       combatSprite: sprite || null,
       sprite_combate: sprite || null,

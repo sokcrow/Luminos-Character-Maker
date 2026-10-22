@@ -162,7 +162,8 @@
 
   function buildLibraryCombatant(actor, faction = "enemy", options = {}) {
     if (!actor || actor.scope !== "units") throw new Error("UNIT_ACTOR_REQUIRED");
-    const raw = clone(actor.raw || {}) || {};
+    const original = clone(actor.raw || {}) || {};
+    const raw = global.LuminousUniversalLibrary?.unitWithLoadout?.(original) || original;
     const sourceId = clean(actor.sourceId || actor.actorId);
     if (!sourceId) throw new Error("UNIT_ID_REQUIRED");
     const side = faction === "ally" ? "ally" : "enemy";
@@ -173,9 +174,15 @@
     const actionSlots = unitActionSlots(raw);
     const library = actorLibrary();
     const loadout = skillLoadoutRuntime();
-    const skillSlotIds = library?.skillSlotIdsFor ? library.skillSlotIdsFor("units", raw) : (actor.skillSlotIds || []);
-    const skillIds = library?.skillIdsFor ? library.skillIdsFor("units", raw) : [...new Set(skillSlotIds)];
-    const equippedSkillIndex = loadout?.buildEquippedSkillIndex ? loadout.buildEquippedSkillIndex(skillIds) : {};
+    const rawSkillSlotIds = library?.skillSlotIdsFor ? library.skillSlotIdsFor("units", raw) : (actor.skillSlotIds || raw.skillSlotIds || raw.action_slots || []);
+    const rawSkillIds = library?.skillIdsFor ? library.skillIdsFor("units", raw) : [...new Set(rawSkillSlotIds)];
+    const skillSlotIds = rawSkillSlotIds.filter((id) => !clean(id).startsWith("spell:"));
+    const skillIds = rawSkillIds.filter((id) => !clean(id).startsWith("spell:"));
+    const spellLoadout = global.LuminousCombatSpellLoadout074;
+    const legacySpells = [...rawSkillSlotIds, ...rawSkillIds].map(clean).filter((id) => id.startsWith("spell:")).map((id) => id.slice(6));
+    const selectedSpells = spellLoadout?.rawSpellIdsFor?.(raw) || (raw.spellIds || raw.spellSelections || raw.spells || []);
+    const spellIds = [...new Set([...selectedSpells.map((entry) => clean(entry?.spellId || entry?.id || entry).replace(/^spell:/, "")), ...legacySpells].filter(Boolean))];
+    const equippedSkillIndex = loadout?.buildEquippedSkillIndex ? loadout.buildEquippedSkillIndex(skillIds) : Object.fromEntries(skillIds.map(id => [id, true]));
 
     return {
       ...raw,
@@ -209,6 +216,8 @@
       skillSlotIds,
       skillIds,
       equippedSkillIndex,
+      spellIds,
+      spellSelectionIndex: Object.fromEntries(spellIds.map(id => [id, true])),
       statusEffects: raw.statusEffects && typeof raw.statusEffects === "object" ? clone(raw.statusEffects) : {},
       escala_matriz: Math.max(3, Math.trunc(firstFinite(raw.escala_matriz, raw.matrixScale, 3) || 3)),
       scale: firstFinite(raw.scale, raw.spriteScale, 1) ?? 1,
@@ -233,8 +242,9 @@
       updates[combatant.id] = combatant;
       created.push(combatant);
     }
-    await db.ref(ROOTS.combatants).update(updates);
-    return created;
+    // A single DM deployment authority enforces both FIELD capacity and BACKUP routing.
+    if (!global.LuminousCombatSession?.deploy) throw new Error("COMBAT_DEPLOYMENT_RUNTIME_REQUIRED");
+    return global.LuminousCombatSession.deploy({ db, units: created });
   }
 
   async function repairCanonicalSprites(combatants = state.combatants, options = {}) {

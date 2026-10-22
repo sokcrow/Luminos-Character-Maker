@@ -69,6 +69,10 @@ try{
    'real DM Theatre dashboard must retain Loot authority after Combat iframe closes');
  assert.equal(await live.installAuthority({db:dm.db,uid:dm.uid}),true);
  const options={db:player.db,playerId:'hunter',lootInstanceId,actionId:'harvest',targetResourceId:'meat',checkResult:{heads:5}};
+ // Requests must be rejected until this authenticated player holds the corpse lease.
+ await assert.rejects(live.requestAction(options),/Selecciona un cadáver libre/i);
+ const firstClaim=await live.claimCorpse(options);
+ assert.equal(firstClaim.acquired,true,'a linked participant must claim a corpse before submitting requests');
  const result=await live.requestAction(options);assert.equal(result.committed,true);assert.equal(result.delivery.delivered,true);
  const saved=(await dm.db.ref('campaña/jugadores/hunter').once('value')).val();assert.equal(Object.values(saved.inventario_activo).filter(i=>i.definitionId==='meat_wolf').reduce((n,i)=>n+i.quantity,0),1);
  const retry=await live.requestAction(options);assert.equal(retry.delivery.delivered,true);assert.equal(Object.keys((await dm.db.ref('campaña/jugadores/hunter/lootRecoveryReceipts').once('value')).val()).length,1);
@@ -112,6 +116,8 @@ try{
  await session.commitEnd({db:dm.db,uid:dm.uid,result:'victory',token:closing.estado.ending.token});
  assert.equal((await dm.db.ref('campaña/combate/estado/round').once('value')).val(),1);
  const secondLootId=waveLoot.finalized[0].lootInstanceId;
+ const waveClaim=await live.claimCorpse({...options,lootInstanceId:secondLootId});
+ assert.equal(waveClaim.acquired,true,'each corpse has its own exclusive lease');
  await dm.db.ref('campaña/jugadores/hunter/inventoryRules').set({activeSlotLimit:0,stashSlotLimit:0});
  const full=await live.requestAction({...options,lootInstanceId:secondLootId});assert.equal(full.delivery.delivered,false);
  const interaction=(await dm.db.ref('campaña/loot_postcombat/'+secondLootId).once('value')).val();

@@ -51,7 +51,23 @@
     return{id,enabled:record.enabled!==false,version,hash:recordHash,name:clean(record.characterName||record.nombre||record.name||record.displayName||id)||id,species:clean(record.species||record.family||record.variant||''),spriteUrl:spriteFor(record)||null,skillIds:skillIdsFor(record),canonical:record.metadata?.canonicalUnit===true};
   }
   function unitWithLoadout(record={}){
-    const copy=clone(record)||{},skillIds=skillIdsFor(copy);copy.loadout={...(copy.loadout||{}),skillIds};copy.skillIds=skillIds;copy.skillSlotIds=skillIds;copy.action_slots=skillIds;copy.equippedSkillIndex=Object.fromEntries(skillIds.map(id=>[id,true]));return copy;
+    const copy=clone(record)||{},rawIds=skillIdsFor(copy);
+    // Migrate legacy Units whose action_slots mixed Combat Skills with "spell:" references.
+    // Spell IDs must survive deployment, but never be validated as Combat Skill records.
+    const isSpellRef=id=>id.startsWith('spell:');
+    const skillIds=rawIds.filter(id=>!isSpellRef(id));
+    const legacySpells=rawIds.filter(isSpellRef).map(id=>id.slice(6)).filter(Boolean);
+    const selectedSpells=(Array.isArray(copy.spellIds)?copy.spellIds:[])
+      .map(id=>clean(id).replace(/^spell:/,'')).filter(Boolean);
+    const spellIds=[...new Set([...selectedSpells,...legacySpells])];
+    if(spellIds.length)copy.spellIds=spellIds;
+    // Pre-existing Scale Sorcerer records may lack this class field.
+    if(!copy.classId&&copy.mechanics?.sorceryPoints?.runtime==='sorcerer_class_runtime')copy.classId='sorcerer';
+    copy.loadout={...(copy.loadout||{}),skillIds};
+    copy.skillIds=skillIds;copy.skillSlotIds=skillIds;copy.action_slots=skillIds;
+    copy.equippedSkillIndex=Object.fromEntries(skillIds.map(id=>[id,true]));
+    if(Array.isArray(copy.mechanics?.skills))copy.mechanics.skills=copy.mechanics.skills.filter(id=>!isSpellRef(clean(id)));
+    return copy;
   }
   function preserveUnitCustomization(canonical={},persisted={}){
     const base=clone(canonical)||{};
