@@ -56,6 +56,14 @@ assert.ok(kit.sources.some(entry => entry.sourceType === 'spell' && entry.defini
 assert.ok(kit.sources.some(entry => entry.sourceType === 'spell' && entry.definition.id === 'charm_person'));
 assert.equal(kit.sources.some(entry => entry.sourceType === 'spell' && entry.definition.id === 'scorching_ray'), false);
 
+// The GOAP planner must actually emit a canonical Spell combat action, not just show a Spell in the Unit's data.
+const cantripOnly = { ...summoned, spellIds: ['fire_bolt'], action_slots: [], skillIds: [], skillSlotIds: [],
+  mechanics: { ...summoned.mechanics, skills: [] } };
+const planned = ai.planUnitTurn({ actor: cantripOnly, targetIds: ['player:spell_dummy'], availableSlots: 1 });
+assert.equal(planned.planned, true, 'A custom caster must be able to plan a combat turn');
+assert.ok(planned.actions.some(action => action.source?.type === 'spell' && action.source?.id === 'fire_bolt'),
+  'NPC casting must compile an executable Spell action');
+
 assert.equal(casting.spendSpellSlot(summoned, 'innate', 1).spent, 1);
 const backup = deploy.markBackup(summoned, { queueOrder: 1 });
 const returned = deploy.markField(backup, { round: 2 });
