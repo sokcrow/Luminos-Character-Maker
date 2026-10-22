@@ -188,6 +188,21 @@
     };
   }
 
+  function spellSelectionProvided(record = {}) {
+    return ['spellIds', 'spells', 'spell_ids', 'spellSelections', 'spellSelectionIndex']
+      .some(key => record[key] != null || record.characterBuild?.[key] != null);
+  }
+
+  function spellIdsForDeployment(record = {}) {
+    const runtime = global.LuminousCombatSpellLoadout074;
+    if (runtime?.rawSpellIdsFor) return runtime.rawSpellIdsFor(record);
+    const raw = record.spellIds ?? record.spells ?? record.spell_ids ?? record.spellSelections
+      ?? record.characterBuild?.spellIds ?? record.characterBuild?.spellSelections
+      ?? Object.entries(record.spellSelectionIndex || record.characterBuild?.spellSelectionIndex || {})
+        .filter(([, enabled]) => enabled === true).map(([id]) => id);
+    return [...new Set((Array.isArray(raw) ? raw : []).map(entry => clean(entry?.spellId || entry?.id || entry).replace(/^spell:/, '')).filter(Boolean))];
+  }
+
   function buildPlayer(playerId, player = {}) {
     const actorRow = actorForPlayer(playerId, player);
     const actor = actorRow?.record || {};
@@ -201,6 +216,8 @@
       ['skillDeck','skillSlotIds','skillIds','equippedSkillIndex'].some(key => player[key] != null || player.characterBuild?.[key] != null);
     const slotIds = hasPlayerLoadout ? skillSlotIdsFor(player) : skillSlotIdsFor(source);
     const ids = [...new Set(slotIds)];
+    const spellSource = spellSelectionProvided(player) ? player : source;
+    const spellIds = spellIdsForDeployment(spellSource);
     const slots = slotsFor(source);
     const stats = baseStats(source);
     const id = `player:${safe(playerId, 'player')}`;
@@ -238,6 +255,8 @@
       skillIds: ids,
       skillSlotIds: slotIds,
       equippedSkillIndex: equipped(ids),
+      spellIds,
+      spellSelectionIndex: Object.fromEntries(spellIds.map(spellId => [spellId, true])),
       usableItemIndex: usableItems(source),
       statusEffects: clone(source.statusEffects || {}),
       battleActive: true,

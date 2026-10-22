@@ -349,7 +349,6 @@
   }
   async function persistPostCombatSanity(db, encounter = {}) {
     const encounterId = String(encounter.estado?.encounterId || "").trim();
-    if (!encounterId || !db?.ref) throw Error("POST_COMBAT_SANITY_ENCOUNTER_REQUIRED");
     const participants = global.LuminousCombatParticipants;
     const rows = new Map();
     // Combatants already went through the end-of-encounter reducer.
@@ -367,6 +366,10 @@
         rows.set(playerId, {value: group === "combatants" ? unitSp(unit) : postCombatSanity(unitSp(unit))});
       }
     }
+    // An encounter with no participating Players has no SP to persist.
+    // Do not require a loot/encounter ID merely to conclude that no work exists.
+    if (!rows.size) return 0;
+    if (!encounterId || !db?.ref) throw Error("POST_COMBAT_SANITY_ENCOUNTER_REQUIRED");
     await Promise.all([...rows].map(async ([playerId, row]) => {
       // A whole-record transaction prevents repeating the 50% reduction on
       // retries; the marker is scoped to one Encounter, not the current round.

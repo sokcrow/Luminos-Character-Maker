@@ -506,17 +506,20 @@
     try {
       await live().ensureDependencies();
       const playerId = resolvePlayerId();
-      // Read the character and validate access simultaneously. These are
-      // independent reads; serial WAN round trips delayed the first loot Coin.
-      const [playerSnap] = await Promise.all([
-        state.db.ref(`campaña/jugadores/${playerId}`).once("value"),
-        // Keep authorization strict: do not start a Coin roll until Firebase
-        // confirms ownership and participation in this victory.
-        live().checkPlayerLootAccess({db:state.db,playerId,lootInstanceId}),
-      ]);
+      // The exclusive corpse lease was authorized by Firebase in enterCorpse().
+      // Revalidate ownership for every roll, overlapping the authorization read
+      // with the coin animation instead of serializing independent WAN work.
+      // The DM authority also checks ownership and participation before delivery.
+      const accessPromise = live().checkPlayerLootAccess({db:state.db,playerId,lootInstanceId})
+        .then(() => ({ok:true}), error => ({ok:false,error}));
+      const playerSnap = await state.db.ref(`campaña/jugadores/${playerId}`).once("value");
       const actor = clone(playerSnap.val() || {});
       actor.id = actor.id || playerId;
-      const checkResult = await animatedCheck(actor, actionId, { targetResourceId });
+      let checkResult;
+      try { checkResult = await animatedCheck(actor, actionId, { targetResourceId }); }
+      catch (error) { await accessPromise; throw error; }
+      const access = await accessPromise;
+      if (!access.ok) throw access.error;
       const result = await live().requestAction({
         db: state.db,
         playerId,

@@ -107,9 +107,14 @@
   function makeUnit(cfg) {
     const traitIds = [PACK_TACTICS_ID, ...(cfg.traits || []).map((t) => t.id)];
     const allSkills = [...cfg.tier1, ...(cfg.tier2 || []), ...(cfg.tier3 || [])];
+    // Spell references belong to the canonical Spell Catalog, not the Combat Skill library.
+    const combatSkills = allSkills.filter((id) => !id.startsWith('spell:'));
+    const spellIds = allSkills.filter((id) => id.startsWith('spell:')).map((id) => id.slice(6));
     const unit = {
       id: cfg.id, name: cfg.name, species: 'kobold', variant: cfg.variant, creatureType: cfg.creatureType || 'dragon',
       unitType: 'enemy', faction: 'enemy', actorCategory: 'enemy', isPlayer: false, linkedPlayerUID: '',
+      ...(cfg.classId ? { classId: cfg.classId } : {}),
+      ...(spellIds.length ? { spellIds } : {}),
       bodyProfile: clone(KOBOLD_LOOT_PROFILES.bodyProfile), lootProfile: clone(KOBOLD_LOOT_PROFILES.lootProfile),
       wealthProfile: socialLoot?.normalizeWealthProfile ? socialLoot.normalizeWealthProfile({ bandId: cfg.wealthBand || 'backstreets_very_poor', source: 'catalog_default' }) : { bandId: cfg.wealthBand || 'backstreets_very_poor', source: 'catalog_default', carriedCashSeparate: true },
       roleProfile: socialLoot?.normalizeRoleProfile ? socialLoot.normalizeRoleProfile({ roles: cfg.lootRoles || ['soldier'], source: 'catalog_default' }) : { roles: (cfg.lootRoles || ['soldier']).slice(), source: 'catalog_default' },
@@ -121,7 +126,7 @@
       senses: clone(cfg.senses || { darkvision: 60, darkvisionFt: 60, passivePerception: 8 }),
       traitIds, traits: [{ id: PACK_TACTICS_ID, source: 'racial_trait_catalog' }, ...(cfg.traits || []).map(clone)],
       staggerThresholds: clone(STAGGER_THRESHOLDS), rankProfiles: clone(UNIVERSAL_RANKS), allowedRanks: (cfg.allowedRanks || ['normal', 'captain', 'leader']).slice(),
-      action_slots: allSkills.slice(), attack_tier_1_sequence: cfg.tier1.filter((id) => !id.startsWith('spell:')), attack_tier_2_sequence: (cfg.tier2 || []).slice(), attack_tier_3_sequence: (cfg.tier3 || []).slice(),
+      action_slots: combatSkills.slice(), attack_tier_1_sequence: cfg.tier1.filter((id) => !id.startsWith('spell:')), attack_tier_2_sequence: (cfg.tier2 || []).slice(), attack_tier_3_sequence: (cfg.tier3 || []).slice(),
       damageTypeDefense: { resist: cfg.resist, weak: cfg.weak },
       flying: cfg.startsFlying === true,
       capabilities: { flight: Boolean(cfg.movement?.fly), climb: Boolean(cfg.movement?.climb), swim: Boolean(cfg.movement?.swim), burrow: Boolean(cfg.movement?.burrow) },
@@ -129,7 +134,8 @@
         hpModel: 'chassis_coefficient', hpBase: cfg.hpBase, hpCoefficient: cfg.hpCoefficient, defLvlMod: cfg.defLvlMod || 0, sp: 0,
         movementFeet: clone(cfg.movement || { ground: 30 }), preferredMovementMode: cfg.defaultMovementMode || (cfg.startsFlying ? 'fly' : 'ground'),
         darkvision: DARKVISION_RULES,
-        speedBonus: clone(cfg.speedBonus || { min: 0, max: 0 }), actionSlots: 1, maxSlotsLimit: 1, skills: allSkills.slice(),
+        speedBonus: clone(cfg.speedBonus || { min: 0, max: 0 }), actionSlots: 1, maxSlotsLimit: 1, skills: combatSkills.slice(),
+        ...(spellIds.length ? { spellIds: spellIds.slice() } : {}),
         staggerThresholds: clone(STAGGER_THRESHOLDS), stagger: '75%,50%,25%', damageTypeDefense: { resist: cfg.resist, weak: cfg.weak }, ...(clone(cfg.mechanics || {})),
       },
       schemaVersion: 4,
@@ -181,7 +187,7 @@
       id: 'scale_sorcerer_kobold', name: 'Scale Sorcerer Kobold', variant: 'scale_sorcerer', lootRoles: ['commander'], wealthBand: 'backstreets_low', sprite: 'https://imgur.com/TOHr6Dk.png', canonicalSourceName: 'Kobold Scale Sorcerer', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse', creatureType: 'humanoid',
       naturalWorldLevel: { min: 5, max: 9 }, hpBase: 27, hpCoefficient: 0.25,
       scores: SCALE_SORCERER_SCORES, proficiencies: SCALE_SORCERER_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 9 },
-      defLvlMod: 3, resist: 'perforante', weak: 'cortante', tags: ['spellcaster', 'commander'], traits: [SPELL_CASTER_CHARISMA], allowedRanks: ['captain', 'leader'],
+      defLvlMod: 3, resist: 'perforante', weak: 'cortante', classId: 'sorcerer', tags: ['spellcaster', 'commander'], traits: [SPELL_CASTER_CHARISMA], allowedRanks: ['captain', 'leader'],
       tier1: ['kobold_dagger_jab', 'spell:fire_bolt', 'spell:poison_spray', 'spell:charm_person', 'spell:chromatic_orb', 'spell:expeditious_retreat', 'spell:scorching_ray'],
       mechanics: { spellcasting: { ability: 'charisma', saveThresholdFormula: '10 + CHA_MOD', spellSlots: { 1: 4, 2: 2 } }, sorceryPoints: { encounterStart: 3, runtime: 'sorcerer_class_runtime', metamagic: ['subtle_spell', 'heightened_spell'] }, spellReferencesPendingCanonicalCatalog: true },
     })),
