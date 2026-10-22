@@ -145,55 +145,83 @@
     return (state.attempts || []).some((entry) => entry.key === key);
   }
 
-  // The authoritative post-combat penalty applies to anatomical work only.
-  // Traits/classes can explicitly grant training through the lootKnowledge contract;
-  // names alone never imply a proficiency that the character has not earned.
+  // All Loot skill checks require full proficiency in their actual selected
+  // skill. Explicit class/trait expertise in the activity can waive +8 TH.
+  const UNTRAINED_LOOT_DC = 8;
   const ANATOMY_ACTIONS = Object.freeze(new Set(["harvest", "extract", "autopsy"]));
-  const UNTRAINED_ANATOMY_DC = 8;
-  function hasAnatomyKnowledge(actor = {}, actionId = "") {
-    const action = normalizeId(actionId);
-    const all = actor.lootKnowledge || actor.postCombatKnowledge || actor.mechanics?.lootKnowledge || {};
-    const qualifies = value => value === true || value === "all" ||
-      Array.isArray(value) && (value.includes(action) || value.includes("anatomy")) ||
-      Boolean(value && typeof value === "object" && (value.all === true || value.anatomy === true || value[action] === true || value.actions?.[action] === true));
-    const grants = [all.all, all.anatomy, all.medicine, all[action], all?.actions?.[action],
-      actor.classFeatures?.lootKnowledge, actor.traitGrants?.lootKnowledge];
-    const featureSources = [actor.traits, actor.classTraits, actor.features, actor.generalTraits,
-      actor.grantedTraits, actor.classFeatures, actor.mechanics?.traits, actor.characterBuild?.traits];
-    for (const source of featureSources) {
-      const values = Array.isArray(source) ? source : source && typeof source === "object" ? Object.values(source) : [];
-      for (const feature of values) {
+  const hasGrant = (value, action, skill) => value === true || value === "all" ||
+    Array.isArray(value) && (value.includes(action) || value.includes(skill) ||
+      ANATOMY_ACTIONS.has(action) && (value.includes("anatomy") || value.includes("medicine"))) ||
+    Boolean(value && typeof value === "object" && (
+      value.all === true || value[action] === true || value[skill] === true ||
+      value.actions?.[action] === true || value.skills?.[skill] === true ||
+      ANATOMY_ACTIONS.has(action) && (value.anatomy === true || value.medicine === true)
+    ));
+  function hasLootKnowledge(actor = {}, actionId = "", skillId = "") {
+    const action = normalizeId(actionId), skill = normalizeId(skillId);
+    const sources = [
+      actor.lootKnowledge, actor.postCombatKnowledge,
+      actor.mechanics?.lootKnowledge, actor.classFeatures?.lootKnowledge,
+      actor.traitGrants?.lootKnowledge,
+    ];
+    for (const collection of [
+      actor.traits, actor.classTraits, actor.features, actor.generalTraits,
+      actor.grantedTraits, actor.classFeatures, actor.mechanics?.traits,
+      actor.characterBuild?.traits,
+    ]) {
+      const features = Array.isArray(collection) ? collection :
+        collection && typeof collection === "object" ? Object.values(collection) : [];
+      for (const feature of features) {
         if (!feature || typeof feature !== "object") continue;
-        grants.push(feature.lootKnowledge, feature.postCombatKnowledge,
+        sources.push(
+          feature.lootKnowledge, feature.postCombatKnowledge,
           feature.grants?.lootKnowledge, feature.grants?.postCombatKnowledge,
-          feature.effects?.lootKnowledge);
+          feature.effects?.lootKnowledge,
+        );
       }
     }
-    return grants.some(qualifies);
+    return sources.some(grant => hasGrant(grant, action, skill));
   }
-  function anatomyPenalty(actor = {}, actionId = "") {
-    const runtime = checks();
+  function hasAnatomyKnowledge(actor = {}, actionId = "") {
     const action = normalizeId(actionId);
-    if (!ANATOMY_ACTIONS.has(action)) return 0;
-    const proficiency = runtime?.skillProficiencyState?.(actor, "medicine") || "none";
-    if (proficiency === "proficient" || proficiency === "expertise" || hasAnatomyKnowledge(actor, action)) return 0;
-    return UNTRAINED_ANATOMY_DC;
+    return ANATOMY_ACTIONS.has(action) && hasLootKnowledge(actor, action, "medicine");
   }
-
+  function lootSkillForAction(actionId = "", options = {}) {
+    const runtime = checks(), action = normalizeId(actionId);
+    const profile = ACTION_PROFILES[action];
+    if (!profile) return "";
+    return normalizeId(options.skill || profile.defaultSkill ||
+      runtime?.getCheckProfile?.(profile.checkId)?.defaultSkill || "");
+  }
+  function lootProficiencyPenalty(actor = {}, actionId = "", options = {}) {
+    const skill = lootSkillForAction(actionId, options);
+    if (!skill) return 0;
+    const state = checks()?.skillProficiencyState?.(actor, skill) || "none";
+    if (state === "proficient" || state === "expertise" ||
+      hasLootKnowledge(actor, actionId, skill)) return 0;
+    return UNTRAINED_LOOT_DC;
+  }
+  // Existing HUD callers use the original export name.
+  function anatomyPenalty(actor = {}, actionId = "", options = {}) {
+    return lootProficiencyPenalty(actor, actionId, options);
+  }
   function checkDefinition(actor = {}, actionId, options = {}) {
     const runtime = checks();
     if (!runtime?.createLootCheckDefinition) throw new Error("LOOT_CHECK_RUNTIME_REQUIRED");
-    const profile = ACTION_PROFILES[normalizeId(actionId)];
-    if (!profile) throw new Error(`UNKNOWN_POST_COMBAT_ACTION:${normalizeId(actionId)}`);
+    const action = normalizeId(actionId), profile = ACTION_PROFILES[action];
+    if (!profile) throw new Error(`UNKNOWN_POST_COMBAT_ACTION:${action}`);
+    const skill = lootSkillForAction(action, options);
+    const surcharge = lootProficiencyPenalty(actor, action, { skill });
     return runtime.createLootCheckDefinition(actor, profile.checkId, {
       threshold: options.threshold ?? options.dc ?? profile.defaultDc,
-      thresholdModifier: Number(options.thresholdModifier ?? options.dcModifier ?? 0) + anatomyPenalty(actor, actionId),
-      skill: options.skill || profile.defaultSkill,
+      thresholdModifier: Number(options.thresholdModifier ?? options.dcModifier ?? 0) + surcharge,
+      skill,
       metadata: {
         corpseId: options.corpseId || null,
         targetItemId: options.targetItemId || null,
         targetResourceId: options.targetResourceId || null,
-        untrainedAnatomyPenalty: anatomyPenalty(actor, actionId),
+        untrainedSkillPenalty: surcharge,
+        requiredProficiencySkill: skill,
       },
     });
   }
@@ -518,6 +546,9 @@
     attemptKey,
     hasAttempted,
     hasAnatomyKnowledge,
+    hasLootKnowledge,
+    lootSkillForAction,
+    lootProficiencyPenalty,
     anatomyPenalty,
     checkDefinition,
     recoveryCountFromMargin,
