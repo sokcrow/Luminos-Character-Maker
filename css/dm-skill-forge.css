@@ -97,3 +97,13 @@ body.forge-experience{background:radial-gradient(ellipse at 65% 0%,#302719 0%,tr
 @media(max-width:1250px){.forge-experience .workspace{grid-template-columns:220px minmax(0,1fr)}.forge-experience .preview-pane{display:none}.forge-experience .effect-head{grid-template-columns:repeat(2,minmax(0,1fr)) auto}}
 @media(max-width:760px){.forge-experience .app{height:auto;min-height:100dvh}.forge-experience .topbar{flex-wrap:wrap}.forge-experience .toolbar{margin-left:0;width:100%}.forge-experience .toolbar .btn{flex:1}.forge-experience .workspace{display:flex;flex-direction:column}.forge-experience .directory{height:auto;min-height:0;display:block}.forge-experience .directory .skill-list{display:flex;overflow-x:auto;max-height:125px}.forge-experience .skill-row{min-width:180px;max-width:240px}.forge-experience .directory .search-wrap{padding:8px 14px}.forge-experience .editor{height:auto;overflow:visible;display:block}.forge-experience .editor-scroll{overflow:visible;padding:15px}.forge-experience .grid2,.forge-experience .grid3,.forge-experience .grid4,.forge-experience .effect-grid,.forge-experience .condition-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.forge-experience .coin-head{grid-template-columns:auto minmax(0,1fr);gap:8px}.forge-experience .coin-head>*:last-child{grid-column:2}.forge-experience .forge-steps{position:sticky;top:0;z-index:8;background:#0c0f0f;padding:8px 0 10px}.forge-experience .forge-step{font-size:11px}.forge-experience .preview-pane{display:block;height:auto;min-height:0}.forge-experience .preview-body{overflow:visible}.forge-experience .effect-head{grid-template-columns:repeat(2,minmax(0,1fr))}.forge-experience .editor-footer{display:none}}
 @media(max-width:450px){.forge-experience .effect-grid,.forge-experience .condition-grid{grid-template-columns:1fr}.forge-experience .forge-presets{grid-template-columns:1fr}.forge-experience .topbar{padding:12px}.forge-experience .toolbar{gap:6px}.forge-experience .toolbar .btn{padding:9px 10px;font-size:12px}.forge-experience .field-name{font-size:12px}}
+
+/* Information for the Director, not implementation identifiers. */
+.forge-experience #editMeta{display:none!important}
+.forge-experience .editor-footer #status{font-size:13px;font-weight:600;line-height:1.5}
+.forge-experience .editor-footer{justify-content:flex-start;position:relative;z-index:2}
+@media(max-width:760px){
+  body.forge-experience{overflow:auto;height:auto;min-height:100dvh}
+  .forge-experience .editor-footer{display:flex;position:sticky;bottom:0;z-index:10;background:#171915;border-top:1px solid #927747;min-height:56px}
+  .forge-experience .forge-steps{scroll-margin-top:0}
+}
