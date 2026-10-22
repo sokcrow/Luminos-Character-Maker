@@ -6,7 +6,7 @@ const { pathToFileURL } = require("node:url");
   for (const key of [
     "LuminousCookingEngine", "LuminousCookingV2Engine", "LuminousCookingRecipeCatalog",
     "LuminousCookingRecipeResolver", "LuminousCookingEquipmentEngine",
-    "LuminousCookingRuntime", "LuminousCookingUi", "LuminousInventoryHudV2",
+    "LuminousCookingRuntime", "LuminousCookingUi", "LuminousItemIconRegistry", "LuminousInventoryHudV2",
     "LuminousCoinEngine"
   ]) delete globalThis[key];
 
@@ -100,6 +100,7 @@ const { pathToFileURL } = require("node:url");
   };
 
   for (const file of [
+    "../js/item-icon-registry.js",
     "../js/item-cooking-engine.js",
     "../js/item-cooking-recipe-catalog.js",
     "../js/item-cooking-v2-engine.js",
@@ -110,6 +111,7 @@ const { pathToFileURL } = require("node:url");
   ]) await import(pathToFileURL(path.resolve(__dirname, file)).href);
 
   const ui = globalThis.LuminousCookingUi;
+  const icons = globalThis.LuminousItemIconRegistry;
   const recipes = globalThis.LuminousCookingRecipeCatalog;
   const resolver = globalThis.LuminousCookingRecipeResolver;
   const runtime = globalThis.LuminousCookingRuntime;
@@ -208,7 +210,9 @@ const { pathToFileURL } = require("node:url");
   assert.match(elements["cooking-v2-categories"].innerHTML, /COMIDAS/);
   assert.match(elements["cooking-v2-categories"].innerHTML, /POSTRES/);
   assert.match(elements["cooking-v2-list"].innerHTML, /cooking-book-stars/);
-  assert.match(elements["cooking-v2-list"].innerHTML, /Assets\/Icons\/items\/cooking_hud\//);
+  assert.match(elements["cooking-v2-list"].innerHTML, /Assets\/Icons\/items\/consumable\/white_bread\.png/);
+  assert.doesNotMatch(elements["cooking-v2-list"].innerHTML, /cooking_hud\//);
+  assert.equal(icons.resolveIcon("white_bread", { fallback: false }), "Assets/Icons/items/consumable/white_bread.png");
   assert.match(elements["cooking-v2-count"].textContent, /RECETAS DESCUBIERTAS/);
   assert.doesNotMatch(elements["cooking-v2-detail"].innerHTML, /Cooking Check Result/);
 
@@ -356,11 +360,17 @@ const { pathToFileURL } = require("node:url");
   assert.match(css, /grid-template-columns:\s*minmax\(0,45fr\) minmax\(0,55fr\)/);
   assert.match(css, /cooking-book-brand-ribbon/);
   assert.match(css, /max-width:\s*920px/);
-  for (const art of ["hero","grilled","tea","herbs","raw_meat"]) {
-    assert.ok(require("node:fs").existsSync(
-      path.resolve(__dirname,"../Assets/Icons/items/cooking_hud/" + art + ".webp")
-    ),"HUD art must be a repository asset: " + art);
+  for (const family of ["white_bread", "food_meal", "food_soup", "food_dessert",
+    "drink", "culinary_flour", "meat_mammal", "generic_item"]) {
+    const asset = icons.resolveIcon(family, { fallback: false });
+    assert.ok(asset && require("node:fs").existsSync(path.resolve(__dirname, "..", asset)),
+      "canonical item icon must exist: " + family);
   }
+  assert.match(css, /TX-01: compact, touch-first portrait layout/);
+  assert.match(css, /grid-template-columns: minmax\(0,42fr\) minmax\(0,58fr\)/);
+  assert.match(css, /min-width: 691px\) and \(max-width: 920px\)/);
+  assert.doesNotMatch(require("node:fs").readFileSync(
+    path.resolve(__dirname, "../js/item-cooking-ui.js"), "utf8"), /cooking_hud\//);
 
   // Exercise the rendered menu, not just the availability helper.
   globalThis.LuminousInventoryHudV2.state.stashUnlocked = false;
