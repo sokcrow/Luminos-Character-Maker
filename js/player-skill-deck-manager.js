@@ -259,6 +259,12 @@
     const id=linkedPlayerId(detail);
     if(id&&state.playerId&&id!==state.playerId)return;
     if(id&&!state.playerId)state.playerId=id;
+    // The sheet emits its authoritative playerId after auth may have already
+    // discovered multiple UID-linked records. Bind that approved character.
+    if(id && !state.ref) {
+      const user=global.firebase?.auth?.().currentUser;
+      if(user?.uid)void bindPlayerId(id,user).catch(()=>setMessage("No se pudo vincular el Deck a tu personaje.",true));
+    }
     if(state.dirty){state.character=fresh;render();return;}
     state.character=fresh;prep();render();
   }
@@ -282,6 +288,13 @@
     ref.on("value",handler,()=>setMessage("No se pudo sincronizar el Deck.",true));
     state.ref=ref;state.handler=handler;
   }
+  function selectLinkedPlayer(entries=[],preferredId="") {
+    const preferred=clean(preferredId);
+    if(preferred && entries.some(([id])=>id===preferred))return preferred;
+    const approved=entries.filter(([,player])=>clean(player?.status).toLowerCase()==="approved");
+    if(approved.length===1)return approved[0][0];
+    return entries.length===1 ? entries[0][0] : "";
+  }
   async function bindAuth(user){
     if(!user?.uid){state.uid="";state.playerId="";setMessage("Inicia sesión para administrar tus Skills.",true);render();return;}
     const playerFromEvent=state.playerId||linkedPlayerId();
@@ -290,8 +303,9 @@
     try{
       const q=await db.ref("campaña/jugadores").orderByChild("uid").equalTo(user.uid).once("value");
       const linked=Object.entries(q.val()||{}).filter(([,p])=>clean(p?.uid)===user.uid);
-      if(linked.length!==1){setMessage("Abre tu ficha de personaje para administrar el Deck.",true);return;}
-      await bindPlayerId(linked[0][0],user);
+      const linkedId=selectLinkedPlayer(linked,state.playerId);
+      if(!linkedId){setMessage("Abre tu ficha de personaje para administrar el Deck.",true);return;}
+      await bindPlayerId(linkedId,user);
     }catch(e){setMessage("No se pudo validar tu personaje.",true);}
   }
   async function save(){
@@ -415,6 +429,6 @@
   }
   if(doc.readyState==="loading")doc.addEventListener("DOMContentLoaded",init,{once:true});
   else init();
-  const api=Object.freeze({init,render,normalizeDeck,expandDeck,validateDeck,artwork,frameFor,typeFor,state});
+  const api=Object.freeze({init,render,normalizeDeck,expandDeck,validateDeck,artwork,frameFor,typeFor,selectLinkedPlayer,state});
   global.LuminousPlayerDeckManager=api;
 })(typeof window!=="undefined"?window:globalThis);
