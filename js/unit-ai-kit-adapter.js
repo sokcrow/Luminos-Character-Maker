@@ -9,6 +9,7 @@
   const goap = global.LuminousIndividualGoapCombatAI || safeRequire("./individual-goap-combat-ai.js");
   const ammoRuntime = () => global.LuminousUniversalRangedAmmoRuntime || safeRequire("./universal-ranged-ammo-runtime.js");
   const spellRuntime = () => global.LuminousSpellcastingRuntime || safeRequire("./spellcasting-runtime.js");
+  const spellLoadout = () => global.LuminousCombatSpellLoadout074 || safeRequire("./combat-spell-loadout-074.js");
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const asArray = (value) => value == null ? [] : (Array.isArray(value) ? value : [value]);
@@ -147,6 +148,19 @@
   function collectSpells(actor = {}, options = {}, unresolved = []) {
     const spells = objectEntriesFrom(actor, ["resolvedSpells", "combatSpells", "spells"]);
     const prepared = [actor.preparedSpells, actor.spellcasting?.preparedSpells, actor.spellcasting?.prepared];
+    // Canonical spellIds are the shared interface for PCs, NPCs and summons.
+    // Resolve trusted definitions before AI considers a Spell as an action.
+    const loadout = spellLoadout();
+    for (const id of loadout?.rawSpellIdsFor?.(actor) || []) {
+      const match = loadout.resolveSpellForCombatant(actor, id);
+      if (match.ok) spells.push({
+        ...match.spell,
+        id: match.spellId,
+        sourceClassId: match.classId,
+        classId: match.classId,
+      });
+      else unresolved.push({ sourceType: "spell", sourceId: id, reason: match.reason || "spell_definition_unresolved" });
+    }
     for (const collection of prepared) {
       for (const raw of asArray(collection)) {
         if (raw && typeof raw === "object") {
