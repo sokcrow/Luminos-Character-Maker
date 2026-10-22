@@ -544,6 +544,12 @@
       deliveredAt: now,
     };
     next.lootRecoveryReceipts[deliveryId] = receipt;
+    // Inventory, currency, receipt and Compendium facts must be committed
+    // together. Parent/child RTDB transactions running concurrently can race.
+    if (options.knowledgeFacts?.length) {
+      next.compendium = mergeCompendiumFacts(next.compendium, playerId,
+        options.knowledgeUnitId, options.knowledgeFacts, options);
+    }
     return { player: next, receipt, duplicate: false, blocked: false };
   }
 
