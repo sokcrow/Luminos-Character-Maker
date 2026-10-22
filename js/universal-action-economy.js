@@ -268,6 +268,10 @@
 
   function consumeCounterReaction(unit, skill, options = {}) {
     if (!isCounterSkill(skill)) return true;
+    const normalized = global.LuminousUniversalModifiers?.normalizeSkill?.(skill) || skill || {};
+    const subtype = normalizeId(normalized.defenseSubtype || normalized.defense_subtype || normalized.type);
+    // A Clashable Counter spends its assigned Action Slot, never a second Reaction.
+    if (subtype === "clashablecounter" || subtype === "clashable_counter") return true;
     return consume(unit, ACTION_COSTS.REACTION, options);
   }
 

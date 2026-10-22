@@ -61,8 +61,14 @@
     }
     function powerState(entry, remaining, opponent) {
       const data = r.data(entry.plan), unit = r.unit(entry.ownerId), other = r.unit(opponent?.ownerId);
+      const defenseType = global.LuminousClashableDefenses073?.defenseTypeOf(entry.plan?.data);
+      const clashableDefense = global.LuminousClashableDefenses073?.isClashableDefensePlan(entry.plan);
       const power = Math.max(0, data.basePower + data.finalPowerBonus + (data.grappleCheck ? 0 :
-        r.clashLevelPowerBonus(unit, other) + r.statusAttackPowerModifier(unit) + r.statusClashPowerModifier(unit) + r.targetFinalPowerVulnerabilityBonus(other)));
+        (clashableDefense
+          ? r.clashableDefenseLevelPowerBonus(unit, other) + r.statusDefensePowerModifier(unit) +
+            (defenseType === 'clashablecounter' ? r.conditionCounterPowerModifier(unit) : 0)
+          : r.clashLevelPowerBonus(unit, other) + r.statusAttackPowerModifier(unit)) +
+        r.statusClashPowerModifier(unit) + r.targetFinalPowerVulnerabilityBonus(other)));
       return { entry, remaining, data, power, coins: [] };
     }
     function toss(entry, index, { attackCoin = true, paralysis = false } = {}) {
@@ -84,7 +90,10 @@
         const frames = [];
         for (const state of states) {
           if (index >= state.remaining) continue;
-          const coin = toss(state.entry, index, { attackCoin: !state.data.grappleCheck, paralysis: !state.data.grappleCheck });
+          const coin = toss(state.entry, index, {
+            attackCoin: !state.data.grappleCheck && !global.LuminousClashableDefenses073?.isClashableDefensePlan(state.entry.plan),
+            paralysis: !state.data.grappleCheck
+          });
           if (coin.side === 'head' && !coin.paralyzedHead) state.power += state.data.coinPower;
           state.coins.push(coin);
           frames.push([state, coin]);
@@ -96,12 +105,12 @@
     }
     async function rollPower(entry, remaining, opponent = null) { return (await rollStates([powerState(entry, remaining, opponent)]))[0]; }
     async function rollPair(a, countA, b, countB) { return rollStates([powerState(a, countA, b), powerState(b, countB, a)]); }
-    async function hits(entry, targetId, remaining, { heal = false } = {}) {
+    async function hits(entry, targetId, remaining, { heal = false, mitigationPenalty = 0 } = {}) {
       const data = r.data(entry.plan), target = r.unit(targetId);
       if (!target || remaining <= 0) return 0;
       let power = Math.max(0, data.basePower + data.finalPowerBonus + (entry._counterReaction ?
         r.statusDefensePowerModifier(r.unit(entry.ownerId)) + r.conditionCounterPowerModifier(r.unit(entry.ownerId)) :
-        r.statusAttackPowerModifier(r.unit(entry.ownerId))) + r.targetFinalPowerVulnerabilityBonus(target)), total = 0;
+        r.statusAttackPowerModifier(r.unit(entry.ownerId))) + r.targetFinalPowerVulnerabilityBonus(target) - Math.max(0, Number(mitigationPenalty) || 0)), total = 0;
       const coins = [], first = Math.max(0, data.coinAmount - remaining);
       await show('hitsStart', entry, remaining);
       for (let index = 0; index < remaining; index++) {
@@ -147,12 +156,13 @@
       mutate('ActionStarted', a, {}, () => { r.processConditionRemovalTrigger(a.ownerId, 'attack'); r.processConditionRemovalTrigger(b.ownerId, 'attack'); r.markEntryStarted(a); });
       mutate('ActionStarted', b, {}, () => { r.markEntryStarted(b); });
       emit('ClashStarted', a, { opponentActionId: action(b).actionId });
-      let remainingA = da.coinAmount, remainingB = db.coinAmount, clashCount = 0, ties = 0;
+      let remainingA = da.coinAmount, remainingB = db.coinAmount, clashCount = 0, ties = 0, lastExchange = null;
       await show('clashStart', a, b, remainingA, remainingB);
       while (remainingA > 0 && remainingB > 0) {
         clashCount++;
         await show('clashContact', a, b, clashCount);
         const [ra, rb] = await rollPair(a, remainingA, b, remainingB);
+        lastExchange = { a: ra.power, b: rb.power };
         const winner = ra.power === rb.power ? 'tie' : ra.power > rb.power ? 'a' : 'b';
         if (winner === 'a') remainingB--; else if (winner === 'b') remainingA--;
         emit('ClashRoundResolved', a, { opponentActionId: action(b).actionId, clashCount, powerA: ra.power, powerB: rb.power, winner, remainingA, remainingB });
@@ -177,8 +187,24 @@
         r.applySkillStatusEffects(loser, winner.ownerId, '[Clash Lose]', { clashCount });
         r.healCombatantSP(winner.ownerId, spGain);
       });
+      const defenses = global.LuminousClashableDefenses073;
+      const winningPower = winner === a ? lastExchange?.a : lastExchange?.b;
+      const losingPower = loser === a ? lastExchange?.a : lastExchange?.b;
+      const defenseResult = defenses?.resultForClash(winner.plan, loser.plan, losingPower, winningPower);
+      if (defenseResult?.guardWin && defenseResult.guardTremorPower > 0) {
+        mutate('ClashableGuardTremorApplied', winner, {
+          targetId: loser.ownerId, power: defenseResult.guardTremorPower
+        }, () => r.raiseRemainingStaggerThresholdByDamage(loser.ownerId, defenseResult.guardTremorPower));
+      }
       await show('clashDefeat', winner, loser);
-      await hits(winner, loser.ownerId, remaining, { heal: false, clashWinner: true });
+      // Clashable Guard wins defensively, without dealing a normal attack.
+      // When it loses, its last Clash Power mitigates every surviving attack Coin.
+      // Clashable Counter wins as an attack with its surviving Coins.
+      if (defenseResult?.performHits !== false) {
+        await hits(defenseResult?.counterWin ? { ...winner, _counterReaction: true } : winner, loser.ownerId, remaining, {
+          heal: false, mitigationPenalty: defenseResult?.guardMitigation || 0
+        });
+      }
       await show('clashEnd', a, b, winner);
       emit('ActionFinished', a); emit('ActionFinished', b);
       return { winner, loser, clashCount, spGain, remaining };

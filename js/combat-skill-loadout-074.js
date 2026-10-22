@@ -103,16 +103,19 @@
     return skillSlotEntries(source).map((row) => row.skillId);
   }
 
+  function grantedSkillIdsFor(source = {}) {
+    const raw = source.characterBuild?.grantedSkillIds || source.grantedSkillIds || [];
+    const values = Array.isArray(raw) ? raw : Object.values(raw || {});
+    return [...new Set(values.map(row => clean(row?.skillId || row?.id || row)).filter(Boolean))];
+  }
+
   function skillIdsFor(source = {}) {
     const ids = skillSlotIdsFor(source);
     const index = source.characterBuild?.equippedSkillIndex || source.equippedSkillIndex;
-    if (!ids.length && index && typeof index === "object") {
-      return Object.entries(index)
-        .filter(([, enabled]) => enabled === true)
-        .map(([id]) => clean(id))
-        .filter(Boolean);
-    }
-    return [...new Set(ids)];
+    const base = !ids.length && index && typeof index === "object"
+      ? Object.entries(index).filter(([,enabled]) => enabled === true).map(([id]) => clean(id)).filter(Boolean)
+      : ids;
+    return [...new Set([...base, ...grantedSkillIdsFor(source)])];
   }
 
   function buildEquippedSkillIndex(sourceOrIds = {}) {
@@ -230,6 +233,11 @@
   function hydrateLoadout(source = {}, skills = state.skills) {
     const library = mergedSkillLibrary(skills);
     const entries = skillSlotEntries(source);
+    const inDeck = new Set(entries.map(row => row.skillId));
+    grantedSkillIdsFor(source).filter(id => !inDeck.has(id)).forEach((skillId, i) => {
+      entries.push({ index: entries.length, skillId, granted: true });
+      inDeck.add(skillId);
+    });
     const slots = [];
     const skillsById = {};
     const missingIds = [];
@@ -270,6 +278,7 @@
   function ownsSkill(source = {}, skillId) {
     const id = clean(skillId);
     if (!id) return false;
+    if (grantedSkillIdsFor(source).includes(id)) return true;
     if (source.equippedSkillIndex && typeof source.equippedSkillIndex === "object") return source.equippedSkillIndex[id] === true;
     return skillIdsFor(source).includes(id);
   }
@@ -322,6 +331,7 @@
     skillSlotEntries,
     skillSlotIdsFor,
     skillIdsFor,
+    grantedSkillIdsFor,
     buildEquippedSkillIndex,
     isPlayerUnit,
     playerSignals,

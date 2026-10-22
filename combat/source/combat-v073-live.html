@@ -2500,7 +2500,8 @@
   global.LuminousCoinEngine = Object.freeze({ HEAD_SRC, TAIL_SRC, HEAD_SFX, TAIL_SFX, DEFAULT_COIN_COUNT, HEAD_BONUS, clampHeadsChance, rollSide, coinSrc, runAnimatedRoll });
 })(window);
 </script>
-<script src="js/combat-v073-steps.js?v=20261021-encounter-3"></script>
+<script src="js/combat-v073-clashable-defenses.js?v=20261022-clashable-1"></script>
+<script src="js/combat-v073-steps.js?v=20261022-clashable-1"></script>
 <script src="js/combat-v073-playback.js"></script>
 <script src="js/combat-session-lifecycle.js?v=20261021-encounter-3"></script>
 <script src="js/combat-v073-playback-sync.js?v=20261021-encounter-3"></script>
@@ -3180,6 +3181,11 @@ function statusDefenseLevel(unit){const base=Number(unit?.defensiveLevel??unit?.
 function clashLevelPowerBonus(unit,opponent){
   if(!unit||!opponent)return 0;
   const diff=statusOffenseLevel(unit)-statusOffenseLevel(opponent);
+  return diff>0?Math.floor(diff/3):0
+}
+function clashableDefenseLevelPowerBonus(unit,opponent){
+  if(!unit||!opponent)return 0;
+  const diff=statusDefenseLevel(unit)-statusOffenseLevel(opponent);
   return diff>0?Math.floor(diff/3):0
 }
 function statusLevelDamageMultiplier(attacker,defender,skillData=null){
@@ -4194,8 +4200,10 @@ function isReciprocalClashCandidate(sourceId,sourceSlotIndex,plan){
 function clashRedirectEligibility(sourceId,sourceSlotIndex,plan){
   const source=combatData[sourceId],target=combatData[plan?.targetId],targetPlan=plan?.targetId!=null&&plan?.targetSlotIndex!=null?plannedActionAt(plan.targetId,plan.targetSlotIndex):null;
   if(!source||!target||!targetPlan||!isUnitTargetable(source)||!isUnitTargetable(target)||source.faction===target.faction)return{canClash:false,directTarget:false,speedRedirect:false,sourceSpeed:0,targetSpeed:0,targetPlan:null};
-  if(!isSkillOrSpellPlan(plan)||planTargetRule(plan,source)!=='enemy'||!isSkillOrSpellPlan(targetPlan)||planTargetRule(targetPlan,target)!=='enemy')return{canClash:false,directTarget:false,speedRedirect:false,sourceSpeed:Number(source.speed)||0,targetSpeed:Number(target.speed)||0,targetPlan};
-  const sourceSpeed=Number(source.speed)||0,targetSpeed=Number(target.speed)||0,directTarget=targetPlan.targetId===sourceId,speedRedirect=sourceSpeed>targetSpeed;
+  const defensiveClash=Boolean(window.LuminousClashableDefenses073?.isClashableDefensePlan(targetPlan));
+  if(!isSkillOrSpellPlan(plan)||planTargetRule(plan,source)!=='enemy'||!window.LuminousClashableDefenses073?.canChallengeDefense(plan)||(!defensiveClash&&(!isSkillOrSpellPlan(targetPlan)||planTargetRule(targetPlan,target)!=='enemy')))
+    return{canClash:false,directTarget:false,speedRedirect:false,sourceSpeed:Number(source.speed)||0,targetSpeed:Number(target.speed)||0,targetPlan};
+  const sourceSpeed=Number(source.speed)||0,targetSpeed=Number(target.speed)||0,directTarget=defensiveClash||targetPlan.targetId===sourceId,speedRedirect=!defensiveClash&&sourceSpeed>targetSpeed;
   return{canClash:directTarget||speedRedirect,directTarget,speedRedirect,sourceSpeed,targetSpeed,targetPlan}
 }
 function isForcedRedirectClashCandidate(sourceId,sourceSlotIndex,plan){
@@ -6055,8 +6063,8 @@ function renderAllPlannedSlots(){
 }
 function defenseTypeOfPlan(plan){
   if(!plan)return null;
-  if(plan.type==='defense')return String(plan.data?.defenseType||plan.data?.name||'defense').toLowerCase();
-  if(plan.type==='auto'&&plan.data?.kind==='defense')return String(plan.data?.defenseType||plan.data?.name||'defense').toLowerCase();
+  if(plan.type==='defense'||(plan.type==='auto'&&plan.data?.kind==='defense'))
+    return window.LuminousClashableDefenses073?.defenseTypeOf(plan.data)||String(plan.data?.defenseType||plan.data?.name||'defense').toLowerCase();
   return null
 }
 function plannedDefenseType(plans,ignoreIndex=-1){
@@ -6078,7 +6086,7 @@ function assignSelectedToSlot(){
     return
   }
   if(selected.type==='defense'){
-    const selectedDefense=String(selected.data?.defenseType||selected.data?.name||'defense').toLowerCase(),
+    const selectedDefense=window.LuminousClashableDefenses073?.defenseTypeOf(selected.data)||String(selected.data?.defenseType||selected.data?.name||'defense').toLowerCase(),
           lockedDefense=plannedDefenseType(plannedActions,assignedSlot);
     if(lockedDefense&&lockedDefense!==selectedDefense){
       setStatus(`DEFENSE · ${selected.data.name} bloqueado · este Turn ya usa ${lockedDefense.toUpperCase()} · no se pueden combinar tipos`);
@@ -6382,7 +6390,9 @@ function isSaveOnlySpellPlan(plan){
   return Boolean(spellLike&&data.save&&(data.saveOnly||(!actionHasCoins(plan)&&Array.isArray(data.failedSaveEffects))))
 }
 function isOffensiveCoinPlan(entry){
-  return Boolean(entry&&isSkillOrSpellPlan(entry.plan)&&planTargetRule(entry.plan,combatData[entry.ownerId])==='enemy')
+  return Boolean(entry&&isSkillOrSpellPlan(entry.plan)&&
+    !window.LuminousClashableDefenses073?.isDefensePlan(entry.plan)&&
+    planTargetRule(entry.plan,combatData[entry.ownerId])==='enemy')
 }
 function entryKey(entry){return `${entry.ownerId}:${entry.localIndex}`}
 function findQueueEntry(queue,ownerId,slotIndex){
@@ -6390,11 +6400,25 @@ function findQueueEntry(queue,ownerId,slotIndex){
 }
 function findClashPartner(entry,queue,resolvedKeys){
   if(!isOffensiveCoinPlan(entry)||!isUnitTargetable(combatData[entry.ownerId]))return null;
+  const defenses=window.LuminousClashableDefenses073;
+  const available=candidate=>Boolean(candidate&&!resolvedKeys.has(entryKey(candidate))&&
+    isUnitTargetable(combatData[candidate.ownerId])&&!unitActionBlocked(combatData[candidate.ownerId],round));
+  // A planned Clashable defense intercepts the incoming attack on its own Slot;
+  // an already-resolved Slot can never defend twice.
+  if(defenses?.canChallengeDefense(entry.plan)&&entry.plan.targetId){
+    const slotIndex=entry.plan.targetSlotIndex;
+    const direct=slotIndex==null?null:findQueueEntry(queue,entry.plan.targetId,slotIndex);
+    if(available(direct)&&defenses.isClashableDefensePlan(direct.plan))return direct;
+    if(slotIndex==null){
+      const fallback=queue.find(candidate=>candidate.ownerId===entry.plan.targetId&&
+        available(candidate)&&defenses.isClashableDefensePlan(candidate.plan));
+      if(fallback)return fallback;
+    }
+  }
   const descriptor=reservedClashPartnerDescriptor(entry.ownerId,entry.localIndex,entry.plan);
   if(!descriptor)return null;
   const candidate=findQueueEntry(queue,descriptor.ownerId,descriptor.slotIndex);
-  if(!candidate||resolvedKeys.has(entryKey(candidate))||!isOffensiveCoinPlan(candidate))return null;
-  if(!isUnitTargetable(combatData[candidate.ownerId])||unitActionBlocked(combatData[candidate.ownerId],round))return null;
+  if(!available(candidate)||!(isOffensiveCoinPlan(candidate)||defenses?.isClashableDefensePlan(candidate.plan)))return null;
   return candidate
 }
 function damageTypeLabel(data){
@@ -6887,10 +6911,10 @@ function combatStepRuntime(){
             headsChance:50,intervalMs:window.LuminousCombatAudiovisual073?.duration(COMBAT_PACE.coinInterval)??COMBAT_PACE.coinInterval,auto:true,silent:true,
             resolvedCoins:[coin],onCoinResolved:onResolved})
         };
-  const names=['coinHeadsChanceForUnit','clashLevelPowerBonus','statusAttackPowerModifier','statusClashPowerModifier',
+  const names=['coinHeadsChanceForUnit','clashLevelPowerBonus','clashableDefenseLevelPowerBonus','statusAttackPowerModifier','statusClashPowerModifier',
     'targetFinalPowerVulnerabilityBonus','statusDefensePowerModifier','conditionCounterPowerModifier',
     'conditionEvasionPowerModifier','triggerBleedOnCoinFlip','consumeParalysisOnHead','isUnitTargetable',
-    'damageCombatant','healCombatant','triggerGettingHitStatuses','applySkillStatusEffects','triggerTremorBurst',
+    'damageCombatant','healCombatant','triggerGettingHitStatuses','applySkillStatusEffects','triggerTremorBurst','raiseRemainingStaggerThresholdByDamage',
     'triggerCounterAfterHit','resolveEvadeAgainstCoin','processConditionRemovalTrigger','markEntryStarted',
     'healCombatantSP','addEphemeralShield','unitReactionBlocked','disarmEvade'];
   const rules={data:clashData,unit:id=>combatData[id],
@@ -7478,7 +7502,11 @@ function isEvadePlan(plan){
 }
 function isCounterPlan(plan){
   const data=plan?.data||{};
-  return Boolean((plan?.type==='defense'||plan?.type==='auto')&&String(data.defenseType||'').toLowerCase()==='counter')
+  return Boolean((plan?.type==='defense'||plan?.type==='auto')&&
+    (window.LuminousClashableDefenses073?.defenseTypeOf(data)||String(data.defenseType||'').toLowerCase())==='counter')
+}
+function isClashableDefensePlan(plan){
+  return Boolean(window.LuminousClashableDefenses073?.isClashableDefensePlan(plan))
 }
 function ensureReactiveDefense(unit){
   if(!unit)return null;
@@ -7664,6 +7692,14 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
     return
   }
 
+  if(isClashableDefensePlan(plan)){
+    // The defensive Action Slot waits for an incoming attack. If no attacker
+    // selects it, the unused defense simply expires at the end of the Turn.
+    setExecutingSlot(slot,false);
+    await wait(160);
+    return
+  }
+
   resolvedKeys.add(key);
 
   if((isSaveOnlySpellPlan(plan)||isSkillOrSpellPlan(plan))&&planTargetRule(plan,ownerUnit)!=='ally'&&planTargetRule(plan,ownerUnit)!=='self')processConditionRemovalTrigger(entry.ownerId,'attack');
@@ -7829,7 +7865,27 @@ async function startRound(){
 }
 function renderSkills(){const body=$('category-body');body.innerHTML='';const stack=document.createElement('div');stack.className='skill-stack';const preview=getNextSkillPreview(selectedSlotIndex);if(preview?.skill){const p=document.createElement('div'),sin=sinInfo(preview.skill);p.className='skill-option skill-preview';p.setAttribute('aria-disabled','true');p.style.setProperty('--sin',sin.color);p.innerHTML=skillOptionMarkup(preview.skill);stack.appendChild(p)}getHand(selectedSlotIndex).forEach(c=>{const b=document.createElement('button'),sin=sinInfo(c.skill);b.className='skill-option';b.style.setProperty('--sin',sin.color);b.innerHTML=skillOptionMarkup(c.skill);b.onclick=()=>selectAction({type:'deck',slotIndex:selectedSlotIndex,drawId:c.drawId,data:c.skill});stack.appendChild(b)});const label=document.createElement('div');label.className='separator-label';label.textContent='GRANTED / FREE';stack.appendChild(label);permanent.granted.forEach(d=>{const b=document.createElement('button'),sin=sinInfo(d);b.className='skill-option';b.style.setProperty('--sin',sin.color);b.innerHTML=skillOptionMarkup(d);b.onclick=()=>selectAction({type:'granted',slotIndex:selectedSlotIndex,data:d});stack.appendChild(b)});body.appendChild(stack)}
 function renderSpells(){const body=$('category-body');body.innerHTML='';const stack=document.createElement('div');stack.className='skill-stack';permanent.spells.forEach(d=>{const b=document.createElement('button'),sin=sinInfo(d);b.className='skill-option';b.style.setProperty('--sin',sin.color);b.innerHTML=skillOptionMarkup(d);b.onclick=()=>selectAction({type:'spells',slotIndex:selectedSlotIndex,data:d});stack.appendChild(b)});body.appendChild(stack)}
-function renderDefenseSkills(){const body=$('category-body');body.innerHTML='';const stack=document.createElement('div');stack.className='skill-stack';permanent.defense.forEach(d=>{const b=document.createElement('button'),sin=sinInfo(d);b.className='skill-option';b.style.setProperty('--sin',sin.color);b.innerHTML=skillOptionMarkup(d);b.onclick=()=>selectAction({type:'defense',slotIndex:selectedSlotIndex,data:d});stack.appendChild(b)});body.appendChild(stack)}
+function renderDefenseSkills(){
+  const body=$('category-body');body.innerHTML='';
+  const stack=document.createElement('div');stack.className='skill-stack';
+  const equipped=(UNIT_KITS[PLAYER_ID]?.actions||[]).filter(d=>d?.kind==='defense'||d?.isDefense===true||
+    String(d?.type||'').toLowerCase()==='defense'||Boolean(d?.defenseType||d?.defenseSubtype));
+  const seen=new Set();
+  [...equipped,...permanent.defense].forEach(raw=>{
+    const key=String(raw.id||raw.name||'').toLowerCase();
+    if(seen.has(key))return;
+    seen.add(key);
+    const defenseType=window.LuminousClashableDefenses073?.defenseTypeOf(raw)||'guard';
+    const d={...raw,kind:'defense',defenseType,
+      iconUrl:raw.iconUrl||(defenseType.includes('counter')?COMBAT_ICONS.counter:defenseType.includes('guard')?COMBAT_ICONS.guard:COMBAT_ICONS.evade)};
+    const b=document.createElement('button'),sin=sinInfo(d);
+    b.className='skill-option';b.style.setProperty('--sin',sin.color);
+    b.innerHTML=skillOptionMarkup(d);
+    b.onclick=()=>selectAction({type:'defense',slotIndex:selectedSlotIndex,data:d});
+    stack.appendChild(b)
+  });
+  body.appendChild(stack)
+}
 function rowAccent(menu){return menuMeta[menu].accent}
 function itemThemeClass(d){
   if(d?.itemType==='hp_healing')return'item-hp-heal';
