@@ -32,6 +32,7 @@ globalThis.LuminousLootLivePostCombatRuntime = {
   ROOTS: {
     encounterLoot: "campaña/loot_encounters",
     claims: "campaña/loot_claims",
+    requests: "campaña/loot_requests",
     postCombat: "campaña/loot_postcombat",
     combatState: "campaña/combate/estado",
   },
@@ -65,5 +66,6 @@ assert.equal(authUnsubscribed, true, "stop the bootstrap Auth observer after log
 assert.ok(subscriptions.includes("campaña/loot_encounters"), "player receives encounter loot subscription");
 assert.ok(subscriptions.includes("campaña/loot_claims"), "player receives corpse lease subscription");
 assert.ok(subscriptions.includes("campaña/loot_postcombat"), "player receives shared corpse state subscription");
+assert.ok(subscriptions.includes("campaña/loot_requests/hunter"), "player receives only their queued actions");
 
 console.log("Player loot waits for Auth before opening protected RTDB listeners.");
