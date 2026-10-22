@@ -10,6 +10,7 @@ on:
       - combat-results-firebase.json
       - js/loot-live-postcombat-runtime.js
       - js/player-postcombat-loot.js
+      - tests/player-postcombat-loot-auth-smoke.mjs
       - tests/loot-authority-emulator.mjs
       - .github/workflows/firebase-rtdb-loot-rules.yml
   push:
@@ -36,6 +37,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Verify player loot bootstrap and JavaScript syntax
+        run: |
+          node --check js/player-postcombat-loot.js
+          node --check js/loot-live-postcombat-runtime.js
+          node tests/player-postcombat-loot-auth-smoke.mjs
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
