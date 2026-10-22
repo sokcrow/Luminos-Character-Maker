@@ -401,7 +401,7 @@
       const losingUnit = winner === "A" ? unitB : unitA;
       const winningSkill = winner === "A" ? skillA : skillB;
       const winningDefenseType = String(winningSkill.defenseSubtype || winningSkill.defense_subtype || winningSkill.type || "")
-        .toLowerCase().replace(/[\\s_-]+/g, "");
+        .toLowerCase().replace(/[\s_-]+/g, "");
       const targetResolution = resolveTargets(winningAction, context);
       let targets = targetResolution.targets;
       if (!targets.some((target) => entityId(target) === entityId(losingUnit))) targets.unshift(losingUnit);
