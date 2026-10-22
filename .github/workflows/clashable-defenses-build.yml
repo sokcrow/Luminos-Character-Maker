@@ -11,6 +11,13 @@ on:
       - 'js/combat-v073-clashable-defenses.js'
       - 'js/universal-action-economy.js'
       - 'tests/clashable-defenses-073-smoke.mjs'
+      - 'dm-skill-creator.html'
+      - 'pantalla_dm.html'
+      - 'css/dm-skill-forge.css'
+      - 'js/dm-skill-forge-ui.js'
+      - 'js/dm-skill-forge-grants.js'
+      - 'js/combat-skill-loadout-074.js'
+      - 'tests/dm-skill-forge-smoke.mjs'
 
 permissions:
   contents: write
@@ -35,6 +42,10 @@ jobs:
           node --check js/combat-action-resolver.js
           node --check js/combatEngine.js
           node tests/clashable-defenses-073-smoke.mjs
+          node --check js/dm-skill-forge-ui.js
+          node --check js/dm-skill-forge-grants.js
+          node --check js/combat-skill-loadout-074.js
+          node tests/dm-skill-forge-smoke.mjs
       - name: Repack production combat runtime
         run: |
           npm run build:combat-live
