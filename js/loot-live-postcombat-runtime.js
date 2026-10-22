@@ -737,7 +737,7 @@
     if (!db?.ref || !user || !playerId || !lootInstanceId) throw Error('Entra con tu personaje para recuperar el botín.');
     const actionId = normalizeId(options.actionId || 'claim');
     const targetResourceId = clean(options.targetResourceId), deliveryId = clean(options.deliveryId);
-    let key = [lootInstanceId, actionId, targetResourceId, deliveryId].map(v => encodeURIComponent(v).replace(/\\./g, '%2E')).join('|');
+    let key = [lootInstanceId, actionId, targetResourceId, deliveryId].map(v => encodeURIComponent(v).replace(/\./g, '%2E')).join('|');
     const [occupation, existingInitial] = await Promise.all([
       onceValue(db,`${ROOTS.claims}/${lootInstanceId}`),
       onceValue(db, `${ROOTS.requests}/${playerId}/${key}`),
