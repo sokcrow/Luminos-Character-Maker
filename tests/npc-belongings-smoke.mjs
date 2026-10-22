@@ -92,6 +92,9 @@ const context = vm.createContext({ window: { LuminousNpcBelongings: api, Luminou
   planTargetRule: () => 'ally', setCombatantHP() {}, setCombatantSP() {}, console });
 vm.runInContext(slice('function prepareAutoPlans(){', 'function preparePlayerGrapplePlan(){'), context);
 vm.runInContext(slice('function assignTargetIntents(){', 'function slotPoint('), context);
+// Load the production defense classifier alongside the extracted queue rules.
+// In the complete battle viewer this helper is already present in scope.
+vm.runInContext(slice('function isClashableDefensePlan(', 'function ensureReactiveDefense('), context);
 vm.runInContext(slice('async function executeQueueEntryRules(', 'async function startRound(){'), context);
 vm.runInContext('prepareAutoPlans();assignTargetIntents();', context);
 assert.equal(unit.autoPlans[0].targetId, ally.id, 'target-intent passes must retain the selected wounded ally');
