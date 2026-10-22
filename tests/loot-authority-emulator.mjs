@@ -68,6 +68,14 @@ try{
    /js\/loot-live-postcombat-runtime\.js\?v=20261021-performance-1/,
    'real DM Theatre dashboard must retain Loot authority after Combat iframe closes');
  assert.equal(await live.installAuthority({db:dm.db,uid:dm.uid}),true);
+ // Corpse occupancy is a mandatory player lease before any recovery request.
+ // An unclaimed corpse must reject requests; claiming may not skip access.
+ await assert.rejects(live.requestAction({db:player.db,playerId:'hunter',lootInstanceId,actionId:'harvest',targetResourceId:'meat'}),
+   /Selecciona un cadáver libre/, 'players must explicitly occupy a corpse before looting');
+ const initialClaim=await live.claimCorpse({db:player.db,playerId:'hunter',lootInstanceId});
+ assert.equal(initialClaim.acquired,true,'owner must be allowed to occupy a confirmed victory corpse');
+ await assert.rejects(live.claimCorpse({db:rival.db,playerId:'outsider',lootInstanceId}),
+   /vinculad|permission_denied/i,'outsiders may not take another player’s corpse');
  const options={db:player.db,playerId:'hunter',lootInstanceId,actionId:'harvest',targetResourceId:'meat',checkResult:{heads:5}};
  const result=await live.requestAction(options);assert.equal(result.committed,true);assert.equal(result.delivery.delivered,true);
  const saved=(await dm.db.ref('campaña/jugadores/hunter').once('value')).val();assert.equal(Object.values(saved.inventario_activo).filter(i=>i.definitionId==='meat_wolf').reduce((n,i)=>n+i.quantity,0),1);
@@ -112,6 +120,8 @@ try{
  await session.commitEnd({db:dm.db,uid:dm.uid,result:'victory',token:closing.estado.ending.token});
  assert.equal((await dm.db.ref('campaña/combate/estado/round').once('value')).val(),1);
  const secondLootId=waveLoot.finalized[0].lootInstanceId;
+ const secondClaim=await live.claimCorpse({db:player.db,playerId:'hunter',lootInstanceId:secondLootId});
+ assert.equal(secondClaim.acquired,true,'each new corpse needs its own occupancy lease');
  await dm.db.ref('campaña/jugadores/hunter/inventoryRules').set({activeSlotLimit:0,stashSlotLimit:0});
  const full=await live.requestAction({...options,lootInstanceId:secondLootId});assert.equal(full.delivery.delivered,false);
  const interaction=(await dm.db.ref('campaña/loot_postcombat/'+secondLootId).once('value')).val();
