@@ -399,8 +399,11 @@
             select = `<input type="hidden" data-resource-for="${esc(action)}" value="${esc(resources[0].resourceId || resources[0].id)}">`;
           }
         }
-        const penalty = Number(postCombat().anatomyPenalty?.(actor,action) || 0);
-        return `<div class="loot-resource-group">${select}<button type="button" class="loot-action" data-loot-action="${esc(action)}" data-loot-id="${esc(lootId)}" ${accessible ? "" : "disabled"} title="${penalty ? "Sin Medicina: +8 a la dificultad" : ""}">${esc(actionLabel(action))}</button>${penalty ? '<small class="loot-skill-penalty">SIN MEDICINA · +8 TH</small>' : ""}</div>`;
+        const requiredSkill = postCombat().lootSkillForAction?.(action) || "skill";
+        const penalty = Number(postCombat().lootProficiencyPenalty?.(actor,action) || 0);
+        const skillLabel = ({ investigation:"Investigation", survival:"Survival", medicine:"Medicine", arcana:"Arcana" })[requiredSkill] || titleCase(requiredSkill);
+        const penaltyText = penalty ? `SIN ${esc(skillLabel.toUpperCase())} · +${penalty} TH` : "";
+        return `<div class="loot-resource-group">${select}<button type="button" class="loot-action" data-loot-action="${esc(action)}" data-loot-id="${esc(lootId)}" ${accessible ? "" : "disabled"} title="${penalty ? `Sin competencia en ${esc(skillLabel)}: +${penalty} al TH` : `Skill: ${esc(skillLabel)}`}">${esc(actionLabel(action))}</button>${penalty ? `<small class="loot-skill-penalty">${penaltyText}</small>` : ""}</div>`;
       }).join("");
       const pendingHtml = pending.map((entry) => `<button type="button" class="loot-action pending" data-pending-id="${esc(entry.id)}" data-loot-id="${esc(lootId)}" ${accessible ? "" : "disabled"}>Recoger pendiente</button>`).join("");
       const discoverySlots = known.slice(0, 24).map(knownItemSlot).join("");
