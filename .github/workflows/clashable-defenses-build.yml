@@ -1,0 +1,52 @@
+name: Clashable Defensive Integration Build
+
+on:
+  push:
+    branches:
+      - feat/clashable-defenses-guard-counter-20261022
+    paths:
+      - '.github/workflows/clashable-defenses-build.yml'
+      - 'combat/source/combat-v073-live.html'
+      - 'js/combat-v073-steps.js'
+      - 'js/combat-v073-clashable-defenses.js'
+      - 'js/universal-action-economy.js'
+      - 'tests/clashable-defenses-073-smoke.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-pack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/clashable-defenses-guard-counter-20261022
+          fetch-depth: 0
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify defensive mechanics and syntax
+        run: |
+          node --check js/combat-v073-steps.js
+          node --check js/combat-v073-clashable-defenses.js
+          node --check js/combat-action-resolver.js
+          node --check js/combatEngine.js
+          node tests/clashable-defenses-073-smoke.mjs
+      - name: Repack production combat runtime
+        run: |
+          npm run build:combat-live
+          npm run check:combat-live
+      - name: Commit verified production bundle
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add combat/combat-v073-live.manifest.json
+          git add combat/combat-v073-live.bundle.part* combat/repair/combat-v073-live.bundle.part*
+          if ! git diff --cached --quiet; then
+            git commit -m "build(combat): pack clashable defensive live runtime"
+            git push
+          fi
