@@ -235,6 +235,18 @@ function smartTargetForPlan(owner,plan){
       "window.addEventListener('resize',()=>{if($('game-container')?.classList.contains('intro-running')||$('game-container')?.dataset.viewerRole==='dm'){setCameraFocus('full',false);return}if(viewModeActive||targetingModeActive||clashConfirmationActive||roundRunning||planReady){",
       'preserve-opening-camera-on-resize'
     );
+    // The roster can remove/recreate sprites while a queued HUD layout runs.
+    // A missing sprite is temporary; avoid throwing from a visual callback.
+    replaceUniqueCombatSource(
+      'function spriteCenter(){const img=$(`sprite-${PLAYER_ID}`),r=img.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height*.46}}',
+      'function spriteCenter(){const img=$(`sprite-${PLAYER_ID}`);if(!img)return{x:innerWidth*.5,y:innerHeight*.46};const r=img.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height*.46}}',
+      'player-sprite-dom-refresh-guard'
+    );
+    replaceUniqueCombatSource(
+      'const src=commandFor(menu).getBoundingClientRect(),',
+      'const command=commandFor(menu);if(!command)return;const src=command.getBoundingClientRect(),',
+      'stale-category-command-guard'
+    );
     // Preload exactly one mobile stylesheet. The economy runtime checks this id.
     if(!html.includes('</head>'))throw new Error('COMBAT_MOBILE_STYLESHEET_TARGET_MISSING');
     html=html.replace('</head>',
