@@ -153,9 +153,23 @@
   function hasAnatomyKnowledge(actor = {}, actionId = "") {
     const action = normalizeId(actionId);
     const all = actor.lootKnowledge || actor.postCombatKnowledge || actor.mechanics?.lootKnowledge || {};
+    const qualifies = value => value === true || value === "all" ||
+      Array.isArray(value) && (value.includes(action) || value.includes("anatomy")) ||
+      Boolean(value && typeof value === "object" && (value.all === true || value.anatomy === true || value[action] === true || value.actions?.[action] === true));
     const grants = [all.all, all.anatomy, all.medicine, all[action], all?.actions?.[action],
       actor.classFeatures?.lootKnowledge, actor.traitGrants?.lootKnowledge];
-    return grants.some(value => value === true || value === "all" || Array.isArray(value) && (value.includes(action) || value.includes("anatomy")));
+    const featureSources = [actor.traits, actor.classTraits, actor.features, actor.generalTraits,
+      actor.grantedTraits, actor.classFeatures, actor.mechanics?.traits, actor.characterBuild?.traits];
+    for (const source of featureSources) {
+      const values = Array.isArray(source) ? source : source && typeof source === "object" ? Object.values(source) : [];
+      for (const feature of values) {
+        if (!feature || typeof feature !== "object") continue;
+        grants.push(feature.lootKnowledge, feature.postCombatKnowledge,
+          feature.grants?.lootKnowledge, feature.grants?.postCombatKnowledge,
+          feature.effects?.lootKnowledge);
+      }
+    }
+    return grants.some(qualifies);
   }
   function anatomyPenalty(actor = {}, actionId = "") {
     const runtime = checks();
