@@ -17,6 +17,7 @@
     postCombat: "campaña/loot_postcombat",
     encounterLoot: "campaña/loot_encounters",
     requests: "campaña/loot_requests",
+    claims: "campaña/loot_claims",
   });
 
   const BROWSER_DEPENDENCIES = Object.freeze([
@@ -657,6 +658,37 @@
     return deepFreeze(actions);
   }
 
+  const CORPSE_LEASE_MS = 90000;
+  async function claimCorpse(options = {}) {
+    const db = dbFrom(options), lootInstanceId = clean(options.lootInstanceId);
+    const user = global.firebase?.auth?.().currentUser;
+    const playerId = clean(options.playerId);
+    if (!db?.ref || !lootInstanceId || !playerId || !user?.uid) throw Error("LOOT_CLAIM_AUTH_REQUIRED");
+    if (options.skipAccess !== true) await checkPlayerLootAccess({db,lootInstanceId,playerId});
+    const ref = db.ref(`${ROOTS.claims}/${lootInstanceId}`);
+    // Warm RTDB's local transaction cache; an uncached null would otherwise
+    // be mistaken for an unoccupied corpse on first invocation.
+    await ref.once("value");
+    const tx = await ref.transaction(raw => {
+      const now = Date.now();
+      if (raw?.uid && Number(raw.expiresAt) > now && raw.uid !== user.uid) return;
+      return {uid:user.uid,playerId,expiresAt:now + CORPSE_LEASE_MS,updatedAt:now};
+    },undefined,false);
+    const claim = tx.snapshot?.val?.() || null;
+    return {acquired:tx.committed===true && claim?.uid===user.uid && claim?.playerId===playerId,
+      claim};
+  }
+  async function releaseCorpse(options = {}) {
+    const db = dbFrom(options), lootInstanceId = clean(options.lootInstanceId);
+    const uid = clean(global.firebase?.auth?.().currentUser?.uid);
+    const playerId = clean(options.playerId);
+    if (!db?.ref || !uid || !playerId || !lootInstanceId) return false;
+    const ref = db.ref(`${ROOTS.claims}/${lootInstanceId}`);
+    await ref.once("value");
+    const tx = await ref.transaction(row => row?.uid===uid && row?.playerId===playerId ? null : undefined,undefined,false);
+    return tx.committed === true;
+  }
+
   async function checkPlayerLootAccess(options = {}) {
     const db = dbFrom(options), playerId = clean(options.playerId);
     const lootId = clean(options.lootInstanceId);
@@ -686,6 +718,10 @@
     const playerId = clean(options.playerId), lootInstanceId = clean(options.lootInstanceId);
     if (!db?.ref || !user || !playerId || !lootInstanceId) throw Error('Entra con tu personaje para recuperar el botín.');
     const actionId = normalizeId(options.actionId || 'claim');
+    const occupation = await onceValue(db,`${ROOTS.claims}/${lootInstanceId}`);
+    if (!occupation || occupation.uid !== user.uid || occupation.playerId !== playerId || Number(occupation.expiresAt) <= Date.now()) {
+      throw Error("Selecciona un cadáver libre antes de empezar a saquearlo.");
+    }
     const targetResourceId = clean(options.targetResourceId), deliveryId = clean(options.deliveryId);
     let key = [lootInstanceId, actionId, targetResourceId, deliveryId].map(v => encodeURIComponent(v).replace(/\./g, '%2E')).join('|');
     let existing = await onceValue(db, `${ROOTS.requests}/${playerId}/${key}`);
@@ -723,6 +759,10 @@
     const owner = actor?.uid || actor?.vinculado_a || actor?.vinculo_jugador;
     const meta = locked && await onceValue(db,`${ROOTS.encounterLoot}/${safeKey(locked.encounterId)}/meta`);
     if (!owner || owner !== row.uid || row.playerId !== playerId || !locked?.locked || meta?.participants?.[playerId] !== true || meta.open === false || meta.result !== 'victory') throw Error('Tu personaje no participa en este botín.');
+    const occupation = await onceValue(db,`${ROOTS.claims}/${row.lootInstanceId}`);
+    if (!occupation || occupation.uid !== row.uid || occupation.playerId !== playerId || Number(occupation.expiresAt) <= Date.now()) {
+      throw Error("Este cadáver está ocupado por otro personaje o la reserva de saqueo expiró.");
+    }
     const options = {db,playerId,actor:{...actor,id:playerId},lootInstance:locked,lootInstanceId:row.lootInstanceId,targetResourceId:row.targetResourceId||undefined};
     if (row.actionId === 'claim') return deliverPending({...options,deliveryId:row.deliveryId});
     if (!['search','harvest','extract','salvage','examine','autopsy'].includes(row.actionId)) throw Error('Esta acción de recuperación no está disponible.');
@@ -828,6 +868,9 @@
     executeAction,
     requestAction,
     checkPlayerLootAccess,
+    claimCorpse,
+    releaseCorpse,
+    CORPSE_LEASE_MS,
     installAuthority,
     stopAuthority,
     availableActions,
