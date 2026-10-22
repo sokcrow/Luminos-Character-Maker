@@ -82,7 +82,7 @@
       const link = global.document.createElement("link");
       link.id = "postcombat-loot-corpse-css";
       link.rel = "stylesheet";
-      link.href = "css/postcombat-loot-corpse.css?v=20261022-pickpocket-3";
+      link.href = "css/postcombat-loot-corpse.css?v=20261022-mobile-icons-1";
       global.document.head.appendChild(link);
     }
   }
