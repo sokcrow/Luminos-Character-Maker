@@ -36,6 +36,8 @@ jobs:
             echo "Results and trace artifacts are uploaded even when either fails."
           } >> "$GITHUB_STEP_SUMMARY"
           if (( baseline_exit != 0 || candidate_exit != 0 )); then exit 1; fi
+      - name: Enforce visible round and loot wall-time gains
+        run: node tests/combat-loot-performance-compare.mjs perf-baseline perf-candidate
       - uses: actions/upload-artifact@v4
         if: always()
         with:
