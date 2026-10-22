@@ -180,7 +180,12 @@ test('performance: eight corpses and visible loot to confirmed inventory',async(
   const authority=await stopMeasure(dp),viewer=await stopMeasure(pp);
   await saveMetrics(info,'loot',{finalizeMs,lootMs,ackDelayMs:250,cpuRate:4,authority,viewer});
   await screenshot(pp,info,'loot-confirmed-inventory');
-  if(!process.env.PERFORMANCE_BASELINE){expect(lootMs).toBeLessThan(6000);expect(finalizeMs).toBeLessThan(10000);}
+  if(!process.env.PERFORMANCE_BASELINE){
+   // Includes the now-required secure corpse lease before the recovery
+   // request, two authenticated operations under 4× CPU / 250ms WAN.
+   // Keep an absolute budget AND compare against current main separately.
+   expect(lootMs).toBeLessThan(7500);expect(finalizeMs).toBeLessThan(10000);
+  }
  }finally{await dc.close();await pc.close();}
 });
 
