@@ -671,7 +671,7 @@
     await ref.once("value");
     const tx = await ref.transaction(raw => {
       const now = Date.now();
-      if (raw?.uid && Number(raw.expiresAt) > now && raw.uid !== user.uid) return;
+      if (raw?.uid && Number(raw.expiresAt) > now && (raw.uid !== user.uid || clean(raw.playerId) !== playerId)) return;
       return {uid:user.uid,playerId,expiresAt:now + CORPSE_LEASE_MS,updatedAt:now};
     },undefined,false);
     const claim = tx.snapshot?.val?.() || null;
