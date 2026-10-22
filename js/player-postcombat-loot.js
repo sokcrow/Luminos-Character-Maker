@@ -155,6 +155,16 @@
     node.classList.toggle("error", state.error);
   }
 
+  // Translate RTDB errors into a useful player-facing message.
+  function showLootError(error) {
+    const reason = String(error?.code || error?.message || error || "");
+    if (/permission[_\s-]?denied/i.test(reason)) {
+      setMessage("No se pudo acceder a este botín. Pide al DM que compruebe el acceso de tu personaje y los permisos de saqueo.", true);
+      return;
+    }
+    setMessage(error?.message || String(error), true);
+  }
+
   function latestEncounter() {
     return Object.entries(state.encounters || {})
       .map(([id, row]) => ({ id, ...(row || {}) }))
@@ -261,7 +271,7 @@
       setMessage("");
     } finally {
       state.claiming = false;
-      if (state.open) render().catch(error=>setMessage(error?.message || String(error),true));
+      if (state.open) render().catch(error=>showLootError(error));
     }
   }
 
@@ -460,20 +470,20 @@
       button.addEventListener("click", () => {
         const next = button.dataset.corpseSelect;
         if (state.busy || state.claiming || leasedByAnother(next)) {setMessage("Este cadáver está ocupado o hay una acción en curso.",true);return;}
-        enterCorpse(next).catch(error=>setMessage(error?.message || String(error),true));
+        enterCorpse(next).catch(error=>showLootError(error));
       });
     });
     list.querySelectorAll("[data-corpse-release]").forEach(button => {
       button.addEventListener("click", () => {
         if (state.busy) {setMessage("Finaliza la tirada antes de soltar el cadáver.",true);return;}
-        leaveCorpse().then(()=>render()).catch(error=>setMessage(error?.message || String(error),true));
+        leaveCorpse().then(()=>render()).catch(error=>showLootError(error));
       });
     });
     list.querySelectorAll("[data-loot-action]").forEach((button) => {
-      button.addEventListener("click", () => runAction(button).catch((error) => setMessage(error?.message || String(error), true)));
+      button.addEventListener("click", () => runAction(button).catch((error) => showLootError(error)));
     });
     list.querySelectorAll("[data-pending-id]").forEach((button) => {
-      button.addEventListener("click", () => claimPending(button).catch((error) => setMessage(error?.message || String(error), true)));
+      button.addEventListener("click", () => claimPending(button).catch((error) => showLootError(error)));
     });
   }
 
@@ -605,7 +615,7 @@
     render().then(() => {
       const id = state.selectedLootId;
       if (state.open && id && !ownsCorpse(id)) return enterCorpse(id);
-    }).catch((error) => setMessage(error?.message || String(error), true));
+    }).catch((error) => showLootError(error));
   }
 
   function close() {
@@ -633,7 +643,7 @@
       const badge = button?.querySelector(".postcombat-loot-badge");
       if (badge) badge.textContent = String(count);
       if (state.open && !state.activeEncounterId) close();
-      if (state.open) render().catch((error) => setMessage(error?.message || String(error), true));
+      if (state.open) render().catch((error) => showLootError(error));
       maybeOpenResult();
     };
     ref.on("value", handler);
@@ -656,6 +666,8 @@
   async function install(options = {}) {
     if (state.db&&(!options.playerId||options.playerId===state.playerId)&&(!options.db||options.db===state.db)) return true;
     state.listeners.splice(0).forEach(off=>off());close();state.encounters={};state.combatState={};state.instance=null;state.autoOpened=null;state.selectedLootId=null;state.claim=null;state.claims={};
+    // RTDB rejects the loot listeners when they subscribe before Auth finishes.
+    if (!global.firebase?.auth?.().currentUser) return false;
     state.db = options.db || (global.firebase?.database ? global.firebase.database() : null);
     state.playerId = clean(options.playerId || resolvePlayerId());
     if (!state.db?.ref || !state.playerId) return false;
@@ -669,14 +681,31 @@
   }
 
   function boot() {
+    let authOff = null;
+    let timer = null;
     const attempt = () => {
       if (!global.firebase?.database || !resolvePlayerId() || !live()) return false;
+      const auth = global.firebase?.auth?.();
+      if (!auth?.currentUser) {
+        // Auth often hydrates after the character page; resume without opening
+        // unauthenticated realtime listeners or imposing a 30-second login limit.
+        if (!authOff && typeof auth?.onAuthStateChanged === "function") {
+          authOff = auth.onAuthStateChanged((user) => {
+            if (user && attempt()) {
+              if (timer) global.clearInterval(timer);
+              authOff?.();
+              authOff = null;
+            }
+          });
+        }
+        return false;
+      }
       install().catch((error) => global.console?.error?.("[PostCombat Loot]", error));
       return true;
     };
     if (attempt()) return;
     let tries = 0;
-    const timer = global.setInterval(() => {
+    timer = global.setInterval(() => {
       tries += 1;
       if (attempt() || tries > 120) global.clearInterval(timer);
     }, 250);
