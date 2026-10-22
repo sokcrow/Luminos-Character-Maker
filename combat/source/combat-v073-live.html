@@ -3183,6 +3183,11 @@ function clashLevelPowerBonus(unit,opponent){
   const diff=statusOffenseLevel(unit)-statusOffenseLevel(opponent);
   return diff>0?Math.floor(diff/3):0
 }
+function clashableDefenseLevelPowerBonus(unit,opponent){
+  if(!unit||!opponent)return 0;
+  const diff=statusDefenseLevel(unit)-statusOffenseLevel(opponent);
+  return diff>0?Math.floor(diff/3):0
+}
 function statusLevelDamageMultiplier(attacker,defender,skillData=null){
   if(!attacker||!defender)return 1;
   const off=statusOffenseLevel(attacker),def=statusDefenseLevel(defender),diff=off-def;
@@ -6906,7 +6911,7 @@ function combatStepRuntime(){
             headsChance:50,intervalMs:window.LuminousCombatAudiovisual073?.duration(COMBAT_PACE.coinInterval)??COMBAT_PACE.coinInterval,auto:true,silent:true,
             resolvedCoins:[coin],onCoinResolved:onResolved})
         };
-  const names=['coinHeadsChanceForUnit','clashLevelPowerBonus','statusAttackPowerModifier','statusClashPowerModifier',
+  const names=['coinHeadsChanceForUnit','clashLevelPowerBonus','clashableDefenseLevelPowerBonus','statusAttackPowerModifier','statusClashPowerModifier',
     'targetFinalPowerVulnerabilityBonus','statusDefensePowerModifier','conditionCounterPowerModifier',
     'conditionEvasionPowerModifier','triggerBleedOnCoinFlip','consumeParalysisOnHead','isUnitTargetable',
     'damageCombatant','healCombatant','triggerGettingHitStatuses','applySkillStatusEffects','triggerTremorBurst','raiseRemainingStaggerThresholdByDamage',
