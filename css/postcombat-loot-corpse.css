@@ -80,3 +80,7 @@
 #postcombat-loot-modal .loot-discovery.depleted small{font-size:9px;color:#c86d66}
 #postcombat-loot-modal .loot-corpse-choice.active{box-shadow:inset 5px 0 #b83937}
 #postcombat-loot-modal .loot-recovered-grid{grid-auto-flow:row}
+
+#postcombat-loot-modal .loot-skill-penalty{color:#d28b80;font:700 10px/1.4 Georgia,serif;letter-spacing:.6px;text-align:center}
+#postcombat-loot-modal .loot-release{display:block;min-height:35px;margin:12px 0 0 auto;padding:7px 12px;color:#cfb38d;background:#1b1110;border:1px solid #8d6642;cursor:pointer;font:700 12px Georgia,serif;letter-spacing:1px}
+#postcombat-loot-modal .loot-release:hover{border-color:#e2b780;background:#4c181a}
