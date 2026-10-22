@@ -145,6 +145,27 @@
     return (state.attempts || []).some((entry) => entry.key === key);
   }
 
+  // The authoritative post-combat penalty applies to anatomical work only.
+  // Traits/classes can explicitly grant training through the lootKnowledge contract;
+  // names alone never imply a proficiency that the character has not earned.
+  const ANATOMY_ACTIONS = Object.freeze(new Set(["harvest", "extract", "autopsy"]));
+  const UNTRAINED_ANATOMY_DC = 8;
+  function hasAnatomyKnowledge(actor = {}, actionId = "") {
+    const action = normalizeId(actionId);
+    const all = actor.lootKnowledge || actor.postCombatKnowledge || actor.mechanics?.lootKnowledge || {};
+    const grants = [all.all, all.anatomy, all.medicine, all[action], all?.actions?.[action],
+      actor.classFeatures?.lootKnowledge, actor.traitGrants?.lootKnowledge];
+    return grants.some(value => value === true || value === "all" || Array.isArray(value) && (value.includes(action) || value.includes("anatomy")));
+  }
+  function anatomyPenalty(actor = {}, actionId = "") {
+    const runtime = checks();
+    const action = normalizeId(actionId);
+    if (!ANATOMY_ACTIONS.has(action)) return 0;
+    const proficiency = runtime?.skillProficiencyState?.(actor, "medicine") || "none";
+    if (proficiency === "proficient" || proficiency === "expertise" || hasAnatomyKnowledge(actor, action)) return 0;
+    return UNTRAINED_ANATOMY_DC;
+  }
+
   function checkDefinition(actor = {}, actionId, options = {}) {
     const runtime = checks();
     if (!runtime?.createLootCheckDefinition) throw new Error("LOOT_CHECK_RUNTIME_REQUIRED");
@@ -152,12 +173,13 @@
     if (!profile) throw new Error(`UNKNOWN_POST_COMBAT_ACTION:${normalizeId(actionId)}`);
     return runtime.createLootCheckDefinition(actor, profile.checkId, {
       threshold: options.threshold ?? options.dc ?? profile.defaultDc,
-      thresholdModifier: options.thresholdModifier ?? options.dcModifier ?? 0,
+      thresholdModifier: Number(options.thresholdModifier ?? options.dcModifier ?? 0) + anatomyPenalty(actor, actionId),
       skill: options.skill || profile.defaultSkill,
       metadata: {
         corpseId: options.corpseId || null,
         targetItemId: options.targetItemId || null,
         targetResourceId: options.targetResourceId || null,
+        untrainedAnatomyPenalty: anatomyPenalty(actor, actionId),
       },
     });
   }
@@ -481,6 +503,8 @@
     createInteractionState,
     attemptKey,
     hasAttempted,
+    hasAnatomyKnowledge,
+    anatomyPenalty,
     checkDefinition,
     recoveryCountFromMargin,
     acquisitionProvenance,
