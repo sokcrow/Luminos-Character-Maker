@@ -21,6 +21,15 @@ assert.equal(hud.validateDeck({...deck,tier2:"defense_iii"},skills).valid,false,
   "The offensive Deck cannot equip a Clashable Guard into the attacks");
 assert.equal(hud.validateDeck({...deck,tier3:"attack_a"},skills).valid,false,
   "The editor must respect Tier constraints");
+assert.equal(hud.selectLinkedPlayer([
+  ["pending-character",{status:"pending"}],["approved-character",{status:"approved"}]
+]),"approved-character","a pending UID-linked record cannot hide the player's approved sheet");
+assert.equal(hud.selectLinkedPlayer([
+  ["character-a",{status:"approved"}],["character-b",{status:"approved"}]
+],"character-b"),"character-b","sheet playerId resolves multiple approved records");
+assert.equal(hud.selectLinkedPlayer([
+  ["character-a",{status:"approved"}],["character-b",{status:"approved"}]
+]),"","ambiguous selection must not equip to an arbitrary character");
 assert.equal(hud.typeFor(skills[3]),"defense");
 assert.equal(hud.typeFor(skills[0]),"slash");
 assert.equal(hud.artwork(skills[3]),"Assets/Icons/items/equipment/shield.png",
