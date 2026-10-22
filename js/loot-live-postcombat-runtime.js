@@ -667,6 +667,7 @@
     const actions = [];
     const searchAvailable = (state.carried || []).some((entry) => int(entry.remaining, 0) > 0) || int(state.currency?.remaining, 0) > 0;
     if (searchAvailable && !postCombat().hasAttempted(state, actorId, "search", {})) actions.push("search");
+    if (searchAvailable && !postCombat().hasAttempted(state, actorId, "pickpocket", {})) actions.push("pickpocket");
     for (const id of ["harvest", "extract", "salvage"]) {
       if (postCombat().eligibleResources(state, id).length && !postCombat().hasAttempted(state, actorId, id, {})) actions.push(id);
     }
@@ -782,7 +783,7 @@
     }
     const options = {db,playerId,actor:{...actor,id:playerId},lootInstance:locked,lootInstanceId:row.lootInstanceId,targetResourceId:row.targetResourceId||undefined};
     if (row.actionId === 'claim') return deliverPending({...options,deliveryId:row.deliveryId});
-    if (!['search','harvest','extract','salvage','examine','autopsy'].includes(row.actionId)) throw Error('Esta acción de recuperación no está disponible.');
+    if (!['search','pickpocket','harvest','extract','salvage','examine','autopsy'].includes(row.actionId)) throw Error('Esta acción de recuperación no está disponible.');
     const definition = postCombat().checkDefinition(options.actor,row.actionId,options);
     const heads = Number(row.checkHeads);
     if (!Number.isInteger(heads) || heads < 0 || heads > definition.coinCount) throw Error('La tirada de recuperación no es válida.');
