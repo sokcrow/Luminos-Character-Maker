@@ -264,6 +264,7 @@
     next.textContent=storage.step===3?"Guardar Skill":"Continuar";
     presetHost.hidden=storage.step!==0;
     renameLabels(editor);
+    doc.dispatchEvent(new CustomEvent("luminous:forge-step",{detail:{step:storage.step}}));
     if(global.innerWidth<=760)nav.scrollIntoView({block:"start",behavior:"smooth"});
   }
   function matchPreset(){
