@@ -32,7 +32,7 @@ async function setupContext(browser,phone=false){
   window.__qaCues=[];let api;
   Object.defineProperty(window,'LuminousCombatSteps',{configurable:true,get:()=>api,set(value){api=Object.freeze({...value,create(options){const onPresentation=options.onPresentation;return value.create({...options,onPresentation(cue,args){window.__qaCues.push({cue,at:Date.now(),phase:window.LuminousCombatAuthority073?.state.current?.phase});onPresentation?.(cue,args);}});}});}});
  });
- context.on('page',page=>{page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')console.log('BROWSER',m.type(),m.text());});});return context;
+ context.on('page',page=>{page.on('pageerror',e=>{errors.push(e.stack||e.message);console.log('BROWSER_UNCAUGHT',e.stack||e.message);});page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')console.log('BROWSER',m.type(),m.text());});});return context;
 }
 async function login(page,user,url='/combate.html'){
  await page.goto(base+url);const form=url.startsWith('/mirror')?'mirror':'combat-entry';await page.locator('#'+form+'-email').fill(user.email);await page.locator('#'+form+'-password').fill(user.password);await page.locator('#'+form+'-login button').click();
