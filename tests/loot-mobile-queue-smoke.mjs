@@ -36,9 +36,9 @@ assert.equal("delivered" in result, false, "never claim successful loot delivery
 const player = readFileSync(new URL("../js/player-postcombat-loot.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../css/postcombat-loot-corpse.css", import.meta.url), "utf8");
 assert.match(player, /LuminousItemIconRegistry/, "resolve icons using the existing registry");
-assert.match(player, /fallback\\/generic_item\\.png/, "missing art gets a real generic item icon");
-assert.match(player, /data-loot-detail/, "touch opens the full name");
-assert.match(player, /pendingRequests/, "queue state visible in the corpse HUD");
-assert.match(css, /@media\\(max-width:700px\\)/, "mobile design is explicitly supported");
-assert.match(css, /grid-template-rows:auto minmax\\(0,1fr\\) auto/, "corpse strip / body / inventory fit phone height");
+assert.ok(player.includes("fallback/generic_item.png"), "missing art gets a real generic item icon");
+assert.ok(player.includes("data-loot-detail"), "touch opens the full name");
+assert.ok(player.includes("pendingRequests"), "queue state visible in the corpse HUD");
+assert.ok(css.includes("@media(max-width:700px)"), "mobile design is explicitly supported");
+assert.ok(css.includes("grid-template-rows:auto minmax(0,1fr) auto"), "corpse strip / body / inventory fit phone height");
 console.log("Loot mobile icon HUD and persistent offline-DM queue smoke passed.");
