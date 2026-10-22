@@ -400,12 +400,15 @@
       const winningUnit = winner === "A" ? unitA : unitB;
       const losingUnit = winner === "A" ? unitB : unitA;
       const winningSkill = winner === "A" ? skillA : skillB;
+      const winningDefenseType = String(winningSkill.defenseSubtype || winningSkill.defense_subtype || winningSkill.type || "")
+        .toLowerCase().replace(/[\\s_-]+/g, "");
       const targetResolution = resolveTargets(winningAction, context);
       let targets = targetResolution.targets;
       if (!targets.some((target) => entityId(target) === entityId(losingUnit))) targets.unshift(losingUnit);
       targets = targets.slice(0, Math.max(1, winningAction.targeting.attackWeight));
       const aoe = schema.resolveAoeOutcome(winningAction, true);
-      if (aoe.allowed) {
+      // Winning Clashable Guard applies Tremor through CombatEngine, never damage.
+      if (aoe.allowed && winningDefenseType !== "clashableguard") {
         attack = resolveDirectAttack(winningAction, winningUnit, targets, context, {
           skill: winningSkill,
           skipUseHooks: true,
