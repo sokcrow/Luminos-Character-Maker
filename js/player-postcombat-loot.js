@@ -137,7 +137,7 @@
             <div id="postcombat-loot-wallet" class="loot-wallet"></div>
           </aside>
         </div>
-        <footer class="loot-foot"><span>BUSCAR · COSECHAR · EXTRAER · DESMONTAR · EXAMINAR · AUTOPSIA</span><span>EL BOTÍN NO SE REGENERA</span></footer>
+        <footer class="loot-foot"><span>BUSCAR · SUSTRAER · COSECHAR · EXTRAER · DESMONTAR · EXAMINAR · AUTOPSIA</span><span>EL BOTÍN NO SE REGENERA</span></footer>
       </section>`;
     modal.querySelector(".loot-close").addEventListener("click", close);
     modal.addEventListener("click", (event) => { if (event.target === modal) close(); });
@@ -186,6 +186,7 @@
   function actionLabel(actionId) {
     return ({
       search: "Buscar",
+      pickpocket: "Sustraer",
       harvest: "Cosechar",
       extract: "Extraer",
       salvage: "Desmontar",
@@ -279,7 +280,7 @@
       try { item = global.LuminousItemInventoryRuntime?.resolveItem?.(item) || item; } catch (_) { /* Keep the saved instance. */ }
       return {
         name: clean(item.displayName || item.name || item.nombre || titleCase(entry.definitionId || "Pertenencia recuperada")),
-        quantity: Math.max(1, Number(entry.quantity ?? item.quantity ?? 1)),
+        quantity: Math.max(1, Number(entry.recoveredQuantitiesBy?.[playerId] ?? entry.quantity ?? item.quantity ?? 1)),
         icon: clean(item.iconUrl || item.icon || item.imageUrl || item.image || ""),
         status: "Recuperado",
       };
