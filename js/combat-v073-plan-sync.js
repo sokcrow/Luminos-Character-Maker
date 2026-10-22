@@ -233,13 +233,17 @@
     });
   }
   async function ensureCoreBridges(){
-    await loadBridge('combat-v073-universal-library-script','js/universal-library-runtime.js',()=>Boolean(global.LuminousUniversalLibrary));
-    await loadBridge('combat-v073-library-client-script','js/combat-v073-library-client.js',()=>Boolean(global.LuminousCombatLibraryClient073));
-    await loadBridge('combat-deployment-runtime-script','js/combat-deployment-runtime.js',()=>Boolean(global.LuminousCombatDeploymentRuntime));
-    await loadBridge('combat-v073-deployment-bridge-script','js/combat-v073-deployment-bridge.js?v=20261021-encounter-3',()=>Boolean(global.LuminousCombatDeploymentBridge073));
-    await loadBridge('unit-rank-runtime-script','js/unit-rank-runtime.js',()=>Boolean(global.LuminousUnitRankRuntime));
-    await loadBridge('combat-v073-authority-script','js/combat-v073-authority.js?v=20261021-recovery-5',()=>Boolean(global.LuminousCombatAuthority073));
-    await loadBridge('combat-v073-runtime-hotfix-script','js/combat-v073-runtime-hotfix.js?v=20261021-encounter-3',()=>Boolean(global.LuminousCombatRuntimeHotfix073));
+    // Classic scripts preserve execution order (async=false), while parallel
+    // fetching avoids seven chained network waits on combat entry.
+    await Promise.all([
+      loadBridge('combat-v073-universal-library-script','js/universal-library-runtime.js',()=>Boolean(global.LuminousUniversalLibrary)),
+      loadBridge('combat-v073-library-client-script','js/combat-v073-library-client.js',()=>Boolean(global.LuminousCombatLibraryClient073)),
+      loadBridge('combat-deployment-runtime-script','js/combat-deployment-runtime.js',()=>Boolean(global.LuminousCombatDeploymentRuntime)),
+      loadBridge('combat-v073-deployment-bridge-script','js/combat-v073-deployment-bridge.js?v=20261021-encounter-3',()=>Boolean(global.LuminousCombatDeploymentBridge073)),
+      loadBridge('unit-rank-runtime-script','js/unit-rank-runtime.js',()=>Boolean(global.LuminousUnitRankRuntime)),
+      loadBridge('combat-v073-authority-script','js/combat-v073-authority.js?v=20261021-performance-1',()=>Boolean(global.LuminousCombatAuthority073)),
+      loadBridge('combat-v073-runtime-hotfix-script','js/combat-v073-runtime-hotfix.js?v=20261021-encounter-3',()=>Boolean(global.LuminousCombatRuntimeHotfix073)),
+    ]);
     return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatDeploymentRuntime&&global.LuminousCombatDeploymentBridge073&&global.LuminousUnitRankRuntime&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);
   }
   global.addEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);

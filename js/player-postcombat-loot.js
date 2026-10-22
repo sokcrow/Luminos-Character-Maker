@@ -20,6 +20,7 @@
     combatState: {},
     instance: null,
     autoOpened: null,
+    renderGeneration: 0,
   };
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -172,11 +173,15 @@
   async function render() {
     const list = global.document?.getElementById("postcombat-loot-list");
     if (!list || !state.db || !state.activeEncounterId) return;
-    list.innerHTML = '<div class="loot-empty">Revisando restos disponibles…</div>';
+    const generation=++state.renderGeneration;
+    if(!list.children.length)list.innerHTML = '<div class="loot-empty">Revisando restos disponibles…</div>';
     const encounter = state.encounters[state.activeEncounterId] || {};
     if (encounter.meta?.open === false) { close(); return; }
-    const corpses = await Promise.all(Object.values(encounter.corpses || {}).map(readCorpse));
-    const playerSnap = await state.db.ref(`campaña/jugadores/${resolvePlayerId()}`).once("value");
+    const [corpses,playerSnap] = await Promise.all([
+      Promise.all(Object.values(encounter.corpses || {}).map(readCorpse)),
+      state.db.ref(`campaña/jugadores/${resolvePlayerId()}`).once("value"),
+    ]);
+    if(generation!==state.renderGeneration||!state.open)return;
     const actor = playerSnap.val() || {};
     actor.id = actor.id || resolvePlayerId();
 
@@ -246,12 +251,16 @@
     try {
       await live().ensureDependencies();
       const playerId = resolvePlayerId();
-      const playerSnap = await state.db.ref(`campaña/jugadores/${playerId}`).once("value");
+      // Read the character and validate access simultaneously. These are
+      // independent reads; serial WAN round trips delayed the first loot Coin.
+      const [playerSnap] = await Promise.all([
+        state.db.ref(`campaña/jugadores/${playerId}`).once("value"),
+        // Keep authorization strict: do not start a Coin roll until Firebase
+        // confirms ownership and participation in this victory.
+        live().checkPlayerLootAccess({db:state.db,playerId,lootInstanceId}),
+      ]);
       const actor = clone(playerSnap.val() || {});
       actor.id = actor.id || playerId;
-      // Validate the actual Firebase ownership and encounter record before
-      // showing a coin roll that cannot be submitted by this account.
-      await live().checkPlayerLootAccess({db:state.db,playerId,lootInstanceId});
       const checkResult = await animatedCheck(actor, actionId, { targetResourceId });
       const result = await live().requestAction({
         db: state.db,
@@ -277,7 +286,6 @@
         setMessage("La acción no tuvo éxito. El cadáver no generó botín nuevo; simplemente no recuperaste nada con este intento.");
       }
       await refreshEncounters();
-      await render();
     } finally {
       state.busy = false;
     }
@@ -297,7 +305,6 @@
       if (result.delivered) setMessage(result.duplicate ? "La recuperación ya estaba acreditada; se confirmó sin duplicarla." : "Recuperación pendiente entregada.");
       else setMessage("Todavía no hay espacio suficiente para recibir esa recuperación.", true);
       await refreshEncounters();
-      await render();
     } finally {
       state.busy = false;
     }
@@ -340,6 +347,7 @@
 
   function close() {
     state.open = false;
+    state.renderGeneration++;
     const modal = global.document?.getElementById(MODAL_ID);
     modal?.classList.remove("open");
     modal?.setAttribute("aria-hidden", "true");

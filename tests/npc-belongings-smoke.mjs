@@ -112,4 +112,28 @@ assert.equal(loot.carried.length, Object.values(unit.inventario_activo).filter(i
 const deployment = globalThis.LuminousUnitCombatInstantiator.instantiate('goblin', base('definition'), { combatId: 'deployment-goblin', random: () => 0 });
 assert.equal(deployment.npcBelongings.version, 1, 'normal Unit deployment must initialize belongings');
 assert.ok(Object.keys(deployment.inventario_activo).length);
+// A cached attack preview must not overwrite a newly selected healing action
+// after an ally is wounded during planning (the same roster and skill kit).
+const cacheHealer=api.initialize(base('cache-healer'),{random:()=>0});cacheHealer.controlled='ai';
+const cacheAlly={...base('cache-ally'),controlled:'ai',scores:{int:5,wis:12}};
+const cacheUnits={[cacheHealer.id]:cacheHealer,[cacheAlly.id]:cacheAlly};
+const cacheWrites=[];
+const planningState={role:'dm',hydratedOnce:true,combatState:'PRE_COMBAT_PLANNING',round:1,encounterId:'cache',combatants:cacheUnits,
+ db:{ref:()=>({set:async row=>{cacheWrites.push(row);}})}};
+const planningContext=vm.createContext({console,JSON,Math,Map,Set,setTimeout(){return 1;},clearTimeout(){},addEventListener(){},
+ LuminousCombatLiveAdapter073:{state:planningState},
+ LuminousCombat073:{combatants:()=>cacheUnits,kit:()=>({actions:[]})},
+ LuminousCombatAuthority073:{state:{},serializeRuntimePlan:plan=>({kind:plan.type==='items'?'item':'skill',planType:plan.type,actionData:plan.data})}});
+planningContext.window=planningContext;
+vm.runInContext(fs.readFileSync('js/combat-v073-remote-intents.js','utf8'),planningContext);
+const previews=planningContext.LuminousCombatRemoteIntents073;
+const replan=()=>{cacheHealer.autoPlans=[api.selectItemPlan(cacheHealer,Object.values(cacheUnits))||{type:'auto',data:{kind:'skill',id:'attack'}}];};
+replan();await previews.publishPlanningAi();assert.equal(cacheHealer.autoPlans[0].type,'auto');
+cacheAlly.hp=1;replan();assert.equal(cacheHealer.autoPlans[0].type,'items');
+assert.equal(previews.applyPlanningAi(),false,'health changes invalidate the cached attack preview');
+assert.equal(cacheHealer.autoPlans[0].type,'items');
+await previews.publishPlanningAi();assert.equal(cacheWrites.length,2);assert.equal(cacheHealer.autoPlans[0].type,'items');
+Object.values(cacheHealer.inventario_activo).forEach(item=>{item.quantity=0;});replan();
+assert.equal(previews.applyPlanningAi(),false,'spent doses invalidate a cached item preview');
+assert.equal(cacheHealer.autoPlans[0].type,'auto');
 console.log('NPC belongings: plausible generation, animal exclusion, INT/WIS, real live planner/queue, consumption, reconnect and remaining corpse loot passed.');

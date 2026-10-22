@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 const root=process.cwd(),project='demo-combat-results',ns=project+'-default-rtdb',base='http://127.0.0.1:4173';
-let server,dm,player,friend,initial;const errors=[],production=[];
+let server,dm,player,friend,initial;const errors=[],production=[],contexts=new Set();
 const clone=v=>JSON.parse(JSON.stringify(v));
 const endpoint=p=>`http://127.0.0.1:9100/${p.split('/').map(encodeURIComponent).join('/')}.json?ns=${ns}`;
 async function admin(p,method='GET',value){const r=await fetch(endpoint(p),{method,headers:{Authorization:'Bearer owner','Content-Type':'application/json'},...(value===undefined?{}:{body:JSON.stringify(value)})});expect(r.ok,await r.clone().text()).toBeTruthy();return r.json();}
@@ -20,6 +20,7 @@ function fixture(){
 }
 async function setupContext(browser,phone=false){
  const context=await browser.newContext({viewport:phone?{width:390,height:844}:{width:1280,height:800},reducedMotion:'no-preference'});
+ contexts.add(context);context.on('close',()=>contexts.delete(context));
  await context.route('**/*',async route=>{
   const url=route.request().url();const match=url.match(/firebasejs\/8\.10\.1\/(firebase-[a-z]+\.js)/);
   if(match){let body=fs.readFileSync(path.join(root,'node_modules/firebase',match[1]),'utf8');if(match[1]==='firebase-app.js')body+=`\n(function(){const original=firebase.initializeApp;firebase.initializeApp=function(config,name){const app=original.call(firebase,{...config,apiKey:'fake',projectId:'${project}',databaseURL:'https://${ns}.firebaseio.com'},name);app.auth().useEmulator('http://127.0.0.1:9199',{disableWarnings:true});app.database().useEmulator('127.0.0.1',9100);return app;};})();`;await route.fulfill({contentType:'text/javascript',body});return;}
@@ -31,13 +32,15 @@ async function setupContext(browser,phone=false){
   window.__qaCues=[];let api;
   Object.defineProperty(window,'LuminousCombatSteps',{configurable:true,get:()=>api,set(value){api=Object.freeze({...value,create(options){const onPresentation=options.onPresentation;return value.create({...options,onPresentation(cue,args){window.__qaCues.push({cue,at:Date.now(),phase:window.LuminousCombatAuthority073?.state.current?.phase});onPresentation?.(cue,args);}});}});}});
  });
- context.on('page',page=>{page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')console.log('BROWSER',m.type(),m.text());});});return context;
+ context.on('page',page=>{page.on('pageerror',e=>{errors.push(e.stack||e.message);console.log('BROWSER_UNCAUGHT',e.stack||e.message);});page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')console.log('BROWSER',m.type(),m.text());});});return context;
 }
 async function login(page,user,url='/combate.html'){
  await page.goto(base+url);const form=url.startsWith('/mirror')?'mirror':'combat-entry';await page.locator('#'+form+'-email').fill(user.email);await page.locator('#'+form+'-password').fill(user.password);await page.locator('#'+form+'-login button').click();
 }
 async function frame(page,query='Battle-viewer'){
- await expect.poll(()=>page.frames().filter(f=>f.url().includes(query)).length,{timeout:40000}).toBeGreaterThan(0);const f=page.frames().find(f=>f.url().includes(query));
+ try{await expect.poll(()=>page.frames().filter(f=>f.url().includes(query)).length,{timeout:40000}).toBeGreaterThan(0);}
+ catch(error){await page.screenshot({path:test.info().outputPath('entry-failure.png')});console.log('ENTRY_FAILURE',JSON.stringify(await page.evaluate(()=>({uid:window.firebase?.auth?.().currentUser?.uid,text:document.body.innerText}))));throw error;}
+ const f=page.frames().find(f=>f.url().includes(query));
  await f.waitForFunction(()=>window.LuminousCombatLiveAdapter073?.state.hydratedOnce&&window.LuminousCombat073?.playerId?.(),{},{timeout:60000});
  await f.waitForFunction(()=>window.LuminousCombatAuthority073&&window.LuminousCombatRemoteIntents073&&window.LuminousCombatSlotDeck073&&window.LuminousCombatPlanSync073,{},{timeout:40000});return f;
 }
@@ -57,6 +60,7 @@ test.beforeAll(async()=>{
  server=http.createServer((req,res)=>{const p=path.resolve(root,'.'+decodeURIComponent(new URL(req.url,base).pathname));if(!p.startsWith(root+path.sep)){res.writeHead(403).end();return;}fs.readFile(p,(error,body)=>{if(error){res.writeHead(404).end();return;}const ext=path.extname(p);res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png'})[ext]||'application/octet-stream');res.end(body);});});await new Promise(resolve=>server.listen(4173,'127.0.0.1',resolve));
  dm=await account('dm');player=await account('player');friend=await account('friend');initial=fixture();
 });
+test.afterEach(async()=>{await Promise.all([...contexts].map(context=>context.close()));});
 test.afterAll(async()=>{await new Promise(resolve=>server.close(resolve));expect(production).toEqual([]);expect(errors).toEqual([]);});
 
 async function waitRound(f,round){await expect.poll(()=>f.evaluate(()=>({round:window.LuminousCombat073.uiState().round,running:window.LuminousCombatAuthority073.state.runningLocal})),{timeout:90000}).toEqual({round,running:false});}

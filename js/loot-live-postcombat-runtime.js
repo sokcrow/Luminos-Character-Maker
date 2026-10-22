@@ -124,7 +124,8 @@
     }
     if (dependencyPromise) return dependencyPromise;
     dependencyPromise = (async () => {
-      for (const src of BROWSER_DEPENDENCIES) await loadBrowserScript(src);
+      // async=false preserves execution order while downloads overlap.
+      await Promise.all(BROWSER_DEPENDENCIES.map(loadBrowserScript));
       if (!inventory()?.createItemInstance || !lootInstances()?.generateLootInstance || !postCombat()?.applyResolvedAction || !delivery()?.materializeRecovery || !knowledge()?.mergeFacts) {
         throw new Error("LOOT_LIVE_RUNTIME_DEPENDENCIES_INCOMPLETE");
       }
@@ -220,32 +221,39 @@
     const db = dbFrom(options);
     if (!db?.ref) throw new Error("LOOT_LIVE_DATABASE_REQUIRED");
     const encounterId = clean(options.encounterId) || await ensureEncounterId(options);
-    const combatState = clone(options.combatState || await onceValue(db, ROOTS.combatState) || {});
-    const combatants = {...clone(options.combatants || await onceValue(db, ROOTS.combatants) || {}),...clone(await onceValue(db, ROOTS.defeated) || {})};
-    const authoredUnits = clone(options.units || await onceValue(db, ROOTS.units) || {});
-    const priorMeta = await onceValue(db, `${ROOTS.encounterLoot}/${safeKey(encounterId)}/meta`);
-    if (priorMeta?.closedByDm === true) return deepFreeze({ encounterId, finalized: [], skipped: [], closed: true });
-    const context = encounterContextFromState(combatState, options);
+    const [combatState, active, defeated, prior] = await Promise.all([
+      options.combatState || onceValue(db, ROOTS.combatState),
+      options.combatants || onceValue(db, ROOTS.combatants),
+      onceValue(db, ROOTS.defeated),
+      onceValue(db, `${ROOTS.encounterLoot}/${safeKey(encounterId)}`),
+    ]);
+    const combatants = {...(active || {}), ...(defeated || {})};
+    if (prior?.meta?.closedByDm === true) return deepFreeze({ encounterId, finalized: [], skipped: [], closed: true });
+    const eligible = eligibleCombatants(combatants);
+    // Fetch only the defeated definitions, never the entire unit library.
+    const authoredUnits = options.units || Object.fromEntries(await Promise.all(
+      [...new Set(eligible.map(entry=>canonicalUnitId(entry.unit)))].filter(Boolean)
+        .map(async id=>[id,await onceValue(db, `${ROOTS.units}/${safeKey(id)}`)])));
+    const context = encounterContextFromState(combatState || {}, options);
     const finalized = [];
     const skipped = [];
 
-    for (const entry of eligibleCombatants(combatants)) {
+    async function finalizeCorpse(entry) {
       const sourceUnitId = canonicalUnitId(entry.unit);
       const unitInstanceId = combatantId(entry.key, entry.unit);
       const corpseId = corpseIdFor(entry.key, entry.unit);
       const corpseKey = safeKey(unitInstanceId, entry.key);
       const indexPath = `${ROOTS.encounterLoot}/${safeKey(encounterId)}/corpses/${corpseKey}`;
-      const existingIndex = await onceValue(db, indexPath);
+      const existingIndex = prior?.corpses?.[corpseKey];
       if (existingIndex?.lootInstanceId) {
-        finalized.push({ ...existingIndex, reused: true });
-        continue;
+        return { ...existingIndex, reused: true };
       }
 
       const baseTruth = authoredUnits[sourceUnitId] || {};
       const unitTruth = mergeUnitTruth(baseTruth, entry.unit);
       if (!unitTruth.lootProfile || !unitTruth.bodyProfile) {
         skipped.push({ unitInstanceId, sourceUnitId, reason: "unit_loot_profile_missing" });
-        continue;
+        return null;
       }
 
       const generated = lootInstances().generateLootInstance(unitTruth, {
@@ -277,17 +285,24 @@
         finalizedAt: options.now ?? Date.now(),
       };
 
-      const existingLoot = await onceValue(db, `${ROOTS.lootInstances}/${locked.lootInstanceId}`);
-      if (!existingLoot) await db.ref(`${ROOTS.lootInstances}/${locked.lootInstanceId}`).set(clone(locked));
-      const existingState = await onceValue(db, `${ROOTS.postCombat}/${locked.lootInstanceId}`);
-      if (!existingState) await db.ref(`${ROOTS.postCombat}/${locked.lootInstanceId}`).set(clone(interaction));
-      await db.ref(indexPath).set(clone(index));
-      finalized.push(index);
+      // Initialize once even when two DM windows finalize together. Existing
+      // attempts, depleted resources and receipts must never be overwritten.
+      await Promise.all([
+        transactionValue(db.ref(`${ROOTS.lootInstances}/${locked.lootInstanceId}`), raw=>raw || clone(locked)),
+        transactionValue(db.ref(`${ROOTS.postCombat}/${locked.lootInstanceId}`), raw=>raw || clone(interaction)),
+      ]);
+      const saved=await transactionValue(db.ref(indexPath), raw=>raw || clone(index));
+      return snapshotValue(saved.snapshot) || index;
+    }
+    // Bound fan-out while keeping independent corpse I/O off a serial chain.
+    for(let start=0;start<eligible.length;start+=4){
+      const rows=await Promise.all(eligible.slice(start,start+4).map(finalizeCorpse));
+      finalized.push(...rows.filter(Boolean));
     }
 
     await transactionValue(db.ref(`${ROOTS.encounterLoot}/${safeKey(encounterId)}/meta`), raw => raw?.closedByDm === true ? raw : ({ ...(raw || {}),
       encounterId,
-      result: normalizeId(options.result || combatState.result || combatState.outcome),
+      result: normalizeId(options.result || combatState?.result || combatState?.outcome),
       finalizedAt: options.now ?? Date.now(),
       corpseCount: finalized.length,
       open: true,
@@ -530,7 +545,7 @@
     const playerId = clean(options.playerId);
     if (!db?.ref || !lootInstanceId || !deliveryId || !playerId) throw new Error("LOOT_PENDING_DELIVERY_INPUT_REQUIRED");
 
-    const state = await onceValue(db, `${ROOTS.postCombat}/${lootInstanceId}`) || {};
+    const state = options.interactionState || await onceValue(db, `${ROOTS.postCombat}/${lootInstanceId}`) || {};
     const pending = (state.pendingDeliveries || []).find((entry) => clean(entry.id) === deliveryId);
     if (!pending) {
       const player = await onceValue(db, `${ROOTS.players}/${playerId}`) || {};
@@ -614,6 +629,7 @@
         ...options,
         lootInstanceId: clean(options.lootInstanceId),
         deliveryId: reserved.pending.id,
+        interactionState: reserved.state,
         playerId,
       });
     }
@@ -707,7 +723,7 @@
     const owner = actor?.uid || actor?.vinculado_a || actor?.vinculo_jugador;
     const meta = locked && await onceValue(db,`${ROOTS.encounterLoot}/${safeKey(locked.encounterId)}/meta`);
     if (!owner || owner !== row.uid || row.playerId !== playerId || !locked?.locked || meta?.participants?.[playerId] !== true || meta.open === false || meta.result !== 'victory') throw Error('Tu personaje no participa en este botín.');
-    const options = {db,playerId,actor:{...actor,id:playerId},lootInstanceId:row.lootInstanceId,targetResourceId:row.targetResourceId||undefined};
+    const options = {db,playerId,actor:{...actor,id:playerId},lootInstance:locked,lootInstanceId:row.lootInstanceId,targetResourceId:row.targetResourceId||undefined};
     if (row.actionId === 'claim') return deliverPending({...options,deliveryId:row.deliveryId});
     if (!['search','harvest','extract','salvage','examine','autopsy'].includes(row.actionId)) throw Error('Esta acción de recuperación no está disponible.');
     const definition = postCombat().checkDefinition(options.actor,row.actionId,options);
@@ -725,7 +741,7 @@
     const dm = await onceValue(db,'campaña/config/dm_uid');
     if (uid !== dm && uid !== 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') return false;
     if (authorities.has(db)) return true;
-    const ref = db.ref(ROOTS.requests), worker = {chain:Promise.resolve(),rows:{},timer:null};
+    const ref = db.ref(ROOTS.requests), worker = {chains:new Map(),queued:new Set(),rows:{},timer:null,stopped:false};
     const process = async (playerId,key) => {
       const request = db.ref(`${ROOTS.requests}/${playerId}/${key}`),token = `${uid}:${Math.random()}`;
       // Keep a cached value while transacting: an uncached null would abort.
@@ -743,12 +759,22 @@
       } finally { request.off('value',hold); }
     };
     const drain = () => {
+      if(worker.stopped)return;
       for (const [playerId,rows] of Object.entries(worker.rows)) for (const [key,row] of Object.entries(rows||{})) {
-        if (row.status==='pending'||(row.status==='processing'&&Date.now()-Number(row.claimedAt)>60000)) worker.chain=worker.chain.then(()=>process(playerId,key)).catch(error=>console.error('[Loot recovery]',error));
+        const id=playerId+'/'+key;
+        if(worker.queued.has(id)||!(row.status==='pending'||(row.status==='processing'&&Date.now()-Number(row.claimedAt)>60000)))continue;
+        worker.queued.add(id);
+        // One task per request, serial for a player's inventory. Other players
+        // do not wait behind this player's animation/recovery operations.
+        const prior=worker.chains.get(playerId)||Promise.resolve();
+        const task=prior.then(()=>worker.stopped?undefined:process(playerId,key))
+          .catch(error=>console.error('[Loot recovery]',error))
+          .finally(()=>{worker.queued.delete(id);if(worker.chains.get(playerId)===task)worker.chains.delete(playerId);});
+        worker.chains.set(playerId,task);
       }
     };
     const listener = snapshot => {worker.rows=snapshot.val()||{};drain();};
-    worker.stop=()=>{ref.off('value',listener);global.clearInterval(worker.timer);authorities.delete(db);};
+    worker.stop=()=>{worker.stopped=true;ref.off('value',listener);global.clearInterval(worker.timer);authorities.delete(db);};
     authorities.set(db,worker);ref.on('value',listener);worker.timer=global.setInterval(drain,15000);
     return true;
   }

@@ -391,6 +391,7 @@
       unit.combatDeck,
       unit.proneSpeedRound,
       unit.confusionTurnMode,
+      unit.scores,unit.abilityScores,unit.stats,unit.attributes,
       skillIdsFor(unit),
       inventoryHydrationSignature(unit),
       playerRecordFor(unit)?.itemEquipmentRefs || unit.itemEquipmentRefs || null,

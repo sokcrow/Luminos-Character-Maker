@@ -1,0 +1,47 @@
+name: Combat and Loot Performance
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  browser-performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-save @playwright/test@1.55.0 firebase@8.10.1 firebase-tools@14.19.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/combat-presentation-transport-smoke.mjs
+      - run: git fetch --no-tags --depth=1 origin ae3fc18866bf94a47d454e974e5a4f5a10f7a375
+      - name: Compare shipped baseline and candidate with identical browser workload
+        shell: bash
+        run: |
+          git diff ae3fc18866bf94a47d454e974e5a4f5a10f7a375 HEAD -- js combat Battle-viewer.html combate.html mirror.html pantalla_dm.html hoja_personaje.html hoja_de_DM.html > /tmp/combat-performance.patch
+          git restore --source=ae3fc18866bf94a47d454e974e5a4f5a10f7a375 -- js combat Battle-viewer.html combate.html mirror.html pantalla_dm.html hoja_personaje.html hoja_de_DM.html
+          # A flaky baseline must not prevent collecting candidate evidence.
+          # Keep the final gate red until BOTH workloads pass.
+          baseline_exit=0
+          npx firebase emulators:exec --project demo-combat-results --only auth,database --config combat-results-firebase.json 'PERFORMANCE_BASELINE=1 npx playwright test tests/combat-loot-performance.spec.mjs --output=perf-baseline --workers=1 --reporter=line' || baseline_exit=$?
+          git apply /tmp/combat-performance.patch
+          candidate_exit=0
+          npx firebase emulators:exec --project demo-combat-results --only auth,database --config combat-results-firebase.json 'npx playwright test tests/combat-loot-performance.spec.mjs --output=perf-candidate --workers=1 --reporter=line' || candidate_exit=$?
+          echo "Performance baseline exit code: ${baseline_exit}"
+          echo "Performance candidate exit code: ${candidate_exit}"
+          {
+            echo "## Combat / loot browser profiling"
+            echo "Baseline: exit ${baseline_exit}"
+            echo "Candidate: exit ${candidate_exit}"
+            echo "Results and trace artifacts are uploaded even when either fails."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if (( baseline_exit != 0 || candidate_exit != 0 )); then exit 1; fi
+      - name: Enforce visible round and loot wall-time gains
+        run: node tests/combat-loot-performance-compare.mjs perf-baseline perf-candidate
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: combat-loot-performance
+          path: |
+            perf-baseline
+            perf-candidate

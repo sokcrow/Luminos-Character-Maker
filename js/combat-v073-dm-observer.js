@@ -65,10 +65,15 @@
     if(!game||state.visualObserver||typeof MutationObserver!=='function')return Boolean(game);
     state.visualObserver=new MutationObserver(records=>{
       if(!isDm())return;
-      const rendererClaimedBackground=game.classList.contains('webgl2-background-ready');
-      const rendererClaimedSprites=Boolean(game.querySelector('.sprite-img.webgl2-texture-backed'));
-      const newBattleNodes=records.some(record=>record.type==='childList');
-      if(rendererClaimedBackground||rendererClaimedSprites||newBattleNodes)scheduleVisualSurface();
+      // Coin animations and menu changes add many unrelated nodes. A broad
+      // subtree observer used to scan and restyle every sprite for each change.
+      const newSprites=records.some(record=>record.type==='childList'&&Array.from(record.addedNodes||[]).some(node=>
+        node.nodeType===1&&(node.matches?.('.sprite-container,.sprite-img')||
+          node.querySelector?.('.sprite-container,.sprite-img'))));
+      const rendererClaim=records.some(record=>record.type==='attributes'&&record.attributeName==='class'&&
+        ((record.target===game&&game.classList.contains('webgl2-background-ready'))||
+          record.target?.matches?.('.sprite-img.webgl2-texture-backed')));
+      if(newSprites||rendererClaim)scheduleVisualSurface();
     });
     state.visualObserver.observe(game,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
     scheduleVisualSurface();
@@ -124,7 +129,10 @@
     const field=global.document?.getElementById?.('battlefield');
     if(!field||state.facingObserver||typeof MutationObserver!=='function')return Boolean(field);
     state.facingObserver=new MutationObserver(records=>{
-      if(records.some(record=>record.type==='childList'))scheduleFacing();
+      // Only new combat tokens need faction facing; effect particles, Coin
+      // overlays and HUD DOM changes must not rescan the entire battlefield.
+      if(records.some(record=>record.type==='childList'&&Array.from(record.addedNodes||[]).some(node=>
+        node.nodeType===1&&(node.matches?.('.sprite-container')||node.querySelector?.('.sprite-container')))))scheduleFacing();
     });
     state.facingObserver.observe(field,{childList:true,subtree:true});
     scheduleFacing();
