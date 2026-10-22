@@ -62,9 +62,10 @@
 
   function checkThresholdAdjustment(unit = {}, checkId = "") {
     const check = norm(checkId);
-    return -effectsFor(unit).reduce((sum, effect) =>
+    const reduction = effectsFor(unit).reduce((sum, effect) =>
       sum + (effect.type === "check_threshold_reduction" && norm(effect.check) === check
         ? positive(effect.value) : 0), 0);
+    return reduction > 0 ? -reduction : 0;
   }
 
   function resolveSinResistance(unit = {}, sin = "", base = 1) {
