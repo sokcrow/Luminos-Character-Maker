@@ -22,6 +22,7 @@
 
   const BROWSER_DEPENDENCIES = Object.freeze([
     "js/content-registry.js",
+    "js/item-icon-registry.js",
     "js/item-runtime-engine.js",
     "js/item-inventory-runtime.js",
     "js/item-catalog-hp-healing.js",
@@ -794,7 +795,10 @@
         if (row?.status === 'resolved') finish(null,row.response);
         if (row?.status === 'rejected') finish(Error(row.message || 'No se pudo recuperar el botín.'));
       };
-      const timer = global.setTimeout(() => finish(Error('La recuperación sigue pendiente. Mantén abierta la sesión del DM y vuelve a intentarlo.')),30000);
+      // Persist the request in Firebase even when the DM is offline: the
+      // client stops waiting, while the privileged authority resumes processing
+      // pending requests when it reconnects. Do not award items client-side.
+      const timer = global.setTimeout(() => finish(null,{queued:true,requestId:key}),6000);
       ref.on('value',listener,error=>finish(error));
     });
   }

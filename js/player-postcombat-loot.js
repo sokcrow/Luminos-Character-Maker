@@ -24,6 +24,7 @@
     selectedLootId: null,
     claim: null,
     claims: {},
+    requests: {},
     claimHeartbeat: null,
     claiming: false,
   };
@@ -81,7 +82,7 @@
       const link = global.document.createElement("link");
       link.id = "postcombat-loot-corpse-css";
       link.rel = "stylesheet";
-      link.href = "css/postcombat-loot-corpse.css?v=20261022-pickpocket-3";
+      link.href = "css/postcombat-loot-corpse.css?v=20261022-mobile-icons-1";
       global.document.head.appendChild(link);
     }
   }
@@ -220,9 +221,10 @@
   function bodySlot(resource = {}) {
     const name = resourceLabel(resource);
     const remaining = Math.max(0, Number(resource.remaining || 0));
-    return `<div class="loot-discovery known${remaining ? "" : " depleted"}" title="${esc(name)}">
-      <b>${esc(name)}</b><small>${remaining ? remaining + " DISP." : "AGOTADO"}</small>
-    </div>`;
+    const icon = resolveLootIcon(resource.iconUrl, resource.icon, resource.imageUrl, resource.materialId, resource.resourceId, resource.family, resource.category, "material");
+    return `<button type="button" class="loot-discovery known${remaining ? "" : " depleted"}" title="${esc(name)}" aria-label="${esc(name)}: ${remaining ? remaining + " disponibles" : "agotado"}" data-loot-detail="${esc(name)}">
+      <img src="${esc(icon)}" alt="" loading="lazy"><small>${remaining ? remaining : "0"}</small>
+    </button>`;
   }
 
   function leasedByAnother(lootId) {
@@ -287,11 +289,16 @@
       [...(entry.discoveredBy || []), ...(entry.recoveredBy || [])].some((id) => clean(id) === playerId)
     ).map((entry) => {
       let item = entry.item || {};
-      try { item = global.LuminousItemInventoryRuntime?.resolveItem?.(item) || item; } catch (_) { /* Keep the saved instance. */ }
+      let definition = {};
+      try {
+        const inv = global.LuminousItemInventoryRuntime;
+        definition = inv?.resolveDefinition?.(entry.definitionId || item.definitionId) || {};
+        item = inv?.resolveItem?.(item) || item;
+      } catch (_) { /* Keep the saved instance. */ }
       return {
         name: clean(item.displayName || item.name || item.nombre || titleCase(entry.definitionId || "Pertenencia recuperada")),
         quantity: Math.max(1, Number(entry.recoveredQuantitiesBy?.[playerId] ?? entry.quantity ?? item.quantity ?? 1)),
-        icon: clean(item.iconUrl || item.icon || item.imageUrl || item.image || ""),
+        icon: resolveLootIcon(item.iconUrl, item.icon, item.imageUrl, item.image, definition.iconUrl, definition.icon, item.iconFamily, definition.iconFamily, definition.family, entry.definitionId),
         status: "Recuperado",
       };
     });
@@ -304,16 +311,29 @@
       .map((entry) => ({
         name: resourceLabel(entry),
         quantity: Math.max(1, Number(entry.capacity || 0) - Number(entry.remaining || 0)),
-        icon: "",
+        icon: resolveLootIcon(entry.iconUrl, entry.icon, entry.materialId, entry.resourceId, entry.family, entry.category, "material"),
         status: "Extraído",
       }));
   }
 
   // Only allow icons coming from the game's asset directories, never arbitrary
   // remote URLs or values from untrusted inventory metadata.
+  const GENERIC_ITEM_ICON = "Assets/Icons/items/fallback/generic_item.png";
   function lootIcon(path) {
     const value = clean(path).replace(/^\.?\//, "");
     return /^(Assets|assets)\//.test(value) && !value.includes("..") && !/["'<>]/.test(value) ? value : "";
+  }
+  function resolveLootIcon(...candidates) {
+    const registry = global.LuminousItemIconRegistry;
+    for (const candidate of candidates) {
+      const explicit = lootIcon(candidate);
+      if (explicit) return explicit;
+      const key = clean(candidate);
+      if (!key || !registry?.has?.(key)) continue;
+      const icon = lootIcon(registry.resolveIcon(key, { fallback: false }));
+      if (icon) return icon;
+    }
+    return GENERIC_ITEM_ICON;
   }
 
   // Accept battle sprite sources without allowing a scripted URI in img src.
@@ -331,13 +351,12 @@
   }
 
   function knownItemSlot(entry = {}) {
-    const icon = lootIcon(entry.icon);
+    const icon = resolveLootIcon(entry.icon);
     const name = clean(entry.name || "Objeto");
     const quantity = Math.max(1, Number(entry.quantity || 1));
-    return `<div class="loot-discovery known" title="${esc(name)} · ${esc(entry.status || "Recuperado")}">
-      ${icon ? `<img src="${esc(icon)}" alt="">` : `<b>${esc(name)}</b>`}
-      <small>${quantity}</small>
-    </div>`;
+    return `<button type="button" class="loot-discovery known" title="${esc(name)} · ${esc(entry.status || "Recuperado")}" aria-label="${esc(name)}, cantidad ${quantity}" data-loot-detail="${esc(name)} · ×${quantity}">
+      <img src="${esc(icon)}" alt="" loading="lazy"><small>${quantity}</small>
+    </button>`;
   }
 
   function playerInventoryMarkup(actor = {}) {
@@ -357,9 +376,11 @@
     if (host) {
       const slots = active.slice(0, 48).map(({ item }) => {
         const name = clean(item?.displayName || item?.name || item?.nombre || titleCase(item?.definitionId || "Objeto"));
-        const icon = lootIcon(item?.iconUrl || item?.icon || item?.imageUrl || item?.image || "");
+        let definition = {};
+        try { definition = inventory?.resolveDefinition?.(item?.definitionId || item?.itemId) || {}; } catch (_) { /* A legacy item still gets a neutral icon. */ }
+        const icon = resolveLootIcon(item?.iconUrl, item?.icon, item?.imageUrl, item?.image, definition.iconUrl, definition.icon, item?.iconFamily, definition.iconFamily, item?.family, definition.family, item?.category);
         const quantity = Math.max(1, Number(item?.quantity || 1));
-        return `<div class="loot-pack-item" title="${esc(name)}">${icon ? `<img src="${esc(icon)}" alt="">` : `<span>${esc(name)}</span>`}${quantity > 1 ? `<small>${quantity}</small>` : ""}</div>`;
+        return `<button type="button" class="loot-pack-item" title="${esc(name)}" aria-label="${esc(name)}, cantidad ${quantity}" data-loot-detail="${esc(name)} · ×${quantity}"><img src="${esc(icon)}" alt="" loading="lazy">${quantity > 1 ? `<small>${quantity}</small>` : ""}</button>`;
       });
       const blanks = Math.max(0, Math.min(limit || 12, 16) - slots.length);
       host.innerHTML = slots.join("") + Array.from({ length: blanks }, () => '<div class="loot-pack-item blank" aria-hidden="true"></div>').join("");
@@ -400,13 +421,14 @@
         interaction.harvest.resources = Object.values(interaction.harvest.resources || {});
       }
       const actions = live().availableActions(interaction, actor, { playerId });
+      const pendingRequests = Object.values(state.requests || {}).filter(request => request && request.lootInstanceId === interaction.lootInstanceId && (request.status === "pending" || request.status === "processing"));
       const pending = pendingForPlayer(interaction);
       const known = visibleDiscoveredItems(interaction, playerId);
       const anatomyKnown = bodyDiscoveredByPlayer(interaction, playerId);
       const bodyKnown = anatomyKnown ? bodyResources(interaction) : visibleRecoveredResources(interaction, playerId);
       const occupied = leasedByAnother(interaction.lootInstanceId);
       const accessible = ownsCorpse(interaction.lootInstanceId);
-      const remainingRecoverable = actions.length > 0 || pending.length > 0;
+      const remainingRecoverable = actions.length > 0 || pending.length > 0 || pendingRequests.length > 0;
       const name = clean(corpse.index.name || corpse.index.sourceUnitId || "Restos");
       const lootId = interaction.lootInstanceId;
       const spriteMarkup = corpseSpriteMarkup(corpse.index.spriteUrl || corpse.loot?.spriteUrl);
@@ -429,7 +451,8 @@
         const penalty = Number(postCombat().lootProficiencyPenalty?.(actor,action) || 0);
         const skillLabel = ({ investigation:"Investigation", survival:"Survival", medicine:"Medicine", arcana:"Arcana" })[requiredSkill] || titleCase(requiredSkill);
         const penaltyText = penalty ? `SIN ${esc(skillLabel.toUpperCase())} · +${penalty} TH` : "";
-        return `<div class="loot-resource-group">${select}<button type="button" class="loot-action" data-loot-action="${esc(action)}" data-loot-id="${esc(lootId)}" ${accessible ? "" : "disabled"} title="${penalty ? `Sin competencia en ${esc(skillLabel)}: +${penalty} al TH` : `Skill: ${esc(skillLabel)}`}">${esc(actionLabel(action))}</button>${penalty ? `<small class="loot-skill-penalty">${penaltyText}</small>` : ""}</div>`;
+        const queued = pendingRequests.some(request => normalizeId(request.actionId) === action);
+        return `<div class="loot-resource-group">${select}<button type="button" class="loot-action${queued ? " pending" : ""}" data-loot-action="${esc(action)}" data-loot-id="${esc(lootId)}" ${accessible && !queued ? "" : "disabled"} title="${queued ? "Esta recuperación está pendiente" : penalty ? `Sin competencia en ${esc(skillLabel)}: +${penalty} al TH` : `Skill: ${esc(skillLabel)}`}">${queued ? "En espera" : esc(actionLabel(action))}</button>${penalty && !queued ? `<small class="loot-skill-penalty">${penaltyText}</small>` : ""}</div>`;
       }).join("");
       const pendingHtml = pending.map((entry) => `<button type="button" class="loot-action pending" data-pending-id="${esc(entry.id)}" data-loot-id="${esc(lootId)}" ${accessible ? "" : "disabled"}>Recoger pendiente</button>`).join("");
       const discoverySlots = known.slice(0, 24).map(knownItemSlot).join("");
@@ -445,7 +468,8 @@
         Array.from({length:Math.max(0, 6 - bodyKnown.length)},()=>'<div class="loot-discovery unknown" aria-hidden="true">✧</div>').join("");
       rows.push(`<article class="loot-corpse${state.selectedLootId === lootId ? " selected" : ""}" data-loot-card="${esc(lootId)}">
         <div class="loot-corpse-title"><strong>${esc(name)}</strong><span>${pending.length ? "ENTREGA PENDIENTE" : remainingRecoverable ? "RECUPERACIÓN POSIBLE" : "SIN ACCIONES DISPONIBLES"}</span></div>
-        <p class="loot-corpse-note">${known.length ? "Pertenencias recuperadas de este enemigo." : "Las bolsas permanecen ocultas hasta superar Buscar. El botín no se regenera."}</p>
+        <p class="loot-corpse-note">${known.length ? "Pertenencias recuperadas." : "Busca para descubrir las pertenencias."}</p>
+        ${pendingRequests.length ? `<p class="loot-queue-status" role="status">${pendingRequests.length} recuperación${pendingRequests.length === 1 ? "" : "es"} pendiente${pendingRequests.length === 1 ? "" : "s"} de validación. Puedes salir y volver después.</p>` : ""}
         <div class="loot-recovered-title">${known.length ? "OBJETOS RECUPERADOS" : "SIN DESCUBRIMIENTOS"}</div>
         <div class="loot-recovered-grid">${discoverySlots}${emptySlots}</div>
         <div class="loot-recovered-title">CUERPO · ${anatomyKnown ? "RECURSOS EXAMINADOS" : "SIN EXAMINAR"}</div>
@@ -473,6 +497,12 @@
         enterCorpse(next).catch(error=>showLootError(error));
       });
     });
+    for (const host of [list, global.document.getElementById("postcombat-loot-inventory")]) {
+      host?.querySelectorAll?.("[data-loot-detail]").forEach(button => button.addEventListener("click", () => setMessage(button.dataset.lootDetail || "Objeto")));
+      host?.querySelectorAll?.("[data-loot-detail] img[src]").forEach(image => image.addEventListener("error", () => {
+        if (!image.src.endsWith("/fallback/generic_item.png")) image.src = GENERIC_ITEM_ICON;
+      }, { once: true }));
+    }
     list.querySelectorAll("[data-corpse-release]").forEach(button => {
       button.addEventListener("click", () => {
         if (state.busy) {setMessage("Finaliza la tirada antes de soltar el cadáver.",true);return;}
@@ -541,7 +571,9 @@
         now: Date.now(),
       });
 
-      if (!result.committed) {
+      if (result.queued) {
+        setMessage("Acción guardada. El DM la revisará al conectarse; si caduca la reserva del cadáver, tendrás que intentarlo de nuevo.", false);
+      } else if (!result.committed) {
         setMessage("Otro intento ya resolvió esta acción o el recurso dejó de estar disponible.", true);
       } else if (result.delivery && !result.delivery.delivered) {
         setMessage("La recuperación quedó reservada. Libera espacio en Inventario o Stash y usa «Recoger pendiente».", false);
@@ -571,7 +603,8 @@
         playerId: resolvePlayerId(),
         now: Date.now(),
       });
-      if (result.delivered) setMessage(result.duplicate ? "La recuperación ya estaba acreditada; se confirmó sin duplicarla." : "Recuperación pendiente entregada.");
+      if (result.queued) setMessage("Recogida solicitada. Quedará pendiente hasta que vuelva el DM.");
+      else if (result.delivered) setMessage(result.duplicate ? "La recuperación ya estaba acreditada; se confirmó sin duplicarla." : "Recuperación pendiente entregada.");
       else setMessage("Todavía no hay espacio suficiente para recibir esa recuperación.", true);
       await refreshEncounters();
     } finally {
@@ -652,6 +685,10 @@
     const onLease = snap => {state.claims=snap.val()||{};if (state.open) render().catch(()=>{});};
     leasesRef.on("value",onLease);
     state.listeners.push(()=>leasesRef.off("value",onLease));
+    const requestsRef = state.db.ref(`${live().ROOTS.requests}/${resolvePlayerId()}`);
+    const onRequests = snapshot => { state.requests = snapshot.val() || {}; if (state.open) render().catch(error => showLootError(error)); };
+    requestsRef.on("value", onRequests);
+    state.listeners.push(() => requestsRef.off("value", onRequests));
     const corpseStateRef = state.db.ref(live().ROOTS.postCombat);
     const onCorpse = () => {if(state.open) render().catch(()=>{});};
     corpseStateRef.on("value",onCorpse);
@@ -665,7 +702,7 @@
 
   async function install(options = {}) {
     if (state.db&&(!options.playerId||options.playerId===state.playerId)&&(!options.db||options.db===state.db)) return true;
-    state.listeners.splice(0).forEach(off=>off());close();state.encounters={};state.combatState={};state.instance=null;state.autoOpened=null;state.selectedLootId=null;state.claim=null;state.claims={};
+    state.listeners.splice(0).forEach(off=>off());close();state.encounters={};state.combatState={};state.instance=null;state.autoOpened=null;state.selectedLootId=null;state.claim=null;state.claims={};state.requests={};
     // RTDB rejects the loot listeners when they subscribe before Auth finishes.
     if (!global.firebase?.auth?.().currentUser) return false;
     state.db = options.db || (global.firebase?.database ? global.firebase.database() : null);
