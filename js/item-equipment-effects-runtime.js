@@ -12,7 +12,7 @@
     "check_threshold_reduction", "heal_hp_percent", "grant_skill"
   ]);
   const TRIGGERS = Object.freeze(["passive", "on_turn_start"]);
-  const norm = value => String(value ?? "").trim().toLowerCase().replace(/[\\s-]+/g, "_");
+  const norm = value => String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   const positive = value => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
   const array = value => Array.isArray(value) ? value : [];
 
