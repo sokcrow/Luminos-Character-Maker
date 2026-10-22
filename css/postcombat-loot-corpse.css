@@ -176,3 +176,75 @@
   #postcombat-loot-modal .loot-right{max-height:65px}
   #postcombat-loot-modal .loot-inventory-meta{display:none}
 }
+
+/* Task-based navigation: only the selected section consumes panel space. */
+#postcombat-loot-modal *,#postcombat-loot-modal *:before,#postcombat-loot-modal *:after{box-sizing:border-box}
+#postcombat-loot-modal [hidden]{display:none!important}
+#postcombat-loot-modal .loot-shell{width:min(1120px,98vw);height:min(900px,94dvh);max-height:94dvh;min-height:0}
+#postcombat-loot-modal .loot-head{min-height:0;flex:none;padding:12px 18px;gap:12px}
+#postcombat-loot-modal .loot-head>div:nth-child(2){min-width:0}
+#postcombat-loot-modal .loot-head h2{font-size:36px}
+#postcombat-loot-modal .loot-sigil{width:48px;min-width:48px;height:50px}
+#postcombat-loot-modal .loot-close{width:44px;height:44px;min-width:44px;align-self:center;margin-left:auto;flex:none}
+#postcombat-loot-modal .loot-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));flex:none;gap:4px;padding:7px 13px;border-bottom:1px solid #765236;background:#130b0a}
+#postcombat-loot-modal .loot-tabs button{min-height:44px;min-width:0;padding:8px 3px;border:1px solid #684b35;background:#1b100d;color:#d8c7ac;font:600 14px/1.2 system-ui;cursor:pointer;touch-action:manipulation}
+#postcombat-loot-modal .loot-tabs [aria-selected="true"]{color:#fff0d5;background:#541b20;border-color:#e1bb82;box-shadow:inset 0 -3px #e1bb82}
+#postcombat-loot-modal .loot-tabs button:focus-visible,#postcombat-loot-modal .loot-close:focus-visible,#postcombat-loot-modal [role="tabpanel"]:focus-visible{outline:2px solid #f0cd91;outline-offset:-3px}
+#postcombat-loot-modal .loot-stage{grid-template-columns:minmax(180px,25%) minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-height:0;overflow:hidden}
+#postcombat-loot-modal .loot-column{min-width:0;min-height:0;overflow:hidden}
+#postcombat-loot-modal [data-loot-panel]{display:flex;flex-direction:column;grid-column:2;grid-row:1;max-height:none;min-height:0}
+#postcombat-loot-modal .loot-right .loot-column-head{display:flex}
+#postcombat-loot-modal .loot-content-scroll{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+#postcombat-loot-modal .loot-action,#postcombat-loot-modal .loot-resource,#postcombat-loot-modal .loot-release{min-height:44px;touch-action:manipulation;line-height:1.3}
+#postcombat-loot-modal .loot-corpse-title{flex-wrap:wrap}
+#postcombat-loot-modal .loot-corpse-title strong{white-space:normal;overflow-wrap:anywhere}
+#postcombat-loot-modal .loot-inventory-meta{padding:12px;font-size:13px;white-space:normal;flex:none}
+#postcombat-loot-modal .loot-inventory-meta b{font-size:22px}
+#postcombat-loot-modal .loot-capacity-bar{display:block;margin-top:8px}
+#postcombat-loot-modal .loot-inventory-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;padding:12px;flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+#postcombat-loot-modal .loot-pack-item{width:100%;min-width:0;height:auto;min-height:44px;aspect-ratio:1}
+#postcombat-loot-modal .loot-inventory-empty{grid-column:1/-1;color:#c1a17f;font:14px/1.5 system-ui}
+#postcombat-loot-modal .loot-wallet{position:static;flex:none;font-size:19px;padding:10px 12px;border-top:1px solid #8f6842;align-self:stretch}
+#postcombat-loot-modal .loot-wallet small{display:block}
+#postcombat-loot-modal .loot-space-card{padding:16px;border:1px solid #765236;background:#1b100d;font:14px/1.5 system-ui}
+#postcombat-loot-modal .loot-space-card h4{margin:0 0 8px;color:#e7d6bd;font-size:16px}
+#postcombat-loot-modal .loot-space-card p{margin:4px 0}
+#postcombat-loot-modal .loot-space-card b{font-size:28px;color:#f2ddb8}
+#postcombat-loot-modal .loot-space-card .loot-space-full{color:#ffb3ad}
+#postcombat-loot-modal .loot-attempts{list-style:none;padding:0;margin:0;font:14px/1.5 system-ui}
+#postcombat-loot-modal .loot-attempts li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;padding:10px 0;border-bottom:1px solid #503724}
+#postcombat-loot-modal .loot-coin-roll{flex:none;min-height:44px;max-height:90px;overflow:auto}
+#postcombat-loot-modal .loot-coin-roll:has(#postcombat-loot-coins:empty):has(#postcombat-loot-total:empty){display:none}
+#postcombat-loot-modal .loot-message{overflow-wrap:anywhere}
+@media(max-width:900px), (max-height:500px){
+  #postcombat-loot-modal{padding:0!important;align-items:stretch;overflow:hidden}
+  #postcombat-loot-modal .loot-shell{width:100%;height:100dvh;max-height:100dvh;border:0;box-shadow:none;margin:0}
+  #postcombat-loot-modal .loot-head{padding:calc(5px + env(safe-area-inset-top,0px)) calc(8px + env(safe-area-inset-right,0px)) 5px calc(8px + env(safe-area-inset-left,0px));gap:8px}
+  #postcombat-loot-modal .loot-head h2{font-size:28px}
+  #postcombat-loot-modal .loot-head p,#postcombat-loot-modal .loot-motto{display:none}
+  #postcombat-loot-modal .loot-sigil{width:38px;min-width:38px;height:40px}
+  #postcombat-loot-modal .loot-tabs{padding:5px calc(6px + env(safe-area-inset-right,0px)) 5px calc(6px + env(safe-area-inset-left,0px));gap:3px}
+  #postcombat-loot-modal .loot-tabs button{font-size:12px}
+  #postcombat-loot-modal .loot-stage{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);padding:5px calc(6px + env(safe-area-inset-right,0px)) calc(5px + env(safe-area-inset-bottom,0px)) calc(6px + env(safe-area-inset-left,0px));gap:5px}
+  #postcombat-loot-modal [data-loot-panel]{grid-column:1;grid-row:2}
+  #postcombat-loot-modal .loot-left .loot-column-head,#postcombat-loot-modal .loot-corpse-bottom,#postcombat-loot-modal .loot-foot{display:none}
+  #postcombat-loot-modal .loot-corpses{display:flex;flex-flow:row nowrap;overflow-x:auto;overflow-y:hidden;max-height:66px;padding:4px;gap:5px}
+  #postcombat-loot-modal .loot-corpse-choice{flex:0 0 160px;min-width:0;max-width:180px;min-height:50px;padding:4px;gap:6px}
+  #postcombat-loot-modal .loot-corpse-choice strong{font-size:16px}
+  #postcombat-loot-modal .loot-corpse-choice small{font-size:10px;letter-spacing:0;margin-top:3px}
+  #postcombat-loot-modal .loot-corpse-glyph{width:36px;min-width:36px;height:40px}
+  #postcombat-loot-modal .loot-column-head{min-height:34px;padding:7px 9px}
+  #postcombat-loot-modal .loot-column-head h3{font-size:17px}
+  #postcombat-loot-modal .loot-column-head span{display:none}
+  #postcombat-loot-modal .loot-content-scroll{padding:7px;gap:8px}
+  #postcombat-loot-modal .loot-corpse{padding:9px}
+  #postcombat-loot-modal .loot-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  #postcombat-loot-modal .loot-action,#postcombat-loot-modal .loot-resource{font-size:14px;padding:7px}
+  #postcombat-loot-modal .loot-corpse-note{font-size:13px;line-height:1.5}
+  #postcombat-loot-modal[data-loot-view="inventory"] .loot-left,#postcombat-loot-modal[data-loot-view="space"] .loot-left{display:none}
+  #postcombat-loot-modal[data-loot-view="inventory"] .loot-stage,#postcombat-loot-modal[data-loot-view="space"] .loot-stage{grid-template-rows:minmax(0,1fr)}
+  #postcombat-loot-modal[data-loot-view="inventory"] [data-loot-panel],#postcombat-loot-modal[data-loot-view="space"] [data-loot-panel]{grid-row:1}
+  #postcombat-loot-modal .loot-recovered-grid{grid-template-columns:repeat(auto-fill,minmax(48px,1fr))}
+}
+#postcombat-loot-modal .loot-result-card{position:relative;border:1px solid #765236;background:linear-gradient(155deg,#23120f,#0c0807);padding:12px;min-width:0}
+#postcombat-loot-modal .loot-result-card:not(.selected){display:none}

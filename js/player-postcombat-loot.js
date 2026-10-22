@@ -27,6 +27,8 @@
     requests: {},
     claimHeartbeat: null,
     claiming: false,
+    activeTab: "actions",
+    returnFocus: null,
   };
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -82,7 +84,7 @@
       const link = global.document.createElement("link");
       link.id = "postcombat-loot-corpse-css";
       link.rel = "stylesheet";
-      link.href = "css/postcombat-loot-corpse.css?v=20261022-mobile-icons-1";
+      link.href = "css/postcombat-loot-corpse.css?v=20261022-loot-tabs-2";
       global.document.head.appendChild(link);
     }
   }
@@ -115,35 +117,86 @@
       <section class="loot-shell" role="dialog" aria-modal="true" aria-labelledby="postcombat-loot-title">
         <header class="loot-head">
           <div class="loot-sigil" id="postcombat-loot-selected-sprite" aria-hidden="true">✥</div>
-          <div><h2 id="postcombat-loot-title">LOOT CORPSE</h2><p>TOMA LO QUE PERMANECE · RECUPERACIÓN POST-COMBATE</p></div>
+          <div><h2 id="postcombat-loot-title">BOTÍN</h2><p>RECUPERACIÓN POST-COMBATE</p></div>
           <p class="loot-motto">LOS CAÍDOS NO OLVIDAN SUS PERTENENCIAS</p>
           <button class="loot-close" type="button" aria-label="Cerrar saqueo">×</button>
         </header>
         <div class="loot-message" id="postcombat-loot-message" role="status" aria-live="polite"></div>
+        <nav class="loot-tabs" role="tablist" aria-label="Secciones del botín">
+          <button type="button" role="tab" id="loot-tab-actions" data-loot-tab="actions" aria-controls="loot-panel-actions" aria-selected="true">Tiradas</button>
+          <button type="button" role="tab" id="loot-tab-results" data-loot-tab="results" aria-controls="loot-panel-results" aria-selected="false" tabindex="-1">Resultados</button>
+          <button type="button" role="tab" id="loot-tab-inventory" data-loot-tab="inventory" aria-controls="loot-panel-inventory" aria-selected="false" tabindex="-1">Inventario</button>
+          <button type="button" role="tab" id="loot-tab-space" data-loot-tab="space" aria-controls="loot-panel-space" aria-selected="false" tabindex="-1">Espacio</button>
+        </nav>
         <div class="loot-stage">
           <aside class="loot-column loot-left" aria-label="Cadáveres disponibles">
             <div class="loot-column-head"><h3>CAÍDOS</h3><span id="postcombat-loot-corpse-count"></span></div>
             <div id="postcombat-loot-corpse-nav" class="loot-corpses"></div>
             <div class="loot-corpse-bottom"><b>RESTOS DE LA BATALLA</b>Lo que recuperes depende de tu búsqueda, tu habilidad y aquello que el enemigo llevaba consigo.</div>
           </aside>
-          <main class="loot-column loot-center">
-            <div class="loot-column-head"><h3>PERTENENCIAS Y RESTOS</h3><span>SAQUEO COMPARTIDO</span></div>
+          <section class="loot-column loot-center" id="loot-panel-actions" role="tabpanel" aria-labelledby="loot-tab-actions" tabindex="0" data-loot-panel="actions">
+            <div class="loot-column-head"><h3>TIRADAS DISPONIBLES</h3><span>SAQUEO COMPARTIDO</span></div>
             <div id="postcombat-loot-list" class="loot-content-scroll"></div>
             <div class="loot-coin-roll"><div id="postcombat-loot-coins" style="display:flex;gap:5px;flex-wrap:wrap" aria-label="Resultado de las monedas"></div><div class="loot-roll-total" id="postcombat-loot-total" aria-live="polite"></div></div>
-          </main>
-          <aside class="loot-column loot-right" aria-label="Inventario del personaje">
+          </section>
+          <section class="loot-column loot-center" id="loot-panel-results" role="tabpanel" aria-labelledby="loot-tab-results" tabindex="0" data-loot-panel="results" hidden>
+            <div class="loot-column-head"><h3>HALLAZGOS E INTENTOS</h3><span>DEL CADÁVER SELECCIONADO</span></div>
+            <div id="postcombat-loot-results" class="loot-content-scroll"></div>
+          </section>
+          <section class="loot-column loot-right" id="loot-panel-inventory" role="tabpanel" aria-labelledby="loot-tab-inventory" tabindex="0" data-loot-panel="inventory" hidden>
             <div class="loot-column-head"><h3>INVENTARIO</h3><span>ACTIVO</span></div>
             <div id="postcombat-loot-inventory-summary" class="loot-inventory-meta"></div>
             <div id="postcombat-loot-inventory" class="loot-inventory-list"></div>
             <div id="postcombat-loot-wallet" class="loot-wallet"></div>
-          </aside>
+          </section>
+          <section class="loot-column loot-center" id="loot-panel-space" role="tabpanel" aria-labelledby="loot-tab-space" tabindex="0" data-loot-panel="space" hidden>
+            <div class="loot-column-head"><h3>ESPACIO DISPONIBLE</h3><span>INVENTARIO Y STASH</span></div>
+            <div id="postcombat-loot-capacity" class="loot-content-scroll"></div>
+          </section>
         </div>
         <footer class="loot-foot"><span>BUSCAR · SUSTRAER · COSECHAR · EXTRAER · DESMONTAR · EXAMINAR · AUTOPSIA</span><span>EL BOTÍN NO SE REGENERA</span></footer>
       </section>`;
     modal.querySelector(".loot-close").addEventListener("click", close);
     modal.addEventListener("click", (event) => { if (event.target === modal) close(); });
+    modal.querySelectorAll("[data-loot-tab]").forEach(button => {
+      button.addEventListener("click", () => selectTab(button.dataset.lootTab));
+      button.addEventListener("keydown", event => {
+        const tabs = Array.from(modal.querySelectorAll("[data-loot-tab]"));
+        const index = tabs.indexOf(button);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 :
+          event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length : -1;
+        if (next < 0) return;
+        event.preventDefault();
+        selectTab(tabs[next].dataset.lootTab);
+        tabs[next].focus();
+      });
+    });
+    modal.addEventListener("keydown", event => {
+      if (event.key === "Escape") { event.preventDefault(); close(); }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(modal.querySelectorAll('button:not(:disabled), select:not(:disabled), [tabindex="0"]'))
+        .filter(node => node.getClientRects().length && !node.closest("[hidden]"));
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (event.shiftKey && global.document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && global.document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    });
     global.document.body.appendChild(modal);
+    selectTab(state.activeTab);
     return modal;
+  }
+
+  function selectTab(tab) {
+    if (!["actions", "results", "inventory", "space"].includes(tab)) return;
+    state.activeTab = tab;
+    const modal = global.document?.getElementById(MODAL_ID);
+    if (!modal) return;
+    modal.dataset.lootView = tab;
+    modal.querySelectorAll("[data-loot-tab]").forEach(button => {
+      const selected = button.dataset.lootTab === tab;
+      button.setAttribute("aria-selected", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    });
+    modal.querySelectorAll("[data-loot-panel]").forEach(panel => { panel.hidden = panel.dataset.lootPanel !== tab; });
   }
 
   function setMessage(text, error = false) {
@@ -364,17 +417,32 @@
     let snapshot;
     try { snapshot = inventory?.inventorySnapshot?.(actor) || null; } catch (_) { snapshot = null; }
     const active = snapshot?.active || [];
-    const described = inventory?.describeInventory?.(actor) || {};
+    let described;
+    try { described = inventory?.describeInventory?.(actor) || {}; } catch (_) { described = {}; }
     const used = Number(described.activeSlots ?? active.length);
-    const limit = Math.max(used, Number(described.activeSlotLimit ?? snapshot?.activeSlotLimit ?? 0));
+    const rawLimit = described.activeSlotLimit ?? snapshot?.activeSlotLimit;
+    const limit = rawLimit == null ? null : Math.max(0, Number(rawLimit) || 0);
     const stashInfo = described.stashSlotLimit ? ` · STASH ${Number(described.stashSlots || 0)} / ${Number(described.stashSlotLimit)}` : "";
     const summary = global.document?.getElementById("postcombat-loot-inventory-summary");
     const host = global.document?.getElementById("postcombat-loot-inventory");
     const wallet = global.document?.getElementById("postcombat-loot-wallet");
-    if (summary) summary.innerHTML = `<b>${used} / ${limit || "—"}</b> ESPACIOS OCUPADOS${stashInfo}
+    if (summary) summary.innerHTML = `<b>${used} / ${limit ?? "—"}</b> ESPACIOS OCUPADOS${stashInfo}
       <div class="loot-capacity-bar"><i style="width:${limit ? Math.min(100, used / limit * 100) : 0}%"></i></div>`;
+    const capacity = global.document?.getElementById("postcombat-loot-capacity");
+    if (capacity) {
+      const capacityCard = (label, occupied, maximum) => {
+        const free = maximum == null ? null : Math.max(0, maximum - occupied);
+        return `<section class="loot-space-card"><h4>${label}</h4><p><b>${free ?? "—"}</b> ${free == null ? "Capacidad sin confirmar" : "espacios libres"}</p>
+          <span>${occupied} / ${maximum ?? "—"} ocupados</span><div class="loot-capacity-bar"><i style="width:${maximum ? Math.min(100, occupied / maximum * 100) : 0}%"></i></div>
+          ${free === 0 ? '<p class="loot-space-full">Sin espacio libre.</p>' : ""}</section>`;
+      };
+      const stashLimit = described.stashSlotLimit ?? snapshot?.stashSlotLimit;
+      capacity.innerHTML = capacityCard("Inventario activo", used, limit) +
+        capacityCard("Stash", Number(described.stashSlots ?? snapshot?.stash?.length ?? 0), stashLimit == null ? null : Math.max(0, Number(stashLimit) || 0)) +
+        '<p class="loot-corpse-note">La entrega comprueba si cada objeto cabe según las reglas de inventario. Si una recuperación queda pendiente, podrás reintentar recogerla desde Tiradas después de liberar espacio.</p>';
+    }
     if (host) {
-      const slots = active.slice(0, 48).map(({ item }) => {
+      const slots = active.map(({ item }) => {
         const name = clean(item?.displayName || item?.name || item?.nombre || titleCase(item?.definitionId || "Objeto"));
         let definition = {};
         try { definition = inventory?.resolveDefinition?.(item?.definitionId || item?.itemId) || {}; } catch (_) { /* A legacy item still gets a neutral icon. */ }
@@ -382,8 +450,9 @@
         const quantity = Math.max(1, Number(item?.quantity || 1));
         return `<button type="button" class="loot-pack-item" title="${esc(name)}" aria-label="${esc(name)}, cantidad ${quantity}" data-loot-detail="${esc(name)} · ×${quantity}"><img src="${esc(icon)}" alt="" loading="lazy">${quantity > 1 ? `<small>${quantity}</small>` : ""}</button>`;
       });
-      const blanks = Math.max(0, Math.min(limit || 12, 16) - slots.length);
+      const blanks = Math.max(0, Math.min(limit ?? 12, 16) - slots.length);
       host.innerHTML = slots.join("") + Array.from({ length: blanks }, () => '<div class="loot-pack-item blank" aria-hidden="true"></div>').join("");
+      if (!active.length) host.insertAdjacentHTML("afterbegin", '<p class="loot-inventory-empty">Tu inventario activo está vacío.</p>');
     }
     if (wallet) wallet.innerHTML = `<small>MONEDERO</small>✣ ${Number(live().playerBalance(actor) || 0).toLocaleString("es-MX")} AHN`;
   }
@@ -410,6 +479,7 @@
     if (count) count.textContent = `${corpses.length} RESTOS`;
     const navRows = [];
     const rows = [];
+    const resultRows = [];
 
     for (const corpse of corpses) {
       const interaction = corpse.interaction;
@@ -466,14 +536,22 @@
       const bodyGrid = bodyKnown.slice(0,24).map((resource) => anatomyKnown ? bodySlot(resource) : knownItemSlot(resource)).join("");
       const bodyBlanks = anatomyKnown && !bodyKnown.length ? '<div class="loot-empty">No se encontraron materiales recuperables.</div>' :
         Array.from({length:Math.max(0, 6 - bodyKnown.length)},()=>'<div class="loot-discovery unknown" aria-hidden="true">✧</div>').join("");
-      rows.push(`<article class="loot-corpse${state.selectedLootId === lootId ? " selected" : ""}" data-loot-card="${esc(lootId)}">
-        <div class="loot-corpse-title"><strong>${esc(name)}</strong><span>${pending.length ? "ENTREGA PENDIENTE" : remainingRecoverable ? "RECUPERACIÓN POSIBLE" : "SIN ACCIONES DISPONIBLES"}</span></div>
-        <p class="loot-corpse-note">${known.length ? "Pertenencias recuperadas." : "Busca para descubrir las pertenencias."}</p>
-        ${pendingRequests.length ? `<p class="loot-queue-status" role="status">${pendingRequests.length} recuperación${pendingRequests.length === 1 ? "" : "es"} pendiente${pendingRequests.length === 1 ? "" : "s"} de validación. Puedes salir y volver después.</p>` : ""}
+      const attempts = interaction.attempts.filter(attempt => clean(attempt.actorId) === playerId);
+      resultRows.push(`<article class="loot-result-card${state.selectedLootId === lootId ? " selected" : ""}" data-loot-result="${esc(lootId)}">
+        <div class="loot-corpse-title"><strong>${esc(name)}</strong></div>
         <div class="loot-recovered-title">${known.length ? "OBJETOS RECUPERADOS" : "SIN DESCUBRIMIENTOS"}</div>
         <div class="loot-recovered-grid">${discoverySlots}${emptySlots}</div>
         <div class="loot-recovered-title">CUERPO · ${anatomyKnown ? "RECURSOS EXAMINADOS" : "SIN EXAMINAR"}</div>
         <div class="loot-recovered-grid">${bodyGrid}${bodyBlanks}</div>
+        <div class="loot-recovered-title">TUS INTENTOS</div>
+        ${pendingRequests.map(request => `<p class="loot-queue-status">${esc(actionLabel(request.actionId))} · Pendiente de validación</p>`).join("")}
+        ${pending.length ? '<p class="loot-queue-status">Tienes entregas pendientes. Revisa Espacio y vuelve a Tiradas para recogerlas.</p>' : ""}
+        ${attempts.length ? `<ol class="loot-attempts">${attempts.slice().reverse().map(attempt => `<li><strong>${esc(actionLabel(attempt.actionId))}</strong><span>${attempt.success === true ? "Éxito" : "Sin éxito"}${Number.isFinite(attempt.total) && Number.isFinite(attempt.threshold) ? ` · ${attempt.total} / TH ${attempt.threshold}` : ""}</span></li>`).join("")}</ol>` : '<p class="loot-corpse-note">Todavía no has completado tiradas en estos restos.</p>'}
+      </article>`);
+      rows.push(`<article class="loot-corpse${state.selectedLootId === lootId ? " selected" : ""}" data-loot-card="${esc(lootId)}">
+        <div class="loot-corpse-title"><strong>${esc(name)}</strong><span>${pending.length ? "ENTREGA PENDIENTE" : remainingRecoverable ? "RECUPERACIÓN POSIBLE" : "SIN ACCIONES DISPONIBLES"}</span></div>
+        <p class="loot-corpse-note">${known.length ? "Pertenencias recuperadas." : "Busca para descubrir las pertenencias."}</p>
+        ${pendingRequests.length ? `<p class="loot-queue-status" role="status">${pendingRequests.length} recuperación${pendingRequests.length === 1 ? "" : "es"} pendiente${pendingRequests.length === 1 ? "" : "s"} de validación. Puedes salir y volver después.</p>` : ""}
         <div class="loot-action-title">ACCIONES DISPONIBLES ${occupied ? "· OCUPADO POR OTRO PERSONAJE" : accessible ? "· TU TURNO" : "· SELECCIONA ESTE CADÁVER"}</div>
         <div class="loot-actions">${resourceActionMarkup}${pendingHtml || ""}</div>
         ${accessible ? `<button type="button" class="loot-release" data-corpse-release="${esc(lootId)}">SOLTAR CADÁVER</button>` : ""}
@@ -488,6 +566,10 @@
     const badgeSprite = global.document.getElementById("postcombat-loot-selected-sprite");
     if (badgeSprite) badgeSprite.innerHTML = corpseSpriteMarkup(chosenCorpse?.index?.spriteUrl || chosenCorpse?.loot?.spriteUrl);
     list.innerHTML = rows.length ? rows.join("") : '<div class="loot-empty">No se encontraron restos disponibles para este encuentro.</div>';
+    const results = global.document.getElementById("postcombat-loot-results");
+    if (results) results.innerHTML = resultRows.length ? resultRows.join("") : '<div class="loot-empty">No hay resultados disponibles.</div>';
+    // The first render chooses a corpse after building the cards. Keep both panels in sync.
+    for (const host of [list, results]) host?.querySelectorAll("[data-loot-card], [data-loot-result]").forEach(card => card.classList.toggle("selected", (card.dataset.lootCard || card.dataset.lootResult) === state.selectedLootId));
     nav.innerHTML = navRows.join("");
     nav.querySelectorAll("[data-corpse-select]").forEach((button) => {
       button.classList.toggle("active", button.dataset.corpseSelect === state.selectedLootId);
@@ -497,7 +579,7 @@
         enterCorpse(next).catch(error=>showLootError(error));
       });
     });
-    for (const host of [list, global.document.getElementById("postcombat-loot-inventory")]) {
+    for (const host of [list, results, global.document.getElementById("postcombat-loot-inventory")]) {
       host?.querySelectorAll?.("[data-loot-detail]").forEach(button => button.addEventListener("click", () => setMessage(button.dataset.lootDetail || "Objeto")));
       host?.querySelectorAll?.("[data-loot-detail] img[src]").forEach(image => image.addEventListener("error", () => {
         if (!image.src.endsWith("/fallback/generic_item.png")) image.src = GENERIC_ITEM_ICON;
@@ -536,6 +618,7 @@
   async function runAction(button) {
     if (state.busy) return;
     state.busy = true;
+    selectTab("actions");
     setMessage("");
     const lootInstanceId = clean(button.dataset.lootId);
     if (!ownsCorpse(lootInstanceId)) { state.busy=false;setMessage("Primero debes reservar este cadáver.",true);return; }
@@ -642,9 +725,12 @@
   function open() {
     if (!state.activeEncounterId) return;
     const modal = ensureModal();
+    state.returnFocus = global.document.activeElement;
+    selectTab("actions");
     state.open = true;
     modal.classList.add("open");
     modal.setAttribute("aria-hidden", "false");
+    modal.querySelector(".loot-close")?.focus();
     render().then(() => {
       const id = state.selectedLootId;
       if (state.open && id && !ownsCorpse(id)) return enterCorpse(id);
@@ -659,6 +745,7 @@
     const modal = global.document?.getElementById(MODAL_ID);
     modal?.classList.remove("open");
     modal?.setAttribute("aria-hidden", "true");
+    if (state.returnFocus?.isConnected) state.returnFocus.focus();
   }
 
   function bindRealtime() {
@@ -763,3 +850,4 @@
   if (global.document?.readyState === "loading") global.document.addEventListener("DOMContentLoaded", boot, { once: true });
   else boot();
 })(window);
+
