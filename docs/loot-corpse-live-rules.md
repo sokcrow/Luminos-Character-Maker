@@ -12,28 +12,36 @@ La UI `js/player-postcombat-loot.js` utiliza `js/loot-live-postcombat-runtime.js
 6. Lo obtenido se acredita en Active Inventory / Stash, Ahn y Compendium a través del runtime existente. Si no hay capacidad, se conserva una **entrega pendiente**, reclamable más tarde.
 7. La cola se puede retirar desde la vista del DM; su cierre retira el acceso al menú.
 
-## TH Check de anatomía
+## TH Check por competencia de Skill
 
-El umbral se calcula en `LuminousLootPostCombatRuntime.checkDefinition`.
+Cada acción usa una Skill específica. Si el personaje carece de Proficiency completa en esa Skill, el TH/DC aumenta **+8**. `half` no elimina la penalización; `proficient` y `expertise` sí. La regla usa la Skill **realmente seleccionada** y no penaliza siempre por faltar Medicina.
 
-| Acción | Sin competencia en Medicina | Con Medicina o conocimiento explícito |
-| --- | --- | --- |
-| Buscar | Sin penalización | Sin penalización |
-| Cosechar | DC base +8 | DC base |
-| Extraer (órganos/delicados) | DC base +8 | DC base |
-| Autopsia | DC base +8 | DC base |
-| Examinar | Sin penalización | Sin penalización |
-| Desmontar | Sin penalización | Sin penalización |
+| Acción | Skill utilizada (atributo) | DC base | Sin Proficiency |
+| --- | --- | --- | --- |
+| Buscar | Investigation (INT) | 10 | 18 |
+| Cosechar | Survival (WIS) | 10 | 18 |
+| Extraer | Medicine (WIS) | 12 | 20 |
+| Desmontar | Arcana (INT) | 10 | 18 |
+| Examinar | Investigation (INT) | 10 | 18 |
+| Autopsia | Medicine (WIS) | 12 | 20 |
 
-`Medicine` debe estar en estado `proficient` o `expertise`; `half` no elimina la penalización. Una clase/trait también puede conceder conocimiento a través de un **grant explícito**. Ejemplos de datos que entiende el runtime:
+Autopsia puede admitir Investigation como skill alternativa cuando el motor reciba explícitamente esa opción; en tal caso se aplica la competencia de Investigation.
+
+Los grants explícitos de conocimiento por clase o Trait pueden eximir el +8 en su acción pertinente. Por ejemplo:
 
 ```js
-player.lootKnowledge = { anatomy: true };
+player.lootKnowledge = { anatomy: true }; // cosechar, extraer, autopsia
 player.traits = [{ id: "anatomist", grants: { lootKnowledge: { autopsy: true, extract: true } } }];
-player.classFeatures = [{ id: "field_surgeon", lootKnowledge: { anatomy: true } }];
+player.classFeatures = [{ id: "arcane_scholar", lootKnowledge: { salvage: true } }];
 ```
 
-Son ejemplos de estructura, NO traits/clases nuevos ni grants concedidos automáticamente por nombre. Las definiciones reales tienen que suministrar esa metadata al personaje. El motor no adivina conocimiento solo a partir del nombre de la clase.
+Estos son ejemplos del contrato, no Trait/Clase otorgados automáticamente por nombre. Conocer Medicina **no elimina** el penalizador de Survival al Cosechar: solo una Proficiency en Survival o un grant de conocimiento autorizado lo elimina.
+
+### Examinar frente a Autopsia
+
+- **Examinar** no mueve ítems ni extrae órganos: por check de Investigation revela hechos para el Compendium sobre equipo observado, zona/eventos del encuentro, botín previamente identificado y rarezas plausibles. Puede identificar el nivel defensivo con un margen de éxito de al menos 10 si está disponible.
+- **Autopsia**, por check de Medicine, registra biología (materiales, tamaño, anatomía), recursos recuperables, sustancias valiosas, usos conocidos y comestibilidad. Con gran margen de éxito puede registrar Constitución si ese dato existe.
+- La vista del HUD permite abrir el panel de recursos corporales después de un Examinar o Autopsia exitosos. Es una regla de visualización; no significa que Examinar por sí mismo haya extraído nada ni que cree loot.
 
 ## Sanidad tras combate
 
