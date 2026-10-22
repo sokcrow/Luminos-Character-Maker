@@ -11,6 +11,7 @@
 
   const ACTION_PROFILES = Object.freeze({
     search: Object.freeze({ id: "search", checkId: "search", defaultDc: 10 }),
+    pickpocket: Object.freeze({ id: "pickpocket", checkId: "pickpocket", defaultDc: 10 }),
     harvest: Object.freeze({ id: "harvest", checkId: "harvest", defaultDc: 10 }),
     extract: Object.freeze({ id: "extract", checkId: "extract", defaultDc: 12 }),
     salvage: Object.freeze({ id: "salvage", checkId: "salvage", defaultDc: 10 }),
@@ -316,6 +317,74 @@
     };
   }
 
+  // Resolve exactly one previously generated carried unit OR the remaining
+  // cash. The same state + actor + revision selects the same reward on Firebase
+  // transaction retry; the UI never decides which hidden reward was taken.
+  function stablePocketIndex(seed, length) {
+    let hash = 2166136261;
+    for (let i = 0; i < seed.length; i += 1) {
+      hash ^= seed.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0) % Math.max(1, length);
+  }
+
+  function applyPickpocket(state, actorId, result) {
+    const next = clone(state);
+    const remaining = next.carried
+      .map((entry, index) => ({entry, index}))
+      .filter(({entry}) => Number(entry.remaining || 0) > 0 && entry.item);
+    remaining.sort((a,b)=>String(a.entry.instanceId).localeCompare(String(b.entry.instanceId)));
+    const options = remaining.map(row => ({kind:"item", index:row.index}));
+    if (Number(next.currency?.remaining || 0) > 0) options.push({kind:"currency"});
+    const recovered = [];
+    let currency = null;
+
+    if (result.success === true && options.length) {
+      const selector = [state.lootInstanceId, state.corpseId, actorId,
+        String(state.revision || 0), String(options.length)].join("|");
+      const pick = options[stablePocketIndex(selector,options.length)];
+      if (pick.kind === "currency") {
+        currency = deepFreeze({
+          currencyId: next.currency.currencyId,
+          amount: next.currency.remaining,
+          provenance: acquisitionProvenance(next.currency.provenance || {}, "pickpocket", actorId, state),
+        });
+        next.currency.discoveredBy = [...new Set([...(next.currency.discoveredBy || []), actorId])];
+        next.currency.recoveredBy = [...new Set([...(next.currency.recoveredBy || []), actorId])];
+        next.currency.remaining = 0;
+      } else {
+        const entry = next.carried[pick.index];
+        const recoveredItem = {
+          ...clone(entry.item),
+          quantity: 1,
+          // A partially recovered stack remains a separate instance in the
+          // corpse. The stolen single unit needs a unique, stable receipt ID.
+          instanceId: String(entry.instanceId || entry.item.instanceId || "item") +
+            "_pocket_" + stablePocketIndex(selector + "|" + pick.index, 0xFFFFFF).toString(36),
+          provenance: acquisitionProvenance(entry.item.provenance || {}, "pickpocket", actorId, state),
+        };
+        recovered.push(deepFreeze(recoveredItem));
+        entry.remaining = Math.max(0, Number(entry.remaining || 0) - 1);
+        entry.discoveredBy = [...new Set([...(entry.discoveredBy || []), actorId])];
+        entry.recoveredBy = [...new Set([...(entry.recoveredBy || []), actorId])];
+        entry.recoveredQuantitiesBy = {
+          ...(entry.recoveredQuantitiesBy || {}),
+          [actorId]: Math.max(0, Number(entry.recoveredQuantitiesBy?.[actorId] || 0)) + 1,
+        };
+      }
+    }
+    return {
+      next,
+      recovery: deepFreeze({
+        items: deepFreeze(recovered),
+        currency,
+        hiddenItemsRemaining: next.carried.filter(entry => Number(entry.remaining || 0) > 0).length,
+        currencyRemaining: Number(next.currency?.remaining || 0),
+      }),
+    };
+  }
+
   function resourceAction(resource = {}, bodyKind = "") {
     const family = normalizeId(resource.integrityFamily);
     const material = normalizeId(resource.sourceMaterial);
@@ -483,6 +552,8 @@
     const result = normalizeCheckResult(definition, checkResult);
     const applied = action === "search"
       ? applySearch(state, actorId, result, options)
+      : action === "pickpocket"
+        ? applyPickpocket(state, actorId, result)
       : (action === "autopsy" || action === "examine")
         ? applyKnowledgeAction(state, actorId, action, result, options)
         : applyResourceAction(state, actorId, action, result, options);
@@ -554,6 +625,8 @@
     recoveryCountFromMargin,
     acquisitionProvenance,
     searchCandidates,
+    stablePocketIndex,
+    applyPickpocket,
     resourceAction,
     eligibleResources,
     applyKnowledgeAction,
