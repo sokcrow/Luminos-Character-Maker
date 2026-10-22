@@ -282,6 +282,8 @@
     const rounds = spell.castingTimeRounds ?? spell.casting_time_rounds;
     if (Number.isFinite(Number(rounds)) && Number(rounds) > 0) return Math.ceil(Number(rounds) * 6);
     const raw = normalizeId(spell.castingTime || spell.casting_time || spell.actionCost || "action");
+    const duration = raw.match(/^(\d+(?:\.\d+)?)_(seconds?|minutes?|hours?|rounds?)$/);
+    if (duration) return Math.ceil(Number(duration[1]) * (duration[2].startsWith("hour") ? 3600 : duration[2].startsWith("minute") ? 60 : duration[2].startsWith("round") ? 6 : 1));
     if (["none", "instant", "free"].includes(raw)) return 0;
     if (["quick_action", "bonus_action", "quick"].includes(raw)) return 3;
     return 6;

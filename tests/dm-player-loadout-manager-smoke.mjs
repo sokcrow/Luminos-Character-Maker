@@ -4,6 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+await import('../js/spell-catalog-core.js');
+await import('../js/role-spell-catalog-core.js');
+await import('../js/spell-loadout-core.js');
 await import('../js/dm-player-loadout-core.js');
 const core = globalThis.LuminousDmPlayerLoadoutCore;
 assert.ok(core);
@@ -100,10 +103,11 @@ const spellUpdates = core.buildSpellUpdates(
   ['fire_bolt', 'shield', 'fire_bolt'],
   ['message', 'message'],
 );
-assert.deepEqual(spellUpdates.spellSelections, ['fire_bolt', 'shield']);
+assert.deepEqual(spellUpdates.spellSelections, ['fire_bolt', 'message', 'shield']);
 assert.deepEqual(spellUpdates.roleSpellSelections, ['message']);
 assert.deepEqual(spellUpdates['characterBuild/spellSelectionIndex'], {
   fire_bolt: true,
+  message: true,
   shield: true,
 });
 assert.equal(spellUpdates['characterBuild/spellLoadoutSource'], 'dm_loadout_manager');
@@ -183,6 +187,7 @@ const sandboxWindow = {
     getElementById(id) { return deckFields[id] || null; },
   },
   LuminousDmPlayerLoadoutCore: core,
+  LuminousSpellLoadout: globalThis.LuminousSpellLoadout,
   LuminousCombatSkillLoadout074: {
     resolvePlayerUnit() { return { ok: true, unitId: "unit-alice" }; },
   },
@@ -208,8 +213,7 @@ assert.ok(!writes.some((write) => write.path.includes("player:bob") || write.pat
 assert.equal(deckFeedback.textContent, "SKILLS ACTUALIZADAS EN EL COMBATE");
 
 writes.length = 0;
-liveManager.state.selectedCombatSpells = new Set(["shield"]);
-liveManager.state.selectedRoleSpells = new Set(["message"]);
+liveManager.state.selectedSpellIds = new Set(["shield", "message"]);
 assert.equal(await liveManager.saveSpells(), true);
 assert.deepEqual(writes.map((write) => write.path), [
   "campaña/jugadores/alice", "campaña/base_datos_unidades/unit-alice",

@@ -11,6 +11,7 @@
   const ID_SEGMENT_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
   const entries = new Map();
   const aliases = new Map();
+  let revision = 0;
 
   function clone(value) {
     if (value == null) return value;
@@ -117,6 +118,7 @@
       throw new Error(`Canonical content collision: ${key} is already registered by ${existing.source}.`);
     }
     entries.set(key, normalized);
+    revision++;
 
     const explicitAliases = Array.isArray(input.aliases) ? input.aliases : [];
     explicitAliases.forEach((alias) => registerAlias(type, alias, key, { source, explicit: true }));
@@ -187,6 +189,7 @@
   }
 
   function clear(options = {}) {
+    revision++;
     if (options.type) {
       const type = normalizeType(options.type);
       [...entries.keys()].filter((key) => entries.get(key)?.type === type).forEach((key) => entries.delete(key));
@@ -199,6 +202,7 @@
 
   const api = Object.freeze({
     version: 1,
+    get revision() { return revision; },
     canonicalId,
     parseCanonicalId,
     validateLocalId,

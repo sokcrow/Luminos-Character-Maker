@@ -161,7 +161,10 @@
   function hasPlayerManagedSpellLoadout(record = {}) {
     const build = record?.characterBuild && typeof record.characterBuild === "object" ? record.characterBuild : {};
     const source = clean(build.spellLoadoutSource || record.spellLoadoutSource).toLowerCase();
-    return Boolean(source && source !== "character_sheet");
+    // Sheet presets only initialize records which have never had an assignment.
+    // Presence (including an explicit empty selection) beats a name-based preset.
+    return Boolean(source && source !== "character_sheet") || Boolean(global.LuminousSpellLoadout?.hasSelection(record)) ||
+      [record, build].some(row => ["spellLoadout", "spellIds", "spellSelections", "spellSelectionIndex", "roleSpellSelections"].some(key => row[key] != null));
   }
 
   function automaticSkillLoadoutForActor(actor = {}) {
@@ -264,6 +267,13 @@
       spellLoadoutSource: "character_sheet",
       spellLoadoutCharacterId: loadout.id,
     };
+    if (global.LuminousSpellLoadout) {
+      const updates = global.LuminousSpellLoadout.buildUpdates([...combatSpellIds, ...roleSpellIds], "character_sheet");
+      for (const [key, value] of Object.entries(updates)) {
+        if (key.startsWith("characterBuild/")) next.characterBuild[key.slice(15)] = value;
+        else next[key] = value;
+      }
+    }
     return next;
   }
 
@@ -271,6 +281,7 @@
     if (!loadout) return null;
     const record = applyKnownSpellLoadoutToRecord({}, loadout);
     return {
+      ...(record.spellLoadout ? { spellLoadout: record.spellLoadout, "characterBuild/spellLoadout": record.characterBuild.spellLoadout } : {}),
       spellIds: record.spellIds,
       spellSelections: record.spellSelections,
       spellSelectionIndex: record.spellSelectionIndex,
@@ -278,6 +289,7 @@
       "characterBuild/spellSelections": record.characterBuild.spellSelections,
       "characterBuild/spellSelectionIndex": record.characterBuild.spellSelectionIndex,
       "characterBuild/roleSpellSelections": record.characterBuild.roleSpellSelections,
+      roleSpellSelections: record.characterBuild.roleSpellSelections,
       "characterBuild/spellCastOverrides": record.characterBuild.spellCastOverrides,
       "characterBuild/spellLoadoutSource": record.characterBuild.spellLoadoutSource,
       "characterBuild/spellLoadoutCharacterId": record.characterBuild.spellLoadoutCharacterId,

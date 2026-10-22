@@ -10,6 +10,16 @@
   const surface = () => global.LuminousCombatStepRuntime;
   const status = text => { const node = global.document?.getElementById?.('status'); if (node) node.textContent = text; };
   const protocol = () => global.LuminousCombatPlayback;
+  function createPresentationGate(now = () => Date.now() + state.serverOffset) {
+    const decisions = new WeakMap();
+    return row => {
+      // Re-evaluate age when EACH batch reaches the head of the queue, not
+      // against the time the whole round started. Keep a batch's decision
+      // stable so a long Clash is not cut in half by its own animation holds.
+      if (!decisions.has(row)) decisions.set(row, Number(row.updatedAt) >= now() - 8000);
+      return decisions.get(row);
+    };
+  }
   function enabled(data) { return data?.playback != null; }
   function negotiate(ready, playerIds) {
     return playerIds.length > 0 && playerIds.every(id => ready?.[id]?.playback?.schemaVersion === 1 &&
@@ -181,7 +191,7 @@
       }
       if (!['running', 'sealed'].includes(data.phase)) return;
       a.state.runningLocal = true;
-      const freshSince=Date.now()+state.serverOffset-8000;
+      const shouldPresent = createPresentationGate();
       surface().beginPlayback(data.round);
       if(data.initialStateJson&&!checkpoint)a.applySnapshot(JSON.parse(data.initialStateJson));
       if (checkpoint?.combatants) { a.applySnapshot(checkpoint.stateJson?JSON.parse(checkpoint.stateJson):checkpoint.combatants); a.state.cursor = Number(checkpoint.rngCursor) || 0; }
@@ -196,9 +206,8 @@
         present: async (cue, args, row) => {
           // Slow/reconnected viewers catch up by applying states, without waiting
           // through old animation holds. Visual mode never changes the result.
-          // A fresh batch stays fresh throughout its own animation. Checking
-          // the clock on every cue used to cut off long Clashes mid-playback.
-          if (Number(row.updatedAt) >= freshSince) await surface().present(cue, args);
+          // Every state/event is still consumed, even when its animation is skipped.
+          if (shouldPresent(row)) await surface().present(cue, args);
         },
         finish: row => {
           a.state.cursor = Number(row.rngCursor) || 0;
@@ -240,7 +249,7 @@
     state.offsetRef=state.offsetHandler=null;
   }
   global.LuminousCombatPlaybackSync = Object.freeze({ ROOT, state, session, enabled, negotiate, seal, assertOwner,
-    beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl,stageUpdates,commitUpdates,disconnectConsumer });
+    beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl,stageUpdates,commitUpdates,disconnectConsumer,createPresentationGate });
   global.addEventListener('luminous:combat073-hydrated', () => {
     const a = state.authority, data = a?.state.current;
     if (enabled(data) && data.phase === 'complete' && data.checkpoint?.combatants && !a.state.runningLocal) {

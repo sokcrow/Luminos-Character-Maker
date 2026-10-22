@@ -1,0 +1,53 @@
+name: Unified spells and playback catch-up
+on:
+  pull_request:
+    paths:
+      - 'js/**'
+      - 'css/dm-player-loadout-manager.css'
+      - 'css/theatre-spell-loadout.css'
+      - 'hoja_personaje.html'
+      - 'Battle-viewer.html'
+      - 'tests/*spell*'
+      - 'tests/combat-playback-catchup-smoke.mjs'
+      - '.github/workflows/unified-spells-playback.yml'
+  push:
+    branches: ['codex/unified-spells-playback-catchup']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Shared assignment and playback regressions
+        run: |
+          node tests/unified-spell-loadout-smoke.mjs
+          node tests/combat-playback-catchup-smoke.mjs
+          node tests/dm-player-loadout-manager-smoke.mjs
+          node tests/combat-v074-player-entry-smoke.mjs
+          node tests/combat-v074-player-spell-planner-smoke.mjs
+          node tests/canonical-spell-runtime-smoke.mjs
+          node tests/combat-presentation-transport-smoke.mjs
+          node tests/combat-v073-player-renderer-performance-smoke.mjs
+          node tests/combat-mobile-boot-smoke.mjs
+          node tests/wizard-class-runtime-smoke.mjs
+          node tests/cantrip-utility-batch-smoke.mjs
+      - name: Install browser
+        run: |
+          npm install --no-save --ignore-scripts playwright
+          npx playwright install --with-deps chromium
+      - name: Mobile and desktop casting flow
+        env:
+          UNIFIED_SPELL_SCREENSHOTS_DIR: test-results/unified-spells
+        run: node tests/unified-spells-responsive.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unified-spells-responsive
+          path: test-results/unified-spells
+          if-no-files-found: ignore

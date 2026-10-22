@@ -47,6 +47,9 @@
   }
 
   function selectionSource(source = {}) {
+    if (global.LuminousSpellLoadout) return global.LuminousSpellLoadout.selectedIds(source, "combat");
+    const canonical = source.spellLoadout || source.characterBuild?.spellLoadout;
+    if (canonical?.schemaVersion === 1) return canonical.spellIds || [];
     if (Array.isArray(source.spellIds)) return source.spellIds;
     if (Array.isArray(source.spells)) return source.spells;
     if (Array.isArray(source.spell_ids)) return source.spell_ids;
@@ -65,7 +68,7 @@
   function rawSpellIdsFor(source = {}) {
     // Explicit empty player/caster selections are authoritative: never resurrect an old Unit deck.
     const selected = selectionSource(source).map((entry) => clean(entry?.spellId || entry?.id || entry).replace(/^spell:/, "")).filter(Boolean);
-    const explicit = ["spellIds", "spells", "spell_ids", "spellSelections", "spellSelectionIndex"].some((key) => source[key] != null || source.characterBuild?.[key] != null);
+    const explicit = global.LuminousSpellLoadout?.hasSelection(source) || ["spellLoadout", "spellIds", "spells", "spell_ids", "spellSelections", "spellSelectionIndex"].some((key) => source[key] != null || source.characterBuild?.[key] != null);
     const legacy = !explicit && source.isPlayer !== true
       ? [source.action_slots, source.skillSlotIds, source.skillIds, source.mechanics?.skills]
           .flatMap((list) => Array.isArray(list) ? list : [])
@@ -147,8 +150,9 @@
     const registry = registerAvailableSpellCatalog();
     if (!registry) return { ok: false, reason: "CONTENT_REGISTRY_REQUIRED", spellId: id, spell: null, entry: null };
     const entry = spellEntry(id);
-    if (!entry?.definition) return { ok: false, reason: "SPELL_DEFINITION_NOT_FOUND", spellId: id, spell: null, entry: null };
-    return { ok: true, reason: null, spellId: id, spell: normalizeSpellDefinition(id, entry.definition), entry };
+    const definition = global.LuminousSpellLoadout?.definition(id, "combat") || entry?.definition;
+    if (!definition) return { ok: false, reason: "SPELL_DEFINITION_NOT_FOUND", spellId: id, spell: null, entry: null };
+    return { ok: true, reason: null, spellId: id, spell: normalizeSpellDefinition(id, definition), entry };
   }
 
   function spellAllowedClassIds(spell = {}) {

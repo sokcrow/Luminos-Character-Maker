@@ -318,6 +318,7 @@ const pierreActor = {
   raw: { characterBuild: { spellSelections: ['old_placeholder'] } },
 };
 const pierreSync = await playerEntry.syncKnownPlayerSpellLoadout(pierreActor, {
+  loadout: pierreLoadout, // An explicit sheet import; automatic deployment preserves saved selections.
   db: spellSyncDb,
   players: { 'Pierre Carême Kikunae': pierreActor.raw },
   combatants: {},

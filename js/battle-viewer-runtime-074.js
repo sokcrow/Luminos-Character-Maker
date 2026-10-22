@@ -22,11 +22,12 @@
   ];
 
   const runtimeScripts = [
+    ["spell-loadout-core-script", "js/spell-loadout-core.js?v=20261022-unified-spells-1", "LuminousSpellLoadout"],
     ["battle-viewer-firebase-session-074-script", "js/battle-viewer-firebase-session-074.js", "LuminousBattleViewerFirebaseSession074"],
     ["combat-skill-schema-script", "js/combat-skill-schema.js", "CombatSkillSchema"],
     ["player-signature-skill-catalog-script", "js/skill-catalog-player-signature.js?v=20261015-rei-1", "LuminousPlayerSignatureSkillCatalog"],
     ["combat-skill-loadout-074-script", "js/combat-skill-loadout-074.js", "LuminousCombatSkillLoadout074"],
-    ["combat-spell-loadout-074-script", "js/combat-spell-loadout-074.js", "LuminousCombatSpellLoadout074"],
+    ["combat-spell-loadout-074-script", "js/combat-spell-loadout-074.js?v=20261022-unified-spells-1", "LuminousCombatSpellLoadout074"],
     ["rupture-status-runtime-script", "js/status-rupture-runtime.js", "LuminousRuptureStatusRuntime"],
     ["skill-forge-g2-script", "js/skill-forge-g2.js", "LuminousSkillForgeG2"],
     ["battle-viewer-runtime-073-script", "js/battle-viewer-runtime-073.js", "LuminousBattleViewerRuntime073"],
@@ -39,7 +40,7 @@
     ["battle-viewer-player-skill-planner-074-script", "js/battle-viewer-player-skill-planner-074.js", "LuminousBattleViewerPlayerSkillPlanner074"],
     ["battle-viewer-player-spell-planner-074-script", "js/battle-viewer-player-spell-planner-074.js", "LuminousBattleViewerPlayerSpellPlanner074"],
     ["battle-viewer-dm-console-074-script", "js/battle-viewer-dm-console-074.js", "LuminousBattleViewerDmConsole074"],
-    ["battle-viewer-player-entry-074-script", "js/battle-viewer-player-entry-074.js?v=20261015-rei-1", "LuminousBattleViewerPlayerEntry074"],
+    ["battle-viewer-player-entry-074-script", "js/battle-viewer-player-entry-074.js?v=20261022-unified-spells-1", "LuminousBattleViewerPlayerEntry074"],
     ["battle-viewer-encounter-setup-074-script", "js/battle-viewer-encounter-setup-074.js", "LuminousBattleViewerEncounterSetup074"],
     ["battle-viewer-encounter-placement-074-script", "js/battle-viewer-encounter-placement-074.js", "LuminousBattleViewerEncounterPlacement074"],
     ["battle-viewer-dm-console-074-magic-script", "js/battle-viewer-dm-console-074-magic.js", "LuminousBattleViewerDmMagic074"],
@@ -271,6 +272,7 @@
       && global.LuminousBattleViewerFirebaseSession074
       && global.CombatSkillSchema
       && global.LuminousCombatSkillLoadout074
+      && global.LuminousSpellLoadout
       && global.LuminousCombatSpellLoadout074
       && global.LuminousRuptureStatusRuntime
       && global.LuminousSkillForgeG2
@@ -305,6 +307,7 @@
     try { if (!global.CombatSkillSchema) require("./combat-skill-schema.js"); } catch (_) {}
     try { if (!global.LuminousPlayerSignatureSkillCatalog) require("./skill-catalog-player-signature.js"); } catch (_) {}
     try { if (!global.LuminousCombatSkillLoadout074) require("./combat-skill-loadout-074.js"); } catch (_) {}
+    try { if (!global.LuminousSpellLoadout) require("./spell-loadout-core.js"); } catch (_) {}
     try { if (!global.LuminousCombatSpellLoadout074) require("./combat-spell-loadout-074.js"); } catch (_) {}
     try { if (!global.LuminousRuptureStatusRuntime) require("./status-rupture-runtime.js"); } catch (_) {}
     try { if (!global.LuminousSkillForgeG2) require("./skill-forge-g2.js"); } catch (_) {}

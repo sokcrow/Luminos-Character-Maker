@@ -373,3 +373,19 @@
   .dm-loadout-spell-toolbar{grid-template-columns:1fr}
   .dm-loadout-spell-toolbar label{white-space:normal}
 }
+
+/* A single assignment list; the context selector only filters its presentation. */
+.dm-loadout-unified-spells{min-width:0;margin:10px 12px 12px;border:1px solid #33382f;background:#070907}
+.dm-loadout-unified-spells>header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:10px;color:#d7c49c;font-size:12px;border-bottom:1px solid #31362e}
+.dm-loadout-unified-spells .dm-loadout-spell-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}
+.dm-player-loadout-manager *{box-sizing:border-box}
+.dm-player-loadout-manager select,.dm-player-loadout-manager input[type="search"],.dm-player-loadout-manager button{min-height:44px;min-width:0}
+.dm-loadout-spell-toolbar{grid-template-columns:minmax(0,1fr) minmax(110px,auto)}
+.dm-loadout-spell-toolbar>label{grid-column:1/-1;min-height:44px;white-space:normal;font-size:12px}
+.dm-loadout-spell-toolbar select{padding:8px;background:#080b08;color:#e4dccb;border:1px solid #454a40;font:inherit}
+.dm-loadout-unified-spells .dm-loadout-spell-card{min-height:64px}
+.dm-loadout-unified-spells .dm-loadout-spell-card strong{font-size:13px;white-space:normal;overflow-wrap:anywhere}
+.dm-loadout-unified-spells .dm-loadout-spell-card small{font-size:11px;white-space:normal;color:#a6ad9e}
+.dm-loadout-unified-spells input[type="checkbox"]{width:22px;height:22px}
+.dm-player-loadout-manager :focus-visible{outline:2px solid #e9c77a;outline-offset:2px}
+@media(max-width:650px){.dm-loadout-spell-toolbar{grid-template-columns:minmax(0,1fr)}.dm-loadout-actions{flex-wrap:wrap}.dm-loadout-actions button{width:100%}.dm-player-loadout-manager select,.dm-player-loadout-manager input[type="search"]{font-size:16px}}

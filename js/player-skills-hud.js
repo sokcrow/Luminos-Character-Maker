@@ -218,7 +218,7 @@
     const build = character?.characterBuild && typeof character.characterBuild === "object" ? character.characterBuild : {};
     const deck = build.skillDeck || character.skillDeck || {};
     const casters = spellcastingClasses(character, options);
-    const selectedSpellIds = rawIds(character, [
+    const selectedSpellIds = global.LuminousSpellLoadout?.selectedIds(character) || rawIds(character, [
       "spellIds",
       "spellSelections",
       "characterBuild.spellIds",
