@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const defenses = require("../js/combat-v073-clashable-defenses.js");
-const economy = require("../js/universal-action-economy.js");
-require("../js/combat-v073-steps.js");
+// This repository is ESM; browser IIFEs register their runtime on globalThis.
+await import("../js/combat-v073-clashable-defenses.js");
+await import("../js/universal-action-economy.js");
+await import("../js/combat-v073-steps.js");
+const defenses = globalThis.LuminousClashableDefenses073;
+const economy = globalThis.LuminousActionEconomy;
 
 function skill(type, basePower, coinAmount = 1) {
   return { name: type, type, defenseSubtype: type, defenseType: type,
