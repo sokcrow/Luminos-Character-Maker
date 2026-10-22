@@ -66,4 +66,23 @@ const surface=surfaceContext.window.LuminousCombatStepRuntime;
 assert.deepEqual(surface.events(401),[]);
 surface.resetJournal(700);steps.emit('RoundRestored',null,{});
 assert.deepEqual(surface.events(700).map(e=>e.sequence),[701]);
+// Send multiple batches through the production surface and transport into the
+// production consumer. A repeated event must fail, rather than be ignored.
+const transportContext=vm.createContext({console,JSON,Math,Map,Set,addEventListener(){},
+ LuminousCombatStepRuntime:surface,LuminousCombatPlayback:protocol});
+transportContext.window=transportContext;
+vm.runInContext(fs.readFileSync('js/combat-v073-playback-sync.js','utf8'),transportContext);
+const transport=transportContext.LuminousCombatPlaybackSync;
+transport.state.authority={state:{current:{id:'integrated',round:1,playback:{session:transport.session}}}};
+surface.resetJournal(0);
+const received=[],failures=[];
+const live=protocol.createConsumer({generation:'integrated',apply(){},present(){},finish(){},onEvent:e=>received.push(e.sequence),onError:e=>failures.push(e.message)});
+for(let i=0;i<3;i++){
+ steps.emit('Presentation',null,{cue:'powerCoin',args:[]});
+ const updates=transport.batchUpdates({type:i===2?'round_complete':'presentation'});
+ const batch=Object.values(updates)[0];
+ assert.deepEqual(JSON.parse(batch.payload).events.map(e=>e.sequence),[i+1]);
+ await live.receive(batch);
+}
+assert.deepEqual(received,[1,2,3]);assert.deepEqual(failures,[]);assert.equal(live.cursor(),3);
 console.log('Presentation transport: incremental journal, coalescing, nonblocking ACKs, durable barriers, failure propagation, parallel Coins and duplicate/conflict replay passed.');
