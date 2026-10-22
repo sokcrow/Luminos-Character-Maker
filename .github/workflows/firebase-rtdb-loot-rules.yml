@@ -1,0 +1,70 @@
+name: Firebase RTDB Loot Rules — validate and deploy
+
+# PRs only validate against the Auth/RTDB emulators. Only main may publish rules.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - database.rules.json
+      - firebase.json
+      - combat-results-firebase.json
+      - js/loot-live-postcombat-runtime.js
+      - js/player-postcombat-loot.js
+      - tests/loot-authority-emulator.mjs
+      - .github/workflows/firebase-rtdb-loot-rules.yml
+  push:
+    branches: [main]
+    paths:
+      - database.rules.json
+      - firebase.json
+      - .github/workflows/firebase-rtdb-loot-rules.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: luminous-rtdb-rules-production
+  cancel-in-progress: false
+
+jobs:
+  validate-loot-permissions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Auth/RTDB emulator test dependencies
+        run: npm install --no-save --no-audit --no-fund firebase@8.10.1 firebase-tools@14.19.1
+      - name: Validate RTDB rules and authenticated player loot
+        run: npx firebase emulators:exec --only auth,database --project demo-combat-results --config combat-results-firebase.json 'node tests/loot-authority-emulator.mjs'
+
+  deploy-database-rules:
+    needs: validate-loot-permissions
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Require explicitly configured production Firebase credentials
+        env:
+          FIREBASE_DEPLOY_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUMINOUS_SYSTEM }}
+        run: |
+          if [ -z "$FIREBASE_DEPLOY_CREDENTIALS" ]; then
+            echo "::error::Falta el secret FIREBASE_SERVICE_ACCOUNT_LUMINOUS_SYSTEM; no se han desplegado reglas de producción."
+            exit 1
+          fi
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUMINOUS_SYSTEM }}
+      - name: Publish canonical Realtime Database rules to luminous-system
+        run: npx --yes firebase-tools@14.19.1 deploy --only database --project luminous-system --non-interactive
