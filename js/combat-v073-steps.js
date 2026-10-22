@@ -61,8 +61,14 @@
     }
     function powerState(entry, remaining, opponent) {
       const data = r.data(entry.plan), unit = r.unit(entry.ownerId), other = r.unit(opponent?.ownerId);
+      const defenseType = global.LuminousClashableDefenses073?.defenseTypeOf(entry.plan?.data);
+      const clashableDefense = global.LuminousClashableDefenses073?.isClashableDefensePlan(entry.plan);
       const power = Math.max(0, data.basePower + data.finalPowerBonus + (data.grappleCheck ? 0 :
-        r.clashLevelPowerBonus(unit, other) + r.statusAttackPowerModifier(unit) + r.statusClashPowerModifier(unit) + r.targetFinalPowerVulnerabilityBonus(other)));
+        (clashableDefense
+          ? r.clashableDefenseLevelPowerBonus(unit, other) + r.statusDefensePowerModifier(unit) +
+            (defenseType === 'clashablecounter' ? r.conditionCounterPowerModifier(unit) : 0)
+          : r.clashLevelPowerBonus(unit, other) + r.statusAttackPowerModifier(unit)) +
+        r.statusClashPowerModifier(unit) + r.targetFinalPowerVulnerabilityBonus(other)));
       return { entry, remaining, data, power, coins: [] };
     }
     function toss(entry, index, { attackCoin = true, paralysis = false } = {}) {
@@ -84,7 +90,10 @@
         const frames = [];
         for (const state of states) {
           if (index >= state.remaining) continue;
-          const coin = toss(state.entry, index, { attackCoin: !state.data.grappleCheck, paralysis: !state.data.grappleCheck });
+          const coin = toss(state.entry, index, {
+            attackCoin: !state.data.grappleCheck && !global.LuminousClashableDefenses073?.isClashableDefensePlan(state.entry.plan),
+            paralysis: !state.data.grappleCheck
+          });
           if (coin.side === 'head' && !coin.paralyzedHead) state.power += state.data.coinPower;
           state.coins.push(coin);
           frames.push([state, coin]);
@@ -192,7 +201,7 @@
       // When it loses, its last Clash Power mitigates every surviving attack Coin.
       // Clashable Counter wins as an attack with its surviving Coins.
       if (defenseResult?.performHits !== false) {
-        await hits(winner, loser.ownerId, remaining, {
+        await hits(defenseResult?.counterWin ? { ...winner, _counterReaction: true } : winner, loser.ownerId, remaining, {
           heal: false, mitigationPenalty: defenseResult?.guardMitigation || 0
         });
       }
