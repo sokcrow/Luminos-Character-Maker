@@ -210,6 +210,22 @@
     };
   }
 
+  // Keep the defeated combatant's own sprite rather than an unrelated NPC
+  // illustration. Saved with the corpse index so roster changes cannot swap it.
+  function defeatedSprite(unit = {}, base = {}) {
+    const candidates = [unit,base];
+    for (const source of candidates) {
+      const sprite = [
+        source?.combatSprite, source?.sprite_combate, source?.combat_sprite,
+        source?.visual?.spriteUrl, source?.combatVisual?.spriteUrl,
+        source?.tokenImage, source?.sprite, source?.idle_sprite,
+        source?.img, source?.image, source?.icono,
+      ].find(value => typeof value === "string" && value.trim());
+      if (sprite) return sprite.trim();
+    }
+    return "";
+  }
+
   function encounterContextFromState(combatState = {}, options = {}) {
     const loot = combatState.lootContext || combatState.loot || {};
     const zone = clone(options.zone || loot.zone || combatState.encounterZone || combatState.zone || null);
@@ -283,6 +299,7 @@
         sourceUnitId,
         sourceUnitInstanceId: unitInstanceId,
         name: clean(entry.unit.name || entry.unit.characterName || sourceUnitId),
+        spriteUrl: defeatedSprite(entry.unit, baseTruth),
         finalizedAt: options.now ?? Date.now(),
       };
 
