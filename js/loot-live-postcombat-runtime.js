@@ -736,13 +736,16 @@
     const playerId = clean(options.playerId), lootInstanceId = clean(options.lootInstanceId);
     if (!db?.ref || !user || !playerId || !lootInstanceId) throw Error('Entra con tu personaje para recuperar el botín.');
     const actionId = normalizeId(options.actionId || 'claim');
-    const occupation = await onceValue(db,`${ROOTS.claims}/${lootInstanceId}`);
+    const targetResourceId = clean(options.targetResourceId), deliveryId = clean(options.deliveryId);
+    let key = [lootInstanceId, actionId, targetResourceId, deliveryId].map(v => encodeURIComponent(v).replace(/\\./g, '%2E')).join('|');
+    const [occupation, existingInitial] = await Promise.all([
+      onceValue(db,`${ROOTS.claims}/${lootInstanceId}`),
+      onceValue(db, `${ROOTS.requests}/${playerId}/${key}`),
+    ]);
     if (!occupation || occupation.uid !== user.uid || occupation.playerId !== playerId || Number(occupation.expiresAt) <= Date.now()) {
       throw Error("Selecciona un cadáver libre antes de empezar a saquearlo.");
     }
-    const targetResourceId = clean(options.targetResourceId), deliveryId = clean(options.deliveryId);
-    let key = [lootInstanceId, actionId, targetResourceId, deliveryId].map(v => encodeURIComponent(v).replace(/\./g, '%2E')).join('|');
-    let existing = await onceValue(db, `${ROOTS.requests}/${playerId}/${key}`);
+    let existing = existingInitial;
     if (existing?.status === 'rejected' || (actionId === 'claim' && existing?.status === 'resolved' && !existing.response?.delivered)) {
       key += '|'+db.ref(`${ROOTS.requests}/${playerId}`).push().key;existing=null;
     }
