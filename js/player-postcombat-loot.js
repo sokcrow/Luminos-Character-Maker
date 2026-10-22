@@ -376,7 +376,9 @@
     if (host) {
       const slots = active.slice(0, 48).map(({ item }) => {
         const name = clean(item?.displayName || item?.name || item?.nombre || titleCase(item?.definitionId || "Objeto"));
-        const icon = resolveLootIcon(item?.iconUrl, item?.icon, item?.imageUrl, item?.image, item?.iconFamily, item?.family, item?.category);
+        let definition = {};
+        try { definition = inventory?.resolveDefinition?.(item?.definitionId || item?.itemId) || {}; } catch (_) { /* A legacy item still gets a neutral icon. */ }
+        const icon = resolveLootIcon(item?.iconUrl, item?.icon, item?.imageUrl, item?.image, definition.iconUrl, definition.icon, item?.iconFamily, definition.iconFamily, item?.family, definition.family, item?.category);
         const quantity = Math.max(1, Number(item?.quantity || 1));
         return `<button type="button" class="loot-pack-item" title="${esc(name)}" aria-label="${esc(name)}, cantidad ${quantity}" data-loot-detail="${esc(name)} · ×${quantity}"><img src="${esc(icon)}" alt="" loading="lazy">${quantity > 1 ? `<small>${quantity}</small>` : ""}</button>`;
       });
@@ -570,7 +572,7 @@
       });
 
       if (result.queued) {
-        setMessage("Acción guardada. Se resolverá cuando esté disponible el DM; puedes cerrar esta ventana.", false);
+        setMessage("Acción guardada. El DM la revisará al conectarse; si caduca la reserva del cadáver, tendrás que intentarlo de nuevo.", false);
       } else if (!result.committed) {
         setMessage("Otro intento ya resolvió esta acción o el recurso dejó de estar disponible.", true);
       } else if (result.delivery && !result.delivery.delivered) {
