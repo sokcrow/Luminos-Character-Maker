@@ -51,7 +51,7 @@
     search: Object.freeze({ id: "search", label: "Search", phase: "post_combat", defaultSkill: "investigation", skills: Object.freeze(["investigation"]) }),
     harvest: Object.freeze({ id: "harvest", label: "Harvest", phase: "post_combat", defaultSkill: "survival", skills: Object.freeze(["survival"]) }),
     extract: Object.freeze({ id: "extract", label: "Extract", phase: "post_combat", defaultSkill: "medicine", skills: Object.freeze(["medicine"]) }),
-    salvage: Object.freeze({ id: "salvage", label: "Salvage", phase: "post_combat", defaultSkill: "investigation", skills: Object.freeze(["investigation"]) }),
+    salvage: Object.freeze({ id: "salvage", label: "Salvage", phase: "post_combat", defaultSkill: "arcana", skills: Object.freeze(["arcana"]) }),
     autopsy: Object.freeze({ id: "autopsy", label: "Autopsy", phase: "post_combat", defaultSkill: "medicine", skills: Object.freeze(["medicine", "investigation"]) }),
     analyze: Object.freeze({ id: "analyze", label: "Analyze", phase: "combat", defaultSkill: "perception", skills: Object.freeze(["perception"]) }),
   });
