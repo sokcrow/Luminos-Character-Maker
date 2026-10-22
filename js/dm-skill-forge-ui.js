@@ -93,7 +93,53 @@
     "[On Crit Kill]":"Al derrotar con crítico",
     "[On Crit Kill Against Enemy]":"Crítico letal contra enemigo"
   };
+  function friendlyEffectControls(root){
+    const translate={
+      status:"Aplicar estado",scale_power:"Escalar poder",raw_damage:"Daño fijo",
+      percentage_damage:"Daño porcentual",self:"A sí mismo",target:"Objetivo",
+      ally:"Aliado",allies:"Aliados",enemies:"Enemigos",
+      immediate:"Inmediato",next_turn:"Próximo turno"
+    };
+    root.querySelectorAll(".effect-card select:not(.trigger-select) option").forEach(option=>{
+      if(translate[option.value]&&option.textContent!==translate[option.value]){
+        option.textContent=translate[option.value];
+      }
+    });
+    root.querySelectorAll("input[data-field=status]").forEach(input=>{
+      const registry=global.STATUS_REGISTRY||{};
+      const definitions=Object.entries(registry)
+        .filter(([id,definition])=>id&&definition&&typeof definition==="object")
+        .sort((a,b)=>String(a[1].name||a[0]).localeCompare(String(b[1].name||b[0]),"es"));
+      if(!definitions.length)return;
+      const current=input.value||"";
+      const select=doc.createElement("select");
+      select.dataset.field="status";
+      select.setAttribute("aria-label","Estado que aplica la habilidad");
+      select.appendChild(new Option("Elige un estado…",""));
+      definitions.forEach(([id,def])=>select.appendChild(new Option(def.name||id.replace(/_/g," "),id)));
+      if(current&&!definitions.some(([id])=>id===current)){
+        select.appendChild(new Option(current.replace(/_/g," "),current));
+      }
+      select.value=current;
+      input.replaceWith(select);
+    });
+    root.querySelectorAll(".coin-card .coin-type option").forEach(option=>{
+      const name=option.value==="unbreakable"?"Coin irrompible":"Coin normal";
+      if(option.textContent!==name)option.textContent=name;
+    });
+    root.querySelectorAll(".coin-card .add-coin-effect").forEach(button=>{
+      if(button.textContent!=="+ Efecto de Coin")button.textContent="+ Efecto de Coin";
+    });
+    root.querySelectorAll(".coin-card .coin-meta").forEach(node=>{
+      if(node.textContent.includes("Coin Effect(s)"))node.textContent=node.textContent.replace("Coin Effect(s)","efectos");
+    });
+    root.querySelectorAll(".effect-remove").forEach(button=>{
+      if(button.textContent!=="Quitar")button.textContent="Quitar";
+      button.setAttribute("aria-label","Quitar efecto");
+    });
+  }
   function renameLabels(root){
+    friendlyEffectControls(root);
     root.querySelectorAll(".field-name").forEach(node=>{
       const raw=node.textContent.trim();
       if(labels[raw] && node.textContent!==labels[raw])node.textContent=labels[raw];
@@ -288,6 +334,19 @@
       global.setTimeout(()=>{matchPreset();showStep(0);},0);
     }
   });
+  // A status effect without a selected Status is incomplete. Guard this
+  // before the legacy schema (which reports it as a warning rather than error).
+  btnSave?.addEventListener("click",event=>{
+    if(!storage.authorized){event.preventDefault();event.stopImmediatePropagation();return;}
+    const missing=Array.from(doc.querySelectorAll('.effect-card select[data-field="status"],.effect-card input[data-field="status"]'))
+      .some(field=>!String(field.value||"").trim());
+    if(missing){
+      event.preventDefault();event.stopImmediatePropagation();
+      showStep(2);
+      const node=byId("status");
+      if(node){node.textContent="Elige un estado para cada efecto antes de guardar.";node.className="status error";}
+    }
+  },true);
   btnNew?.addEventListener("click",()=>{global.setTimeout(()=>{matchPreset();showStep(0);},0);});
   btnDuplicate?.addEventListener("click",()=>{global.setTimeout(()=>{matchPreset();showStep(0);},0);});
   const observer=new MutationObserver(()=>{
