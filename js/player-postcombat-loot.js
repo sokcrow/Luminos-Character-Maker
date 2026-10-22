@@ -497,7 +497,7 @@
     });
     for (const host of [list, global.document.getElementById("postcombat-loot-inventory")]) {
       host?.querySelectorAll?.("[data-loot-detail]").forEach(button => button.addEventListener("click", () => setMessage(button.dataset.lootDetail || "Objeto")));
-      host?.querySelectorAll?.("img[src]").forEach(image => image.addEventListener("error", () => {
+      host?.querySelectorAll?.("[data-loot-detail] img[src]").forEach(image => image.addEventListener("error", () => {
         if (!image.src.endsWith("/fallback/generic_item.png")) image.src = GENERIC_ITEM_ICON;
       }, { once: true }));
     }
