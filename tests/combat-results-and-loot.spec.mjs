@@ -139,7 +139,21 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
  expect(absentRejection).toBe(true);
  await screenshot(pp,info,'phone-victory-loot-two-waves');
  const recovered=async()=>Object.values((await admin('campaña/jugadores/p1')).inventario_activo||{}).filter(i=>i.definitionId==='meat_wolf').reduce((n,i)=>n+Number(i.quantity||0),0);
- await pp.locator('[data-loot-action="harvest"]').first().click();
+ // The player-facing Corpse Loot HUD shows only the selected corpse's actions.
+ // Explicitly select the corpse with a remaining Harvest before clicking, so
+ // Playwright never waits on the hidden, disabled buttons of other corpses.
+ const selectHarvest = async () => {
+  const card=pp.locator('#postcombat-loot-list .loot-corpse').filter({has:pp.locator('[data-loot-action="harvest"]')}).first();
+  const id=await card.getAttribute('data-loot-card');
+  expect(id).toBeTruthy();
+  await expect.poll(()=>pp.evaluate(()=>window.LuminousPlayerPostCombatLoot?.state?.claiming)).toBe(false);
+  await pp.locator('[data-corpse-select="'+id+'"]').click();
+  const action=pp.locator('[data-loot-card="'+id+'"] [data-loot-action="harvest"]');
+  await expect(action).toBeVisible({timeout:20000});
+  await expect(action).toBeEnabled({timeout:20000});
+  return action;
+ };
+ await (await selectHarvest()).click();
  await expect.poll(recovered,{timeout:30000}).toBe(1);
  await expect(pp.locator('#postcombat-loot-message')).toContainText('recuperadas');
  await pp.reload();await expect(pp.locator('#combat-entry-menu')).toBeVisible();
@@ -147,7 +161,7 @@ test('Ten enemies use eight field slots and two FIFO reinforcements; Victory sho
  await expect(pp.locator('[data-loot-action="harvest"]')).toHaveCount(1);
  expect(await recovered()).toBe(1);
  await admin('campaña/jugadores/p1/inventoryRules','PUT',{activeSlotLimit:0,stashSlotLimit:0});
- await pp.locator('[data-loot-action="harvest"]').click();await expect(pp.locator('[data-pending-id]')).toHaveCount(1,{timeout:30000});
+ await (await selectHarvest()).click();await expect(pp.locator('[data-pending-id]')).toHaveCount(1,{timeout:30000});
  await expect(pp.locator('#postcombat-loot-message')).toContainText('reservada');
  await admin('campaña/jugadores/p1/inventoryRules','PUT',{activeSlotLimit:20,stashSlotLimit:80});
  await pp.locator('[data-pending-id]').click();await expect.poll(recovered,{timeout:30000}).toBe(2);
