@@ -156,6 +156,7 @@
     const threshold = Number(action.resolution?.check?.threshold);
     const definition = runtime.createLootCheckDefinition(actor, "analyze", {
       threshold: Number.isFinite(threshold) && threshold > 0 ? threshold : Number(context.analyzeThreshold ?? 10),
+      thresholdModifier: Number(global.LuminousEquipmentEffects?.checkThresholdAdjustment?.(actor, "analyze") || 0),
       metadata: {
         actionId: action.id || null,
         targetId: action.targeting?.mainTargetId || null,
