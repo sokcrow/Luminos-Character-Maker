@@ -6,7 +6,7 @@ La UI `js/player-postcombat-loot.js` utiliza `js/loot-live-postcombat-runtime.js
 
 1. El DM finaliza un encuentro como `victory` y el motor congela las Loot Instances. El menú del jugador solo aparece cuando hay restos de la victoria en la cola de `campaña/loot_encounters`.
 2. El jugador selecciona un cadáver y solicita una reserva de `campaña/loot_claims/<lootInstanceId>` (una por cadáver). Solo el propietario puede interactuar. La reserva caduca a los 90 segundos y se renueva mientras la UI está abierta; al cerrar, cambiar o pulsar «Soltar cadáver», se libera.
-3. El jugador elige **Buscar, Cosechar, Extraer, Desmontar, Examinar o Autopsia**. Los checks se animan en el cliente; la resolución autoritativa se recompone en el DM a partir del resultado de las monedas y del estado guardado.
+3. El jugador elige **Buscar, Sustraer, Cosechar, Extraer, Desmontar, Examinar o Autopsia**. Los checks se animan en el cliente; la resolución autoritativa se recompone en el DM a partir del resultado de las monedas y del estado guardado.
 4. **Buscar** recupera el botín de bolsas y pertenencias conforme a los resultados del check. Hoy es una operación *revelar y recuperar*; no existe una transacción separada «revelar, luego tomar». El loot no descubierto nunca se pinta en la cuadrícula.
 5. El apartado **Cuerpo** comienza oculto y solo muestra la lista de recursos disponibles/agotados tras un check exitoso de **Examinar** o **Autopsia**. Los recursos ya recuperados también se muestran al personaje que los obtuvo.
 6. Lo obtenido se acredita en Active Inventory / Stash, Ahn y Compendium a través del runtime existente. Si no hay capacidad, se conserva una **entrega pendiente**, reclamable más tarde.
@@ -19,6 +19,7 @@ Cada acción usa una Skill específica. Si el personaje carece de Proficiency co
 | Acción | Skill utilizada (atributo) | DC base | Sin Proficiency |
 | --- | --- | --- | --- |
 | Buscar | Investigation (INT) | 10 | 18 |
+| Sustraer | Sleight of Hand (DEX) | 10 | 18 |
 | Cosechar | Survival (WIS) | 10 | 18 |
 | Extraer | Medicine (WIS) | 12 | 20 |
 | Desmontar | Arcana (INT) | 10 | 18 |
@@ -42,6 +43,19 @@ Estos son ejemplos del contrato, no Trait/Clase otorgados automáticamente por n
 - **Examinar** no mueve ítems ni extrae órganos: por check de Investigation revela hechos para el Compendium sobre equipo observado, zona/eventos del encuentro, botín previamente identificado y rarezas plausibles. Puede identificar el nivel defensivo con un margen de éxito de al menos 10 si está disponible.
 - **Autopsia**, por check de Medicine, registra biología (materiales, tamaño, anatomía), recursos recuperables, sustancias valiosas, usos conocidos y comestibilidad. Con gran margen de éxito puede registrar Constitución si ese dato existe.
 - La vista del HUD permite abrir el panel de recursos corporales después de un Examinar o Autopsia exitosos. Es una regla de visualización; no significa que Examinar por sí mismo haya extraído nada ni que cree loot.
+
+## Sprite y sustracción
+
+El HUD muestra la **imagen del combatant derrotado** utilizando su campo canónico `combatSprite`, `sprite_combate`, `visual.spriteUrl` u otros campos visuales existentes. El sprite se guarda en el índice del cadáver cuando el DM finaliza el combate, sin reemplazar la identidad ni los recursos de la Loot Instance. Sin sprite válido, la UI usa el emblema ✥.
+
+**Sustraer** es una acción independiente de Buscar. Se resuelve con la Skill **Sleight of Hand (DEX)** y el check canónico de cinco Coins, DC base 10 (+8 TH sin competencia). Una vez por personaje y cadáver, aun si falla.
+
+- En un éxito, el DM selecciona de manera reproducible una opción aleatoria entre los objetos que quedan (un ejemplar de cada stack) y la reserva de Ahn del cadáver.
+- Si sale un objeto apilado, se entrega **una sola unidad** y el resto sigue en el cadáver; si sale Ahn, se entrega todo el monto disponible.
+- La acción nunca genera un item nuevo ni vuelve a tirar el dinero. Conserva el mismo control de entrega, espacio, reservas de cadáver, intentos idempotentes y permisos de los demás checks.
+- Buscar puede realizarse por separado una vez por personaje sobre lo que todavía queda.
+
+Las cerraduras, paneles, hackeo, forzar mecanismos con STR y minijuegos **no están implementados aquí**: serán un subsistema separado de interacciones con objetos del mundo.
 
 ## Sanidad tras combate
 
