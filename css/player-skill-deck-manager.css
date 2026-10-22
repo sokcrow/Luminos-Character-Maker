@@ -159,7 +159,7 @@ body:not(.on-game-dashboard) #skills-modal.psdm-enabled .hud-modal-close{
  #skills-modal .psdm-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(285px,.85fr);grid-template-rows:150px auto auto;padding:8px}
  #skills-modal .psdm-character{grid-column:1/-1;height:150px}
  #skills-modal .psdm-person-header{width:55%;text-align:left;font-size:13px}
- #skills-modal .psdm-art img{position:absolute;right:0;top:-55%;left:auto;width:48%;height:250%;object-position:50% 40%!important}
+ #skills-modal .psdm-art img{position:absolute;right:0;top:-55%;left:auto;width:48%;height:250%;/* Keep the DM's saved sheetArtFraming object-position even on mobile. */}
  #skills-modal .psdm-person-footer{top:40px;left:15px;bottom:auto;width:55%;padding:0;background:transparent;text-align:left}
  #skills-modal .psdm-person-footer h2{font-size:29px}
  #skills-modal .psdm-person-footer #psdm-feedback{max-width:88%;font-size:11px;padding:5px;min-height:28px;margin-top:6px}
