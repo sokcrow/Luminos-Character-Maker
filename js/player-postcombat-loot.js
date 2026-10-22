@@ -399,13 +399,15 @@
             select = `<input type="hidden" data-resource-for="${esc(action)}" value="${esc(resources[0].resourceId || resources[0].id)}">`;
           }
         }
-        return `<div class="loot-resource-group">${select}<button type="button" class="loot-action" data-loot-action="${esc(action)}" data-loot-id="${esc(lootId)}" ${accessible ? "" : "disabled"} title="${esc(postCombat().anatomyPenalty?.(actor,action) ? "Sin Medicina: +8 a la dificultad" : "")}">${esc(actionLabel(action))}</button></div>`;
+        const penalty = Number(postCombat().anatomyPenalty?.(actor,action) || 0);
+        return `<div class="loot-resource-group">${select}<button type="button" class="loot-action" data-loot-action="${esc(action)}" data-loot-id="${esc(lootId)}" ${accessible ? "" : "disabled"} title="${penalty ? "Sin Medicina: +8 a la dificultad" : ""}">${esc(actionLabel(action))}</button>${penalty ? '<small class="loot-skill-penalty">SIN MEDICINA · +8 TH</small>' : ""}</div>`;
       }).join("");
       const pendingHtml = pending.map((entry) => `<button type="button" class="loot-action pending" data-pending-id="${esc(entry.id)}" data-loot-id="${esc(lootId)}" ${accessible ? "" : "disabled"}>Recoger pendiente</button>`).join("");
       const discoverySlots = known.slice(0, 24).map(knownItemSlot).join("");
       const emptySlots = Array.from({ length: Math.max(0, 6 - known.length) }, () => '<div class="loot-discovery unknown" aria-hidden="true">✧</div>').join("");
       const bodyGrid = bodyKnown.slice(0,24).map((resource) => anatomyKnown ? bodySlot(resource) : knownItemSlot(resource)).join("");
-      const bodyBlanks = Array.from({length:Math.max(0, 6 - bodyKnown.length)},()=>'<div class="loot-discovery unknown" aria-hidden="true">✧</div>').join("");
+      const bodyBlanks = anatomyKnown && !bodyKnown.length ? '<div class="loot-empty">No se encontraron materiales recuperables.</div>' :
+        Array.from({length:Math.max(0, 6 - bodyKnown.length)},()=>'<div class="loot-discovery unknown" aria-hidden="true">✧</div>').join("");
       rows.push(`<article class="loot-corpse${state.selectedLootId === lootId ? " selected" : ""}" data-loot-card="${esc(lootId)}">
         <div class="loot-corpse-title"><strong>${esc(name)}</strong><span>${pending.length ? "ENTREGA PENDIENTE" : remainingRecoverable ? "RECUPERACIÓN POSIBLE" : "SIN ACCIONES DISPONIBLES"}</span></div>
         <p class="loot-corpse-note">${known.length ? "Pertenencias recuperadas de este enemigo." : "Las bolsas permanecen ocultas hasta superar Buscar. El botín no se regenera."}</p>
@@ -415,6 +417,7 @@
         <div class="loot-recovered-grid">${bodyGrid}${bodyBlanks}</div>
         <div class="loot-action-title">ACCIONES DISPONIBLES ${occupied ? "· OCUPADO POR OTRO PERSONAJE" : accessible ? "· TU TURNO" : "· SELECCIONA ESTE CADÁVER"}</div>
         <div class="loot-actions">${resourceActionMarkup}${pendingHtml || ""}</div>
+        ${accessible ? `<button type="button" class="loot-release" data-corpse-release="${esc(lootId)}">SOLTAR CADÁVER</button>` : ""}
         ${!actions.length && !pending.length ? '<div class="loot-empty">No quedan acciones para este personaje en estos restos.</div>' : ""}
       </article>`);
     }
@@ -430,6 +433,12 @@
         const next = button.dataset.corpseSelect;
         if (state.busy || state.claiming || leasedByAnother(next)) {setMessage("Este cadáver está ocupado o hay una acción en curso.",true);return;}
         enterCorpse(next).catch(error=>setMessage(error?.message || String(error),true));
+      });
+    });
+    list.querySelectorAll("[data-corpse-release]").forEach(button => {
+      button.addEventListener("click", () => {
+        if (state.busy) {setMessage("Finaliza la tirada antes de soltar el cadáver.",true);return;}
+        leaveCorpse().then(()=>render()).catch(error=>setMessage(error?.message || String(error),true));
       });
     });
     list.querySelectorAll("[data-loot-action]").forEach((button) => {
@@ -534,6 +543,7 @@
     const snap = await state.db.ref(live().ROOTS.encounterLoot).once("value");
     state.encounters = clone(snap.val() || {});
     const latest = latestEncounter();
+    if (state.activeEncounterId && state.activeEncounterId !== latest?.id) leaveCorpse().catch(()=>{});
     state.activeEncounterId = latest?.id || null;
     const corpseCount = latest ? Object.keys(latest.corpses || {}).length : 0;
     const button = ensureButton();
@@ -568,6 +578,7 @@
   }
 
   function close() {
+    if (state.busy) {setMessage("Termina la recuperación antes de cerrar.",true);return;}
     state.open = false;
     state.renderGeneration++;
     leaveCorpse().catch(() => {});
@@ -583,6 +594,7 @@
       state.encounters = clone(snap.val() || {});
       if (state.open && state.encounters[state.activeEncounterId]?.meta?.open === false) close();
       const latest = latestEncounter();
+      if (state.activeEncounterId && state.activeEncounterId !== latest?.id) leaveCorpse().catch(()=>{});
       state.activeEncounterId = latest?.id || null;
       const count = latest ? Object.keys(latest.corpses || {}).length : 0;
       const button = ensureButton();
