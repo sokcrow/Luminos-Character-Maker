@@ -73,6 +73,7 @@ function setPath(root, path, value) {
 function fakeDb(initial = {}) {
   const data = deepClone(initial);
   let pushCounter = 0;
+  const committedTransactions = [];
   function ref(path = "") {
     return {
       key: splitPath(path).at(-1) || null,
@@ -109,6 +110,7 @@ function fakeDb(initial = {}) {
           };
         }
         setPath(data, path, next);
+        committedTransactions.push(path);
         return {
           committed: true,
           snapshot: { val: () => deepClone(getPath(data, path)) },
@@ -116,7 +118,7 @@ function fakeDb(initial = {}) {
       },
     };
   }
-  return { data, ref };
+  return { data, ref, committedTransactions };
 }
 
 const wolf = {
@@ -312,6 +314,10 @@ assert.equal(harvestedMeat.provenance.acquisitionMethod, "harvest");
 
 const hunterCompendium = getPath(db.data, "campaña/jugadores/hunter/compendium");
 assert.ok(Object.values(hunterCompendium.units.wolf.facts).some(fact=>fact.id==="loot.known_uses"), "materialized culinary/crafting knowledge must persist into local Compendium");
+assert.equal(db.committedTransactions.filter(path => path === "campaña/jugadores/hunter").length, 1,
+  "inventory and Compendium facts must be written as one atomic player transaction");
+assert.equal(db.committedTransactions.filter(path => path === "campaña/jugadores/hunter/compendium").length, 0,
+  "successful delivery must not start a second conflicting Compendium transaction");
 
 const rivalBefore = deepClone(getPath(db.data, "campaña/jugadores/rival"));
 const contested = await live.executeAction({
