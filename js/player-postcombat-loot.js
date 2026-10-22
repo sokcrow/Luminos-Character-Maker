@@ -525,7 +525,7 @@
         return `<div class="loot-resource-group">${select}<button type="button" class="loot-action${queued ? " pending" : ""}" data-loot-action="${esc(action)}" data-loot-id="${esc(lootId)}" ${accessible && !queued ? "" : "disabled"} title="${queued ? "Esta recuperación está pendiente" : penalty ? `Sin competencia en ${esc(skillLabel)}: +${penalty} al TH` : `Skill: ${esc(skillLabel)}`}">${queued ? "En espera" : esc(actionLabel(action))}</button>${penalty && !queued ? `<small class="loot-skill-penalty">${penaltyText}</small>` : ""}</div>`;
       }).join("");
       const pendingHtml = pending.map((entry) => `<button type="button" class="loot-action pending" data-pending-id="${esc(entry.id)}" data-loot-id="${esc(lootId)}" ${accessible ? "" : "disabled"}>Recoger pendiente</button>`).join("");
-      const discoverySlots = known.slice(0, 24).map(knownItemSlot).join("");
+      const discoverySlots = known.map(knownItemSlot).join("");
       const searchedSuccessfully = interaction.attempts.some(attempt =>
         clean(attempt.actorId) === playerId && normalizeId(attempt.actionId) === "search" && attempt.success === true);
       const bagsEmpty = !interaction.carried.some(item => Number(item.remaining || 0) > 0) &&
@@ -533,7 +533,7 @@
       const emptySlots = searchedSuccessfully && !known.length && bagsEmpty
         ? '<div class="loot-empty">Sin pertenencias restantes.</div>'
         : Array.from({ length: Math.max(0, 6 - known.length) }, () => '<div class="loot-discovery unknown" aria-hidden="true">✧</div>').join("");
-      const bodyGrid = bodyKnown.slice(0,24).map((resource) => anatomyKnown ? bodySlot(resource) : knownItemSlot(resource)).join("");
+      const bodyGrid = bodyKnown.map((resource) => anatomyKnown ? bodySlot(resource) : knownItemSlot(resource)).join("");
       const bodyBlanks = anatomyKnown && !bodyKnown.length ? '<div class="loot-empty">No se encontraron materiales recuperables.</div>' :
         Array.from({length:Math.max(0, 6 - bodyKnown.length)},()=>'<div class="loot-discovery unknown" aria-hidden="true">✧</div>').join("");
       const attempts = interaction.attempts.filter(attempt => clean(attempt.actorId) === playerId);
