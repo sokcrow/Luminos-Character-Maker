@@ -404,10 +404,11 @@ const CombatEngine = {
         };
 
         const defenseTypes = ['Guard', 'Evade', 'Counter', 'ClashableGuard', 'ClashableCounter'];
-        if (defenseTypes.includes(skill.type)) {
+        const configuredSubtype = config.defenseSubtype || config.defense_subtype || skill.type;
+        if (defenseTypes.includes(configuredSubtype) && (config.isDefense === true || skill.type === 'Defense' || defenseTypes.includes(skill.type))) {
             skill.isDefense = true;
-            skill.defenseSubtype = skill.type;
-            skill.isClashable = (skill.type === 'ClashableGuard' || skill.type === 'ClashableCounter');
+            skill.defenseSubtype = configuredSubtype;
+            skill.isClashable = (configuredSubtype === 'ClashableGuard' || configuredSubtype === 'ClashableCounter');
         } else {
             skill.isDefense = false;
             skill.isClashable = !skill.isUnclashable; // Assume standard attacks are clashable unless isUnclashable is true
@@ -1165,14 +1166,14 @@ const CombatEngine = {
         }
 
         // Handle ClashableGuard logic
-        if (winnerSkill && winnerSkill.type === 'ClashableGuard') {
+        if (winnerSkill && (winnerSkill.type === 'ClashableGuard' || winnerSkill.defenseSubtype === 'ClashableGuard')) {
             // If ClashableGuard wins, increase target's Stagger Threshold (Tremor effect) by Final Power
             // Note: In standard clash logs, we need the final power of the winning skill in the last round.
             let lastLog = result.clashLogs[result.clashLogs.length - 1];
             let guardPower = result.winner === 'A' ? lastLog.powerA : lastLog.powerB;
             this.modifyNextStaggerThreshold(loserUnit, guardPower);
             result.clashableGuardTremorApplied = guardPower;
-        } else if (loserSkill && loserSkill.type === 'ClashableGuard') {
+        } else if (loserSkill && (loserSkill.type === 'ClashableGuard' || loserSkill.defenseSubtype === 'ClashableGuard')) {
             // If ClashableGuard loses, calculate mitigated power
             let lastLog = result.clashLogs[result.clashLogs.length - 1];
             let guardPower = result.winner === 'A' ? lastLog.powerB : lastLog.powerA;
