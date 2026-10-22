@@ -51,16 +51,19 @@
 
   function classSpellcastingAbility(character = {}, classId) {
     const entry = classEntry(character, classId);
+    const npcProfile = character.isPlayer === true || character.actorCategory === "player" || character.canonicalScope === "player"
+      ? null : (character.mechanics?.spellcasting || character.spellcasting);
     return normalizeAbility(
       entry?.spellcastingAbility ?? entry?.spellcasting_ability ?? entry?.spellcasting?.abilityId
-      ?? entry?.spellcasting?.ability ?? entry?.spellcasting?.stat,
+      ?? entry?.spellcasting?.ability ?? entry?.spellcasting?.stat
+      ?? npcProfile?.abilityId ?? npcProfile?.ability ?? npcProfile?.stat,
     ) || base.getClassSpellcastingAbility(classId);
   }
 
   function statModifier(character = {}, abilityId) {
     const ability = normalizeAbility(abilityId);
     if (!ability) return 0;
-    const stats = character.stats || character.dndStats || {};
+    const stats = character.stats || character.dndStats || character.scores || character.abilityScores || {};
     const score = ABILITY_ALIASES[ability].map((alias) => stats?.[alias] ?? character?.[alias])
       .find((value) => Number.isFinite(Number(value)));
     return Math.floor((numberOr(score, 10) - 10) / 2);
@@ -111,6 +114,9 @@
       entry?.spellSlots,
       entry?.spell_slots,
       entry?.spellcasting?.slots,
+      ...(character.isPlayer === true || character.actorCategory === "player" || character.canonicalScope === "player"
+        ? [] : [character?.mechanics?.spellcasting?.spellSlots, character?.spellcasting?.spellSlots,
+          character?.mechanics?.spellcasting?.slots, character?.spellcasting?.slots]),
       ...aliases.map((key) => character?.spellSlotsByClass?.[key]),
       ...aliases.map((key) => character?.spellSlots?.[key]),
       ...aliases.map((key) => character?.characterBuild?.spellSlotsByClass?.[key]),
