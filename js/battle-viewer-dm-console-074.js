@@ -334,6 +334,56 @@
     return { count: Object.keys(results).length, results };
   }
 
+  // Sanity after combat is based on the ending battlefield value, not the
+  // value when Loot is opened. Preserve the sign and round toward zero.
+  function postCombatSanity(value) {
+    return Math.trunc(Math.max(-45, Math.min(45, Number(value) || 0)) / 2);
+  }
+  function halvePlayerSanity(units = {}) {
+    const participants = global.LuminousCombatParticipants;
+    for (const unit of Object.values(units || {})) {
+      if (!unit || !participants?.isPlayer?.(unit)) continue;
+      const next = postCombatSanity(unitSp(unit));
+      writeSp(unit, next);
+    }
+  }
+  async function persistPostCombatSanity(db, encounter = {}) {
+    const encounterId = String(encounter.estado?.encounterId || "").trim();
+    if (!encounterId || !db?.ref) throw Error("POST_COMBAT_SANITY_ENCOUNTER_REQUIRED");
+    const participants = global.LuminousCombatParticipants;
+    const rows = new Map();
+    // Combatants already went through the end-of-encounter reducer.
+    // Dead/backup/departed characters still lose half their SP, just once.
+    for (const [group, units] of Object.entries({
+      departed: encounter.departed || {},
+      reserves: encounter.reserves || {},
+      defeated: encounter.defeated || {},
+      combatants: encounter.combatants || {},
+    })) {
+      for (const unit of Object.values(units)) {
+        if (!unit || !participants?.isPlayer?.(unit)) continue;
+        const playerId = participants.playerId(unit);
+        if (!playerId || !encounter.participants?.[playerId]) continue;
+        rows.set(playerId, {value: group === "combatants" ? unitSp(unit) : postCombatSanity(unitSp(unit))});
+      }
+    }
+    await Promise.all([...rows].map(async ([playerId, row]) => {
+      // A whole-record transaction prevents repeating the 50% reduction on
+      // retries; the marker is scoped to one Encounter, not the current round.
+      const path = `campaña/jugadores/${playerId}`;
+      await db.ref(path).transaction(raw => {
+        if (!raw || raw.lastPostCombatSanityEncounterId === encounterId) return;
+        const next = {...raw, sp:row.value, sp_actual:row.value,
+          combatStats: {...(raw.combatStats || {}), sp_actual:row.value},
+          lastPostCombatSanityEncounterId:encounterId };
+        if (Object.prototype.hasOwnProperty.call(next,"currentSp")) next.currentSp = row.value;
+        if (Object.prototype.hasOwnProperty.call(next,"currentSP")) next.currentSP = row.value;
+        return next;
+      }, undefined, false);
+    }));
+    return rows.size;
+  }
+
   function sanitizeForFirebase(value) {
     if (Array.isArray(value)) return value.map(sanitizeForFirebase);
     if (!value || typeof value !== "object") return value;
@@ -407,10 +457,13 @@
 
     const session=global.LuminousCombatSession;
     if(!session?.claimEnd)throw new Error('Actualiza el visor antes de finalizar el encuentro.');
-    const claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:runEncounterEndAll});
+    const claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:(units)=>{runEncounterEndAll(units);halvePlayerSanity(units);}});
     const alreadyEnded=claimed.estado.phase==='ENDED';
     try{
     const resolved={combatants:claimed.combatants};
+    if (!alreadyEnded) {
+      await persistPostCombatSanity(state.db, claimed);
+    }
 
     let lootFinalization = null;
     if (!alreadyEnded && normalized === "victory") {
@@ -727,7 +780,7 @@
     effectiveAbilityScore, abilityProficiencyState, skillProficiencyState, saveTotal, abilityCheckTotal, skillTotal,
     unitSp, writeSp, readHp, readMaxHp, writeHp, writeShield, thresholdPenalty, rollCheck,
     applyDamageToUnit, applyFixedDamageToUnit, healUnit, applyStatusToUnit, removeStatusFromUnit,
-    runTurnStart, runTurnEnd, runRest, runEncounterEnd, runEncounterEndAll, normalizeEncounterResult, finishEncounter,
+    runTurnStart, runTurnEnd, runRest, runEncounterEnd, runEncounterEndAll, postCombatSanity, halvePlayerSanity, persistPostCombatSanity, normalizeEncounterResult, finishEncounter,
     sanitizeForFirebase, combatantKey, mutateCombatants, mutateSelected, isBattleViewerSurface, isDmAuthorized, resolveDmAuthorization, debugConsoleEnabled, mount, unmount, init,
     _state: state,
   });
