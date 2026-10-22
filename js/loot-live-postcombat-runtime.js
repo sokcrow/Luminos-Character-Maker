@@ -50,9 +50,9 @@
     "js/item-catalog-feather-raw-fiber.js",
     "js/item-catalog-salvage-raw.js",
     "js/loot-instance-runtime.js",
-    "js/loot-check-runtime.js?v=20261022-skills-2",
+    "js/loot-check-runtime.js?v=20261022-pickpocket-3",
     "js/loot-knowledge-runtime.js",
-    "js/loot-postcombat-runtime.js?v=20261022-skills-2",
+    "js/loot-postcombat-runtime.js?v=20261022-pickpocket-3",
     "js/loot-recovery-delivery-runtime.js",
   ]);
 
