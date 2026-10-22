@@ -19,7 +19,7 @@ qa.data=p=>p==='campaña/loot_encounters'?{battle:qa.encounter}:p==='campaña/ju
 qa.db={ref:p=>({once:async()=>{if(qa.delay)await new Promise(r=>setTimeout(r,100));return{val:()=>qa.data(p)}},on(){},off(){}})};
 window.firebase={auth:()=>({currentUser:{uid:'uid_hunter'}}),database:()=>qa.db};
 localStorage.setItem('playerId','hunter');
-window.LuminousLootLivePostCombatRuntime={ROOTS:{encounterLoot:'campaña/loot_encounters',postCombat:'campaña/loot_postcombat',lootInstances:'campaña/loot_instances',claims:'campaña/loot_claims',requests:'campaña/loot_requests',combatState:'campaña/combate/estado'},ensureDependencies:async()=>{},playerBalance:()=>100,availableActions:()=>['search','harvest','examine','autopsy'],claimCorpse:async()=>({acquired:true,claim:{expiresAt:Date.now()+60000}}),releaseCorpse:async()=>{},checkPlayerLootAccess:async()=>{},requestAction:async options=>{
+window.LuminousLootLivePostCombatRuntime={ROOTS:{encounterLoot:'campaña/loot_encounters',postCombat:'campaña/loot_postcombat',lootInstances:'campaña/loot_instances',claims:'campaña/loot_claims',requests:'campaña/loot_requests',combatState:'campaña/combate/estado'},ensureDependencies:async()=>{},playerBalance:()=>100,availableActions:()=>['search','pickpocket','harvest','extract','salvage','examine','autopsy'],claimCorpse:async()=>({acquired:true,claim:{expiresAt:Date.now()+60000}}),releaseCorpse:async()=>{},checkPlayerLootAccess:async()=>{},requestAction:async options=>{
  qa.writes.push(options);if(qa.mode==='error')throw Error('No se pudo completar la recuperación.');if(qa.mode==='queued'){qa.requests.r1={lootInstanceId:options.lootInstanceId,actionId:options.actionId,status:'pending'};LuminousPlayerPostCombatLoot.state.requests=qa.requests;return{queued:true};}
  if(options.deliveryId){qa.corpses[options.lootInstanceId].pendingDeliveries=[];return{delivered:true};}
  qa.corpses[options.lootInstanceId].attempts.push({actorId:'hunter',actionId:options.actionId,success:true,total:14,threshold:10});return{committed:true,check:{success:true},materialized:{items:[],currency:{amount:0}}};
@@ -65,6 +65,12 @@ try {
    assert.ok(bounds.shell[0]>=-1&&bounds.shell[1]>=-1&&bounds.shell[2]<=width+1&&bounds.shell[3]<=height+1,JSON.stringify(bounds));
    assert.ok(bounds.panelHeight>100,JSON.stringify(bounds));
    assert.equal(bounds.overflow,false);assert.equal(bounds.internalOverflow,false);assert.equal(bounds.undersized,0);
+   if((width<=900||height<=500)&&tab==='actions'){
+    assert.equal(await page.locator('.loot-left .loot-corpses').isVisible(),false);
+    assert.equal(await page.locator('#postcombat-loot-corpse-picker').isVisible(),true);
+    const useful=await page.locator('#postcombat-loot-list').evaluate(node=>node.clientHeight);
+    assert.ok(useful>=height-180,`Only ${useful}px usable at ${width}x${height}`);
+   }
    await page.waitForFunction(()=>[...document.querySelectorAll('[data-loot-panel]:not([hidden]) img')].filter(img=>{const r=img.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight;}).every(img=>img.complete&&img.naturalWidth>0));
    await page.screenshot({path:path.join(out,`${width}x${height}-${tab}.png`)});
   }
@@ -82,7 +88,8 @@ try {
   await page.locator('[data-loot-tab="results"]').click();
   assert.doesNotMatch(await page.locator('#postcombat-loot-results .selected').innerText(),/Autopsia/);
   await page.locator('[data-loot-tab="actions"]').click();
-  await page.locator('[data-corpse-select="c2"]').click();
+  if(width<=900||height<=500)await page.locator('#postcombat-loot-corpse-picker').selectOption('c2');
+  else await page.locator('[data-corpse-select="c2"]').click();
   await page.waitForFunction(()=>LuminousPlayerPostCombatLoot.state.claim?.lootInstanceId==='c2');
   await page.locator('[data-loot-card="c2"] [data-loot-action="search"]').click();
   await page.waitForFunction(()=>!LuminousPlayerPostCombatLoot.state.busy);

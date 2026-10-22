@@ -84,7 +84,7 @@
       const link = global.document.createElement("link");
       link.id = "postcombat-loot-corpse-css";
       link.rel = "stylesheet";
-      link.href = "css/postcombat-loot-corpse.css?v=20261022-loot-tabs-2";
+      link.href = "css/postcombat-loot-corpse.css?v=20261022-loot-focus-3";
       global.document.head.appendChild(link);
     }
   }
@@ -130,6 +130,7 @@
         </nav>
         <div class="loot-stage">
           <aside class="loot-column loot-left" aria-label="Cadáveres disponibles">
+            <label class="loot-corpse-picker">Cadáver<select id="postcombat-loot-corpse-picker" aria-label="Elegir cadáver"></select></label>
             <div class="loot-column-head"><h3>CAÍDOS</h3><span id="postcombat-loot-corpse-count"></span></div>
             <div id="postcombat-loot-corpse-nav" class="loot-corpses"></div>
             <div class="loot-corpse-bottom"><b>RESTOS DE LA BATALLA</b>Lo que recuperes depende de tu búsqueda, tu habilidad y aquello que el enemigo llevaba consigo.</div>
@@ -157,6 +158,9 @@
         <footer class="loot-foot"><span>BUSCAR · SUSTRAER · COSECHAR · EXTRAER · DESMONTAR · EXAMINAR · AUTOPSIA</span><span>EL BOTÍN NO SE REGENERA</span></footer>
       </section>`;
     modal.querySelector(".loot-close").addEventListener("click", close);
+    modal.querySelector("#postcombat-loot-corpse-picker").addEventListener("change", event => {
+      selectCorpse(event.target.value);
+    });
     modal.addEventListener("click", (event) => { if (event.target === modal) close(); });
     modal.querySelectorAll("[data-loot-tab]").forEach(button => {
       button.addEventListener("click", () => selectTab(button.dataset.lootTab));
@@ -197,6 +201,16 @@
       button.tabIndex = selected ? 0 : -1;
     });
     modal.querySelectorAll("[data-loot-panel]").forEach(panel => { panel.hidden = panel.dataset.lootPanel !== tab; });
+  }
+
+  function selectCorpse(lootId) {
+    if (state.busy || state.claiming || leasedByAnother(lootId)) {
+      setMessage("Este cadáver está ocupado o hay una acción en curso.", true);
+      const picker = global.document?.getElementById("postcombat-loot-corpse-picker");
+      if (picker) picker.value = state.selectedLootId || "";
+      return;
+    }
+    enterCorpse(lootId).catch(error => showLootError(error));
   }
 
   function setMessage(text, error = false) {
@@ -478,6 +492,7 @@
     const count = global.document.getElementById("postcombat-loot-corpse-count");
     if (count) count.textContent = `${corpses.length} RESTOS`;
     const navRows = [];
+    const pickerRows = [];
     const rows = [];
     const resultRows = [];
 
@@ -502,6 +517,7 @@
       const name = clean(corpse.index.name || corpse.index.sourceUnitId || "Restos");
       const lootId = interaction.lootInstanceId;
       const spriteMarkup = corpseSpriteMarkup(corpse.index.spriteUrl || corpse.loot?.spriteUrl);
+      pickerRows.push(`<option value="${esc(lootId)}" ${occupied ? "disabled" : ""}>${esc(name)}${occupied ? " · En uso" : ""}</option>`);
       navRows.push(`<button type="button" class="loot-corpse-choice${state.selectedLootId === lootId ? " active" : ""}" data-corpse-select="${esc(lootId)}">
         <span class="loot-corpse-glyph" aria-hidden="true">${spriteMarkup}</span>
         <span><strong>${esc(name)}</strong><small>${occupied ? "EN USO" : pending.length ? "RECUPERACIÓN PENDIENTE" : remainingRecoverable ? "RESTOS DISPONIBLES" : "REGISTRADO"}</small></span>
@@ -571,12 +587,16 @@
     // The first render chooses a corpse after building the cards. Keep both panels in sync.
     for (const host of [list, results]) host?.querySelectorAll("[data-loot-card], [data-loot-result]").forEach(card => card.classList.toggle("selected", (card.dataset.lootCard || card.dataset.lootResult) === state.selectedLootId));
     nav.innerHTML = navRows.join("");
+    const picker = global.document.getElementById("postcombat-loot-corpse-picker");
+    if (picker) {
+      picker.innerHTML = pickerRows.join("");
+      picker.value = state.selectedLootId || "";
+      picker.disabled = !pickerRows.length;
+    }
     nav.querySelectorAll("[data-corpse-select]").forEach((button) => {
       button.classList.toggle("active", button.dataset.corpseSelect === state.selectedLootId);
       button.addEventListener("click", () => {
-        const next = button.dataset.corpseSelect;
-        if (state.busy || state.claiming || leasedByAnother(next)) {setMessage("Este cadáver está ocupado o hay una acción en curso.",true);return;}
-        enterCorpse(next).catch(error=>showLootError(error));
+        selectCorpse(button.dataset.corpseSelect);
       });
     });
     for (const host of [list, results, global.document.getElementById("postcombat-loot-inventory")]) {
