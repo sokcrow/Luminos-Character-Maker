@@ -459,11 +459,11 @@
 
     const session=global.LuminousCombatSession;
     if(!session?.claimEnd)throw new Error('Actualiza el visor antes de finalizar el encuentro.');
-    const claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:(units)=>{runEncounterEndAll(units);halvePlayerSanity(units);}});
+    const claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:(units)=>{runEncounterEndAll(units);if(normalized!=="cancelled")halvePlayerSanity(units);}});
     const alreadyEnded=claimed.estado.phase==='ENDED';
     try{
     const resolved={combatants:claimed.combatants};
-    if (!alreadyEnded) {
+    if (!alreadyEnded && normalized !== "cancelled") {
       await persistPostCombatSanity(state.db, claimed);
     }
 
