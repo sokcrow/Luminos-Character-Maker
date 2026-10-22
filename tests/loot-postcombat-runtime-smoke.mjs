@@ -135,6 +135,7 @@ assert.equal(checks.skillMath(expert, "investigation").base, 7);
 assert.equal(checks.skillMath(survivalist, "survival").base, 4);
 assert.equal(checks.skillMath(medic, "medicine").base, 7);
 assert.equal(checks.skillMath(salvager, "arcana").base, 3);
+assert.equal(checks.skillMath(salvager, "investigation").base, 2, "Investigation proficiency must not be assumed for Salvage");
 
 const searchDef = postCombat.checkDefinition(investigator, "search");
 const harvestDef = postCombat.checkDefinition(survivalist, "harvest");
@@ -149,7 +150,7 @@ assert.equal(harvestDef.ability, "wis");
 assert.equal(extractDef.skill, "medicine");
 assert.equal(extractDef.ability, "wis");
 assert.equal(extractDef.threshold, 12);
-assert.equal(salvageDef.skill, "arcana");
+assert.equal(salvageDef.skill, "arcana", "Salvage checks Arcana, not Investigation");
 assert.equal(salvageDef.ability, "int");
 
 const allTails = () => 0.99;
