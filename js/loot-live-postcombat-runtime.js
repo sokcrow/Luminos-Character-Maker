@@ -17,6 +17,7 @@
     postCombat: "campaña/loot_postcombat",
     encounterLoot: "campaña/loot_encounters",
     requests: "campaña/loot_requests",
+    claims: "campaña/loot_claims",
   });
 
   const BROWSER_DEPENDENCIES = Object.freeze([
@@ -49,9 +50,9 @@
     "js/item-catalog-feather-raw-fiber.js",
     "js/item-catalog-salvage-raw.js",
     "js/loot-instance-runtime.js",
-    "js/loot-check-runtime.js",
+    "js/loot-check-runtime.js?v=20261022-pickpocket-3",
     "js/loot-knowledge-runtime.js",
-    "js/loot-postcombat-runtime.js?v=20261021-recovery-4",
+    "js/loot-postcombat-runtime.js?v=20261022-pickpocket-3",
     "js/loot-recovery-delivery-runtime.js",
   ]);
 
@@ -209,6 +210,22 @@
     };
   }
 
+  // Keep the defeated combatant's own sprite rather than an unrelated NPC
+  // illustration. Saved with the corpse index so roster changes cannot swap it.
+  function defeatedSprite(unit = {}, base = {}) {
+    const candidates = [unit,base];
+    for (const source of candidates) {
+      const sprite = [
+        source?.combatSprite, source?.sprite_combate, source?.combat_sprite,
+        source?.visual?.spriteUrl, source?.combatVisual?.spriteUrl,
+        source?.tokenImage, source?.sprite, source?.idle_sprite,
+        source?.img, source?.image, source?.icono,
+      ].find(value => typeof value === "string" && value.trim());
+      if (sprite) return sprite.trim();
+    }
+    return "";
+  }
+
   function encounterContextFromState(combatState = {}, options = {}) {
     const loot = combatState.lootContext || combatState.loot || {};
     const zone = clone(options.zone || loot.zone || combatState.encounterZone || combatState.zone || null);
@@ -282,6 +299,7 @@
         sourceUnitId,
         sourceUnitInstanceId: unitInstanceId,
         name: clean(entry.unit.name || entry.unit.characterName || sourceUnitId),
+        spriteUrl: defeatedSprite(entry.unit, baseTruth),
         finalizedAt: options.now ?? Date.now(),
       };
 
@@ -649,12 +667,44 @@
     const actions = [];
     const searchAvailable = (state.carried || []).some((entry) => int(entry.remaining, 0) > 0) || int(state.currency?.remaining, 0) > 0;
     if (searchAvailable && !postCombat().hasAttempted(state, actorId, "search", {})) actions.push("search");
+    if (searchAvailable && !postCombat().hasAttempted(state, actorId, "pickpocket", {})) actions.push("pickpocket");
     for (const id of ["harvest", "extract", "salvage"]) {
       if (postCombat().eligibleResources(state, id).length && !postCombat().hasAttempted(state, actorId, id, {})) actions.push(id);
     }
     if (!postCombat().hasAttempted(state, actorId, "examine", {})) actions.push("examine");
     if (!postCombat().hasAttempted(state, actorId, "autopsy", {})) actions.push("autopsy");
     return deepFreeze(actions);
+  }
+
+  const CORPSE_LEASE_MS = 90000;
+  async function claimCorpse(options = {}) {
+    const db = dbFrom(options), lootInstanceId = clean(options.lootInstanceId);
+    const user = global.firebase?.auth?.().currentUser;
+    const playerId = clean(options.playerId);
+    if (!db?.ref || !lootInstanceId || !playerId || !user?.uid) throw Error("LOOT_CLAIM_AUTH_REQUIRED");
+    if (options.skipAccess !== true) await checkPlayerLootAccess({db,lootInstanceId,playerId});
+    const ref = db.ref(`${ROOTS.claims}/${lootInstanceId}`);
+    // Warm RTDB's local transaction cache; an uncached null would otherwise
+    // be mistaken for an unoccupied corpse on first invocation.
+    await ref.once("value");
+    const tx = await ref.transaction(raw => {
+      const now = Date.now();
+      if (raw?.uid && Number(raw.expiresAt) > now && (raw.uid !== user.uid || clean(raw.playerId) !== playerId)) return;
+      return {uid:user.uid,playerId,expiresAt:now + CORPSE_LEASE_MS,updatedAt:now};
+    },undefined,false);
+    const claim = tx.snapshot?.val?.() || null;
+    return {acquired:tx.committed===true && claim?.uid===user.uid && claim?.playerId===playerId,
+      claim};
+  }
+  async function releaseCorpse(options = {}) {
+    const db = dbFrom(options), lootInstanceId = clean(options.lootInstanceId);
+    const uid = clean(global.firebase?.auth?.().currentUser?.uid);
+    const playerId = clean(options.playerId);
+    if (!db?.ref || !uid || !playerId || !lootInstanceId) return false;
+    const ref = db.ref(`${ROOTS.claims}/${lootInstanceId}`);
+    await ref.once("value");
+    const tx = await ref.transaction(row => row?.uid===uid && row?.playerId===playerId ? null : undefined,undefined,false);
+    return tx.committed === true;
   }
 
   async function checkPlayerLootAccess(options = {}) {
@@ -686,6 +736,10 @@
     const playerId = clean(options.playerId), lootInstanceId = clean(options.lootInstanceId);
     if (!db?.ref || !user || !playerId || !lootInstanceId) throw Error('Entra con tu personaje para recuperar el botín.');
     const actionId = normalizeId(options.actionId || 'claim');
+    const occupation = await onceValue(db,`${ROOTS.claims}/${lootInstanceId}`);
+    if (!occupation || occupation.uid !== user.uid || occupation.playerId !== playerId || Number(occupation.expiresAt) <= Date.now()) {
+      throw Error("Selecciona un cadáver libre antes de empezar a saquearlo.");
+    }
     const targetResourceId = clean(options.targetResourceId), deliveryId = clean(options.deliveryId);
     let key = [lootInstanceId, actionId, targetResourceId, deliveryId].map(v => encodeURIComponent(v).replace(/\./g, '%2E')).join('|');
     let existing = await onceValue(db, `${ROOTS.requests}/${playerId}/${key}`);
@@ -723,9 +777,13 @@
     const owner = actor?.uid || actor?.vinculado_a || actor?.vinculo_jugador;
     const meta = locked && await onceValue(db,`${ROOTS.encounterLoot}/${safeKey(locked.encounterId)}/meta`);
     if (!owner || owner !== row.uid || row.playerId !== playerId || !locked?.locked || meta?.participants?.[playerId] !== true || meta.open === false || meta.result !== 'victory') throw Error('Tu personaje no participa en este botín.');
+    const occupation = await onceValue(db,`${ROOTS.claims}/${row.lootInstanceId}`);
+    if (!occupation || occupation.uid !== row.uid || occupation.playerId !== playerId || Number(occupation.expiresAt) <= Date.now()) {
+      throw Error("Este cadáver está ocupado por otro personaje o la reserva de saqueo expiró.");
+    }
     const options = {db,playerId,actor:{...actor,id:playerId},lootInstance:locked,lootInstanceId:row.lootInstanceId,targetResourceId:row.targetResourceId||undefined};
     if (row.actionId === 'claim') return deliverPending({...options,deliveryId:row.deliveryId});
-    if (!['search','harvest','extract','salvage','examine','autopsy'].includes(row.actionId)) throw Error('Esta acción de recuperación no está disponible.');
+    if (!['search','pickpocket','harvest','extract','salvage','examine','autopsy'].includes(row.actionId)) throw Error('Esta acción de recuperación no está disponible.');
     const definition = postCombat().checkDefinition(options.actor,row.actionId,options);
     const heads = Number(row.checkHeads);
     if (!Number.isInteger(heads) || heads < 0 || heads > definition.coinCount) throw Error('La tirada de recuperación no es válida.');
@@ -828,6 +886,9 @@
     executeAction,
     requestAction,
     checkPlayerLootAccess,
+    claimCorpse,
+    releaseCorpse,
+    CORPSE_LEASE_MS,
     installAuthority,
     stopAuthority,
     availableActions,

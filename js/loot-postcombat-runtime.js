@@ -11,6 +11,7 @@
 
   const ACTION_PROFILES = Object.freeze({
     search: Object.freeze({ id: "search", checkId: "search", defaultDc: 10 }),
+    pickpocket: Object.freeze({ id: "pickpocket", checkId: "pickpocket", defaultDc: 10 }),
     harvest: Object.freeze({ id: "harvest", checkId: "harvest", defaultDc: 10 }),
     extract: Object.freeze({ id: "extract", checkId: "extract", defaultDc: 12 }),
     salvage: Object.freeze({ id: "salvage", checkId: "salvage", defaultDc: 10 }),
@@ -145,19 +146,83 @@
     return (state.attempts || []).some((entry) => entry.key === key);
   }
 
+  // All Loot skill checks require full proficiency in their actual selected
+  // skill. Explicit class/trait expertise in the activity can waive +8 TH.
+  const UNTRAINED_LOOT_DC = 8;
+  const ANATOMY_ACTIONS = Object.freeze(new Set(["harvest", "extract", "autopsy"]));
+  const hasGrant = (value, action, skill) => value === true || value === "all" ||
+    Array.isArray(value) && (value.includes(action) || value.includes(skill) ||
+      ANATOMY_ACTIONS.has(action) && (value.includes("anatomy") || value.includes("medicine"))) ||
+    Boolean(value && typeof value === "object" && (
+      value.all === true || value[action] === true || value[skill] === true ||
+      value.actions?.[action] === true || value.skills?.[skill] === true ||
+      ANATOMY_ACTIONS.has(action) && (value.anatomy === true || value.medicine === true)
+    ));
+  function hasLootKnowledge(actor = {}, actionId = "", skillId = "") {
+    const action = normalizeId(actionId), skill = normalizeId(skillId);
+    const sources = [
+      actor.lootKnowledge, actor.postCombatKnowledge,
+      actor.mechanics?.lootKnowledge, actor.classFeatures?.lootKnowledge,
+      actor.traitGrants?.lootKnowledge,
+    ];
+    for (const collection of [
+      actor.traits, actor.classTraits, actor.features, actor.generalTraits,
+      actor.grantedTraits, actor.classFeatures, actor.mechanics?.traits,
+      actor.characterBuild?.traits,
+    ]) {
+      const features = Array.isArray(collection) ? collection :
+        collection && typeof collection === "object" ? Object.values(collection) : [];
+      for (const feature of features) {
+        if (!feature || typeof feature !== "object") continue;
+        sources.push(
+          feature.lootKnowledge, feature.postCombatKnowledge,
+          feature.grants?.lootKnowledge, feature.grants?.postCombatKnowledge,
+          feature.effects?.lootKnowledge,
+        );
+      }
+    }
+    return sources.some(grant => hasGrant(grant, action, skill));
+  }
+  function hasAnatomyKnowledge(actor = {}, actionId = "") {
+    const action = normalizeId(actionId);
+    return ANATOMY_ACTIONS.has(action) && hasLootKnowledge(actor, action, "medicine");
+  }
+  function lootSkillForAction(actionId = "", options = {}) {
+    const runtime = checks(), action = normalizeId(actionId);
+    const profile = ACTION_PROFILES[action];
+    if (!profile) return "";
+    return normalizeId(options.skill || profile.defaultSkill ||
+      runtime?.getCheckProfile?.(profile.checkId)?.defaultSkill || "");
+  }
+  function lootProficiencyPenalty(actor = {}, actionId = "", options = {}) {
+    const skill = lootSkillForAction(actionId, options);
+    if (!skill) return 0;
+    const state = checks()?.skillProficiencyState?.(actor, skill) || "none";
+    if (state === "proficient" || state === "expertise" ||
+      hasLootKnowledge(actor, actionId, skill)) return 0;
+    return UNTRAINED_LOOT_DC;
+  }
+  // Existing HUD callers use the original export name.
+  function anatomyPenalty(actor = {}, actionId = "", options = {}) {
+    return lootProficiencyPenalty(actor, actionId, options);
+  }
   function checkDefinition(actor = {}, actionId, options = {}) {
     const runtime = checks();
     if (!runtime?.createLootCheckDefinition) throw new Error("LOOT_CHECK_RUNTIME_REQUIRED");
-    const profile = ACTION_PROFILES[normalizeId(actionId)];
-    if (!profile) throw new Error(`UNKNOWN_POST_COMBAT_ACTION:${normalizeId(actionId)}`);
+    const action = normalizeId(actionId), profile = ACTION_PROFILES[action];
+    if (!profile) throw new Error(`UNKNOWN_POST_COMBAT_ACTION:${action}`);
+    const skill = lootSkillForAction(action, options);
+    const surcharge = lootProficiencyPenalty(actor, action, { skill });
     return runtime.createLootCheckDefinition(actor, profile.checkId, {
       threshold: options.threshold ?? options.dc ?? profile.defaultDc,
-      thresholdModifier: options.thresholdModifier ?? options.dcModifier ?? 0,
-      skill: options.skill || profile.defaultSkill,
+      thresholdModifier: Number(options.thresholdModifier ?? options.dcModifier ?? 0) + surcharge,
+      skill,
       metadata: {
         corpseId: options.corpseId || null,
         targetItemId: options.targetItemId || null,
         targetResourceId: options.targetResourceId || null,
+        untrainedSkillPenalty: surcharge,
+        requiredProficiencySkill: skill,
       },
     });
   }
@@ -225,6 +290,10 @@
         recovered.push(item);
         next.carried[index].discoveredBy = [...new Set([...(next.carried[index].discoveredBy || []), actorId])];
         next.carried[index].recoveredBy = [...new Set([...(next.carried[index].recoveredBy || []), actorId])];
+        next.carried[index].recoveredQuantitiesBy = {
+          ...(next.carried[index].recoveredQuantitiesBy || {}),
+          [actorId]: Math.max(0, Number(next.carried[index].recoveredQuantitiesBy?.[actorId] || 0)) + Number(next.carried[index].remaining || 0),
+        };
         next.carried[index].remaining = 0;
         slots -= 1;
       }
@@ -248,6 +317,74 @@
         currency,
         hiddenItemsRemaining: next.carried.filter((entry) => entry.remaining > 0).length,
         currencyRemaining: next.currency.remaining,
+      }),
+    };
+  }
+
+  // Resolve exactly one previously generated carried unit OR the remaining
+  // cash. The same state + actor + revision selects the same reward on Firebase
+  // transaction retry; the UI never decides which hidden reward was taken.
+  function stablePocketIndex(seed, length) {
+    let hash = 2166136261;
+    for (let i = 0; i < seed.length; i += 1) {
+      hash ^= seed.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0) % Math.max(1, length);
+  }
+
+  function applyPickpocket(state, actorId, result) {
+    const next = clone(state);
+    const remaining = next.carried
+      .map((entry, index) => ({entry, index}))
+      .filter(({entry}) => Number(entry.remaining || 0) > 0 && entry.item);
+    remaining.sort((a,b)=>String(a.entry.instanceId).localeCompare(String(b.entry.instanceId)));
+    const options = remaining.map(row => ({kind:"item", index:row.index}));
+    if (Number(next.currency?.remaining || 0) > 0) options.push({kind:"currency"});
+    const recovered = [];
+    let currency = null;
+
+    if (result.success === true && options.length) {
+      const selector = [state.lootInstanceId, state.corpseId, actorId,
+        String(state.revision || 0), String(options.length)].join("|");
+      const pick = options[stablePocketIndex(selector,options.length)];
+      if (pick.kind === "currency") {
+        currency = deepFreeze({
+          currencyId: next.currency.currencyId,
+          amount: next.currency.remaining,
+          provenance: acquisitionProvenance(next.currency.provenance || {}, "pickpocket", actorId, state),
+        });
+        next.currency.discoveredBy = [...new Set([...(next.currency.discoveredBy || []), actorId])];
+        next.currency.recoveredBy = [...new Set([...(next.currency.recoveredBy || []), actorId])];
+        next.currency.remaining = 0;
+      } else {
+        const entry = next.carried[pick.index];
+        const recoveredItem = {
+          ...clone(entry.item),
+          quantity: 1,
+          // A partially recovered stack remains a separate instance in the
+          // corpse. The stolen single unit needs a unique, stable receipt ID.
+          instanceId: String(entry.instanceId || entry.item.instanceId || "item") +
+            "_pocket_" + stablePocketIndex(selector + "|" + pick.index, 0xFFFFFF).toString(36),
+          provenance: acquisitionProvenance(entry.item.provenance || {}, "pickpocket", actorId, state),
+        };
+        recovered.push(deepFreeze(recoveredItem));
+        entry.remaining = Math.max(0, Number(entry.remaining || 0) - 1);
+        entry.discoveredBy = [...new Set([...(entry.discoveredBy || []), actorId])];
+        entry.recoveredBy = [...new Set([...(entry.recoveredBy || []), actorId])];
+        entry.recoveredQuantitiesBy = {
+          ...(entry.recoveredQuantitiesBy || {}),
+          [actorId]: Math.max(0, Number(entry.recoveredQuantitiesBy?.[actorId] || 0)) + 1,
+        };
+      }
+    }
+    return {
+      next,
+      recovery: deepFreeze({
+        items: deepFreeze(recovered),
+        currency,
+        hiddenItemsRemaining: next.carried.filter(entry => Number(entry.remaining || 0) > 0).length,
+        currencyRemaining: Number(next.currency?.remaining || 0),
       }),
     };
   }
@@ -419,6 +556,8 @@
     const result = normalizeCheckResult(definition, checkResult);
     const applied = action === "search"
       ? applySearch(state, actorId, result, options)
+      : action === "pickpocket"
+        ? applyPickpocket(state, actorId, result)
       : (action === "autopsy" || action === "examine")
         ? applyKnowledgeAction(state, actorId, action, result, options)
         : applyResourceAction(state, actorId, action, result, options);
@@ -481,10 +620,17 @@
     createInteractionState,
     attemptKey,
     hasAttempted,
+    hasAnatomyKnowledge,
+    hasLootKnowledge,
+    lootSkillForAction,
+    lootProficiencyPenalty,
+    anatomyPenalty,
     checkDefinition,
     recoveryCountFromMargin,
     acquisitionProvenance,
     searchCandidates,
+    stablePocketIndex,
+    applyPickpocket,
     resourceAction,
     eligibleResources,
     applyKnowledgeAction,
