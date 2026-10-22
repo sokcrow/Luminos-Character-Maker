@@ -204,7 +204,7 @@
       let item = entry.item || {};
       try { item = global.LuminousItemInventoryRuntime?.resolveItem?.(item) || item; } catch (_) { /* Keep the saved instance. */ }
       return {
-        name: clean(item.displayName || item.name || item.nombre || entry.definitionId || "Pertenencia recuperada"),
+        name: clean(item.displayName || item.name || item.nombre || titleCase(entry.definitionId || "Pertenencia recuperada")),
         quantity: Math.max(1, Number(entry.quantity ?? item.quantity ?? 1)),
         icon: clean(item.iconUrl || item.icon || item.imageUrl || item.image || ""),
         status: "Recuperado",
@@ -249,14 +249,15 @@
     const described = inventory?.describeInventory?.(actor) || {};
     const used = Number(described.activeSlots ?? active.length);
     const limit = Math.max(used, Number(described.activeSlotLimit ?? snapshot?.activeSlotLimit ?? 0));
+    const stashInfo = described.stashSlotLimit ? ` · STASH ${Number(described.stashSlots || 0)} / ${Number(described.stashSlotLimit)}` : "";
     const summary = global.document?.getElementById("postcombat-loot-inventory-summary");
     const host = global.document?.getElementById("postcombat-loot-inventory");
     const wallet = global.document?.getElementById("postcombat-loot-wallet");
-    if (summary) summary.innerHTML = `<b>${used} / ${limit || "—"}</b> ESPACIOS OCUPADOS
+    if (summary) summary.innerHTML = `<b>${used} / ${limit || "—"}</b> ESPACIOS OCUPADOS${stashInfo}
       <div class="loot-capacity-bar"><i style="width:${limit ? Math.min(100, used / limit * 100) : 0}%"></i></div>`;
     if (host) {
       const slots = active.slice(0, 48).map(({ item }) => {
-        const name = clean(item?.displayName || item?.name || item?.nombre || item?.definitionId || "Objeto");
+        const name = clean(item?.displayName || item?.name || item?.nombre || titleCase(item?.definitionId || "Objeto"));
         const icon = lootIcon(item?.iconUrl || item?.icon || item?.imageUrl || item?.image || "");
         const quantity = Math.max(1, Number(item?.quantity || 1));
         return `<div class="loot-pack-item" title="${esc(name)}">${icon ? `<img src="${esc(icon)}" alt="">` : `<span>${esc(name)}</span>`}${quantity > 1 ? `<small>${quantity}</small>` : ""}</div>`;
