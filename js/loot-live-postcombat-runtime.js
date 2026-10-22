@@ -776,11 +776,10 @@
   const authorities = new Map();
   async function resolveRequest(db, playerId, row) {
     await ensureDependencies();
-    const [actor,locked] = await Promise.all([onceValue(db,`${ROOTS.players}/${playerId}`),onceValue(db,`${ROOTS.lootInstances}/${row.lootInstanceId}`)]);
+    const [actor,locked,occupation] = await Promise.all([onceValue(db,`${ROOTS.players}/${playerId}`),onceValue(db,`${ROOTS.lootInstances}/${row.lootInstanceId}`),onceValue(db,`${ROOTS.claims}/${row.lootInstanceId}`)]);
     const owner = actor?.uid || actor?.vinculado_a || actor?.vinculo_jugador;
     const meta = locked && await onceValue(db,`${ROOTS.encounterLoot}/${safeKey(locked.encounterId)}/meta`);
     if (!owner || owner !== row.uid || row.playerId !== playerId || !locked?.locked || meta?.participants?.[playerId] !== true || meta.open === false || meta.result !== 'victory') throw Error('Tu personaje no participa en este botín.');
-    const occupation = await onceValue(db,`${ROOTS.claims}/${row.lootInstanceId}`);
     if (!occupation || occupation.uid !== row.uid || occupation.playerId !== playerId || Number(occupation.expiresAt) <= Date.now()) {
       throw Error("Este cadáver está ocupado por otro personaje o la reserva de saqueo expiró.");
     }
