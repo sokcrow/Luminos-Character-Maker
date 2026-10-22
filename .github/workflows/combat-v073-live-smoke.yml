@@ -83,6 +83,11 @@ on:
       - 'tests/unit-combat-instantiator-smoke.mjs'
       - 'tests/universal-library-authority-smoke.mjs'
       - 'tests/scale-sorcerer-deployment-smoke.mjs'
+      - 'tests/universal-caster-deployment-smoke.mjs'
+      - 'js/combat-spell-loadout-074.js'
+      - 'js/spellcasting-basic-rules-runtime.js'
+      - 'js/unit-ai-kit-adapter.js'
+      - 'js/battle-viewer-encounter-setup-074.js'
       - 'tests/player-vitals-realtime-bridge-smoke.mjs'
       - '.github/workflows/combat-v073-live-smoke.yml'
 
@@ -157,6 +162,8 @@ jobs:
         run: node tests/universal-library-authority-smoke.mjs
       - name: Scale Sorcerer Kobold FIELD and BACKUP regression
         run: node tests/scale-sorcerer-deployment-smoke.mjs
+      - name: Universal PC NPC AI spell and backup integration
+        run: node tests/universal-caster-deployment-smoke.mjs
       - name: Universal Player vitals realtime bridge
         run: node tests/player-vitals-realtime-bridge-smoke.mjs
       - name: Player Action economy menu contract
