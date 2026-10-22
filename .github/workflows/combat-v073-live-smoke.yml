@@ -82,6 +82,7 @@ on:
       - 'tests/player-vitals-universal-sync-smoke.mjs'
       - 'tests/unit-combat-instantiator-smoke.mjs'
       - 'tests/universal-library-authority-smoke.mjs'
+      - 'tests/scale-sorcerer-deployment-smoke.mjs'
       - 'tests/player-vitals-realtime-bridge-smoke.mjs'
       - '.github/workflows/combat-v073-live-smoke.yml'
 
@@ -154,6 +155,8 @@ jobs:
         run: node tests/unit-combat-instantiator-smoke.mjs
       - name: Universal Library and authoritative Combat contract
         run: node tests/universal-library-authority-smoke.mjs
+      - name: Scale Sorcerer Kobold FIELD and BACKUP regression
+        run: node tests/scale-sorcerer-deployment-smoke.mjs
       - name: Universal Player vitals realtime bridge
         run: node tests/player-vitals-realtime-bridge-smoke.mjs
       - name: Player Action economy menu contract
