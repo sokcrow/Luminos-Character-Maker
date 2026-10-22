@@ -113,7 +113,7 @@
     modal.innerHTML = `
       <section class="loot-shell" role="dialog" aria-modal="true" aria-labelledby="postcombat-loot-title">
         <header class="loot-head">
-          <div class="loot-sigil" aria-hidden="true">✥</div>
+          <div class="loot-sigil" id="postcombat-loot-selected-sprite" aria-hidden="true">✥</div>
           <div><h2 id="postcombat-loot-title">LOOT CORPSE</h2><p>TOMA LO QUE PERMANECE · RECUPERACIÓN POST-COMBATE</p></div>
           <p class="loot-motto">LOS CAÍDOS NO OLVIDAN SUS PERTENENCIAS</p>
           <button class="loot-close" type="button" aria-label="Cerrar saqueo">×</button>
@@ -305,6 +305,20 @@
     return /^(Assets|assets)\//.test(value) && !value.includes("..") && !/["'<>]/.test(value) ? value : "";
   }
 
+  // Accept battle sprite sources without allowing a scripted URI in img src.
+  function corpseSpriteSrc(value) {
+    const raw = clean(value);
+    if (!raw || raw.length > 4000000 || /[<>"'\x00-\x1f]/.test(raw)) return "";
+    if (/^https?:\/\/[^\s]+$/i.test(raw)) return raw;
+    if (/^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=]+$/i.test(raw)) return raw;
+    if (/^(?!\/)(?!\.\.)(?:[a-z0-9_.-]+\/)*[a-z0-9_.-]+(?:[?#][a-z0-9_=%&.+#/-]+)?$/i.test(raw) && !raw.includes("../")) return raw;
+    return "";
+  }
+  function corpseSpriteMarkup(url) {
+    const src = corpseSpriteSrc(url);
+    return src ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async">` : "✥";
+  }
+
   function knownItemSlot(entry = {}) {
     const icon = lootIcon(entry.icon);
     const name = clean(entry.name || "Objeto");
@@ -384,8 +398,9 @@
       const remainingRecoverable = actions.length > 0 || pending.length > 0;
       const name = clean(corpse.index.name || corpse.index.sourceUnitId || "Restos");
       const lootId = interaction.lootInstanceId;
+      const spriteMarkup = corpseSpriteMarkup(corpse.index.spriteUrl || corpse.loot?.spriteUrl);
       navRows.push(`<button type="button" class="loot-corpse-choice${state.selectedLootId === lootId ? " active" : ""}" data-corpse-select="${esc(lootId)}">
-        <span class="loot-corpse-glyph" aria-hidden="true">✥</span>
+        <span class="loot-corpse-glyph" aria-hidden="true">${spriteMarkup}</span>
         <span><strong>${esc(name)}</strong><small>${occupied ? "EN USO" : pending.length ? "RECUPERACIÓN PENDIENTE" : remainingRecoverable ? "RESTOS DISPONIBLES" : "REGISTRADO"}</small></span>
       </button>`);
 
@@ -434,6 +449,9 @@
     if (!state.selectedLootId || !corpses.some((corpse) => corpse.interaction?.lootInstanceId === state.selectedLootId)) {
       state.selectedLootId = corpses.find((corpse) => corpse.interaction?.lootInstanceId)?.interaction?.lootInstanceId || null;
     }
+    const chosenCorpse = corpses.find(corpse => corpse.interaction?.lootInstanceId === state.selectedLootId);
+    const badgeSprite = global.document.getElementById("postcombat-loot-selected-sprite");
+    if (badgeSprite) badgeSprite.innerHTML = corpseSpriteMarkup(chosenCorpse?.index?.spriteUrl || chosenCorpse?.loot?.spriteUrl);
     list.innerHTML = rows.length ? rows.join("") : '<div class="loot-empty">No se encontraron restos disponibles para este encuentro.</div>';
     nav.innerHTML = navRows.join("");
     nav.querySelectorAll("[data-corpse-select]").forEach((button) => {
