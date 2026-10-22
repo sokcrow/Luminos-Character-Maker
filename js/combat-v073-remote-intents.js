@@ -99,7 +99,13 @@
   function aiSignature(){
     const s=adapterState();
     return JSON.stringify([s?.encounterId||'',Number(s?.round)||1,Object.values(runtime()?.combatants?.()||{})
-      .filter(unit=>unit.controlled==='ai').map(unit=>[unit.id,unit.actionSlots,runtime()?.kit?.(unit.id)?.actions||[]])]);
+      .sort((a,b)=>String(a.id).localeCompare(String(b.id))).map(unit=>[
+        unit.id,unit.faction,unit.hp,unit.maxHp,unit.sp,unit.actionSlots,
+        unit.battleActive,unit.isBackup,unit.dead,unit.defeated,unit.escaped,unit.removed,unit.incapacitated,
+        unit.scores,unit.abilityScores,unit.stats,unit.attributes,unit.statusEffects,unit.confusionTurnMode,
+        adapter()?.inventoryHydrationSignature?.(unit)||unit.inventario_activo||{},
+        unit.controlled==='ai'?runtime()?.kit?.(unit.id)?.actions||[]:[]
+      ])]);
   }
   function applyPlanningAi(){
     const s=adapterState();if(!s||state.planningAi.signature!==aiSignature())return false;
@@ -130,7 +136,7 @@
     const row={round:Number(s.round)||1,signature:aiSignature(),plans};state.publishingAi=true;
     try{await s.db.ref(AI_ROOT).set(row);state.planningAi=row;apply();return true;}
     catch(error){console.error('[Combat073 Planning AI]',error);return false;}
-    finally{state.publishingAi=false;}
+    finally{state.publishingAi=false;if(row.signature!==aiSignature())retryPlanningAi();}
   }
   function renderPlanLabels(){
     const s=adapterState(),doc=global.document,combat=runtime();if(!doc?.createElement||!combat)return;

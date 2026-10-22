@@ -27,7 +27,9 @@ jobs:
           path: test-results
   npc-belongings-and-loot-queues:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    # Cold dependency/browser installation can exceed eight minutes before the
+    # 150-second NPC acceptance test starts. Keep its own test deadline intact.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

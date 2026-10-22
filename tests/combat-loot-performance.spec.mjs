@@ -37,7 +37,9 @@ async function login(page,user,url='/combate.html'){
  await page.goto(base+url);const form=url.startsWith('/mirror')?'mirror':'combat-entry';await page.locator('#'+form+'-email').fill(user.email);await page.locator('#'+form+'-password').fill(user.password);await page.locator('#'+form+'-login button').click();
 }
 async function frame(page,query='Battle-viewer'){
- await expect.poll(()=>page.frames().filter(f=>f.url().includes(query)).length,{timeout:40000}).toBeGreaterThan(0);const f=page.frames().find(f=>f.url().includes(query));
+ try{await expect.poll(()=>page.frames().filter(f=>f.url().includes(query)).length,{timeout:40000}).toBeGreaterThan(0);}
+ catch(error){await page.screenshot({path:test.info().outputPath('entry-failure.png')});console.log('ENTRY_FAILURE',JSON.stringify(await page.evaluate(()=>({uid:window.firebase?.auth?.().currentUser?.uid,text:document.body.innerText}))));throw error;}
+ const f=page.frames().find(f=>f.url().includes(query));
  await f.waitForFunction(()=>window.LuminousCombatLiveAdapter073?.state.hydratedOnce&&window.LuminousCombat073?.playerId?.(),{},{timeout:60000});
  await f.waitForFunction(()=>window.LuminousCombatAuthority073&&window.LuminousCombatRemoteIntents073&&window.LuminousCombatSlotDeck073&&window.LuminousCombatPlanSync073,{},{timeout:40000});return f;
 }
@@ -102,7 +104,7 @@ async function instrument(context) {
  });
 }
 async function throttle(context,page){const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});return cdp;}
-async function startMeasure(frame){await frame.evaluate(()=>{const p=window.__perf;p.operations=[];p.frames=[];p.longTasks=[];p.publish=[];p.active=true;window.__qaCues=[];});}
+async function startMeasure(frame){await frame.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>{const p=window.__perf;p.operations=[];p.frames=[];p.longTasks=[];p.publish=[];p.active=true;window.__qaCues=[];resolve();})));}
 async function stopMeasure(frame){return frame.evaluate(()=>{const p=window.__perf;p.active=false;const sorted=p.frames.slice().sort((a,b)=>a-b);return {...p,frameP95:sorted[Math.floor(sorted.length*.95)]||0,maxFrame:Math.max(0,...sorted),maxLongTask:Math.max(0,...p.longTasks.map(x=>x.duration)),writes:p.operations.filter(o=>o.method==='update'||o.method==='set').length,writeBytes:p.operations.reduce((n,o)=>n+o.bytes,0),cues:window.__qaCues};});}
 function summary(p){return {frameP95:p.frameP95,maxFrame:p.maxFrame,maxLongTask:p.maxLongTask,longTasks:p.longTasks.length,writes:p.writes,writeBytes:p.writeBytes,cues:p.cues.length,publishWaitMs:p.publish.reduce((n,x)=>n+x,0),maxPublishWaitMs:Math.max(0,...p.publish)};}
 async function saveMetrics(info,name,metrics){fs.writeFileSync(info.outputPath(name+'.json'),JSON.stringify(metrics,null,2));console.log('PERFORMANCE',name,JSON.stringify({...metrics,authority:summary(metrics.authority),viewer:summary(metrics.viewer)}));}
@@ -121,8 +123,10 @@ test('performance: visible combat with one player, one kobold, 1 and 3 coins, th
   try{
    const dp=await dc.newPage(),pp=await pc.newPage();const profiler=await throttle(dc,dp);await throttle(pc,pp);
    await login(dp,dm);const df=await frame(dp);await login(pp,player);const pf=await frame(pp);
-   await startMeasure(df);await startMeasure(pf);
+   // Starting V8's sampler pauses the renderer (~1.2 s under 4x throttle).
+   // Profile setup is benchmark overhead, not a frame produced by combat.
    await profiler.send('Profiler.enable');await profiler.send('Profiler.start');
+   await startMeasure(df);await startMeasure(pf);
    const t=Date.now();await choose(pf);
    await expect.poll(()=>pf.evaluate(()=>window.__qaCues.some(c=>c.cue==='powerCoin')),{timeout:30000}).toBe(true);
    await screenshot(pp,info,`live-${coins}coins-${enemies}enemies`);
