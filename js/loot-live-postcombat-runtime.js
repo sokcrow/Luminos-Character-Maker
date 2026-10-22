@@ -653,15 +653,6 @@
       : [];
     const facts = [...(reserved.knowledgeFacts || []), ...materialFacts];
     let compendium = null;
-    if (facts.length) {
-      compendium = await persistKnowledgeFacts({
-        ...options,
-        playerId,
-        unitId: locked.sourceUnitId,
-        facts,
-      });
-    }
-
     let deliveryResult = null;
     if (reserved.pending?.id) {
       deliveryResult = await deliverPending({
@@ -670,6 +661,20 @@
         deliveryId: reserved.pending.id,
         interactionState: reserved.state,
         playerId,
+        knowledgeUnitId: locked.sourceUnitId,
+        knowledgeFacts: facts,
+      });
+      if (facts.length && deliveryResult.delivered) {
+        compendium = { saved: true, compendium: clone(deliveryResult.player?.compendium) };
+      }
+    }
+    // Capacity-blocked deliveries still save discoveries, without granting items.
+    if (facts.length && (!reserved.pending?.id || !deliveryResult?.delivered)) {
+      compendium = await persistKnowledgeFacts({
+        ...options,
+        playerId,
+        unitId: locked.sourceUnitId,
+        facts,
       });
     }
 
