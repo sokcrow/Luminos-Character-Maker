@@ -290,6 +290,10 @@
         recovered.push(item);
         next.carried[index].discoveredBy = [...new Set([...(next.carried[index].discoveredBy || []), actorId])];
         next.carried[index].recoveredBy = [...new Set([...(next.carried[index].recoveredBy || []), actorId])];
+        next.carried[index].recoveredQuantitiesBy = {
+          ...(next.carried[index].recoveredQuantitiesBy || {}),
+          [actorId]: Math.max(0, Number(next.carried[index].recoveredQuantitiesBy?.[actorId] || 0)) + Number(next.carried[index].remaining || 0),
+        };
         next.carried[index].remaining = 0;
         slots -= 1;
       }
