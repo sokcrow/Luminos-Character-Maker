@@ -21,6 +21,7 @@
     instance: null,
     autoOpened: null,
     renderGeneration: 0,
+    selectedLootId: null,
   };
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -72,6 +73,13 @@
 @media(max-width:640px){#${MODAL_ID}{align-items:flex-end}#${MODAL_ID} .loot-shell{width:100vw;max-height:82vh;border-left:0;border-right:0;border-bottom:0}#${MODAL_ID} .loot-actions{display:grid;grid-template-columns:1fr 1fr}#${MODAL_ID} .loot-resource{max-width:none;width:100%}}
 `;
     global.document.head.appendChild(style);
+    if (!global.document.getElementById("postcombat-loot-corpse-css")) {
+      const link = global.document.createElement("link");
+      link.id = "postcombat-loot-corpse-css";
+      link.rel = "stylesheet";
+      link.href = "css/postcombat-loot-corpse.css?v=20261022-1";
+      global.document.head.appendChild(link);
+    }
   }
 
   function ensureButton() {
@@ -101,14 +109,31 @@
     modal.innerHTML = `
       <section class="loot-shell" role="dialog" aria-modal="true" aria-labelledby="postcombat-loot-title">
         <header class="loot-head">
-          <div><h2 id="postcombat-loot-title">RECUPERACIÓN POST-COMBATE</h2><p>Busca, cosecha o examina los restos disponibles.</p></div>
-          <button class="loot-close" type="button" aria-label="Cerrar">×</button>
+          <div class="loot-sigil" aria-hidden="true">✥</div>
+          <div><h2 id="postcombat-loot-title">LOOT CORPSE</h2><p>TOMA LO QUE PERMANECE · RECUPERACIÓN POST-COMBATE</p></div>
+          <p class="loot-motto">LOS CAÍDOS NO OLVIDAN SUS PERTENENCIAS</p>
+          <button class="loot-close" type="button" aria-label="Cerrar saqueo">×</button>
         </header>
-        <div class="loot-body">
-          <div class="loot-message" id="postcombat-loot-message"></div>
-          <div id="postcombat-loot-list"></div>
-          <div class="loot-roll"><div id="postcombat-loot-coins" style="display:flex;gap:5px;flex-wrap:wrap"></div><div class="loot-roll-total" id="postcombat-loot-total"></div></div>
+        <div class="loot-message" id="postcombat-loot-message" role="status" aria-live="polite"></div>
+        <div class="loot-stage">
+          <aside class="loot-column loot-left" aria-label="Cadáveres disponibles">
+            <div class="loot-column-head"><h3>CAÍDOS</h3><span id="postcombat-loot-corpse-count"></span></div>
+            <div id="postcombat-loot-corpse-nav" class="loot-corpses"></div>
+            <div class="loot-corpse-bottom"><b>RESTOS DE LA BATALLA</b>Lo que recuperes depende de tu búsqueda, tu habilidad y aquello que el enemigo llevaba consigo.</div>
+          </aside>
+          <main class="loot-column loot-center">
+            <div class="loot-column-head"><h3>PERTENENCIAS Y RESTOS</h3><span>SAQUEO COMPARTIDO</span></div>
+            <div id="postcombat-loot-list" class="loot-content-scroll"></div>
+            <div class="loot-coin-roll"><div id="postcombat-loot-coins" style="display:flex;gap:5px;flex-wrap:wrap" aria-label="Resultado de las monedas"></div><div class="loot-roll-total" id="postcombat-loot-total" aria-live="polite"></div></div>
+          </main>
+          <aside class="loot-column loot-right" aria-label="Inventario del personaje">
+            <div class="loot-column-head"><h3>INVENTARIO</h3><span>ACTIVO</span></div>
+            <div id="postcombat-loot-inventory-summary" class="loot-inventory-meta"></div>
+            <div id="postcombat-loot-inventory" class="loot-inventory-list"></div>
+            <div id="postcombat-loot-wallet" class="loot-wallet"></div>
+          </aside>
         </div>
+        <footer class="loot-foot"><span>BUSCAR · COSECHAR · EXTRAER · DESMONTAR · EXAMINAR · AUTOPSIA</span><span>EL BOTÍN NO SE REGENERA</span></footer>
       </section>`;
     modal.querySelector(".loot-close").addEventListener("click", close);
     modal.addEventListener("click", (event) => { if (event.target === modal) close(); });
@@ -170,51 +195,160 @@
     return (interaction.pendingDeliveries || []).filter((entry) => clean(entry.actorId) === playerId);
   }
 
+
+  function visibleDiscoveredItems(interaction = {}, playerId = "") {
+    const entries = Array.isArray(interaction.carried) ? interaction.carried : Object.values(interaction.carried || {});
+    return entries.filter((entry) =>
+      [...(entry.discoveredBy || []), ...(entry.recoveredBy || [])].some((id) => clean(id) === playerId)
+    ).map((entry) => {
+      let item = entry.item || {};
+      try { item = global.LuminousItemInventoryRuntime?.resolveItem?.(item) || item; } catch (_) { /* Keep the saved instance. */ }
+      return {
+        name: clean(item.displayName || item.name || item.nombre || entry.definitionId || "Pertenencia recuperada"),
+        quantity: Math.max(1, Number(entry.quantity ?? item.quantity ?? 1)),
+        icon: clean(item.iconUrl || item.icon || item.imageUrl || item.image || ""),
+        status: "Recuperado",
+      };
+    });
+  }
+
+  function visibleRecoveredResources(interaction = {}, playerId = "") {
+    const resources = interaction.harvest?.resources || [];
+    return (Array.isArray(resources) ? resources : Object.values(resources))
+      .filter((entry) => (entry.recoveredBy || []).some((id) => clean(id) === playerId))
+      .map((entry) => ({
+        name: resourceLabel(entry),
+        quantity: Math.max(1, Number(entry.capacity || 0) - Number(entry.remaining || 0)),
+        icon: "",
+        status: "Extraído",
+      }));
+  }
+
+  // Only allow icons coming from the game's asset directories, never arbitrary
+  // remote URLs or values from untrusted inventory metadata.
+  function lootIcon(path) {
+    const value = clean(path).replace(/^\.?\//, "");
+    return /^(Assets|assets)\//.test(value) && !value.includes("..") && !/["'<>]/.test(value) ? value : "";
+  }
+
+  function knownItemSlot(entry = {}) {
+    const icon = lootIcon(entry.icon);
+    const name = clean(entry.name || "Objeto");
+    const quantity = Math.max(1, Number(entry.quantity || 1));
+    return `<div class="loot-discovery known" title="${esc(name)} · ${esc(entry.status || "Recuperado")}">
+      ${icon ? `<img src="${esc(icon)}" alt="">` : `<b>${esc(name)}</b>`}
+      <small>${quantity}</small>
+    </div>`;
+  }
+
+  function playerInventoryMarkup(actor = {}) {
+    const inventory = global.LuminousItemInventoryRuntime;
+    let snapshot;
+    try { snapshot = inventory?.inventorySnapshot?.(actor) || null; } catch (_) { snapshot = null; }
+    const active = snapshot?.active || [];
+    const described = inventory?.describeInventory?.(actor) || {};
+    const used = Number(described.activeSlots ?? active.length);
+    const limit = Math.max(used, Number(described.activeSlotLimit ?? snapshot?.activeSlotLimit ?? 0));
+    const summary = global.document?.getElementById("postcombat-loot-inventory-summary");
+    const host = global.document?.getElementById("postcombat-loot-inventory");
+    const wallet = global.document?.getElementById("postcombat-loot-wallet");
+    if (summary) summary.innerHTML = `<b>${used} / ${limit || "—"}</b> ESPACIOS OCUPADOS
+      <div class="loot-capacity-bar"><i style="width:${limit ? Math.min(100, used / limit * 100) : 0}%"></i></div>`;
+    if (host) {
+      const slots = active.slice(0, 48).map(({ item }) => {
+        const name = clean(item?.displayName || item?.name || item?.nombre || item?.definitionId || "Objeto");
+        const icon = lootIcon(item?.iconUrl || item?.icon || item?.imageUrl || item?.image || "");
+        const quantity = Math.max(1, Number(item?.quantity || 1));
+        return `<div class="loot-pack-item" title="${esc(name)}">${icon ? `<img src="${esc(icon)}" alt="">` : `<span>${esc(name)}</span>`}${quantity > 1 ? `<small>${quantity}</small>` : ""}</div>`;
+      });
+      const blanks = Math.max(0, Math.min(limit || 12, 16) - slots.length);
+      host.innerHTML = slots.join("") + Array.from({ length: blanks }, () => '<div class="loot-pack-item blank" aria-hidden="true"></div>').join("");
+    }
+    if (wallet) wallet.innerHTML = `<small>MONEDERO</small>✣ ${Number(live().playerBalance(actor) || 0).toLocaleString("es-MX")} AHN`;
+  }
+
   async function render() {
     const list = global.document?.getElementById("postcombat-loot-list");
-    if (!list || !state.db || !state.activeEncounterId) return;
-    const generation=++state.renderGeneration;
-    if(!list.children.length)list.innerHTML = '<div class="loot-empty">Revisando restos disponibles…</div>';
+    const nav = global.document?.getElementById("postcombat-loot-corpse-nav");
+    if (!list || !nav || !state.db || !state.activeEncounterId) return;
+    const generation = ++state.renderGeneration;
+    if (!list.children.length) list.innerHTML = '<div class="loot-empty">Revisando restos disponibles…</div>';
     const encounter = state.encounters[state.activeEncounterId] || {};
     if (encounter.meta?.open === false) { close(); return; }
-    const [corpses,playerSnap] = await Promise.all([
+    const [corpses, playerSnap] = await Promise.all([
       Promise.all(Object.values(encounter.corpses || {}).map(readCorpse)),
       state.db.ref(`campaña/jugadores/${resolvePlayerId()}`).once("value"),
     ]);
-    if(generation!==state.renderGeneration||!state.open)return;
-    const actor = playerSnap.val() || {};
-    actor.id = actor.id || resolvePlayerId();
+    if (generation !== state.renderGeneration || !state.open) return;
+    const actor = clone(playerSnap.val() || {});
+    const playerId = resolvePlayerId();
+    actor.id = actor.id || playerId;
+    playerInventoryMarkup(actor);
 
+    const count = global.document.getElementById("postcombat-loot-corpse-count");
+    if (count) count.textContent = `${corpses.length} RESTOS`;
+    const navRows = [];
     const rows = [];
+
     for (const corpse of corpses) {
       const interaction = corpse.interaction;
       if (!interaction?.lootInstanceId) continue;
-      const actions = live().availableActions(interaction, actor, { playerId: resolvePlayerId() });
+      for (const key of ["carried", "attempts", "pendingDeliveries"]) {
+        if (!Array.isArray(interaction[key])) interaction[key] = Object.values(interaction[key] || {});
+      }
+      if (!Array.isArray(interaction.harvest?.resources) && interaction.harvest) {
+        interaction.harvest.resources = Object.values(interaction.harvest.resources || {});
+      }
+      const actions = live().availableActions(interaction, actor, { playerId });
       const pending = pendingForPlayer(interaction);
-      if (!actions.length && !pending.length) continue;
+      const known = [...visibleDiscoveredItems(interaction, playerId), ...visibleRecoveredResources(interaction, playerId)];
+      const remainingRecoverable = actions.length > 0 || pending.length > 0;
+      const name = clean(corpse.index.name || corpse.index.sourceUnitId || "Restos");
+      const lootId = interaction.lootInstanceId;
+      navRows.push(`<button type="button" class="loot-corpse-choice${state.selectedLootId === lootId ? " active" : ""}" data-corpse-select="${esc(lootId)}">
+        <span class="loot-corpse-glyph" aria-hidden="true">✥</span>
+        <span><strong>${esc(name)}</strong><small>${pending.length ? "RECUPERACIÓN PENDIENTE" : remainingRecoverable ? "RESTOS DISPONIBLES" : "REGISTRADO"}</small></span>
+      </button>`);
 
-      const actionHtml = actions.map((action) => {
+      const resourceActionMarkup = actions.map((action) => {
         let select = "";
-        if (["harvest","extract","salvage"].includes(action)) {
+        if (["harvest", "extract", "salvage"].includes(action)) {
           const resources = postCombat().eligibleResources(interaction, action);
           if (resources.length > 1) {
-            select = `<select class="loot-resource" data-resource-for="${esc(action)}">${resources.map((resource) => `<option value="${esc(resource.resourceId || resource.id)}">${esc(resourceLabel(resource))}</option>`).join("")}</select>`;
+            select = `<select class="loot-resource" data-resource-for="${esc(action)}" aria-label="Elegir recurso a recuperar">${resources.map((resource) => `<option value="${esc(resource.resourceId || resource.id)}">${esc(resourceLabel(resource))}</option>`).join("")}</select>`;
           } else if (resources.length === 1) {
             select = `<input type="hidden" data-resource-for="${esc(action)}" value="${esc(resources[0].resourceId || resources[0].id)}">`;
           }
         }
-        return `${select}<button type="button" class="loot-action" data-loot-action="${esc(action)}" data-loot-id="${esc(interaction.lootInstanceId)}">${esc(actionLabel(action))}</button>`;
+        return `<div class="loot-resource-group">${select}<button type="button" class="loot-action" data-loot-action="${esc(action)}" data-loot-id="${esc(lootId)}">${esc(actionLabel(action))}</button></div>`;
       }).join("");
-
-      const pendingHtml = pending.map((entry) => `<button type="button" class="loot-action pending" data-pending-id="${esc(entry.id)}" data-loot-id="${esc(interaction.lootInstanceId)}">Recoger pendiente</button>`).join("");
-      rows.push(`
-        <article class="loot-corpse" data-loot-card="${esc(interaction.lootInstanceId)}">
-          <div class="loot-corpse-title"><strong>${esc(corpse.index.name || corpse.index.sourceUnitId || "Restos")}</strong><span>${pending.length ? "Recuperación pendiente" : "Disponible"}</span></div>
-          <div class="loot-actions">${actionHtml}${pendingHtml}</div>
-        </article>`);
+      const pendingHtml = pending.map((entry) => `<button type="button" class="loot-action pending" data-pending-id="${esc(entry.id)}" data-loot-id="${esc(lootId)}">Recoger pendiente</button>`).join("");
+      const discoverySlots = known.slice(0, 24).map(knownItemSlot).join("");
+      const emptySlots = Array.from({ length: Math.max(0, 6 - known.length) }, () => '<div class="loot-discovery unknown" aria-hidden="true">✧</div>').join("");
+      rows.push(`<article class="loot-corpse" data-loot-card="${esc(lootId)}">
+        <div class="loot-corpse-title"><strong>${esc(name)}</strong><span>${pending.length ? "ENTREGA PENDIENTE" : remainingRecoverable ? "RECUPERACIÓN POSIBLE" : "SIN ACCIONES DISPONIBLES"}</span></div>
+        <p class="loot-corpse-note">${known.length ? "Pertenencias y materiales que ya has recuperado de estos restos." : "Las pertenencias permanecen ocultas hasta recuperarlas mediante una búsqueda. No se generan objetos al abrir este menú."}</p>
+        <div class="loot-recovered-title">${known.length ? "OBJETOS RECUPERADOS" : "SIN DESCUBRIMIENTOS"}</div>
+        <div class="loot-recovered-grid">${discoverySlots}${emptySlots}</div>
+        <div class="loot-action-title">ACCIONES DISPONIBLES</div>
+        <div class="loot-actions">${resourceActionMarkup}${pendingHtml || ""}</div>
+        ${!actions.length && !pending.length ? '<div class="loot-empty">No quedan acciones para este personaje en estos restos.</div>' : ""}
+      </article>`);
     }
 
-    list.innerHTML = rows.length ? rows.join("") : '<div class="loot-empty">No quedan acciones post-combate disponibles.</div>';
+    if (!state.selectedLootId || !corpses.some((corpse) => corpse.interaction?.lootInstanceId === state.selectedLootId)) {
+      state.selectedLootId = corpses.find((corpse) => corpse.interaction?.lootInstanceId)?.interaction?.lootInstanceId || null;
+    }
+    list.innerHTML = rows.length ? rows.join("") : '<div class="loot-empty">No se encontraron restos disponibles para este encuentro.</div>';
+    nav.innerHTML = navRows.join("");
+    nav.querySelectorAll("[data-corpse-select]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.corpseSelect === state.selectedLootId);
+      button.addEventListener("click", () => {
+        state.selectedLootId = button.dataset.corpseSelect;
+        nav.querySelectorAll("[data-corpse-select]").forEach((item) => item.classList.toggle("active", item === button));
+        Array.from(list.querySelectorAll("[data-loot-card]")).find((card) => card.dataset.lootCard === state.selectedLootId)?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+      });
+    });
     list.querySelectorAll("[data-loot-action]").forEach((button) => {
       button.addEventListener("click", () => runAction(button).catch((error) => setMessage(error?.message || String(error), true)));
     });
@@ -381,7 +515,7 @@
 
   async function install(options = {}) {
     if (state.db&&(!options.playerId||options.playerId===state.playerId)&&(!options.db||options.db===state.db)) return true;
-    state.listeners.splice(0).forEach(off=>off());close();state.encounters={};state.combatState={};state.instance=null;state.autoOpened=null;
+    state.listeners.splice(0).forEach(off=>off());close();state.encounters={};state.combatState={};state.instance=null;state.autoOpened=null;state.selectedLootId=null;
     state.db = options.db || (global.firebase?.database ? global.firebase.database() : null);
     state.playerId = clean(options.playerId || resolvePlayerId());
     if (!state.db?.ref || !state.playerId) return false;
