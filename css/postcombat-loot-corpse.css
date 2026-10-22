@@ -249,3 +249,10 @@
 #postcombat-loot-modal .loot-result-card{position:relative;border:1px solid #765236;background:linear-gradient(155deg,#23120f,#0c0807);padding:12px;min-width:0}
 #postcombat-loot-modal .loot-result-card:not(.selected){display:none}
 #postcombat-loot-modal .loot-recovered-grid>.loot-empty{grid-column:1/-1}
+@media(max-height:500px){
+  #postcombat-loot-modal #loot-panel-actions .loot-column-head,#postcombat-loot-modal #loot-panel-actions .loot-corpse-note{display:none}
+  #postcombat-loot-modal .loot-corpse-title{padding-bottom:5px;margin-bottom:5px}
+  #postcombat-loot-modal .loot-corpse-title strong{font-size:20px}
+  #postcombat-loot-modal .loot-action-title{padding:3px 0}
+  #postcombat-loot-modal .loot-release{margin-top:6px}
+}

@@ -65,6 +65,7 @@ try {
    assert.ok(bounds.shell[0]>=-1&&bounds.shell[1]>=-1&&bounds.shell[2]<=width+1&&bounds.shell[3]<=height+1,JSON.stringify(bounds));
    assert.ok(bounds.panelHeight>100,JSON.stringify(bounds));
    assert.equal(bounds.overflow,false);assert.equal(bounds.internalOverflow,false);assert.equal(bounds.undersized,0);
+   await page.waitForFunction(()=>[...document.querySelectorAll('[data-loot-panel]:not([hidden]) img')].filter(img=>{const r=img.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight;}).every(img=>img.complete&&img.naturalWidth>0));
    await page.screenshot({path:path.join(out,`${width}x${height}-${tab}.png`)});
   }
   // Capacity and all 52 items use the existing inventory runtime, with no display truncation.
