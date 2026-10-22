@@ -126,7 +126,7 @@ const salvager = {
   id: "player_salvager",
   dndStats: { int: 14 },
   proficiencyBonus: 2,
-  dndSkillProficiency: { investigation: "half" },
+  dndSkillProficiency: { arcana: "half" },
   sp: 0,
 };
 
@@ -149,7 +149,7 @@ assert.equal(harvestDef.ability, "wis");
 assert.equal(extractDef.skill, "medicine");
 assert.equal(extractDef.ability, "wis");
 assert.equal(extractDef.threshold, 12);
-assert.equal(salvageDef.skill, "investigation");
+assert.equal(salvageDef.skill, "arcana", "Salvage checks Arcana, not Investigation");
 assert.equal(salvageDef.ability, "int");
 
 const allTails = () => 0.99;
