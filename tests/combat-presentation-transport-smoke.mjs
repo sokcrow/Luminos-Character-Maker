@@ -56,4 +56,14 @@ assert.deepEqual(steps.events(250),[]);
 steps.resetJournal(400);steps.emit('RoundRestored',null,{});
 assert.deepEqual(steps.events(400).map(e=>e.sequence),[401]);
 assert.deepEqual(steps.events(399).map(e=>e.sequence),[401]);
+// Exercise the shipped surface as well as the engine: dropping either cursor
+// here resends old events or restarts a recovered sequence at one.
+const source=fs.readFileSync('combat/source/combat-v073-live.html','utf8');
+const surfaceSource=source.slice(source.indexOf('window.LuminousCombatStepRuntime=Object.freeze({'),source.indexOf('  captureExecution(queue,resolvedKeys){'));
+const surfaceContext=vm.createContext({window:{LuminousCombatSteps:globalThis.LuminousCombatSteps},combatStepRuntime:()=>steps});
+vm.runInContext(surfaceSource+'});',surfaceContext);
+const surface=surfaceContext.window.LuminousCombatStepRuntime;
+assert.deepEqual(surface.events(401),[]);
+surface.resetJournal(700);steps.emit('RoundRestored',null,{});
+assert.deepEqual(surface.events(700).map(e=>e.sequence),[701]);
 console.log('Presentation transport: incremental journal, coalescing, nonblocking ACKs, durable barriers, failure propagation, parallel Coins and duplicate/conflict replay passed.');

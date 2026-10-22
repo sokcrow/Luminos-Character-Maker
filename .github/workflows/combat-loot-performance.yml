@@ -18,8 +18,8 @@ jobs:
       - name: Compare shipped baseline and candidate with identical browser workload
         shell: bash
         run: |
-          git diff ae3fc18866bf94a47d454e974e5a4f5a10f7a375 HEAD -- js Battle-viewer.html combate.html mirror.html pantalla_dm.html hoja_personaje.html hoja_de_DM.html > /tmp/combat-performance.patch
-          git restore --source=ae3fc18866bf94a47d454e974e5a4f5a10f7a375 -- js Battle-viewer.html combate.html mirror.html pantalla_dm.html hoja_personaje.html hoja_de_DM.html
+          git diff ae3fc18866bf94a47d454e974e5a4f5a10f7a375 HEAD -- js combat Battle-viewer.html combate.html mirror.html pantalla_dm.html hoja_personaje.html hoja_de_DM.html > /tmp/combat-performance.patch
+          git restore --source=ae3fc18866bf94a47d454e974e5a4f5a10f7a375 -- js combat Battle-viewer.html combate.html mirror.html pantalla_dm.html hoja_personaje.html hoja_de_DM.html
           # A flaky baseline must not prevent collecting candidate evidence.
           # Keep the final gate red until BOTH workloads pass.
           baseline_exit=0
