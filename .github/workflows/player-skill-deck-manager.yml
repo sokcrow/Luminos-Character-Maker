@@ -1,0 +1,36 @@
+name: Player Skill Deck Manager Integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'js/player-skill-deck-manager.js'
+      - 'css/player-skill-deck-manager.css'
+      - 'hoja_personaje.html'
+      - 'tests/player-skill-deck-manager-integration-smoke.mjs'
+      - '.github/workflows/player-skill-deck-manager.yml'
+  push:
+    branches: [feat/player-limbus-skill-deck-hud-assets-20261022]
+    paths:
+      - 'js/player-skill-deck-manager.js'
+      - 'css/player-skill-deck-manager.css'
+      - 'hoja_personaje.html'
+      - 'tests/player-skill-deck-manager-integration-smoke.mjs'
+      - '.github/workflows/player-skill-deck-manager.yml'
+
+jobs:
+  player-skill-deck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Skill Deck Manager syntax
+        run: node --check js/player-skill-deck-manager.js
+      - name: Skill Deck Manager integration contract
+        run: node tests/player-skill-deck-manager-integration-smoke.mjs
+      - name: Existing player Skills HUD regressions
+        run: node tests/player-skills-hud-smoke.mjs
+      - name: Existing Combat Loadout schema
+        run: node tests/combat-v074-skill-loadout-smoke.mjs
