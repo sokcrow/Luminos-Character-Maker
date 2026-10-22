@@ -227,6 +227,7 @@
         ...clone(raw),
         inventario_activo: clone(liveActiveInventory),
         equipment: linkedEquipment ? clone(linkedEquipment.equipment) : clone(raw.equipment || {}),
+        augmentations: clone(raw.augmentations || raw.augments || authoritativePlayer?.augmentations || authoritativePlayer?.augments || []),
         attunedItemInstanceIds: linkedEquipment
           ? clone(linkedEquipment.attunedItemInstanceIds)
           : clone(raw.attunedItemInstanceIds || []),
