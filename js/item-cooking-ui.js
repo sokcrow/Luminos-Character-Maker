@@ -165,7 +165,6 @@
       /^(tea|coffee|juice|cocktail|lemonade|soda)_/.test(identity)) return "drinks";
     return "meals";
   }
-  const DEMO_ART_DIR = "Assets/Icons/items/cooking_hud/";
   const COOKING_ICONS = '<svg class="cooking-book-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>' +
     '<symbol id="cook-art-utensils" viewBox="0 0 24 24"><path d="M4 2v7a3 3 0 0 0 6 0V2M7 2v20M16 2c-2 3-3 6-3 9a3 3 0 0 0 4 3v8M17 2v20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>' +
     '<symbol id="cook-art-all" viewBox="0 0 24 24"><path d="M3 14h18a8 8 0 0 1-9 7 8 8 0 0 1-9-7ZM4 14c0-4 3-6 8-6s8 2 8 6M8 2c-2 2 2 3 0 5M13 2c-2 2 2 3 0 5M18 2c-2 2 2 3 0 5" stroke="currentColor" fill="none" stroke-width="1.5"/></symbol>' +
@@ -181,45 +180,50 @@
   function svgIcon(symbol, className) {
     return '<svg class="' + esc(className || "") + '" aria-hidden="true"><use href="#cook-art-' + esc(symbol) + '"/></svg>';
   }
-  function artworkKey(recipe) {
-    const name = id(recipe?.name || recipe?.id);
-    const family = id(recipe?.dishFamily);
-    if (/fish|seafood|crustacean/.test(name)) return "fish";
-    if (/soup|stew|porridge|broth|mushroom/.test(name + " " + family)) return "mushroom";
-    if (/tart|cake|pie|cookie|pastry|pudding|dessert|sweet/.test(name + " " + family)) return "tart";
-    if (/tea|coffee|lemonade|juice|beverage|drink/.test(name)) return "tea";
-    if (/skewer|kebab|spice/.test(name)) return "skewer";
-    if (/ration|jerky/.test(name)) return "ration";
-    if (/bread|loaf|toast|pita|bun|sandwich|burger/.test(name + " " + family)) return "bread";
-    if (/egg|omelet|omelette/.test(name)) return "egg";
-    if (/salad|fruit|vegetable/.test(name)) return "salad";
-    if (/grill|steak|roast|meat|beef|pork|chicken/.test(name)) return "grilled";
-    return ({ soups:"mushroom", desserts:"tart", drinks:"tea", meals:"grilled" })[categoryFor(recipe)] || "grilled";
+  // TX-01: same canonical item art as the Inventory HUD, never mockup art.
+  function iconRegistry() { return global.LuminousItemIconRegistry || null; }
+  function familyIcon(family) {
+    const registry = iconRegistry();
+    return registry?.has?.(family)
+      ? String(registry.resolveIcon(family, { fallback: false }) || "")
+      : "";
   }
-  function iconFor(recipe) { return DEMO_ART_DIR + artworkKey(recipe) + ".webp"; }
-  function fallbackFor(recipe) { return DEMO_ART_DIR + ({ soups:"mushroom", desserts:"tart", drinks:"tea", meals:"grilled" })[categoryFor(recipe)] + ".webp"; }
+  function fallbackFor(recipe) {
+    const group = ({ soups: "food_soup", desserts: "food_dessert",
+      drinks: "drink", meals: "food_meal" })[categoryFor(recipe)] || "food";
+    return familyIcon(group) || familyIcon("food") || familyIcon("generic_item");
+  }
+  function iconFor(recipe) {
+    // The catalog determines identity; no duplicated recipe-art mapping.
+    for (const family of [recipe?.iconFamily, recipe?.id]) {
+      const asset = familyIcon(family);
+      if (asset) return asset;
+    }
+    return fallbackFor(recipe);
+  }
+  const INGREDIENT_GROUPS = Object.freeze({
+    flour: "culinary_flour", dough: "culinary_dough", water: "culinary_water",
+    salt: "culinary_seasoning", seasoning: "culinary_seasoning",
+    spice: "spice_herb_raw", herbs: "plant_herb", herb: "plant_herb",
+    honey: "animal_honey", milk: "animal_milk", egg: "animal_egg",
+    eggs: "animal_egg", sweetener: "culinary_sweetener",
+    cheese: "culinary_dairy", butter: "culinary_dairy",
+    oil: "culinary_oil", stock: "culinary_stock", broth: "culinary_stock",
+    sauce: "culinary_sauce", vegetable: "vegetable_raw",
+    fruit: "fruit_raw", grain: "grain_seed_raw", rice: "grain_seed_raw",
+    meat: "meat_mammal", poultry: "meat_bird", fish: "meat_fish",
+    mushroom: "fungus_raw", bread: "food_bread"
+  });
   function ingredientIcon(item, requirement) {
-    const key = id(item?.itemId || item?.definitionId || requirement);
-    if (/salt/.test(key)) return DEMO_ART_DIR + "salt.webp";
-    if (/herb|aromatic/.test(key)) return DEMO_ART_DIR + "herbs.webp";
-    if (/meat|protein|poultry/.test(key)) return DEMO_ART_DIR + "raw_meat.webp";
-    return "";
-  }
-  function ingredientEmoji(requirement) {
-    const key = id(requirement);
-    if (/fish|seafood/.test(key)) return "🐟";
-    if (/egg/.test(key)) return "🥚";
-    if (/vegetable|plant|leaf/.test(key)) return "🥬";
-    if (/mushroom|fungus/.test(key)) return "🍄";
-    if (/fruit|berry/.test(key)) return "🍎";
-    if (/water|broth|stock/.test(key)) return "💧";
-    if (/flour|grain|dough|corn/.test(key)) return "🌾";
-    if (/bread|baked/.test(key)) return "🍞";
-    if (/milk|cream|dairy/.test(key)) return "🥛";
-    if (/cheese/.test(key)) return "🧀";
-    if (/sweetener|honey/.test(key)) return "🍯";
-    if (/spice|season|sauce/.test(key)) return "🌶";
-    return "✦";
+    for (const family of [
+      item?.iconFamily, item?.icon_family, item?.iconGroup,
+      item?.definitionId, item?.itemId
+    ]) {
+      const asset = familyIcon(family);
+      if (asset) return asset;
+    }
+    const group = INGREDIENT_GROUPS[id(requirement)] || requirement;
+    return familyIcon(group) || familyIcon("generic_item");
   }
   function image(src, fallback, className) {
     return '<img class="' + esc(className) + '" src="' + esc(src) +
@@ -502,8 +506,7 @@
       const art = ingredientIcon(first, ingredient.requirement);
       return '<div class="cooking-book-ingredient' + (good ? '' : ' is-missing') + '">' +
         '<div class="cooking-book-ingredient-icon">' +
-          (art ? image(art, art, "cooking-book-ingredient-art") :
-          '<span class="cooking-book-ingredient-emoji" aria-hidden="true">' + ingredientEmoji(ingredient.requirement) + '</span>') +
+          image(art, familyIcon("generic_item"), "cooking-book-ingredient-art") +
         '</div>' +
         '<span class="cooking-book-ingredient-name">' + esc(name) +
           (ingredient.optional ? '<small>Opcional</small>' : '') +
@@ -582,8 +585,7 @@
             stationSelector(u, state.working) +
           '</div>' +
           '<div class="cooking-book-hero-art">' +
-            image(known && artworkKey(recipe)==="grilled" ? DEMO_ART_DIR + "hero.webp" :
-              (known ? iconFor(recipe) : fallbackFor(recipe)), fallbackFor(recipe), "cooking-book-dish-art") +
+            image(known ? iconFor(recipe) : fallbackFor(recipe), fallbackFor(recipe), "cooking-book-dish-art") +
           '</div>' +
         '</div>' +
         '<div class="cooking-book-section-heading"><span>EFECTOS</span></div>' +
