@@ -484,6 +484,21 @@
     };
   }
 
+  function mergeCompendiumFacts(raw, playerId, unitId, facts, options = {}) {
+    const base = raw && typeof raw === "object" ? clone(raw) : knowledge().createCompendium(playerId, { now: options.now });
+    for (const entry of Object.values(base.units || {})) {
+      entry.facts = Object.fromEntries(Object.values(entry.facts || {}).map(fact => [fact.id, fact]));
+    }
+    const saved = clone(knowledge().mergeFacts(base, normalizeId(unitId), facts, {
+      visibility: options.visibility || "private", now: options.now ?? Date.now(),
+    }));
+    for (const entry of Object.values(saved.units || {})) {
+      entry.facts = Object.fromEntries(Object.values(entry.facts || {}).map(fact =>
+        [encodeURIComponent(fact.id).split(".").join("%2E"), fact]));
+    }
+    return saved;
+  }
+
   function applyPendingToPlayer(player = {}, pending = {}, options = {}) {
     const playerId = clean(options.playerId || player.id || player.playerId);
     const deliveryId = clean(pending.id);
