@@ -155,14 +155,14 @@
     node.classList.toggle("error", state.error);
   }
 
-  // Keep Firebase security errors in internal logs, never show RTDB error codes to players.
+  // Translate RTDB errors into a useful player-facing message.
   function showLootError(error) {
     const reason = String(error?.code || error?.message || error || "");
-    if (/permission[_\\s-]?denied/i.test(reason)) {
+    if (/permission[_\s-]?denied/i.test(reason)) {
       setMessage("No se pudo acceder a este botín. Pide al DM que compruebe el acceso de tu personaje y los permisos de saqueo.", true);
       return;
     }
-    showLootError(error);
+    setMessage(error?.message || String(error), true);
   }
 
   function latestEncounter() {
