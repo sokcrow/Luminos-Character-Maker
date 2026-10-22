@@ -41,6 +41,9 @@ on:
       - 'js/dm-player-loadout-core.js'
       - 'js/dm-player-loadout-manager.js'
       - 'js/player-skills-hud.js'
+      - 'js/player-skill-deck-manager.js'
+      - 'css/player-skill-deck-manager.css'
+      - 'tests/player-skill-deck-manager-integration-smoke.mjs'
       - 'css/player-skills-hud.css'
       - 'js/battle-viewer-player-skill-planner-074.js'
       - 'js/battle-viewer-player-spell-planner-074.js'
@@ -174,6 +177,10 @@ jobs:
         run: node tests/dm-player-loadout-manager-smoke.mjs
       - name: Player Skill cards Coins and Status Effects
         run: node tests/player-skills-hud-smoke.mjs
+      - name: Player Limbus Skill Deck UI, assets and canonical 3/2/1 persistence
+        run: |
+          node --check js/player-skill-deck-manager.js
+          node tests/player-skill-deck-manager-integration-smoke.mjs
       - name: Combat Player Skills selectable without developer HUD
         run: node tests/combat-v074-player-skill-planner-smoke.mjs
       - name: Player Spell details preserve per-Coin triggers

@@ -1,0 +1,193 @@
+/* Luminous Player / Skill Deck Manager — game HUD, not a developer console.
+   Uses actual player sheetArt and repository icon assets. */
+body:not(.on-game-dashboard) #skills-modal.psdm-enabled{--player-skills-hud-scale:1!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;padding:0!important}
+body:not(.on-game-dashboard) #skills-modal.psdm-enabled .hud-modal-content{
+  position:absolute!important;top:50%!important;left:50%!important;
+  width:min(97vw,1760px)!important;min-width:0!important;max-width:1760px!important;
+  height:min(97dvh,1030px)!important;min-height:0!important;max-height:1030px!important;
+  transform:translate(-50%,-50%)!important;box-sizing:border-box!important;
+  padding:0!important;background:#08090a!important;border:2px ridge #77685b!important;overflow:hidden!important
+}
+body:not(.on-game-dashboard) #skills-modal.psdm-enabled .hud-modal-body{height:100%!important;width:100%!important;min-height:0!important;padding:0!important;overflow:hidden!important}
+body:not(.on-game-dashboard) #skills-modal.psdm-enabled .hud-modal-close{
+  left:auto!important;right:18px!important;top:12px!important;width:46px!important;height:46px!important;
+  border:1px solid #998476!important;border-radius:2px!important;color:#eadcc6!important;
+  background:#150e10ef!important;z-index:170!important;box-shadow:inset 0 0 10px #000!important;
+  font:31px/1 Georgia,serif!important
+}
+#skills-modal .player-combat-skills-console:has(.psdm){
+  display:block!important;overflow:hidden!important;width:100%!important;height:100%!important;
+  min-height:0!important;padding:0!important;background:#08090a!important
+}
+#skills-modal .psdm{--ink:#0b0c0e;--iron:#222426;--line:#7b6e60;--paper:#e5d9c5;--muted:#b6ac9c;--red:#bc2634;--gold:#d7b56b;--blue:#4390c1;--purple:#8b4da2;
+  width:100%;height:100%;min-width:0;min-height:0;display:grid;grid-template-rows:76px minmax(0,1fr);
+  color:var(--paper);background:
+  radial-gradient(circle at 87% -12%,#6b101b35,transparent 26%),
+  repeating-linear-gradient(117deg,#0000 0 58px,#9f8d7f0c 59px,#0000 61px),
+  repeating-linear-gradient(13deg,#0000 0 43px,#60212a12 44px,#0000 46px),
+  linear-gradient(133deg,#161b1e,#050506 43%,#151112);
+  font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;overflow:hidden
+}
+#skills-modal .psdm *{box-sizing:border-box}
+#skills-modal .psdm button,#skills-modal .psdm input{font:inherit}
+#skills-modal .psdm button{cursor:pointer;touch-action:manipulation}
+#skills-modal .psdm button:focus-visible,#skills-modal .psdm input:focus-visible{outline:2px solid #f6d483;outline-offset:2px}
+#skills-modal .psdm button:disabled{opacity:.55;cursor:default}
+#skills-modal .psdm-mast{position:relative;display:flex;align-items:center;gap:17px;min-width:0;padding:9px 83px 9px 28px;
+ background:linear-gradient(90deg,#0c0d0e,#1a1c1c 49%,#240d10 93%);
+ border-bottom:3px double #84705d;box-shadow:inset 0 -13px 20px #050405a6}
+#skills-modal .psdm-mast::after{content:"";position:absolute;inset:auto 0 0;height:3px;background:linear-gradient(90deg,transparent,#ac2632 27%,#d1b28b 53%,transparent)}
+#skills-modal .psdm-mast>img{width:47px;height:47px;object-fit:contain;filter:sepia(.35) drop-shadow(0 3px 5px #000)}
+#skills-modal .psdm-mast>div{display:flex;flex-direction:column;line-height:1}
+#skills-modal .psdm-mast b{font:bold clamp(30px,3vw,50px)/1 Georgia,serif;letter-spacing:-.03em;color:#f1e6d7;text-shadow:3px 3px #000}
+#skills-modal .psdm-mast span{align-self:flex-end;color:#d02d3e;font:800 13px/1 Georgia,serif;letter-spacing:.26em}
+#skills-modal .psdm-mast p{margin-left:auto;margin-right:5%;font:italic 15px Georgia,serif;color:#ad555b;letter-spacing:.09em;transform:rotate(-5deg)}
+#skills-modal .psdm-mast strong{font:bold 17px Georgia,serif;border:1px solid #a69683;padding:10px;color:#d9cdba;white-space:nowrap}
+#skills-modal .psdm-layout{min-height:0;display:grid;grid-template-columns:minmax(195px,19%) minmax(0,1.85fr) minmax(286px,28%);gap:10px;padding:10px}
+#skills-modal .psdm-frame{position:relative;min-width:0;min-height:0;overflow:hidden;border:3px ridge #746858;background:linear-gradient(145deg,#161819,#0a0b0c 52%,#141313);
+  box-shadow:inset 0 0 0 2px #130f0e,0 5px 18px #0008}
+#skills-modal .psdm-frame::before{content:"";pointer-events:none;position:absolute;inset:5px;border:1px solid #80746128;z-index:1}
+#skills-modal .psdm-character{position:relative;isolation:isolate}
+#skills-modal .psdm-character::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,#0009 0%,transparent 22%,transparent 44%,#100608b5 78%,#040405 98%),
+  repeating-linear-gradient(143deg,#0000 0 55px,#a5273020 56px,#0000 57px)}
+#skills-modal .psdm-art{position:absolute;z-index:-2;inset:0;background:radial-gradient(circle at 52% 35%,#4d101e,#080909 62%)}
+#skills-modal .psdm-art img{width:100%;height:100%;display:block;object-fit:cover;filter:contrast(1.08) saturate(.89)}
+#skills-modal .psdm-person-header{position:absolute;top:15px;left:12px;right:12px;text-align:center;padding-bottom:10px;border-bottom:1px solid #b9a486;
+  color:#eee5d8;font:bold 14px Georgia,serif;letter-spacing:.08em;text-shadow:2px 3px 4px #000}
+#skills-modal .psdm-person-footer{position:absolute;bottom:0;left:0;right:0;text-align:center;padding:30px 12px 14px;background:linear-gradient(transparent,#090708 26%,#080809 100%);z-index:2}
+#skills-modal .psdm-person-footer h2{margin:0;padding:6px;border-block:1px solid #a68a6c;font:bold clamp(24px,2.5vw,43px) Georgia,serif;
+  text-shadow:2px 3px #000;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+#skills-modal .psdm-person-footer>span{display:block;margin-top:7px;color:#d3b890;font:bold 12px Georgia,serif;letter-spacing:.22em}
+#skills-modal #psdm-feedback{margin-top:12px;padding:10px 6px;color:#c7bdaf;border:1px solid #705d4a;background:#0c0b0bb8;
+  font:12px/1.35 Arial,sans-serif;min-height:46px}
+#skills-modal #psdm-feedback.is-error{color:#ff9d9d;border-color:#b14b4b}
+#skills-modal .psdm-central{min-width:0;min-height:0;display:grid;grid-template-rows:minmax(230px,37%) minmax(0,1fr);gap:10px}
+#skills-modal .psdm-deck{display:grid;grid-template-rows:55px minmax(0,1fr) 26px;padding:6px 9px}
+#skills-modal .psdm-section-head{position:relative;min-width:0;display:flex;gap:8px;align-items:center;border-bottom:1px solid #87745b;z-index:3}
+#skills-modal .psdm-section-head h2{margin:0;min-width:0;max-width:31%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:#eadaca;font:bold clamp(18px,2vw,27px) Georgia,serif}
+#skills-modal .psdm-pencil{width:32px;height:32px;flex:none;color:#f3d9a8;border:1px solid #80705c;background:#201c1a}
+#skills-modal #psdm-tabs{display:flex;gap:4px;margin-left:auto}
+#skills-modal #psdm-tabs button{width:35px;height:36px;background:#0b0c0c;border:1px solid #716355;color:#b7a898;font-size:16px}
+#skills-modal #psdm-tabs button.active{background:#630b17;border:1px solid #e04c52;color:#fff2de;box-shadow:0 0 10px #bc243c73}
+#skills-modal #psdm-save,.psdm-equip{min-height:37px;white-space:nowrap;background:linear-gradient(145deg,#6b1b26,#3a1015);
+  border:1px solid #bb8470;color:#f6e6c9;font:bold 13px Georgia,serif;padding:8px 10px;letter-spacing:.02em}
+#skills-modal .psdm-slot-grid{min-height:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;padding:12px 0}
+#skills-modal .psdm-card{position:relative;min-width:0;min-height:0;overflow:hidden;display:block;padding:0;border:2px solid #9b303b;background:#1e0d13;color:#fff;
+  box-shadow:inset 0 0 12px #000,0 0 0 1px #110a0b}
+#skills-modal .psdm-card::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;background:linear-gradient(180deg,#0007,#0000 22%,#0000 55%,#000e 95%)}
+#skills-modal .psdm-card:has(img){background:radial-gradient(circle at 55% 43%,#74303a65,#0f1011)}
+#skills-modal .psdm-card:is(.defense,.support){border-color:#2d8fbd;background:#0a1d2b}
+#skills-modal .psdm-card.special{border-color:#8550a3;background:#1e1025}
+#skills-modal .psdm-card.blunt{border-color:#757b87;background:#181a1d}
+#skills-modal .psdm-card.empty{border-color:#60544d;background:#130e0e}
+#skills-modal .psdm-card.selected{outline:2px solid #eac279;outline-offset:0;box-shadow:0 0 15px #bfa0685c}
+#skills-modal .psdm-card>img{position:absolute;inset:7% 6% 25%;width:88%;height:69%;object-fit:contain;filter:contrast(1.3) drop-shadow(0 0 12px #65161a)}
+#skills-modal .psdm-card-index{position:absolute;z-index:3;top:0;left:50%;transform:translateX(-50%);background:#080809;border:1px solid #a7a198;
+  min-width:25px;color:#eee3d6;font:bold 16px Georgia,serif;text-align:center}
+#skills-modal .psdm-card-tier{position:absolute;z-index:3;left:6px;top:23px;width:24px;height:24px;display:grid;place-items:center;
+  border:1px solid #c8a995;border-radius:50%;color:#fff3e8;background:#4b0d14;font:bold 12px Georgia,serif}
+#skills-modal .psdm-card:is(.defense,.support) .psdm-card-tier{background:#123d5a}
+#skills-modal .psdm-card-coins{position:absolute;z-index:3;left:6px;right:6px;bottom:31px;display:flex;gap:2px}
+#skills-modal .psdm-coin{width:11px;height:11px;display:inline-block;flex:none;background:radial-gradient(circle at 34% 27%,#ffef91,#e1ac35 65%,#74530a);border-radius:50%;border:1px solid #33260c;box-shadow:0 0 5px #d49b3599}
+#skills-modal .psdm-coin.unbreakable{background:#d74740;border-color:#781111}
+#skills-modal .psdm-card-label{position:absolute;z-index:3;bottom:0;left:0;right:0;min-height:29px;background:#060607e8;
+  display:flex;align-items:center;justify-content:center;padding:3px 2px;color:#f5eee2;font:700 13px/1.05 "Barlow Condensed",Arial,sans-serif;
+  overflow-wrap:anywhere;text-shadow:1px 1px #000}
+#skills-modal .psdm-card-empty{position:absolute;inset:0;display:grid;place-items:center;color:#866e5b;font-size:37px}
+#skills-modal .psdm-copies{position:absolute;z-index:3;right:6px;bottom:31px;font:bold 13px Arial,sans-serif;text-shadow:1px 1px #000}
+#skills-modal .psdm-deck-note{margin:0;text-align:center;color:#b9aa9a;font:12px/1.4 Arial,sans-serif}
+#skills-modal .psdm-library{display:grid;grid-template-rows:auto 36px minmax(0,1fr);padding:7px 9px}
+#skills-modal .psdm-library .psdm-section-head{min-height:43px;flex-wrap:wrap;padding:3px 0;gap:6px}
+#skills-modal .psdm-library .psdm-section-head h2{font:bold clamp(18px,2vw,27px) Georgia,serif;max-width:none}
+#skills-modal .psdm-filters{display:flex;gap:4px;margin-left:auto;max-width:100%;overflow-x:auto;scrollbar-width:none}
+#skills-modal .psdm-filters button{min-height:30px;padding:4px 7px;white-space:nowrap;background:#121011;color:#c7baae;border:1px solid #635348;font:700 11px Arial,sans-serif}
+#skills-modal .psdm-filters button.active{border-color:#d9454b;background:#610f19;color:#fff0e7}
+#skills-modal .psdm-search-row{display:flex;align-items:center;gap:8px;min-width:0;padding:4px 2px}
+#skills-modal #psdm-search{width:100%;min-width:0;max-width:260px;height:28px;background:#100e0f;border:1px solid #69564b;
+  color:#efe3d4;padding:4px 8px;font:13px Arial,sans-serif}
+#skills-modal #psdm-counter{margin-left:auto;white-space:nowrap;color:#ac9f8c;font:11px Arial,sans-serif}
+#skills-modal .psdm-library-grid{min-height:0;overflow-y:auto;display:grid;align-content:start;grid-template-columns:repeat(6,minmax(0,1fr));
+  grid-auto-rows:clamp(100px,11vw,145px);gap:7px;padding:6px 2px 12px;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:#a92d3c #141214}
+#skills-modal .psdm-library-grid .psdm-card-index{left:14px;top:3px}
+#skills-modal .psdm-empty-library{grid-column:1/-1;text-align:center;color:#c3b3a4;font:15px Arial,sans-serif}
+#skills-modal .psdm-details{display:flex;flex-direction:column;padding:9px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#a52b3d #1c1315}
+#skills-modal .psdm-details>h2{margin:0 0 9px;padding:5px 7px 10px;color:#eee2d4;font:bold clamp(21px,2vw,31px) Georgia,serif;border-bottom:2px solid #9a7860}
+#skills-modal .psdm-detail-cover{height:clamp(128px,18vw,222px);position:relative;overflow:hidden;
+  background:radial-gradient(circle at 50% 42%,#5d1422,#10090e 65%);border:2px ridge #a5404a}
+#skills-modal .psdm-detail-cover.defense{background:radial-gradient(circle,#133b61,#050f1a 65%);border-color:#397ca9}
+#skills-modal .psdm-detail-cover.special{background:radial-gradient(circle,#462052,#120b17 65%);border-color:#714a86}
+#skills-modal .psdm-detail-cover img{display:block;max-width:78%;max-height:80%;height:80%;width:auto;object-fit:contain;margin:7px auto;filter:drop-shadow(0 0 17px #a11c2c)}
+#skills-modal .psdm-detail-tier{position:absolute;right:10px;top:10px;background:#260b13;border:2px solid #ae6b62;padding:8px;color:#f5ddce;font:700 27px Georgia,serif}
+#skills-modal .psdm-detail-coins{position:absolute;bottom:7px;left:9px;display:flex;gap:5px}
+#skills-modal .psdm-detail-coins .psdm-coin{width:19px;height:19px}
+#skills-modal #psdm-details h3{margin:0;padding:8px;color:#fff0de;background:linear-gradient(90deg,#371019,#0c0809);border:1px solid #844551;font:bold clamp(23px,2.4vw,37px) Georgia,serif}
+#skills-modal .psdm-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:9px;border:1px solid #605349}
+#skills-modal .psdm-stats>div{display:grid;align-content:center;min-width:0;padding:8px 5px;gap:5px;text-align:center;border-right:1px solid #605349;background:#171516}
+#skills-modal .psdm-stats small{color:#c6b4a3;font:700 10px Arial,sans-serif}
+#skills-modal .psdm-stats b{color:#f1ddbe;font:bold clamp(17px,2vw,29px) Georgia,serif}
+#skills-modal .psdm-tier-line{display:flex;align-items:center;gap:14px;justify-content:center;padding:7px;margin-top:8px;border-block:1px solid #6e5d4f;
+  font:bold 17px Georgia,serif}
+#skills-modal .psdm-tier-line>b{color:#c62d3c;font-size:26px}
+#skills-modal .psdm-tier-line>span{font:12px Arial,sans-serif;color:#ac9a86}
+#skills-modal .psdm-detail-text{margin-top:9px;background:#0c0b0be3;border:1px solid #685a4d;padding:9px}
+#skills-modal .psdm-detail-text h4{color:#e1d3bf;margin:0 0 8px;font:bold 15px Georgia,serif;border-bottom:1px solid #51483d;padding-bottom:5px}
+#skills-modal .psdm-detail-text p{margin:0;color:#cbbcaf;font:13px/1.55 Arial,sans-serif}
+#skills-modal .psdm-effect{display:flex;align-items:center;gap:7px;color:#e4d2c3;font:12px/1.5 Arial,sans-serif;margin:7px 0}
+#skills-modal .psdm-effect img{width:20px;height:20px;object-fit:contain}
+#skills-modal .psdm-effect b{color:#e3bb76}
+#skills-modal .psdm-effect-mark{color:#d03b4a}
+#skills-modal .psdm-muted,.psdm-no-skill{color:#b9a99a;font:13px/1.5 Arial,sans-serif}
+#skills-modal .psdm-equip{display:block;margin:12px auto;width:100%;min-height:43px}
+#skills-modal .psdm-info{display:block;border:1px solid #39627b;color:#b3d2e0;padding:12px;margin-top:14px;font:13px Arial,sans-serif}
+@media(max-width:1310px){
+ #skills-modal .psdm-layout{grid-template-columns:minmax(150px,18%) minmax(0,1.85fr) minmax(255px,29%);gap:7px;padding:7px}
+ #skills-modal .psdm-slot-grid{gap:5px}
+ #skills-modal .psdm-library-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+ #skills-modal .psdm-section-head h2{font-size:19px}
+ #skills-modal .psdm-filters button{padding:4px 6px;font-size:10px}
+}
+@media(max-width:980px){
+ body:not(.on-game-dashboard) #skills-modal.psdm-enabled .hud-modal-content{width:100vw!important;height:100dvh!important;max-height:none!important;max-width:none!important}
+ #skills-modal .psdm{display:block;height:100%;overflow-y:auto;overscroll-behavior:contain}
+ #skills-modal .psdm-mast{height:65px;padding:7px 66px 7px 15px}
+ #skills-modal .psdm-mast b{font-size:31px}
+ #skills-modal .psdm-mast p{display:none}
+ #skills-modal .psdm-mast strong{margin-left:auto}
+ #skills-modal .psdm-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(285px,.85fr);grid-template-rows:150px auto auto;padding:8px}
+ #skills-modal .psdm-character{grid-column:1/-1;height:150px}
+ #skills-modal .psdm-person-header{width:55%;text-align:left;font-size:13px}
+ #skills-modal .psdm-art img{position:absolute;right:0;top:-55%;left:auto;width:48%;height:250%;/* Keep the DM's saved sheetArtFraming object-position even on mobile. */}
+ #skills-modal .psdm-person-footer{top:40px;left:15px;bottom:auto;width:55%;padding:0;background:transparent;text-align:left}
+ #skills-modal .psdm-person-footer h2{font-size:29px}
+ #skills-modal .psdm-person-footer #psdm-feedback{max-width:88%;font-size:11px;padding:5px;min-height:28px;margin-top:6px}
+ #skills-modal .psdm-central{grid-column:1;display:block}
+ #skills-modal .psdm-deck{height:300px;margin-bottom:8px}
+ #skills-modal .psdm-library{height:410px}
+ #skills-modal .psdm-details{grid-column:2;grid-row:2;height:718px}
+ #skills-modal .psdm-library-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:112px}
+ #skills-modal .psdm-slot-grid{overflow-x:auto;grid-template-columns:repeat(6,minmax(100px,1fr));scrollbar-width:thin}
+ #skills-modal .psdm-filters{overflow:auto}
+}
+@media(max-width:640px){
+ #skills-modal .psdm-layout{display:flex;flex-direction:column}
+ #skills-modal .psdm-character{flex:0 0 140px}
+ #skills-modal .psdm-central{display:block}
+ #skills-modal .psdm-deck{height:265px}
+ #skills-modal .psdm-library{height:460px}
+ #skills-modal .psdm-details{height:auto;min-height:370px;overflow:visible}
+ #skills-modal .psdm-slot-grid{grid-template-columns:repeat(6,minmax(102px,1fr));scrollbar-width:thin}
+ #skills-modal .psdm-library-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:123px}
+ #skills-modal .psdm-section-head h2{font-size:17px}
+ #skills-modal #psdm-tabs button{width:27px;height:31px;font-size:13px}
+ #skills-modal #psdm-save{font-size:11px;padding:6px;min-height:32px}
+ #skills-modal .psdm-mast strong{display:none}
+ #skills-modal .psdm-mast b{font-size:26px}
+ #skills-modal .psdm-mast span{font-size:10px}
+ #skills-modal .psdm-mast>img{width:39px;height:39px}
+ #skills-modal .psdm-details>h2{font-size:21px}
+ #skills-modal .psdm-detail-cover{height:165px}
+}
+@media(prefers-reduced-motion:reduce){#skills-modal .psdm *{scroll-behavior:auto!important;transition:none!important}}

@@ -191,7 +191,7 @@ let encounterCombatants = {
   alpha: { id: 'alpha', hp: 20, maxHp: 20, statusEffects: {} },
   beta: { id: 'beta', hp: 20, maxHp: 20, statusEffects: {} },
 };
-let encounterRaw={estado:{phase:'PRE_COMBAT_PLANNING',round:1,active:true},combatants:encounterCombatants};
+let encounterRaw={estado:{encounterId:'smoke-encounter',phase:'PRE_COMBAT_PLANNING',round:1,active:true},combatants:encounterCombatants};
 const fakeDb = {
   ref(path) {
     if(path==='campaña/combate')return {on(_event,handler){handler({val:()=>encounterRaw});},off(){},async transaction(mutator){const next=mutator(encounterRaw);if(!next)return {committed:false,snapshot:{val:()=>encounterRaw}};encounterRaw=next;encounterCombatants=next.combatants;encounterWrites.push({op:'transaction',phase:next.estado.phase});return {committed:true,snapshot:{val:()=>encounterRaw}};}};
