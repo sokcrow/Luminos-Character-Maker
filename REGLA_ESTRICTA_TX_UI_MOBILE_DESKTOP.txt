@@ -1,0 +1,89 @@
+REGLA ESTRICTA — TX: UI SIMULTÁNEA PARA MOBILE Y DESKTOP
+
+Proyecto: Limbus / Luminos Character Maker
+Identificador: TX-01
+Prioridad: Obligatoria para cualquier modificación visual, sin excepción.
+
+PRINCIPIO PRINCIPAL
+
+Toda función, actualización, corrección, rediseño o mejora de interfaz debe implementarse y validarse simultáneamente para celular y desktop.
+
+Un cambio NO se considera terminado cuando solo funciona o se ve correctamente en desktop. Tampoco se considera terminado si solo funciona en móvil.
+
+1. MISMA FUNCIONALIDAD EN AMBAS PLATAFORMAS
+
+- El jugador y el DM deben disponer de las mismas acciones funcionales en móvil y desktop, respetando sus permisos.
+- No ocultar controles indispensables para ahorrar espacio.
+- La adaptación de pantalla no puede cambiar la lógica de juego, los permisos, el inventario, las recetas ni los datos.
+- Nunca introducir un flujo de juego diferente o degradado por usar un celular.
+
+2. MOBILE NO ES UN DESKTOP EN MINIATURA
+
+- Diseñar distribuciones propias para pantallas estrechas y táctiles.
+- Reorganizar columnas en paneles apilados, pestañas o navegación contextual cuando sea necesario.
+- Ajustar anchura, altura, tipografía, imágenes, botones, scroll y densidad de datos a cada viewport.
+- Evitar dimensiones fijas que hagan que un HUD o modal rebase la pantalla.
+- Todos los controles interactivos deben poder pulsarse cómodamente con el dedo; objetivo recomendado: al menos 44 x 44 px.
+- Respetar safe areas, barras del navegador y teclados virtuales.
+
+3. NUNCA BLOQUEAR O ESCONDER EL JUEGO
+
+- Ningún botón principal, acción, casilla o indicador necesario puede quedar cortado, tapado o fuera del área accesible.
+- Evitar scroll horizontal del documento o del modal. Únicamente permitir carruseles horizontales explícitos cuando su navegación sea clara.
+- Si el contenido excede la altura, habilitar scroll interno controlado sin perder acciones esenciales.
+- Los paneles decorativos se adaptan o se omiten antes que sacrificar las funciones del usuario.
+- Considerar orientación horizontal y vertical en celular.
+
+4. DATOS E ICONOS REALES; LA REFERENCIA SOLO DICTA EL ESTILO
+
+- Las imágenes de referencia, mockups y demos visuales NO constituyen contenido canónico del juego.
+- Usar exclusivamente recursos registrados, rutas existentes y los catálogos/servicios reales del proyecto.
+- No inventar recetas, ingredientes, objetos, iconos, ilustraciones, estados ni nombres para rellenar una UI.
+- Resolver iconos mediante el registro canónico del objeto/receta. No asignarlos por parecido de palabras o categorías si existe una identidad real.
+- Si falta un icono específico, utilizar el fallback OFICIAL del registro y no una imagen de prueba presentada como si fuera real.
+- Nunca crear una segunda lista de recetas estática dentro de la interfaz; la fuente será el catálogo/runtime canónico.
+
+5. VALIDACIÓN OBLIGATORIA EN CADA PR O CAMBIO
+
+Comprobar, como mínimo:
+
+- Móvil vertical: 360 x 800 px y 390 x 844 px.
+- Móvil horizontal: 844 x 390 px.
+- Tablet: 768 x 1024 px.
+- Desktop: 1280 x 720 px y 1920 x 1080 px.
+
+En todos los casos verificar:
+
+- Apertura y cierre de modales y menús.
+- Navegación completa por categorías, listas, detalles y acciones.
+- Botones visibles, accesibles y sin superposiciones.
+- Scroll correcto y sin cortes de contenido.
+- Iconos de los recursos reales y mensajes de fallback válidos.
+- Estados vacíos, bloqueo, error, carga y éxito.
+- Interacción táctil, mouse y teclado cuando corresponda.
+- El flujo real del juego y las reglas de permisos del jugador/DM.
+
+6. ENTREGA CONJUNTA Y PRUEBAS DE REGRESIÓN
+
+- Todo cambio de interfaz debe incluir su ajuste responsive y pruebas que comprueben los dos modos.
+- No posponer la versión móvil para un parche posterior.
+- No dar por terminada una mejora por pasar únicamente tests de lógica si la interfaz visual sigue siendo inutilizable.
+- Ante una regresión en una de las plataformas, el cambio queda pendiente de corrección.
+
+7. APLICACIÓN INMEDIATA: SISTEMA DE COCINA
+
+- El recetario debe listar las recetas del catálogo real LuminousCookingRecipeCatalog.
+- Ingredientes, disponibilidad, estaciones y resultados deben seguir viniendo de sus motores/runtime canónicos.
+- La imagen de cada receta y cada ingrediente debe salir de LuminousItemIconRegistry u otro proveedor canónico ya integrado con el inventario.
+- Se prohíbe usar las imágenes ilustrativas de cooking_hud como representaciones falsas de recetas reales.
+- El panel de Cocina tiene que diseñarse y probarse en mobile y desktop dentro del mismo cambio.
+
+CRITERIO FINAL DE ACEPTACIÓN
+
+¿Puede un jugador o DM abrir el mismo sistema y completar todas sus acciones de principio a fin tanto en celular como en desktop, viendo información y recursos reales, sin controles tapados ni menús sobredimensionados?
+
+Si la respuesta es NO en cualquiera de las dos plataformas, el cambio NO está terminado.
+
+REGLA CORTA DE MÁXIMA PRIORIDAD
+
+TX-01: Cada mejora se entrega y prueba para MOBILE + DESKTOP al mismo tiempo. Una referencia visual jamás sustituye a los datos ni los iconos canónicos del juego.
