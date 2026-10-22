@@ -35,6 +35,11 @@ async function setupContext(browser,phone=false){
 }
 async function login(page,user,url='/combate.html'){
  await page.goto(base+url);const form=url.startsWith('/mirror')?'mirror':'combat-entry';await page.locator('#'+form+'-email').fill(user.email);await page.locator('#'+form+'-password').fill(user.password);await page.locator('#'+form+'-login button').click();
+ // Benchmark an authenticated session on both versions. The pinned baseline
+ // predates the entry Auth-race fix; login correctness is covered separately by
+ // normal-entry acceptance, while combat measurement starts after hydration.
+ await page.waitForFunction(uid=>window.firebase?.auth?.().currentUser?.uid===uid,user.uid,{timeout:20000});
+ await expect(page.locator('#'+form+'-login button')).toBeEnabled();await page.reload();
 }
 async function frame(page,query='Battle-viewer'){
  try{await expect.poll(()=>page.frames().filter(f=>f.url().includes(query)).length,{timeout:40000}).toBeGreaterThan(0);}

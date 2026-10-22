@@ -50,10 +50,10 @@
     if(!active)say(!authorized?'Esta cuenta todavía no tiene un personaje asignado. Pide al DM que lo vincule.':!state.connected?'Reconectando con la campaña…':ended?'Encuentro finalizado. Los resultados se han conservado.':state.dm?(state.instance==='combat_theatre'?'Interludio de teatro en curso. Vuelve al panel del DM para dirigir la escena.':'Abre un encuentro y añade los personajes y enemigos desde «Encuentro».'):'Tu personaje permanece en teatro. Entrarás cuando el DM lo añada al encuentro.');
   }
   async function action(fn){if(state.busy)return;state.busy=true;render();try{await fn();$('combat-entry-menu').open=false;}catch(error){console.error('[Combat entry]',error);global.alert(actionError(error));}finally{state.busy=false;render();}}
-  let auth,db;
+  let auth,db,sessionUid;
   try{if(!global.firebase.apps.length)global.firebase.initializeApp(global.LuminousCombatFirebaseConfig);auth=global.firebase.auth();db=global.firebase.database();}
   catch(error){say('No se pudo conectar con Luminous. Recarga la página para volver a intentarlo.',true);console.error('[Combat entry]',error);return;}
-  $('combat-entry-login').onsubmit=async event=>{event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;try{await auth.signInWithEmailAndPassword($('combat-entry-email').value.trim(),$('combat-entry-password').value);$('combat-entry-password').value='';}catch(error){say(error.code==='auth/network-request-failed'?'No se pudo conectar. Revisa tu conexión.':'No se pudo iniciar sesión. Revisa tu correo y contraseña.',true);}finally{button.disabled=false;}};
+  $('combat-entry-login').onsubmit=async event=>{event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;try{const result=await auth.signInWithEmailAndPassword($('combat-entry-email').value.trim(),$('combat-entry-password').value);await enterSession(result.user);$('combat-entry-password').value='';}catch(error){say(error.code==='auth/network-request-failed'?'No se pudo conectar. Revisa tu conexión.':'No se pudo iniciar sesión. Revisa tu correo y contraseña.',true);}finally{button.disabled=false;}};
   $('combat-entry-open').onclick=$('combat-entry-start').onclick=()=>action(()=>api.start({db,uid:state.uid}));
   $('combat-entry-end').onclick=()=>{$('combat-entry-menu').open=false;$('combat-entry-end-dialog').showModal();};
   $('combat-entry-confirm-end').onclick=()=>action(async()=>{
@@ -63,8 +63,13 @@
     catch(error){$('combat-entry-end-dialog').showModal();throw error;}
   });
   $('combat-entry-presentation').onchange=event=>{const value=event.target.value;return action(()=>api.presentation({db,value}));};
-  $('combat-entry-signout').onclick=()=>action(()=>auth.signOut());
-  auth.onAuthStateChanged(async user=>{
+  $('combat-entry-signout').onclick=()=>action(async()=>{await auth.signOut();await enterSession(null);});
+  async function enterSession(user){
+    const uid=user?.uid||null;
+    // A delayed initial Auth notification must not undo a completed login.
+    // The explicit login result and the observer share one idempotent binding.
+    if(uid!==(auth.currentUser?.uid||null)||sessionUid===uid)return;
+    sessionUid=uid;
     const generation=++state.generation;teardown();Object.assign(state,{uid:user?.uid||null,dm:false,player:null,playerId:null,encounter:{},connected:false});
     $('combat-entry-card').hidden=false;$('combat-entry-login').hidden=Boolean(user);$('combat-entry-title').textContent=user?'Tu encuentro':'Entra al combate';
     if(!user){$('combat-entry-end-dialog').close();render();say('Usa la misma cuenta que utilizas en tu ficha de personaje.');return;}
@@ -80,6 +85,7 @@
       watch(`${api.ROOT}/authority/current/phase`,value=>{state.encounter.authority={current:{phase:value}};render();},generation);
       watch(api.INSTANCE,instance=>{state.instance=instance||'ninguno';render();},generation);
     }catch(error){say('No se pudo cargar tu campaña. Revisa tu conexión y vuelve a entrar.',true);console.error('[Combat entry]',error);}
-  },()=>say('No se pudo restaurar tu sesión. Recarga la página para volver a entrar.',true));
+  }
+  auth.onAuthStateChanged(enterSession,()=>say('No se pudo restaurar tu sesión. Recarga la página para volver a entrar.',true));
   global.addEventListener('beforeunload',teardown,{once:true});
 })(window);

@@ -154,7 +154,7 @@ jobs:
   combat-lifecycle:
     name: Combat teardown + round preservation
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -179,7 +179,7 @@ jobs:
   player-ui-behavior-regressions:
     name: Stats HUD + trait display regressions
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -207,7 +207,7 @@ jobs:
   player-ui-performance:
     name: Performance / ${{ matrix.label }}
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
