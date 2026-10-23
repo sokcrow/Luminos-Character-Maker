@@ -49,15 +49,15 @@ test.beforeAll(async () => {
   server = http.createServer((req,res) => {
     const pathname = new URL(req.url,base).pathname;
     if (pathname === '/loot-test') {
-      res.setHeader('Content-Type','text/html');
-      res.end('<!doctype html><html lang="es"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;background:#17100e"><nav><button id="btn-global-inventory">Inventario</button></nav>'+['app','auth','database'].map(name=>`<script src="/node_modules/firebase/firebase-${name}.js"></script>`).join('')+'</body></html>');
+      res.setHeader('Content-Type','text/html; charset=utf-8');
+      res.end('<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;background:#17100e"><nav><button id="btn-global-inventory">Inventario</button></nav>'+['app','auth','database'].map(name=>`<script src="/node_modules/firebase/firebase-${name}.js"></script>`).join('')+'</body></html>');
       return;
     }
     const file = path.resolve(root,'.'+decodeURIComponent(pathname));
     if (!file.startsWith(root+path.sep)) {res.writeHead(403).end();return;}
     fs.readFile(file,(error,body)=>{
       if (error) {res.writeHead(404).end();return;}
-      res.setHeader('Content-Type',({'.js':'text/javascript','.css':'text/css','.png':'image/png','.woff':'font/woff','.woff2':'font/woff2'})[path.extname(file)] || 'application/octet-stream');
+      res.setHeader('Content-Type',({'.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.woff':'font/woff','.woff2':'font/woff2'})[path.extname(file)] || 'application/octet-stream');
       res.end(body);
     });
   });
@@ -128,10 +128,12 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
       await one.page.screenshot({path:info.outputPath(`corpse-${viewport.width}x${viewport.height}.png`)});
     }
 
+    await one.page.waitForFunction(()=>!LuminousPlayerPostCombatLoot.state.busy);
     const dagger = (await admin(`campaña/loot_postcombat/${lootId}/carried`)).find(entry=>entry.definitionId==='dagger');
     await one.page.locator(`[data-target-item="${dagger.instanceId}"]`).click();
     await expect.poll(async()=>Object.values(await admin('campaña/jugadores/p1/inventario_activo')||{}).filter(i=>i.definitionId==='dagger').length).toBe(1);
     for (const c of [one,two]) await expect(c.page.locator('.loot-belonging.known')).toHaveCount(2);
+    await one.page.waitForFunction(()=>!LuminousPlayerPostCombatLoot.state.busy);
     await one.page.locator('[data-loot-tab="actions"]').click();
     await one.page.locator('[data-corpse-release]').click();
     await two.page.locator('[data-loot-tab="actions"]').click();
@@ -144,6 +146,7 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
     for (const c of [one,two]) await expect(c.page.locator('.loot-belonging.known')).toHaveCount(1);
     expect((await admin(`campaña/loot_postcombat/${lootId}/carried`)).find(entry=>entry.definitionId==='hp_generic_pocket_recovery_patch').remaining).toBe(2);
     await two.page.locator('[data-loot-tab="actions"]').click();
+    await two.page.waitForFunction(()=>!LuminousPlayerPostCombatLoot.state.busy);
     await two.page.locator('[data-loot-action="pickpocket"]').click();
     await expect.poll(async()=>(await admin(`campaña/loot_postcombat/${lootId}/carried`)).find(entry=>entry.definitionId==='hp_generic_pocket_recovery_patch').remaining).toBe(1);
     await two.page.locator('[data-loot-tab="results"]').click();

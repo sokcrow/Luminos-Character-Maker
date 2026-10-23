@@ -351,6 +351,13 @@
   }
 
 
+  function lootItemDefinition(id) {
+    return global.LuminousItemInventoryRuntime?.resolveDefinition?.(id)
+      || global.LuminousWeaponCatalog?.get?.(id)
+      || global.LuminousHpHealingCatalog?.get?.(id)
+      || global.LuminousCulinaryStaplesCatalog?.get?.(id) || {};
+  }
+
   function visibleDiscoveredItems(interaction = {}, playerId = "") {
     const entries = Array.isArray(interaction.carried) ? interaction.carried : Object.values(interaction.carried || {});
     return entries.filter((entry) =>
@@ -361,11 +368,11 @@
       let definition = {};
       try {
         const inv = global.LuminousItemInventoryRuntime;
-        definition = inv?.resolveDefinition?.(entry.definitionId || item.definitionId) || {};
+        definition = lootItemDefinition(entry.definitionId || item.definitionId);
         item = inv?.resolveItem?.(item) || item;
       } catch (_) { /* Keep the saved instance. */ }
       return {
-        name: clean(item.displayName || item.name || item.nombre || definition.name || global.LuminousWeaponCatalog?.get?.(entry.definitionId)?.name || titleCase(entry.definitionId || "Pertenencia recuperada")),
+        name: clean(item.displayName || item.name || item.nombre || definition.name || "Pertenencia recuperada"),
         quantity: Math.max(1, Number(entry.recoveredQuantitiesBy?.[playerId] ?? entry.quantity ?? item.quantity ?? 1)),
         icon: resolveLootIcon(item.iconUrl, item.icon, item.imageUrl, item.image, definition.iconUrl, definition.icon, item.iconFamily, definition.iconFamily, definition.family, entry.definitionId),
         status: "Recuperado",
@@ -436,8 +443,8 @@
       if (!slot.revealed) return '<div class="loot-belonging unknown" aria-label="Casilla ocupada sin revelar"><strong>???</strong><span>Sin revelar</span></div>';
       const currency = slot.kind === "currency";
       const item = slot.item || {};
-      const definition = currency ? {} : global.LuminousItemInventoryRuntime?.resolveDefinition?.(slot.definitionId) || global.LuminousWeaponCatalog?.get?.(slot.definitionId) || {};
-      const name = currency ? `${slot.amount.toLocaleString()} Ahn` : clean(item.displayName || item.name || definition.name || titleCase(slot.definitionId));
+      const definition = currency ? {} : lootItemDefinition(slot.definitionId);
+      const name = currency ? `${slot.amount.toLocaleString()} Ahn` : clean(item.displayName || item.name || definition.name || "Pertenencia");
       const icon = currency ? "" : resolveLootIcon(item.iconUrl, item.icon, definition.iconUrl, definition.icon, item.iconFamily, definition.iconFamily, slot.definitionId);
       const queued = requests.some(request => request.actionId === "collect" &&
         (currency ? request.targetCurrency === true : request.targetItemId === slot.instanceId));
@@ -479,9 +486,9 @@
     }
     if (host) {
       const slots = active.map(({ item }) => {
-        const name = clean(item?.displayName || item?.name || item?.nombre || titleCase(item?.definitionId || "Objeto"));
         let definition = {};
-        try { definition = inventory?.resolveDefinition?.(item?.definitionId || item?.itemId) || {}; } catch (_) { /* A legacy item still gets a neutral icon. */ }
+        try { definition = lootItemDefinition(item?.definitionId || item?.itemId); } catch (_) { /* A legacy item still gets a neutral icon. */ }
+        const name = clean(item?.displayName || item?.name || item?.nombre || definition.name || "Objeto");
         const icon = resolveLootIcon(item?.iconUrl, item?.icon, item?.imageUrl, item?.image, definition.iconUrl, definition.icon, item?.iconFamily, definition.iconFamily, item?.family, definition.family, item?.category);
         const quantity = Math.max(1, Number(item?.quantity || 1));
         return `<button type="button" class="loot-pack-item" title="${esc(name)}" aria-label="${esc(name)}, cantidad ${quantity}" data-loot-detail="${esc(name)} · ×${quantity}"><img src="${esc(icon)}" alt="" loading="lazy">${quantity > 1 ? `<small>${quantity}</small>` : ""}</button>`;
