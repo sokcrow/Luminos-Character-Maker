@@ -588,7 +588,7 @@
         <div class="loot-recovered-title">TUS INTENTOS</div>
         ${pendingRequests.map(request => `<p class="loot-queue-status">${esc(actionLabel(request.actionId))} · Pendiente de validación</p>`).join("")}
         ${pending.length ? '<p class="loot-queue-status">Tienes entregas pendientes. Revisa Espacio y vuelve a Tiradas para recogerlas.</p>' : ""}
-        ${attempts.length ? `<ol class="loot-attempts">${attempts.slice().reverse().map(attempt => `<li><strong>${esc(actionLabel(attempt.actionId))}</strong><span>${attempt.success === true ? "Éxito" : "Sin éxito"}${Number.isFinite(attempt.total) && Number.isFinite(attempt.threshold) ? ` · ${attempt.total} / TH ${attempt.threshold}` : ""}</span></li>`).join("")}</ol>` : '<p class="loot-corpse-note">Todavía no has completado tiradas en estos restos.</p>'}
+        ${attempts.length ? `<ol class="loot-attempts">${attempts.slice().reverse().map(attempt => `<li><strong>${esc(actionLabel(attempt.actionId))}</strong><span>${attempt.actionId === "collect" ? "Recogido" : attempt.success === true ? "Éxito" : "Sin éxito"}${attempt.actionId !== "collect" && Number.isFinite(attempt.total) && Number.isFinite(attempt.threshold) ? ` · ${attempt.total} / TH ${attempt.threshold}` : ""}</span></li>`).join("")}</ol>` : '<p class="loot-corpse-note">Todavía no has completado tiradas en estos restos.</p>'}
       </article>`);
       rows.push(`<article class="loot-corpse${state.selectedLootId === lootId ? " selected" : ""}" data-loot-card="${esc(lootId)}">
         <div class="loot-corpse-title"><strong>${esc(name)}</strong><span>${pending.length ? "ENTREGA PENDIENTE" : remainingRecoverable ? "RECUPERACIÓN POSIBLE" : "SIN ACCIONES DISPONIBLES"}</span></div>

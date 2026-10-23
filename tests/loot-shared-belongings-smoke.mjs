@@ -39,7 +39,7 @@ for (const [id, weapon] of Object.entries(expected)) {
 
 const unit = LuminousKoboldUnitCatalog.get('kobold_dagger');
 const weapon = LuminousItemInventoryRuntime.createItemInstance(LuminousWeaponCatalog.get('dagger'),
-  {instanceId:'worn-dagger',condition:7,conditionMax:30,qualityTier:2});
+  {instanceId:'worn-dagger',condition:7,conditionMax:30,qualityTier:2,equipped:true,equippedPartIds:['hand']});
 unit.equipmentInstances = [weapon, {...weapon,instanceId:'destroyed-dagger',destroyed:true}];
 unit.npcBelongings = {version:1};
 unit.inventario_activo = {[weapon.instanceId]:weapon};
@@ -61,7 +61,10 @@ assert.throws(()=>post.applyResolvedAction(hiddenPocket.state, {id:'thief'}, 'pi
   {success:true,total:30,margin:20}, {targetItemId:'invented-target'}), /ALREADY_USED/);
 state = post.performAction(state, actor, 'search', {rng:()=>0}).state;
 assert.equal(state.currency.remaining, 70);
-state = post.performAction(state, {id:'other-player'}, 'collect', {targetItemId:'worn-dagger'}).state;
+const recoveredWeapon = post.performAction(state, {id:'other-player'}, 'collect', {targetItemId:'worn-dagger'});
+assert.equal(recoveredWeapon.result.recovery.items[0].equipped, false, 'taking enemy equipment does not auto-equip it on the player');
+assert.deepEqual(recoveredWeapon.result.recovery.items[0].equippedPartIds, []);
+state = recoveredWeapon.state;
 assert.equal(state.currency.remaining, 70, 'a player may leave all the money for someone else');
 assert.deepEqual(post.corpseBelongings(state), [{kind:'currency',revealed:true,currencyId:'ahn',amount:70}]);
 state = post.performAction(state, actor, 'collect', {targetCurrency:true}).state;

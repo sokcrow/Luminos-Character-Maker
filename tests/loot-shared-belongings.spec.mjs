@@ -136,6 +136,7 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
     await one.page.waitForFunction(()=>!LuminousPlayerPostCombatLoot.state.busy);
     await one.page.locator('[data-loot-tab="actions"]').click();
     await one.page.locator('[data-corpse-release]').click();
+    await expect.poll(()=>admin(`campaña/loot_claims/${lootId}`)).toBe(null);
     await two.page.locator('[data-loot-tab="actions"]').click();
     await two.page.evaluate(()=>LuminousPlayerPostCombatLoot.close());
     await two.page.locator('#btn-postcombat-loot').click();
