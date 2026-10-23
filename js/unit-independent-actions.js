@@ -234,7 +234,7 @@
       if (!budget.consume(unit, QUICK, { phase })) return { used: false, reason: "quick_spend_failed", sourceId, cost };
       unit.quickActionRemaining = Math.max(0, Number(budget.snapshot(unit, { phase }).quick_action) || 0);
     } else roundState.freeUses[key] = (roundState.freeUses[key] || 0) + 1;
-    const detail = { unitId: actorId(unit), sourceId, sourceType: type, cost, round: roundState.round, result };
+    const detail = { unitId: actorId(unit), sourceId, sourceType: type, cost, round: roundState.round, targetId: actorId(target) || null, result, ai: options.ai === true };
     if (typeof global.CustomEvent === "function") global.dispatchEvent?.(new global.CustomEvent("luminous:unit-independent-action-resolved", { detail }));
     return { used: true, sourceId, cost, result };
   }
