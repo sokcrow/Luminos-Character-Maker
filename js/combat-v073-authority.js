@@ -326,8 +326,19 @@
       resetRandom(current.seed,0);
       const planned=await events.planEncounterStart(Object.values(runtime()?.combatants?.()||{}),{
         encounterId:current.encounterId||s.encounterId||`encounter-${current.seed}`,
+        round:Number(current.round)||1,
         withRandom:withAuthorityRandom
       });
+      // Planning already rolled canonical Speed. Apply startup modifiers using
+      // that same base and tie, before sealing the execution/playback baseline.
+      const speedRule=runtime()?.speedForBaseRoll;
+      for(const unit of planned.units){
+        if(unit.battleActive===false||unit.isBackup||Number(unit.speedRollTurn)!==Number(current.round))continue;
+        const base=finite(unit.speedBaseRoll,null);
+        if(base==null||base<1)continue;
+        if(typeof speedRule!=='function')throw new Error('No se pudo actualizar la velocidad inicial. Recarga el visor.');
+        unit.speed=speedRule(unit,Number(current.round),base);
+      }
       startSnapshot=Object.fromEntries(planned.units.map(unit=>[unit.id,compactUnit(unit)]));
       current={...current,encounterStart:{rngCursor:state.cursor},initialStateJson:JSON.stringify(startSnapshot)};
       const execution=current.initialExecutionJson?JSON.parse(current.initialExecutionJson):{queue:[],resolvedKeys:[]};

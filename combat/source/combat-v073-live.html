@@ -3536,6 +3536,11 @@ function randomIntInclusive(min,max){
   max=Math.floor(Number(max)||0);
   return Math.floor(Math.random()*(max-min+1))+min
 }
+function speedForBaseRoll(unit,turnNumber,rolled){
+  const chillPenalty=Math.floor(statusModifier(unit,'chill')/2),
+        speedMod=statusModifier(unit,'haste')-statusModifier(unit,'bind')-chillPenalty;
+  return conditionSpeedForcedToOne(unit,turnNumber)?1:Math.max(1,Number(rolled)+speedMod)
+}
 function rollUnitSpeed(unit,turnNumber){
   if(!unit)return 0;
   if(unit.speedRollTurn===turnNumber)return Number(unit.speed)||0;
@@ -3544,10 +3549,8 @@ function rollUnitSpeed(unit,turnNumber){
         baseMax=Math.max(Number(range[0])||1,Number(range[1])||1),
         exhaustionMaxPenalty=statusModifier(unit,'exhaustion')>=2?2:0,
         max=Math.max(1,baseMax-exhaustionMaxPenalty),
-        rolled=randomIntInclusive(Math.min(min,max),max),
-        chillPenalty=Math.floor(statusModifier(unit,'chill')/2),
-        speedMod=statusModifier(unit,'haste')-statusModifier(unit,'bind')-chillPenalty;
-  unit.speed=conditionSpeedForcedToOne(unit,turnNumber)?1:Math.max(1,rolled+speedMod);
+        rolled=randomIntInclusive(Math.min(min,max),max);
+  unit.speed=speedForBaseRoll(unit,turnNumber,rolled);
   unit.speedBaseRoll=rolled;
   unit.speedRollTurn=turnNumber;
   unit.speedTie=Math.random();
@@ -8346,6 +8349,7 @@ window.LuminousCombat073=Object.freeze({
   initialize:initializeCombatSurface,
   playerId:()=>PLAYER_ID,
   combatants:()=>combatData,
+  speedForBaseRoll,
   kit:id=>UNIT_KITS[id],
   plans:()=>plannedActions,
   restorePlanning(plans,ready){

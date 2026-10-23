@@ -182,7 +182,7 @@
       a.state.localDigests.clear();a.state.pendingRemoteCheckpoints.clear();a.state.inFlightActions=0;
       a.state.executionChain=Promise.resolve();a.state.writeChain=Promise.resolve();a.state.writeFailure=null;
       state.stagedUpdates={};
-      a.resetRandom(current.seed,Number(checkpoint?.rngCursor)||0);
+      a.resetRandom(current.seed,Number(checkpoint?.rngCursor??current.encounterStart?.rngCursor)||0);
       a.applySnapshot(JSON.parse(checkpoint?.stateJson||current.initialStateJson));
       state.eventCursor=saved.eventCursor;state.batchSeq=Number(checkpoint?.seq)||0;state.transmittedSnapshot=a.snapshotRuntime();
       surface().capturePresentation(true);

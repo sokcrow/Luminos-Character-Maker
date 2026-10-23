@@ -37,6 +37,17 @@ icon and Count remain visible at zero; other single-count statuses retain their
 normal positive-count validity rule. Spending all Superiority does not hide the
 waiting resource. No new debug controls are added.
 
+Initial statuses from both adapters and TraitEngine carry the live viewer's
+`appliedRound` metadata, including buffs granted to allies. This lets ordinary
+round-end rules expire Haste, Clash Power Up and other temporary bonuses without
+removing persistent resources such as Superiority.
+
+After startup, the authority recalculates canonical Speed with the viewer's
+shared pure Speed evaluator and the already saved base roll. Base Speed, tie
+roll and RNG cursor are preserved; the initial execution/recovery snapshots and
+formation use the updated Speed. Recovery without a checkpoint resumes at the
+saved startup RNG cursor; a checkpoint's explicit cursor of zero remains valid.
+
 ## Validation
 
 Run the encounter runtime, authority and dependency smoke tests, the Battle

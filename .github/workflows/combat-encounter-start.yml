@@ -21,12 +21,15 @@ jobs:
         run: |
           node tests/combat-event-runtime-smoke.mjs
           node tests/combat-encounter-start-authority-smoke.mjs
+          node tests/combat-encounter-start-status-expiry-smoke.mjs
+          node tests/combat-encounter-recovery-rng-smoke.mjs
           node tests/combat-event-dependencies-smoke.mjs
           node tests/battle-master-archetype-runtime-smoke.mjs
           node tests/trait-viewer-encounter-start-smoke.mjs
           node tests/battle-master-viewer-encounter-integration-smoke.mjs
           node tests/fighter-class-runtime-smoke.mjs
           node tests/combat-playback-catchup-smoke.mjs
+          node tests/combat-v073-speed-persistence-smoke.mjs
           npm run check:combat-live
           npm run test:combat-mobile
       - name: Install browser

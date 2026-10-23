@@ -155,19 +155,36 @@
     return result;
   }
   function active(unit) { return unit && unit.battleActive !== false && !unit.isBackup && !unit.dead && !unit.defeated && Number(unit.hp ?? unit.currentHp ?? 1) > 0; }
-  async function planEncounterStart(units, { encounterId, engine = global.CombatEngine, withRandom = callback => callback() } = {}) {
+  function stampInitialStatuses(units, before, round) {
+    units.forEach((unit, index) => {
+      for (const [id, status] of Object.entries(unit.statusEffects || {})) {
+        if (!status || typeof status !== "object") continue;
+        const changed = JSON.stringify(status) !== JSON.stringify(before[index]?.[id]);
+        if (changed || status.appliedRound == null || !Number.isFinite(Number(status.appliedRound))) {
+          // The live viewer expires total_loss statuses by appliedRound, not by
+          // TraitEngine's duration label. Include allied adapter targets too.
+          status.appliedRound = Math.max(round, Number(status.appliedRound) || round);
+          if (unit.combatTraitState?.statuses?.[id]) unit.combatTraitState.statuses[id] = clone(status);
+        }
+      }
+    });
+  }
+  async function planEncounterStart(units, { encounterId, round = 1, engine = global.CombatEngine, withRandom = callback => callback() } = {}) {
     if (!encounterId) throw new Error("Encounter Start requires an encounter identity");
     const drafts = clone(units), fresh = drafts.filter(unit => active(unit) && unit.combatEventState?.encounterStarted !== String(encounterId));
     if (!fresh.length) return { units: drafts, started: 0 };
+    const before = drafts.map(unit => clone(unit.statusEffects || {}));
+    const startRound = Math.max(1, Math.trunc(Number(round) || 1));
     await prepare(fresh);
     return withRandom(() => {
     for (const adapter of adapters.values()) adapter.encounterStart?.(fresh, { units: drafts.filter(active), engine });
     for (const unit of fresh) {
       // Seed aliases once so sheet-based operations modify the live HP/SP.
       unit.currentHp = unit.hp; unit.currentSp = unit.sp;
-      dispatch("encounter_start", unit, { units: drafts.filter(active), engine });
+      dispatch("encounter_start", unit, { units: drafts.filter(active), engine, round: startRound, turnNumber: startRound });
       unit.combatEventState = { ...unit.combatEventState, encounterStarted: String(encounterId) };
     }
+    stampInitialStatuses(drafts, before, startRound);
     return { units: drafts, started: fresh.length };
     });
   }
