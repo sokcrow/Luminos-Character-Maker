@@ -196,7 +196,7 @@
     const inventory=unit.inventario_activo||{};
     for(const [instanceId,item]of Object.entries(inventory)){
       if(item&&typeof item==='object'&&Number(item.quantity??1)>0)
-        actions.push({sourceType:'item',definition:{...item,id:clean(item.id||item.definitionId||instanceId),instanceId}});
+        actions.push({sourceType:'item',definition:{...item,id:clean(item.instanceId||item.instance_id||instanceId),instanceId}});
     }
     return global.LuminousUnitIndependentActions?.sourcesFor?.(unit,{sources:actions})||[];
   }
@@ -242,6 +242,10 @@
       if(target&&target!==unit)updateUnit(target);
       updates[`campaña/combate/combatants/${unit.id}/quickActionRemaining`]=Number(unit.quickActionRemaining??1);
       updates[`campaña/combate/combatants/${unit.id}/combatIndependentActionState`]=clone(tracker);
+      if(norm(row.sourceType)==='item'){
+        updates[`campaña/combate/combatants/${unit.id}/inventario_activo`]=clone(unit.inventario_activo||{});
+        updates[`campaña/jugadores/${playerId}/inventario_activo`]=clone(unit.inventario_activo||{});
+      }
       updates[`campaña/combate/independentReceipts/${playerId}/${intentId}`]={
         round:Number(s.round),unitId:unit.id,sourceId:result.sourceId,cost:result.cost,applied:true
       };
