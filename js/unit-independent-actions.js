@@ -213,7 +213,15 @@
       }
       else reason = "trait_specific_runtime_required";
     } else if (type === "item") {
-      const live = definition;
+      // Menus use display snapshots, but every Unit must mutate the actual
+      // inventory instance (same identifier for Player, NPC and Enemy).
+      const inventory = unit.inventario_activo || unit.activeInventory || unit.inventory || {};
+      const entries = Array.isArray(inventory) ? inventory.map((value,index)=>[String(index),value]) : Object.entries(inventory);
+      const instance = norm(definition.instanceId || definition.instance_id || definition.id);
+      const found = entries.find(([key,item])=>item&&norm(item.instanceId||item.instance_id||key)===instance);
+      const live = found?.[1] || null;
+      if (!live || Number(live.quantity ?? live.qty ?? live.cantidad ?? 1) <= 0)
+        return { used: false, reason: "active_inventory_item_missing" };
       const use = global.LuminousItemRuntime?.useItem;
       if (typeof use === "function") {
         result = use(unit, live, { phase, target, ignoreActionCost: true });
