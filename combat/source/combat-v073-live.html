@@ -2820,6 +2820,7 @@ function listCombatStatuses(unit){
 function statusIsValid(def,status){
   if(!def||!status)return false;
   if(def.mode==='zero')return true;
+  if(def.allowZeroCount===true&&Number(status.count)===0)return true;
   if(def.mode==='single')return Number(status.count)>0;
   if(normalizeStatusId(def.name)==='poison')return Number(status.potency)>0||Number(status.count)>0;
   return Number(status.potency)>0&&Number(status.count)>0
@@ -3264,6 +3265,8 @@ function ensureEntryConcentration(entry){
   entry._concentrationId=state?.id||null;return state
 }
 function applySkillStatusEffects(entry,targetId,trigger,context={}){
+  window.LuminousCombatEventRuntime?.notify(trigger,combatData[entry?.ownerId],{target:combatData[targetId],...context});
+  if(window.LuminousCombatEventRuntime&&['on_hit','clash_win'].includes(window.LuminousCombatEventRuntime.normalizeTrigger(trigger)))renderStatusEffects(entry.ownerId);
   const data=entry?.plan?.data||{},sourceType=data.sourceType||(isSpellSkill(data)||entry?.plan?.type==='spells'||data.kind==='spell'?'magic':'skill'),sourceElement=normalizeElement(data.element||'');
   skillEffectRows(data,trigger,context.coinIndex).forEach(effect=>{
     const targetKey=String(effect?.target||'target').toLowerCase(),
@@ -3533,6 +3536,11 @@ function randomIntInclusive(min,max){
   max=Math.floor(Number(max)||0);
   return Math.floor(Math.random()*(max-min+1))+min
 }
+function speedForBaseRoll(unit,turnNumber,rolled){
+  const chillPenalty=Math.floor(statusModifier(unit,'chill')/2),
+        speedMod=statusModifier(unit,'haste')-statusModifier(unit,'bind')-chillPenalty;
+  return conditionSpeedForcedToOne(unit,turnNumber)?1:Math.max(1,Number(rolled)+speedMod)
+}
 function rollUnitSpeed(unit,turnNumber){
   if(!unit)return 0;
   if(unit.speedRollTurn===turnNumber)return Number(unit.speed)||0;
@@ -3541,10 +3549,8 @@ function rollUnitSpeed(unit,turnNumber){
         baseMax=Math.max(Number(range[0])||1,Number(range[1])||1),
         exhaustionMaxPenalty=statusModifier(unit,'exhaustion')>=2?2:0,
         max=Math.max(1,baseMax-exhaustionMaxPenalty),
-        rolled=randomIntInclusive(Math.min(min,max),max),
-        chillPenalty=Math.floor(statusModifier(unit,'chill')/2),
-        speedMod=statusModifier(unit,'haste')-statusModifier(unit,'bind')-chillPenalty;
-  unit.speed=conditionSpeedForcedToOne(unit,turnNumber)?1:Math.max(1,rolled+speedMod);
+        rolled=randomIntInclusive(Math.min(min,max),max);
+  unit.speed=speedForBaseRoll(unit,turnNumber,rolled);
   unit.speedBaseRoll=rolled;
   unit.speedRollTurn=turnNumber;
   unit.speedTie=Math.random();
@@ -8343,6 +8349,7 @@ window.LuminousCombat073=Object.freeze({
   initialize:initializeCombatSurface,
   playerId:()=>PLAYER_ID,
   combatants:()=>combatData,
+  speedForBaseRoll,
   kit:id=>UNIT_KITS[id],
   plans:()=>plannedActions,
   restorePlanning(plans,ready){

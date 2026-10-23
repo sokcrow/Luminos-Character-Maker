@@ -181,7 +181,7 @@
     unit.superiorityCount = next;
     // The resource remains authoritative; its Status mirror is only the visible Count.
     if (!unit.statusEffects || typeof unit.statusEffects !== "object" || Array.isArray(unit.statusEffects)) unit.statusEffects = {};
-    if (next > 0) {
+    if (next > 0 || hasBattleMasterLevel(characterForCombatUnit(unit), 15)) {
       unit.statusEffects.superiority = {
         ...(unit.statusEffects.superiority && typeof unit.statusEffects.superiority === "object" ? unit.statusEffects.superiority : {}),
         id: "superiority", name: "Superiority", count: next, potency: 0, duration: "until_removed",
@@ -231,9 +231,9 @@
     return false;
   }
 
-  function applyEncounterStartManeuvers(units = [], engine = global.CombatEngine) {
-    const roster = Array.isArray(units) ? units : [];
-    const qualified = roster.filter((unit) => unit && hasBattleMasterLevel(characterForCombatUnit(unit), 15));
+  function applyEncounterStartManeuvers(units = [], engine = global.CombatEngine, options = {}) {
+    const roster = Array.isArray(options.units) ? options.units : (Array.isArray(units) ? units : []);
+    const qualified = units.filter((unit) => unit && hasBattleMasterLevel(characterForCombatUnit(unit), 15));
     // Phase 1: reset encounter-only Counts before any [On Encounter Start] modifiers.
     for (const unit of qualified) setSuperiorityCount(unit, 0);
 
@@ -274,14 +274,14 @@
 
   function installSuperiorityStatus() {
     const definition = {
-      name: "Superiority", type: "positive", mode: "single", visible: true,
+      name: "Superiority", type: "positive", mode: "single", visible: true, allowZeroCount: true,
       icon: SUPERIORITY_ICON, classId: "fighter", archetypeId: "battle_master",
       description: "Battle Master encounter resource. Count is earned by Clash Wins, Hits and selected Maneuvers; spent by Maneuvers.",
     };
     const library = global.LuminousStatusLibrary;
     if (typeof library?.registerExtension === "function") {
       // install() retries on a short interval; registration must be idempotent.
-      if (library.get?.("superiority")?.icon === SUPERIORITY_ICON) return true;
+      if (library.get?.("superiority")?.icon === SUPERIORITY_ICON && library.get?.("superiority")?.allowZeroCount === true) return true;
       library.registerExtension("superiority", definition);
       return library.get?.("superiority")?.icon === SUPERIORITY_ICON;
     }
@@ -360,6 +360,7 @@
     if (typeof engine.triggerEncounterStart === "function") {
       const originalStart = engine.triggerEncounterStart;
       engine.triggerEncounterStart = function (units = [], ...rest) {
+        if (global.LuminousCombatEventRuntime) return originalStart.call(this, units, ...rest);
         const phase = normalizeId(this.currentState || "");
         if (!["combat_active", "active", "in_progress"].includes(phase)) {
           encounterStartedUnits = new WeakSet();
@@ -475,7 +476,13 @@
     return true;
   }
 
-  function install() { installSuperiorityStatus(); patchArchetypeCatalog(); patchCoreCatalog(); patchTraitEngine(); patchArchetypeRuntime(); patchCombatEngine(); return true; }
+  function install() {
+    global.LuminousCombatEventRuntime?.register("battle_master", {
+      encounterStart(units, context) { applyEncounterStartManeuvers(units, context.engine, { units: context.units }); },
+      dispatch(event, unit) { gainCombatSuperiority(unit, event); },
+    });
+    installSuperiorityStatus(); patchArchetypeCatalog(); patchCoreCatalog(); patchTraitEngine(); patchArchetypeRuntime(); patchCombatEngine(); return true;
+  }
 
   const api = Object.freeze({
     ARCHETYPE_ID, ARCHETYPE_NAME, CLASS_ID, CLASS_NAME, ARCHETYPE, SOURCE, DEFINITIONS, GRANTS,

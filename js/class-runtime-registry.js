@@ -101,7 +101,15 @@
       const existing = findExistingScript(entry);
       if (existing) {
         const runtime = runtimeGlobal(entry);
-        resolve({ entry, reused: true, runtime: runtime || null });
+        if (runtime || !entry.globalName) resolve({ entry, reused: true, runtime: runtime || null });
+        else {
+          existing.addEventListener("load", () => {
+            const loaded = runtimeGlobal(entry);
+            if (loaded) resolve({ entry, reused: true, runtime: loaded });
+            else reject(new Error(`Class Runtime Registry: ${entry.id} loaded without ${entry.globalName}.`));
+          }, { once: true });
+          existing.addEventListener("error", () => reject(new Error(`Class Runtime Registry: failed to load ${entry.path}.`)), { once: true });
+        }
         return;
       }
 

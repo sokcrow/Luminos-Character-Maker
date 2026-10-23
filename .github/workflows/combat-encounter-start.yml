@@ -1,0 +1,47 @@
+name: Universal Encounter Start
+on:
+  pull_request:
+    paths:
+      - 'js/**'
+      - 'Battle-viewer.html'
+      - 'combat/**'
+      - 'tests/combat*encounter*'
+      - 'tests/combat-event*'
+      - '.github/workflows/combat-encounter-start.yml'
+  workflow_dispatch:
+jobs:
+  encounter-start:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Encounter and authority contracts
+        run: |
+          node tests/combat-event-runtime-smoke.mjs
+          node tests/combat-encounter-start-authority-smoke.mjs
+          node tests/combat-encounter-start-status-expiry-smoke.mjs
+          node tests/combat-encounter-recovery-rng-smoke.mjs
+          node tests/combat-encounter-sealed-recovery-smoke.mjs
+          node tests/combat-event-dependencies-smoke.mjs
+          node tests/battle-master-archetype-runtime-smoke.mjs
+          node tests/trait-viewer-encounter-start-smoke.mjs
+          node tests/battle-master-viewer-encounter-integration-smoke.mjs
+          node tests/fighter-class-runtime-smoke.mjs
+          node tests/combat-playback-catchup-smoke.mjs
+          node tests/combat-v073-speed-persistence-smoke.mjs
+          npm run check:combat-live
+          npm run test:combat-mobile
+      - name: Install browser
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+      - name: Real viewer at mobile, tablet and desktop sizes
+        run: node tests/combat-encounter-start-responsive.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: encounter-start-responsive
+          path: artifacts/encounter-start/*.png
+          if-no-files-found: ignore

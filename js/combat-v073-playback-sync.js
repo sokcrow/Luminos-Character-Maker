@@ -59,7 +59,7 @@
       payload.playback = { schemaVersion: 1, engineVersion: protocol().engineVersion, session, generation: payload.id };
       if (timeline) payload.playback.timelineVersion = protocol().timelineVersion;
       if (current?.encounterId===payload.encounterId&&Number(current?.round) >= payload.round && ['sealed', 'running', 'complete'].includes(current?.phase)) return;
-      return {...raw,authority:{...(raw.authority||{}),current:payload},estado:{...(typeof raw.estado==='object'?raw.estado:{}),encounterId:payload.encounterId,phase:'COMBAT_SEALED',active:true,round:payload.round}};
+      return {...raw,authority:{...(raw.authority||{}),current:payload},estado:{...(typeof raw.estado==='object'?raw.estado:{}),eventAuthority:'combat-event-runtime-v1',encounterId:payload.encounterId,phase:'COMBAT_SEALED',active:true,round:payload.round}};
     });
     if (!result.committed) throw new Error('Este turno ya está en resolución en otra pestaña del DM.');
     return result.snapshot.val().authority.current;
@@ -175,14 +175,17 @@
     a.state.current=current;
     const saved=JSON.parse(checkpoint?.executionJson||current.initialExecutionJson);
     saved.eventCursor=Number(checkpoint?.eventCursor)||0;
-    a.state.resumeRuntime=saved;
+    // A sealed turn has not executed any actions. Its saved units predate the
+    // startup effects that setRunning is about to commit; restoring them would
+    // undo those grants and their canonical Speed. Only running turns resume.
+    a.state.resumeRuntime=current.phase==='running'?saved:null;
     if(current.phase==='running'){
       a.state.lastCheckpointSeq=Number(checkpoint?.seq)||0;
       a.state.localActionSeq=Number(checkpoint?.actionSeq??checkpoint?.seq)||0;
       a.state.localDigests.clear();a.state.pendingRemoteCheckpoints.clear();a.state.inFlightActions=0;
       a.state.executionChain=Promise.resolve();a.state.writeChain=Promise.resolve();a.state.writeFailure=null;
       state.stagedUpdates={};
-      a.resetRandom(current.seed,Number(checkpoint?.rngCursor)||0);
+      a.resetRandom(current.seed,Number(checkpoint?.rngCursor??current.encounterStart?.rngCursor)||0);
       a.applySnapshot(JSON.parse(checkpoint?.stateJson||current.initialStateJson));
       state.eventCursor=saved.eventCursor;state.batchSeq=Number(checkpoint?.seq)||0;state.transmittedSnapshot=a.snapshotRuntime();
       surface().capturePresentation(true);

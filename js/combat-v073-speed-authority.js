@@ -177,6 +177,9 @@
     const sig=speedSignature();
     if(sig===state.lastSpeedSignature)return false;
     state.lastSpeedSignature=sig;
+    // Encounter-start modifiers can change canonical Speed after planning's
+    // initial formation. A changed snapshot must lay out that order once again.
+    state.lastFormationRound=0;
     if(state.refreshTimer)global.clearTimeout(state.refreshTimer);
     state.refreshTimer=global.setTimeout(()=>{
       state.refreshTimer=null;

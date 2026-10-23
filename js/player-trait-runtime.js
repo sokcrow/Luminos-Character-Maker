@@ -864,6 +864,7 @@ ${response}`);
 
     if (originalEncounterStart) {
       engine.triggerEncounterStart = function (...args) {
+        if (global.LuminousCombatEventRuntime) return originalEncounterStart.apply(this, args);
         const result = originalEncounterStart.apply(this, args);
         const unit = currentCombatUnit();
         global.LuminousActionEconomy?.beginCombat?.(unit);

@@ -75,6 +75,7 @@
       name: "Superiority",
       type: "positive",
       mode: "single",
+      allowZeroCount: true,
       icon: SUPERIORITY_ICON,
       description: "Battle Master encounter resource. Count is gained from Clashes, Hits and learned Maneuvers.",
       classId: "fighter",
