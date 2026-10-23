@@ -106,4 +106,18 @@ const pending = clock.run('powerCoin', clock.stamp(), () => { drew = true; });
 clock.stop(); await pending;
 assert.equal(drew, false); assert.equal(timers.size, 0);
 assert.ok(dm.engine.events().every(event => event.type !== 'Presentation' || event.timing.schemaVersion === 1));
+// Browser timers may wake in a different order at the same deadline. HUD
+// preparation must remain ordered, while both Coin animations stay parallel.
+let localNow = 0;
+const callbacks = [], order = [];
+const orderedClock = dm.c.LuminousCombatPlayback.createPresentationClock({ now: () => localNow,
+  setTimer(fn) { callbacks.push(fn); return callbacks.length; }, clearTimer() {} });
+await orderedClock.run('powerEnd', orderedClock.stamp(), () => order.push('a'));
+await orderedClock.run('powerEnd', orderedClock.stamp(), () => order.push('b'));
+const outcome = orderedClock.run('clashOutcome', orderedClock.stamp(), () => order.push('result'));
+localNow = 120;
+callbacks.reverse().forEach(fn => fn());
+await outcome;
+assert.deepEqual(order, ['a', 'b', 'result']);
+await orderedClock.drain(); orderedClock.stop();
 console.log('Shared clock: DM, PC and phone stay within 150ms over eight exchanges with 190ms delivery and clocks skewed by minutes; suspended viewer catches up, state converges, teardown cancels future cues.');

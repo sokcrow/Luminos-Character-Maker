@@ -7,7 +7,7 @@
   // Only presentation uses this clock. Rule results and RNG stay authoritative.
   function createPresentationClock({ now = () => Date.now(), leadMs = 120,
     setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
-    let stopped = false, failure = null;
+    let stopped = false, failure = null, instantTail = Promise.resolve();
     const timers = new Map(), pending = new Set();
     async function wait(playAt) {
       while (!stopped && Number.isFinite(playAt) && playAt > now()) {
@@ -23,12 +23,18 @@
       wait,
       run(cue, timing, render) {
         if (failure) throw failure;
-        const task = (async () => { if (await wait(timing.playAt)) await render(); })();
+        const previous = instantTail;
+        const task = (async () => {
+          if (!(await wait(timing.playAt))) return;
+          await previous;
+          if (!stopped) await render();
+        })();
         pending.add(task);
         task.then(() => pending.delete(task), error => { pending.delete(task); failure = error; });
         // DOM preparation has no hold. Queue it at the same server time as the
         // next animated cue, without charging a network buffer for each label.
-        return instantCues.has(cue) ? Promise.resolve() : task;
+        if (instantCues.has(cue)) { instantTail = task; return Promise.resolve(); }
+        return task;
       },
       async drain() { await Promise.all([...pending]); if (failure) throw failure; },
       stop() { stopped = true; for (const [id, resolve] of timers) { clearTimer(id); resolve(); } timers.clear(); },
