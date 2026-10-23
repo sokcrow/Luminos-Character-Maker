@@ -81,7 +81,7 @@
 
   function sourcesFor(unit = {}, options = {}) {
     const kit = options.kit || global.LuminousUnitAiKitAdapter?.buildKit?.(unit, options.kitOptions || {}) || {};
-    const candidates = [...arr(options.sources || kit.sources), ...ownedTraits(unit).map(definition => ({ sourceType: "trait", definition }))];
+    const candidates = [...arr(kit.sources), ...arr(options.sources), ...ownedTraits(unit).map(definition => ({ sourceType: "trait", definition }))];
     const inventory = unit.inventario_activo || unit.activeInventory || unit.inventory || {};
     const items = Array.isArray(inventory) ? inventory.map((item,i)=>[String(i),item]) : Object.entries(inventory);
     for (const [key,item] of items) {
