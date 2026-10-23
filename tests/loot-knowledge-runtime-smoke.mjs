@@ -115,8 +115,9 @@ const searched = postCombat.performAction(state, searcher, "search", {
 });
 state = searched.state;
 assert.equal(searched.result.check.success, true);
-assert.ok(searched.result.recovery.items.some((item) => item.definitionId === "ration"));
-assert.equal(searched.result.recovery.currency.amount, 100);
+assert.equal(searched.result.recovery.items.length, 0);
+assert.ok(searched.state.carried.find(item => item.definitionId === "ration").revealed);
+assert.equal(searched.state.currency.remaining, 100);
 
 const local0 = knowledge.createCompendium("player_medic", { now: 1100 });
 const autopsy = postCombat.performAction(state, medic, "autopsy", {

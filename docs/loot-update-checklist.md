@@ -127,14 +127,14 @@ This document freezes the current scope and lets the Loot Update be completed in
 
 ## Post-combat interactions
 
-- [x] Add Search Corpse for carried Items/currency.
+- [x] Add Search Corpse to reveal remaining belongings/currency to all players without transfer; collect selected known belongings separately.
 - [x] Add Harvest for organic/general body resources.
 - [x] Add Extract for delicate anatomical resources.
 - [x] Add Salvage for artificial/mineral/mechanical bodies.
 - [x] Add Examine / Autopsy for knowledge acquisition.
 - [x] Define which actions consume/remove recovered resources from the corpse.
 - [x] Prevent multiple players from independently extracting the same finite resource.
-- [x] Support partial discovery: hidden carried loot may remain on the corpse after a failed search.
+- [x] Keep occupied unknown slots as ??? after failed Search or random Sustraer; unselected belongings remain in the shared corpse inventory.
 
 ## D&D Skill integration
 
@@ -213,7 +213,7 @@ This document freezes the current scope and lets the Loot Update be completed in
 - [x] Record Encounter ID.
 - [x] Record Encounter Zone where relevant.
 - [x] Record Encounter Event where relevant.
-- [x] Record acquisition method: search / harvest / extract / salvage / equipment / DM grant.
+- [x] Record acquisition method: collect / pickpocket / harvest / extract / salvage / equipment / DM grant. Search records discovery only.
 - [x] Record integrity/condition where relevant.
 - [x] Preserve culinary/procedural provenance for harvested food ingredients.
 - [x] Respect Active Inventory / Stash limits and normal transfer rules.

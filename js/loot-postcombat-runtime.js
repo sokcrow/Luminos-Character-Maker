@@ -6,10 +6,11 @@
     return;
   }
 
-  const VERSION = 2;
+  const VERSION = 3;
   const SCHEMA_VERSION = 1;
 
   const ACTION_PROFILES = Object.freeze({
+    collect: Object.freeze({ id: "collect", checkId: "collect", defaultDc: 0 }),
     search: Object.freeze({ id: "search", checkId: "search", defaultDc: 10 }),
     pickpocket: Object.freeze({ id: "pickpocket", checkId: "pickpocket", defaultDc: 10 }),
     harvest: Object.freeze({ id: "harvest", checkId: "harvest", defaultDc: 10 }),
@@ -80,7 +81,13 @@
   }
 
   function trackedCarried(instance = {}) {
-    return deepFreeze((instance.carried || []).map((item) => ({
+    // Real equipment belongs to the same finite corpse inventory as its bag.
+    // Keep the frozen equipment snapshot for knowledge/provenance, but expose
+    // each actual instance exactly once for discovery and recovery.
+    const items = [...(instance.carried || []), ...(instance.equipment?.items || [])]
+      .filter(item => item?.instanceId && item?.definitionId && item.destroyed !== true && Number(item.quantity ?? 1) > 0);
+    const unique = [...new Map(items.map(item => [item.instanceId, item])).values()];
+    return deepFreeze(unique.map((item) => ({
       instanceId: String(item.instanceId || ""),
       definitionId: String(item.definitionId || ""),
       item: clone(item),
@@ -146,6 +153,24 @@
     return (state.attempts || []).some((entry) => entry.key === key);
   }
 
+  function normalizeInteractionState(state = {}) {
+    const next = clone(state);
+    // RTDB omits empty arrays and can serialize sparse arrays as maps.
+    for (const key of ["carried", "attempts", "history", "pendingDeliveries"]) {
+      next[key] = Array.isArray(next[key]) ? next[key] : Object.values(next[key] || {});
+    }
+    next.harvest = {...next.harvest, resources: Array.isArray(next.harvest?.resources)
+      ? next.harvest.resources : Object.values(next.harvest?.resources || {})};
+    // v2 Search consumed a subset and recorded the attempt. Honor that success
+    // as shared discovery of ONLY the leftovers, without another roll, new
+    // inventory, or changes to the original attempts and delivery receipts.
+    const legacySearch = integer(next.runtimeVersion, 0) < 3 && next.attempts.find(
+      entry => entry.actionId === "search" && entry.success === true);
+    const normalized = legacySearch ? applySearch(next, legacySearch.actorId, {success: true}).next : next;
+    normalized.runtimeVersion = Math.max(VERSION, integer(next.runtimeVersion, 0));
+    return normalized;
+  }
+
   // All Loot skill checks require full proficiency in their actual selected
   // skill. Explicit class/trait expertise in the activity can waive +8 TH.
   const UNTRAINED_LOOT_DC = 8;
@@ -189,6 +214,7 @@
   }
   function lootSkillForAction(actionId = "", options = {}) {
     const runtime = checks(), action = normalizeId(actionId);
+    if (action === "collect") return "";
     const profile = ACTION_PROFILES[action];
     if (!profile) return "";
     return normalizeId(options.skill || profile.defaultSkill ||
@@ -255,6 +281,7 @@
   function recoveredCarriedItem(entry = {}, actionId, actorId, state = {}) {
     return deepFreeze({
       ...clone(entry.item),
+      equipped: false, equippedPartIds: [],
       quantity: entry.remaining,
       provenance: acquisitionProvenance(entry.item?.provenance || {}, actionId, actorId, state),
     });
@@ -274,51 +301,69 @@
     };
   }
 
-  function applySearch(state, actorId, result, options = {}) {
+  // Discovery is shared corpse state. It never transfers or consumes belongings.
+  function applySearch(state, actorId, result) {
     const next = clone(state);
-    const candidates = searchCandidates(state, options);
+    if (result.success === true) {
+      for (const entry of next.carried) {
+        if (Number(entry.remaining || 0) <= 0) continue;
+        entry.revealed = true;
+        entry.discoveredBy = [...new Set([...(entry.discoveredBy || []), actorId])];
+      }
+      if (Number(next.currency?.remaining || 0) > 0) {
+        next.currency.revealed = true;
+        next.currency.discoveredBy = [...new Set([...(next.currency.discoveredBy || []), actorId])];
+      }
+      next.belongingsRevealed = true;
+    }
+    return { next, recovery: deepFreeze({ items: [], currency: null }) };
+  }
+
+  function collectionResult() {
+    return {checkId: "collect", skill: "", ability: "", total: 0, threshold: 0,
+      success: true, margin: 0, heads: 0, coinCount: 0};
+  }
+
+  // Only a revealed, exact instance (or the revealed wallet) may be selected.
+  // Remaining quantities are tested inside the shared corpse transaction.
+  function applyCollect(state, actorId, options = {}) {
+    const next = clone(state);
     const recovered = [];
     let currency = null;
-    let slots = recoveryCountFromMargin(result);
-
-    if (result.success === true && slots > 0) {
-      for (const candidate of candidates.items) {
-        if (slots <= 0) break;
-        const index = next.carried.findIndex((entry) => entry.instanceId === candidate.instanceId);
-        if (index < 0 || next.carried[index].remaining <= 0) continue;
-        const item = recoveredCarriedItem(next.carried[index], "search", actorId, state);
-        recovered.push(item);
-        next.carried[index].discoveredBy = [...new Set([...(next.carried[index].discoveredBy || []), actorId])];
-        next.carried[index].recoveredBy = [...new Set([...(next.carried[index].recoveredBy || []), actorId])];
-        next.carried[index].recoveredQuantitiesBy = {
-          ...(next.carried[index].recoveredQuantitiesBy || {}),
-          [actorId]: Math.max(0, Number(next.carried[index].recoveredQuantitiesBy?.[actorId] || 0)) + Number(next.carried[index].remaining || 0),
-        };
-        next.carried[index].remaining = 0;
-        slots -= 1;
-      }
-
-      if (candidates.includeCurrency && slots > 0 && next.currency.remaining > 0) {
-        currency = deepFreeze({
-          currencyId: next.currency.currencyId,
-          amount: next.currency.remaining,
-          provenance: acquisitionProvenance(next.currency.provenance || {}, "search", actorId, state),
-        });
-        next.currency.discoveredBy = [...new Set([...(next.currency.discoveredBy || []), actorId])];
-        next.currency.recoveredBy = [...new Set([...(next.currency.recoveredBy || []), actorId])];
-        next.currency.remaining = 0;
-      }
+    if (options.targetCurrency === true && options.targetItemId) throw Error("Elige una sola pertenencia o el dinero.");
+    if (options.targetCurrency === true && !options.targetItemId) {
+      if (next.currency?.revealed !== true) throw Error("Busca para revelar el dinero antes de recogerlo.");
+      if (Number(next.currency.remaining || 0) <= 0) throw Error("El dinero ya fue recogido.");
+      currency = {currencyId: next.currency.currencyId, amount: next.currency.remaining,
+        provenance: acquisitionProvenance(next.currency.provenance || {}, "collect", actorId, state)};
+      next.currency.recoveredBy = [...new Set([...(next.currency.recoveredBy || []), actorId])];
+      next.currency.remaining = 0;
+    } else {
+      const entry = next.carried.find(item => String(item.instanceId) === String(options.targetItemId || ""));
+      if (!entry || entry.revealed !== true) throw Error("Busca para revelar esa pertenencia antes de recogerla.");
+      if (Number(entry.remaining || 0) <= 0) throw Error("Esa pertenencia ya fue recogida.");
+      recovered.push(recoveredCarriedItem(entry, "collect", actorId, state));
+      entry.recoveredBy = [...new Set([...(entry.recoveredBy || []), actorId])];
+      entry.recoveredQuantitiesBy = {...entry.recoveredQuantitiesBy,
+        [actorId]: Number(entry.recoveredQuantitiesBy?.[actorId] || 0) + Number(entry.remaining)};
+      entry.remaining = 0;
     }
+    return {next, recovery: deepFreeze({items: recovered, currency})};
+  }
 
-    return {
-      next,
-      recovery: deepFreeze({
-        items: deepFreeze(recovered),
-        currency,
-        hiddenItemsRemaining: next.carried.filter((entry) => entry.remaining > 0).length,
-        currencyRemaining: next.currency.remaining,
-      }),
-    };
+  // Safe presentation data: an occupied unknown slot exposes no item identity.
+  function corpseBelongings(state = {}) {
+    state = normalizeInteractionState(state);
+    const carried = Array.isArray(state.carried) ? state.carried : Object.values(state.carried || {});
+    const slots = carried.filter(entry => Number(entry.remaining || 0) > 0).map(entry =>
+      entry.revealed === true
+        ? {kind: "item", revealed: true, instanceId: entry.instanceId,
+          definitionId: entry.definitionId, quantity: Number(entry.remaining), item: clone(entry.item)}
+        : {kind: "unknown", revealed: false});
+    if (Number(state.currency?.remaining || 0) > 0) slots.push(state.currency.revealed === true
+      ? {kind: "currency", revealed: true, currencyId: state.currency.currencyId, amount: Number(state.currency.remaining)}
+      : {kind: "unknown", revealed: false});
+    return deepFreeze(slots);
   }
 
   // Resolve exactly one previously generated carried unit OR the remaining
@@ -361,6 +406,7 @@
         const entry = next.carried[pick.index];
         const recoveredItem = {
           ...clone(entry.item),
+          equipped: false, equippedPartIds: [],
           quantity: 1,
           // A partially recovered stack remains a separate instance in the
           // corpse. The stolen single unit needs a unique, stable receipt ID.
@@ -536,26 +582,31 @@
 
   function applyResolvedAction(state = {}, actor = {}, actionId, checkResult = {}, options = {}) {
     if (!state?.lootInstanceId) throw new Error("POST_COMBAT_STATE_REQUIRED");
-    // RTDB omits empty arrays. Restore them before applying the first action
-    // to a persisted corpse, including currency-only search and examination.
-    state = clone(state);
-    for (const key of ['carried','attempts','history','pendingDeliveries']) state[key] = Array.isArray(state[key]) ? state[key] : Object.values(state[key] || {});
-    state.harvest = {...state.harvest,resources:Array.isArray(state.harvest?.resources)?state.harvest.resources:Object.values(state.harvest?.resources||{})};
+    state = normalizeInteractionState(state);
     const action = normalizeId(actionId);
     if (!ACTION_PROFILES[action]) throw new Error(`UNKNOWN_POST_COMBAT_ACTION:${action}`);
+    // A hidden random draw or general Search cannot be retried by inventing
+    // a different target in a client request.
+    options = {...options};
+    if (!["collect", "harvest", "extract", "salvage"].includes(action)) {
+      delete options.targetItemId; delete options.targetCurrency; delete options.targetResourceId;
+    } else if (action === "collect") delete options.targetResourceId;
+    else { delete options.targetItemId; delete options.targetCurrency; }
     const actorId = actorIdOf(actor, options);
     if (!actorId) throw new Error("POST_COMBAT_ACTOR_ID_REQUIRED");
     if (hasAttempted(state, actorId, action, options) && options.allowRetry !== true) {
       throw new Error(`POST_COMBAT_ATTEMPT_ALREADY_USED:${attemptKey(actorId, action, options)}`);
     }
 
-    const definition = checkDefinition(actor, action, {
+    const definition = action === "collect" ? null : checkDefinition(actor, action, {
       ...options,
       corpseId: state.corpseId,
     });
-    const result = normalizeCheckResult(definition, checkResult);
+    const result = action === "collect" ? collectionResult() : normalizeCheckResult(definition, checkResult);
     const applied = action === "search"
-      ? applySearch(state, actorId, result, options)
+      ? applySearch(state, actorId, result)
+      : action === "collect"
+        ? applyCollect(state, actorId, options)
       : action === "pickpocket"
         ? applyPickpocket(state, actorId, result)
       : (action === "autopsy" || action === "examine")
@@ -583,6 +634,7 @@
   }
 
   function performAction(state = {}, actor = {}, actionId, options = {}) {
+    if (actionId === "collect") return applyResolvedAction(state, actor, actionId, {}, options);
     const definition = checkDefinition(actor, actionId, { ...options, corpseId: state.corpseId });
     const runtime = checks();
     if (!runtime?.rollCheck) throw new Error("LOOT_CHECK_RUNTIME_REQUIRED");
@@ -591,6 +643,7 @@
   }
 
   async function performActionWithCoinEngine(state = {}, actor = {}, actionId, options = {}) {
+    if (actionId === "collect") return applyResolvedAction(state, actor, actionId, {}, options);
     const definition = checkDefinition(actor, actionId, { ...options, corpseId: state.corpseId });
     const runtime = checks();
     if (!runtime?.rollCheckWithCoinEngine) throw new Error("LOOT_CHECK_RUNTIME_REQUIRED");
@@ -618,6 +671,7 @@
     actorIdOf,
     requireLockedLootInstance,
     createInteractionState,
+    normalizeInteractionState,
     attemptKey,
     hasAttempted,
     hasAnatomyKnowledge,
@@ -629,6 +683,8 @@
     recoveryCountFromMargin,
     acquisitionProvenance,
     searchCandidates,
+    collectionResult,
+    corpseBelongings,
     stablePocketIndex,
     applyPickpocket,
     resourceAction,

@@ -473,6 +473,10 @@
     if (Array.isArray(unit.runtimeState?.equipmentInstances)) return { mode: "combat_runtime", entries: unit.runtimeState.equipmentInstances };
     if (Array.isArray(unit.mechanics?.weaponLoadout)) return { mode: "unit_loadout", entries: unit.mechanics.weaponLoadout };
     if (Array.isArray(unit.weaponLoadout)) return { mode: "unit_loadout", entries: unit.weaponLoadout };
+    // Saved canonical units from before equipment was authored may lack this
+    // field. Explicit empty runtime/loadout arrays above remain authoritative.
+    const canonical = global.LuminousKoboldUnitCatalog?.get?.(unitCanonicalId(unit));
+    if (Array.isArray(canonical?.mechanics?.weaponLoadout)) return {mode: "canonical_unit_loadout", entries: canonical.mechanics.weaponLoadout};
     return { mode: "none", entries: [] };
   }
 
@@ -484,6 +488,8 @@
     const equipment = [];
 
     raw.forEach((entry, index) => {
+      if (!entry || entry.destroyed === true || entry.removed === true || entry.lost === true ||
+          entry.dropped === true || Number(entry.quantity ?? 1) <= 0) return;
       const equipmentId = normalizeEquipmentId(entry);
       if (equipmentId && removed.has(equipmentId)) return;
       const provenance = provenanceFor(identity, context, generation, {
@@ -500,6 +506,20 @@
           lootEquipmentSnapshot: true,
           equipmentSource: source.mode,
         }));
+        return;
+      }
+
+      const definitionId = normalizeId(entry.definitionId || entry.itemId || entry.weaponId || entry.equipmentId || entry.id);
+      const definition = inventory?.resolveDefinition?.(definitionId, {catalog: options.catalog})
+        || global.LuminousWeaponCatalog?.get?.(definitionId);
+      if (definition && inventory?.createItemInstance) {
+        const item = inventory.createItemInstance(definition, {
+          ...clone(entry), definitionId, quantity: Math.max(1, intRange(entry.quantity, 1)),
+          instanceId: `equipment_${hashHex([identity.encounterId, identity.sourceUnitInstanceId, generation, equipmentId, index].join("|"))}`,
+          currentOwnerId: null, provenance,
+        });
+        equipment.push(deepFreeze({...item, weaponId: normalizeId(entry.weaponId),
+          lootEquipmentSnapshot: true, equipmentSource: source.mode, actualInstance: true}));
         return;
       }
 
@@ -618,6 +638,7 @@
 
   function sourceSnapshot(unit, social, context, overrides, options = {}) {
     return deepFreeze({
+      equipment: clone(equipmentSource(unit, options)),
       lootProfile: clone(unit.lootProfile || null),
       bodyProfile: clone(unit.bodyProfile || null),
       wealthProfile: clone(unit.wealthProfile || null),
