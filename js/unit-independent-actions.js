@@ -87,7 +87,20 @@
       const definition = definitionOf(candidate);
       if (!definition || typeof definition !== "object") continue;
       const type = typeOf(candidate);
-      const cost = costOf(candidate);
+      let cost = costOf(candidate);
+      // Class/Archetype runtimes may upgrade an Action to Quick dynamically.
+      // Ask the shared Trait Engine for the effective granted cost, never
+      // hardcode Ranger/Barbarian/Fighter exceptions in Combat menus or GOAP.
+      if (type === "trait" && engine()?.canActivateTrait) {
+        try {
+          const effective = engine().canActivateTrait(definition,{
+            context:"combat",character:characterFor(unit),self:unit,actor:unit,
+            actionEconomy:{canUse:()=>true}
+          },engine().createState?.());
+          const resolvedCost = costOf({actionCost:effective?.actionCost||effective?.trait?.activation?.actionCost});
+          if ([QUICK,FREE].includes(resolvedCost)) cost=resolvedCost;
+        } catch (_) {}
+      }
       if (![QUICK, FREE].includes(cost) || ["reaction", "universal"].includes(type) || candidate.available === false) continue;
       if (type === "trait" && !["manual", "prompt", "choice"].includes(norm(definition.activation?.type || definition.activationType))) continue;
       const id = norm(definition.id || definition.traitId || definition.skillId || definition.spellId || definition.instanceId);
@@ -141,7 +154,7 @@
   function execute(unit, candidate, options = {}) {
     if (!active(unit)) return { used: false, reason: "unit_not_active" };
     const definition = definitionOf(candidate), type = norm(options.sourceType || typeOf(candidate));
-    const cost = costOf({ ...candidate, definition });
+    const cost = candidate.cost || costOf({ ...candidate, definition });
     if (![QUICK, FREE].includes(cost)) return { used: false, reason: "not_independent_action" };
     const roundState = prepareRound(unit, options.round);
     const sourceId = norm(definition.id || definition.traitId || definition.skillId || definition.spellId || definition.instanceId);
