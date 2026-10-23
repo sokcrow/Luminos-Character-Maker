@@ -1549,6 +1549,7 @@
     // shared trait catalog and activation engine rather than a duplicate menu list.
     await loadScript("class-runtime-bootstrap-economy073", "js/class-runtime-bootstrap.js", () => Boolean(global.LuminousClassRuntimeBootstrap));
     await loadScript("action-economy-economy073", "js/universal-action-economy.js", () => Boolean(global.LuminousActionEconomy));
+    await loadScript("unit-independent-actions-economy073", "js/unit-independent-actions.js", () => Boolean(global.LuminousUnitIndependentActions));
     return Boolean(global.LuminousCombatAction && global.LuminousCombatActionAdapters && global.LuminousActionEconomy);
   }
 
