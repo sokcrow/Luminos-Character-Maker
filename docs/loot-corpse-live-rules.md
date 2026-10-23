@@ -7,10 +7,11 @@ La UI `js/player-postcombat-loot.js` utiliza `js/loot-live-postcombat-runtime.js
 1. El DM finaliza un encuentro como `victory` y el motor congela las Loot Instances. El menú del jugador solo aparece cuando hay restos de la victoria en la cola de `campaña/loot_encounters`.
 2. El jugador selecciona un cadáver y solicita una reserva de `campaña/loot_claims/<lootInstanceId>` (una por cadáver). Solo el propietario puede interactuar. La reserva caduca a los 90 segundos y se renueva mientras la UI está abierta; al cerrar, cambiar o pulsar «Soltar cadáver», se libera.
 3. El jugador elige **Buscar, Sustraer, Cosechar, Extraer, Desmontar, Examinar o Autopsia**. Los checks se animan en el cliente; la resolución autoritativa se recompone en el DM a partir del resultado de las monedas y del estado guardado.
-4. **Buscar** recupera el botín de bolsas y pertenencias conforme a los resultados del check. Hoy es una operación *revelar y recuperar*; no existe una transacción separada «revelar, luego tomar». El loot no descubierto nunca se pinta en la cuadrícula.
-5. El apartado **Cuerpo** comienza oculto y solo muestra la lista de recursos disponibles/agotados tras un check exitoso de **Examinar** o **Autopsia**. Los recursos ya recuperados también se muestran al personaje que los obtuvo.
-6. Lo obtenido se acredita en Active Inventory / Stash, Ahn y Compendium a través del runtime existente. Si no hay capacidad, se conserva una **entrega pendiente**, reclamable más tarde.
-7. La cola se puede retirar desde la vista del DM; su cierre retira el acceso al menú.
+4. **Buscar** revela las pertenencias y el dinero restante **para todos los jugadores** si tiene éxito. No entrega objetos, no acredita Ahn y no consume existencias. En **Cadáver** cada casilla ocupada sin revelar muestra **???**, sin nombre, icono, cantidad ni tooltip que filtre su contenido. Las casillas vacías no se simulan como botín oculto.
+5. **Recoger** es una elección posterior, sin nueva tirada: el propietario de la reserva selecciona una instancia revelada o el dinero revelado. Se retira únicamente esa pila o ese dinero y se actualiza el inventario compartido. Los demás objetos permanecen para el siguiente jugador. La autoridad rechaza objetivos ocultos, inexistentes o agotados.
+6. El apartado **Cuerpo** comienza oculto y solo muestra la lista de recursos disponibles/agotados tras un check exitoso de **Examinar** o **Autopsia**. Los recursos ya recuperados también se muestran al personaje que los obtuvo.
+7. Lo obtenido se acredita en Active Inventory / Stash, Ahn y Compendium a través del runtime existente. Si no hay capacidad, se conserva una **entrega pendiente**, reclamable más tarde.
+8. La cola se puede retirar desde la vista del DM; su cierre retira el acceso al menú.
 
 ## TH Check por competencia de Skill
 
@@ -53,9 +54,23 @@ El HUD muestra la **imagen del combatant derrotado** utilizando su campo canóni
 - En un éxito, el DM selecciona de manera reproducible una opción aleatoria entre los objetos que quedan (un ejemplar de cada stack) y la reserva de Ahn del cadáver.
 - Si sale un objeto apilado, se entrega **una sola unidad** y el resto sigue en el cadáver; si sale Ahn, se entrega todo el monto disponible.
 - La acción nunca genera un item nuevo ni vuelve a tirar el dinero. Conserva el mismo control de entrega, espacio, reservas de cadáver, intentos idempotentes y permisos de los demás checks.
-- Buscar puede realizarse por separado una vez por personaje sobre lo que todavía queda.
+- Sustraer no revela el resto del inventario ni equivale a elegir una casilla. Su límite sigue siendo una vez por personaje y cadáver, aun si falla.
+- Buscar puede realizarse por separado una vez por personaje hasta que alguien revele las pertenencias. Lo revelado queda visible para todos sin nuevas tiradas.
+- El botón **Recoger** sobre una pertenencia conocida permite elegir qué llevarse; la acción **Sustraer** conserva su selección al azar.
 
 Las cerraduras, paneles, hackeo, forzar mecanismos con STR y minijuegos **no están implementados aquí**: serán un subsistema separado de interacciones con objetos del mundo.
+
+## Regla de oro: el equipo usado existe en el cadáver
+
+El equipo real del enemigo forma parte de su inventario saqueable. El tier, la riqueza, la zona y las probabilidades del botín adicional **nunca eliminan sus armas**. Si atacó con una daga y todavía la llevaba al morir, esa misma arma debe poder descubrirse y recogerse.
+
+- Se conserva el equipo runtime si existe, incluidos identidad, cantidad, calidad, condición, desgaste y modificaciones. Una lista runtime explícitamente vacía tiene prioridad sobre el catálogo: no se repone equipo perdido.
+- A falta de instancias runtime, se materializan las referencias del loadout mediante las definiciones canónicas de objetos. No se deducen armas a partir de nombres de ataques, sprites o texto.
+- Los kobolds declaran su equipamiento: Dagger, Winged y Scale Sorcerer llevan daga; Sling lleva honda; Dragonheart lleva lanza. Las unidades guardadas sin ese campo utilizan el loadout canónico cuando todavía no existe un estado runtime que lo sustituya.
+- El equipo permanece separado del botín aleatorio en la instantánea congelada, pero ambos entran una sola vez por instancia en el inventario compartido del cadáver.
+- El equipo destruido, perdido, soltado, retirado o con cantidad cero no reaparece. La munición sigue su reconciliación existente. Los ataques naturales no generan armas inventadas.
+- Los cadáveres ya finalizados conservan su estado y sus entregas; no se regeneran para aplicar este cambio.
+- En estados anteriores a v3, un Buscar exitoso ya registrado revela para todos únicamente las pertenencias que todavía quedan. No se repite la tirada ni se reponen objetos o dinero consumidos; el historial y las entregas anteriores se conservan. La vista aplica esta compatibilidad al leer y el DM la persiste dentro de la siguiente acción autorizada. Un intento fallido o Sustraer no revela pertenencias.
 
 ## Sanidad tras combate
 
@@ -73,4 +88,4 @@ La reducción se aplica una sola vez por Encounter al pasar por `LuminousCombatS
 
 ## Verificación
 
-Se realizaron comprobaciones aisladas de sintaxis, permisos simulados de ocupación, visibilidad del cuerpo, umbrales de Medicina y reducción/idempotencia de SP. **Falta** una prueba integrada con Firebase y el DM autenticado, incluyendo dos clientes simultáneos y pruebas visuales en móvil.
+Las regresiones cubren búsqueda sin transferencia, revelación compartida, recogida elegida, robo aleatorio sin revelar, exclusión de objetos agotados y conservación de armas/condición. `tests/loot-shared-belongings.spec.mjs` prueba el HUD real con Firebase Auth/RTDB emulados, DM y dos jugadores, cambio de propietario del cadáver, recarga y los seis tamaños exigidos por TX-01. Estas pruebas no despliegan ni modifican la campaña de producción.

@@ -46,7 +46,7 @@ const timeout=setTimeout(()=>{console.error('Local loot authority test timed out
 const firebase=require('firebase/app');require('firebase/auth');require('firebase/database');
 globalThis.firebase=firebase;
 const live=LuminousLootLivePostCombatRuntime,project='demo-combat-results',ns=project+'-default-rtdb';
-async function client(name){const app=firebase.initializeApp({apiKey:'fake',projectId:project,databaseURL:'https://'+ns+'.firebaseio.com'},name);app.auth().useEmulator('http://127.0.0.1:9199',{disableWarnings:true});app.database().useEmulator('127.0.0.1',9100);await app.auth().createUserWithEmailAndPassword(name+Date.now()+'@example.test','temporary-password');return {app,uid:app.auth().currentUser.uid,db:app.database()};}
+async function client(name){const app=firebase.initializeApp({apiKey:'fake',projectId:project,databaseURL:'http://127.0.0.1:9100/?ns='+ns},name);app.auth().useEmulator('http://127.0.0.1:9199',{disableWarnings:true});app.database().useEmulator('127.0.0.1',9100);await app.auth().createUserWithEmailAndPassword(name+Date.now()+'@example.test','temporary-password');return {app,uid:app.auth().currentUser.uid,db:app.database()};}
 const dm=await client('authority'),player=await client('[DEFAULT]'),rival=await client('outsider');
 const unit={id:'wolf',libraryUnitId:'wolf',name:'Wolf',species:'wolf',creatureType:'beast',hp:0,maxHp:12,faction:'enemy',defeated:true,
  bodyProfile:{version:1,kind:'organic',sizeClass:'medium',materials:['flesh','blood','bone','pelt'],edible:true,resources:[{id:'meat',integrityFamily:'meat',sourceMaterial:'flesh',itemId:'meat_wolf',catalogFamily:'meat',culinary:true,knownUses:['cooking'],yield:{min:1,max:1}}]},
@@ -65,7 +65,7 @@ try{
  await assert.rejects(live.checkPlayerLootAccess({db:player.db,playerId:'nonparticipant',lootInstanceId}),
    /no aparece entre los participantes/i,'linked but absent characters must not loot');
  assert.match((await import('node:fs')).readFileSync('hoja_de_DM.html','utf8'),
-   /js\/loot-live-postcombat-runtime\.js\?v=20261021-performance-1/,
+   /js\/loot-live-postcombat-runtime\.js\?v=20261023-shared-belongings-1/,
    'real DM Theatre dashboard must retain Loot authority after Combat iframe closes');
  assert.equal(await live.installAuthority({db:dm.db,uid:dm.uid}),true);
  // Corpse occupancy is a mandatory player lease before any recovery request.
@@ -80,7 +80,9 @@ try{
  const result=await live.requestAction(options);assert.equal(result.committed,true);assert.equal(result.delivery.delivered,true);
  const saved=(await dm.db.ref('campaña/jugadores/hunter').once('value')).val();assert.equal(Object.values(saved.inventario_activo).filter(i=>i.definitionId==='meat_wolf').reduce((n,i)=>n+i.quantity,0),1);
  const retry=await live.requestAction(options);assert.equal(retry.delivery.delivered,true);assert.equal(Object.keys((await dm.db.ref('campaña/jugadores/hunter/lootRecoveryReceipts').once('value')).val()).length,1);
- const search=await live.requestAction({...options,actionId:'search',targetResourceId:''});assert.equal(search.delivery.delivered,true);assert.equal((await dm.db.ref('campaña/jugadores/hunter/ahn').once('value')).val(),110);
+ const search=await live.requestAction({...options,actionId:'search',targetResourceId:''});assert.equal(search.committed,true);assert.equal(search.delivery?.delivered === true,false);
+ assert.equal((await dm.db.ref('campaña/jugadores/hunter/ahn').once('value')).val(),10);
+ const cash=await live.requestAction({...options,actionId:'collect',targetResourceId:'',targetCurrency:true});assert.equal(cash.delivery.delivered,true);assert.equal((await dm.db.ref('campaña/jugadores/hunter/ahn').once('value')).val(),110);
  await assert.rejects(rival.db.ref('campaña/loot_postcombat/'+lootInstanceId+'/revision').set(99),/permission_denied/i);
  await assert.rejects(rival.db.ref('campaña/loot_requests/outsider/forbidden').set({uid:rival.uid,playerId:'outsider',lootInstanceId,actionId:'harvest',checkHeads:5,status:'pending',createdAt:Date.now()}),/permission_denied/i);
  console.log('Authenticated loot authority: archived corpse, inventory, currency, retry receipts and outsider denial passed.');

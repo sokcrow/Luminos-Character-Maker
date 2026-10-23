@@ -296,7 +296,9 @@ const currencyRecipient = {
   inventario_stash: {},
   walletAhn: 0,
 };
-const currencyPending = delivery.performAndDeliver(currencyState, searcher, "search", {
+const revealedCurrency = postCombat.performAction(currencyState, searcher, "search", {rng:allHeads}).state;
+const currencyPending = delivery.performAndDeliver(revealedCurrency, searcher, "collect", {
+  targetCurrency: true,
   rng: allHeads,
   recipientUnit: currencyRecipient,
   preferredContainer: "stash",
@@ -326,11 +328,13 @@ const currencyClaimed = delivery.claimPendingDelivery(
 assert.equal(currencyClaimed.claimed, true);
 assert.equal(currencyClaimed.state.pendingDeliveries.length, 0);
 assert.equal(currencyClaimed.recipientUnit.walletAhn, 100);
-assert.ok(Object.values(currencyClaimed.recipientUnit.inventario_stash).some((item) => item.definitionId === "ration"));
-assert.equal(
-  Object.values(currencyClaimed.recipientUnit.inventario_stash).find((item) => item.definitionId === "ration").provenance.acquisitionMethod,
-  "search",
-);
+assert.equal(Object.keys(currencyClaimed.recipientUnit.inventario_stash).length, 0, "taking money leaves the ration in the corpse");
+const rationClaimed = delivery.performAndDeliver(currencyClaimed.state, searcher, "collect", {
+  targetItemId: "ration_currency_test", recipientUnit: currencyClaimed.recipientUnit, preferredContainer:"stash", currencyHandler,
+});
+assert.equal(rationClaimed.delivered, true);
+assert.equal(Object.values(rationClaimed.recipientUnit.inventario_stash)[0].definitionId, "ration");
+assert.equal(Object.values(rationClaimed.recipientUnit.inventario_stash)[0].provenance.acquisitionMethod, "collect");
 
 const missingMappingUnit = {
   id: "bad_harvest_mapping",

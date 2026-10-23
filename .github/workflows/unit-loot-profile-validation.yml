@@ -133,6 +133,8 @@ jobs:
         run: node tests/loot-instance-runtime-smoke.mjs
       - name: Validate finite post-combat Loot interactions and D&D checks
         run: node tests/loot-postcombat-runtime-smoke.mjs
+      - name: Validate shared corpse discovery chosen collection and enemy equipment
+        run: node tests/loot-shared-belongings-smoke.mjs
       - name: Validate Autopsy Examine and Compendium knowledge
         run: node tests/loot-knowledge-runtime-smoke.mjs
       - name: Validate harvested Item materialization and inventory delivery
