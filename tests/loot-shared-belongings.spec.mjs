@@ -137,6 +137,10 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
         const r=button.getBoundingClientRect(); return {width:r.width,height:r.height,left:r.left,right:r.right};
       }));
       for (const b of bounds) {expect(b.width).toBeGreaterThanOrEqual(44);expect(b.height).toBeGreaterThanOrEqual(44);expect(b.left).toBeGreaterThanOrEqual(0);expect(b.right).toBeLessThanOrEqual(viewport.width);}
+      const noteWidth = await one.page.locator('.loot-result-card.selected .loot-recovered-grid > .loot-corpse-note').evaluate(note=>({
+        note:note.getBoundingClientRect().width,grid:note.parentElement.getBoundingClientRect().width}));
+      expect(noteWidth.note).toBeGreaterThan(noteWidth.grid * 0.9);
+      await expect.poll(()=>one.page.locator('[data-corpse-sprite]').evaluateAll(images=>images.filter(img=>img.complete && !img.naturalWidth).length)).toBe(0);
       expect(await one.page.evaluate(()=>document.documentElement.scrollWidth > innerWidth)).toBe(false);
       await one.page.screenshot({path:info.outputPath(`corpse-${viewport.width}x${viewport.height}.png`)});
     }

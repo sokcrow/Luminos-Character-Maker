@@ -423,7 +423,7 @@
   }
   function corpseSpriteMarkup(url) {
     const src = corpseSpriteSrc(url);
-    return src ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async">` : "✥";
+    return src ? `<img data-corpse-sprite src="${esc(src)}" alt="" loading="lazy" decoding="async">` : "✥";
   }
 
   function knownItemSlot(entry = {}) {
@@ -631,6 +631,9 @@
         if (!image.src.endsWith("/fallback/generic_item.png")) image.src = GENERIC_ITEM_ICON;
       }, { once: true }));
     }
+    global.document.getElementById(MODAL_ID)?.querySelectorAll("[data-corpse-sprite]").forEach(sprite => {
+      sprite.addEventListener("error", () => sprite.replaceWith(global.document.createTextNode("✥")), {once:true});
+    });
     list.querySelectorAll("[data-corpse-release]").forEach(button => {
       button.addEventListener("click", () => {
         if (state.busy) {setMessage("Finaliza la tirada antes de soltar el cadáver.",true);return;}
