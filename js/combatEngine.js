@@ -1794,7 +1794,7 @@ const CombatEngine = {
                         }
                     } else if (actualAffectation === 'sp') {
                         if (rule.operation === 'sub') {
-                            unit.sp = this.limitSP((unit.sp || 0) - effectValue);
+                            unit.sp = this.limitSP((unit.sp || 0) - (globalThis.LuminousEquipmentEffects?.mitigateSpLoss?.(unit, effectValue, { source: 'status' }) ?? effectValue));
                         } else if (rule.operation === 'add') {
                             unit.sp = this.limitSP((unit.sp || 0) + effectValue);
                         } else if (rule.operation === 'set') {

@@ -1,0 +1,41 @@
+name: Equipment Effect Standards
+
+on:
+  pull_request:
+    paths:
+      - 'js/item-equipment-effects-runtime.js'
+      - 'js/loot-check-runtime.js'
+      - 'js/combat-analyze-runtime.js'
+      - 'js/combatEngine.js'
+      - 'js/elemental-status-runtime.js'
+      - 'js/item-enchantment-combat-runtime.js'
+      - 'js/combat-v073-authority.js'
+      - 'js/combat-v073-live-adapter.js'
+      - 'Battle-viewer.html'
+      - 'tests/equipment-effects-standard-smoke.mjs'
+      - '.github/workflows/equipment-effects-standard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'js/item-equipment-effects-runtime.js'
+      - 'tests/equipment-effects-standard-smoke.mjs'
+
+jobs:
+  validate-equipment-effects:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax validation
+        run: |
+          for file in js/item-equipment-effects-runtime.js js/loot-check-runtime.js js/combat-analyze-runtime.js js/combatEngine.js js/elemental-status-runtime.js js/item-enchantment-combat-runtime.js js/combat-v073-authority.js js/combat-v073-live-adapter.js; do
+            node --check "$file"
+          done
+      - name: Equipment standards
+        run: node tests/equipment-effects-standard-smoke.mjs
+      - name: Existing Analyze contract
+        run: node tests/combat-analyze-end-to-end-smoke.mjs
+      - name: Existing Deck contract
+        run: node tests/combat-deck-engine-smoke.mjs
