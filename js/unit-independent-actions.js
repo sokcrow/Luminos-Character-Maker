@@ -82,6 +82,15 @@
   function sourcesFor(unit = {}, options = {}) {
     const kit = options.kit || global.LuminousUnitAiKitAdapter?.buildKit?.(unit, options.kitOptions || {}) || {};
     const candidates = [...arr(options.sources || kit.sources), ...ownedTraits(unit).map(definition => ({ sourceType: "trait", definition }))];
+    const inventory = unit.inventario_activo || unit.activeInventory || unit.inventory || {};
+    const items = Array.isArray(inventory) ? inventory.map((item,i)=>[String(i),item]) : Object.entries(inventory);
+    for (const [key,item] of items) {
+      if (!item || typeof item !== "object" || Number(item.quantity ?? item.qty ?? 1) <= 0) continue;
+      const id = clean(item.instanceId || item.instance_id || key);
+      const actionCost = item.actionCost ?? item.economyCost ?? item.runtime?.actionCost ?? item.runtime?.action_cost;
+      if (!id || !actionCost) continue;
+      candidates.push({ sourceType:"item", definition:{ ...item,id,instanceId:id,actionCost } });
+    }
     const unique = new Map();
     for (const candidate of candidates) {
       const definition = definitionOf(candidate);
