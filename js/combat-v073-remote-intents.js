@@ -4,11 +4,11 @@
 
   const READY_ROOT='campaña/combate/readyPlayers';
   const PLANS_ROOT='campaña/combate/plannedActions',AI_ROOT='campaña/combate/planningAi';
-  const AUTH_ROOT='campaña/combate/authority/current';
+  const AUTH_ROOT='campaña/combate/authority/current',INDEPENDENT_ROOT='campaña/combate/independentIntents';
   const clean=value=>String(value??'').trim();
   const norm=value=>clean(value).toLowerCase().replace(/[\s-]+/g,'_');
   const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
-  const state={started:false,readyRef:null,readyHandler:null,authRef:null,authHandler:null,rawTargets:{},ready:{},plans:{},planningAi:{},authority:{},extraSubs:[],publishingAi:false,restoreOwn:false,readyLoaded:false,plansLoaded:false,aiTimer:null,aiAttempts:0,retryTimer:null,renderTimer:null};
+  const state={started:false,readyRef:null,readyHandler:null,authRef:null,authHandler:null,rawTargets:{},ready:{},plans:{},planningAi:{},authority:{},extraSubs:[],publishingAi:false,restoreOwn:false,readyLoaded:false,plansLoaded:false,aiTimer:null,aiAttempts:0,retryTimer:null,renderTimer:null,independentIntents:{},independentChain:Promise.resolve()};
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function adapterState(){return adapter()?.state||null;}
   function runtime(){return global.LuminousCombat073||null;}
@@ -183,6 +183,77 @@
     }
     scheduleRender();return true;
   }
+  function trustedIndependentSources(unit){
+    const live=runtime(),s=adapterState()||{},kit=live?.kit?.(unit.id)||{};
+    const actions=(kit.actions||[]).map(definition=>({
+      sourceType:norm(definition?.kind||definition?.sourceType)==='spell'?'spell':'skill',definition
+    }));
+    const spells=global.LuminousSpellCatalog?.allDefinitions?.()||{};
+    for(const spellId of unit.spellIds||unit.spellSelectionIds||[]){
+      const definition=spells[spellId]||global.LuminousSpellCatalog?.get?.(spellId);
+      if(definition)actions.push({sourceType:'spell',definition:{...definition,id:spellId}});
+    }
+    const inventory=unit.inventario_activo||{};
+    for(const [instanceId,item]of Object.entries(inventory)){
+      if(item&&typeof item==='object'&&Number(item.quantity??1)>0)
+        actions.push({sourceType:'item',definition:{...item,id:clean(item.id||item.definitionId||instanceId),instanceId}});
+    }
+    return global.LuminousUnitIndependentActions?.sourcesFor?.(unit,{sources:actions})||[];
+  }
+  async function processIndependentIntents(){
+    const s=adapterState(),runtimeUnits=runtime()?.combatants?.()||{},controller=global.LuminousUnitIndependentActions;
+    if(!s?.db?.ref||!controller||(s.role!=='dm'&&!s.isAuthority))return false;
+    const phase=norm(s.combatState?.phase||s.combatState?.state||s.combatState);
+    if(!['planning','pre_combat_planning'].includes(phase)||['sealed','running'].includes(norm(state.authority?.phase)))return false;
+    const pending=[];
+    for(const [playerId,rows]of Object.entries(state.independentIntents||{}))
+      for(const [intentId,row]of Object.entries(rows||{}))pending.push({playerId,intentId,row});
+    pending.sort((a,b)=>(Number(a.row?.createdAt)||0)-(Number(b.row?.createdAt)||0)||a.intentId.localeCompare(b.intentId));
+    for(const {playerId,intentId,row} of pending){
+      const unit=runtimeUnits[clean(row?.unitId)];
+      if(!unit||unit.battleActive===false||unit.isBackup||Number(row.round)!==Number(s.round)||clean(row.playerId)!==playerId)continue;
+      if(clean(unit.canonicalPlayerKey||unit.ownerPlayerId||unit.playerId)!==playerId)continue;
+      if(clean(unit.canonicalOwnerUid||unit.ownerUid)!==clean(row.schedulerUid))continue;
+      const tracker=controller.stateFor(unit);
+      if(tracker.processedIntents?.[intentId])continue;
+      const choices=trustedIndependentSources(unit);
+      const choice=choices.find(c=>norm(c.sourceType)===norm(row.sourceType)&&
+        norm(c.definition?.id||c.definition?.traitId||c.definition?.instanceId)===norm(row.sourceId)&&c.cost===row.cost);
+      if(!choice)continue; // Never trust a client-provided definition, cost or trait grant.
+      const target=runtimeUnits[clean(row.targetId)]||null;
+      if(row.targetId&&!target)continue;
+      const result=controller.execute(unit,choice,{
+        round:Number(s.round),phase:'planning',units:Object.values(runtimeUnits),
+        character:controller.characterFor(unit),target,
+      });
+      if(!result.used)continue;
+      tracker.processedIntents ||= {};
+      tracker.processedIntents[intentId]=true;
+      const updates={};
+      const updateUnit=(entry)=>{
+        const id=clean(entry.id);
+        updates[`campaña/combate/combatants/${id}/hp`]=Number(entry.hp)||0;
+        updates[`campaña/combate/combatants/${id}/sp`]=Number(entry.sp)||0;
+        updates[`campaña/combate/combatants/${id}/statusEffects`]=clone(entry.statusEffects||{});
+        if(entry.resources)updates[`campaña/combate/combatants/${id}/resources`]=clone(entry.resources);
+        if(entry.combatStats)updates[`campaña/combate/combatants/${id}/combatStats`]=clone(entry.combatStats);
+      };
+      updateUnit(unit);
+      if(target&&target!==unit)updateUnit(target);
+      updates[`campaña/combate/combatants/${unit.id}/quickActionRemaining`]=Number(unit.quickActionRemaining??1);
+      updates[`campaña/combate/combatants/${unit.id}/combatIndependentActionState`]=clone(tracker);
+      updates[`campaña/combate/independentReceipts/${playerId}/${intentId}`]={
+        round:Number(s.round),unitId:unit.id,sourceId:result.sourceId,cost:result.cost,applied:true
+      };
+      try{await s.db.ref().update(updates);}
+      catch(error){console.error('[Combat073 Independent Actions] DM persistence failed',error);return false;}
+    }
+    return true;
+  }
+  function scheduleIndependentIntents(){
+    state.independentChain=state.independentChain.then(processIndependentIntents,processIndependentIntents);
+    return state.independentChain;
+  }
   function bind(){
     const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.readyRef||state.authRef)return true;
     state.readyLoaded=state.plansLoaded=false;state.restoreOwn=true;
@@ -199,17 +270,19 @@
       state.rawTargets=rowsFromReady(state.ready);apply();
     };listen(state.readyRef,state.readyHandler,'[Combat073 TargetIntents]');
     state.authRef=s.db.ref(AUTH_ROOT);state.authHandler=snapshot=>{state.authority=snapshot.val()||{};apply();};listen(state.authRef,state.authHandler,'[Combat073 AuthorityPlans]');
+    const independentRef=s.db.ref(INDEPENDENT_ROOT);
+    listen(independentRef,snapshot=>{state.independentIntents=snapshot.val()||{};scheduleIndependentIntents();},'[Combat073 Independent choices]');
     for(const [path,key]of [[PLANS_ROOT,'plans'],[AI_ROOT,'planningAi']]){
       const ref=s.db.ref(path),handler=snapshot=>{state[key]=snapshot.val()||{};if(key==='plans')state.plansLoaded=true;apply();};
       listen(ref,handler,'[Combat073 Shared plans]');
     }
     return true;
   }
-  function onHydrated(){state.aiAttempts=0;state.restoreOwn=true;apply();publishPlanningAi();}
+  function onHydrated(){state.aiAttempts=0;state.restoreOwn=true;apply();publishPlanningAi();scheduleIndependentIntents();}
   function start(){if(state.started)return true;state.started=true;const attempt=()=>{if(bind())return true;state.retryTimer=global.setTimeout(attempt,250);return false;};attempt();return true;}
   function stop(){if(state.aiTimer)global.clearTimeout(state.aiTimer);state.aiTimer=null;state.extraSubs.splice(0).forEach(off=>off());if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.renderTimer)global.clearTimeout(state.renderTimer);state.retryTimer=state.renderTimer=null;if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.readyRef=state.readyHandler=state.authRef=state.authHandler=null;state.started=false;}
   global.addEventListener('luminous:combat073-hydrated',onHydrated);global.addEventListener('luminous:combat073-runtime-ready',apply);global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.6-reentry',READY_ROOT,AUTH_ROOT,state,start,stop,bind,apply,applyRows,canRenderNow,scheduleRender,rowsFromReady,runtimePlan,intentPlan,inferTargetSide,publishPlanningAi,applyPlanningAi,renderPlanLabels});
+  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.6-reentry',READY_ROOT,AUTH_ROOT,INDEPENDENT_ROOT,state,start,stop,bind,apply,processIndependentIntents,applyRows,canRenderNow,scheduleRender,rowsFromReady,runtimePlan,intentPlan,inferTargetSide,publishPlanningAi,applyPlanningAi,renderPlanLabels});
   global.addEventListener('luminous:combat073-plan-ready-change',scheduleRender);
   start();
 })(window);
