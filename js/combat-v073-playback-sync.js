@@ -5,7 +5,7 @@
   const session = global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const state = { generation: null, consumer: null, ref: null, handler: null, eventCursor: 0, batchSeq: 0,
     connected: true, connectionRef: null, connectionHandler: null, offsetRef:null,offsetHandler:null,serverOffset:0,
-    authority: null, starting: false, transmittedSnapshot: {}, recoveryButton:null, stagedUpdates:{} };
+    authority: null, starting: false, transmittedSnapshot: {}, recoveryButton:null, stagedUpdates:{}, presentationClock:null, viewerClock:null };
   const adapter = () => global.LuminousCombatLiveAdapter073?.state;
   const surface = () => global.LuminousCombatStepRuntime;
   const status = text => { const node = global.document?.getElementById?.('status'); if (node) node.textContent = text; };
@@ -25,7 +25,26 @@
     return playerIds.length > 0 && playerIds.every(id => ready?.[id]?.playback?.schemaVersion === 1 &&
       ready[id].playback.engineVersion === protocol()?.engineVersion);
   }
-  async function seal(payload) {
+  function canSchedule(ready, playerIds) {
+    return negotiate(ready, playerIds) && playerIds.every(id => ready[id].playback.timelineVersion === protocol().timelineVersion);
+  }
+  const serverNow = () => Date.now() + state.serverOffset;
+  function resetPresentationClock(data = state.authority?.state.current) {
+    state.presentationClock?.stop();
+    state.presentationClock = data?.playback?.timelineVersion === 1 ? protocol().createPresentationClock({ now: serverNow }) : null;
+  }
+  function schedulePresentation() {
+    const current = state.authority?.state.current;
+    if (current?.playback?.timelineVersion !== 1) return null;
+    assertOwner(current);
+    return state.presentationClock?.stamp() || null;
+  }
+  function presentScheduled(event, render) {
+    if (!event?.timing || !state.presentationClock) return render();
+    return state.presentationClock.run(event.cue, event.timing, render);
+  }
+  async function drainPresentation() { await state.presentationClock?.drain(); }
+  async function seal(payload, { timeline = false } = {}) {
     const a = state.authority, s = adapter();
     const encounterCandidate=`encounter-${global.crypto?.randomUUID?.()||`${session}-${Date.now()}`}`;
     // Share the encounter identity already used by loot/setup. Claim a missing
@@ -38,6 +57,7 @@
       payload.encounterId=raw.estado?.encounterId||encounterCandidate;
       payload.id = `${payload.encounterId}-${payload.round}-${payload.seed}-${session}`;
       payload.playback = { schemaVersion: 1, engineVersion: protocol().engineVersion, session, generation: payload.id };
+      if (timeline) payload.playback.timelineVersion = protocol().timelineVersion;
       if (current?.encounterId===payload.encounterId&&Number(current?.round) >= payload.round && ['sealed', 'running', 'complete'].includes(current?.phase)) return;
       return {...raw,authority:{...(raw.authority||{}),current:payload},estado:{...(typeof raw.estado==='object'?raw.estado:{}),encounterId:payload.encounterId,phase:'COMBAT_SEALED',active:true,round:payload.round}};
     });
@@ -53,6 +73,7 @@
     assertOwner(data); state.eventCursor = 0; state.batchSeq = 0;
     state.stagedUpdates={};
     state.transmittedSnapshot=JSON.parse(data.initialStateJson);
+    resetPresentationClock(data);
     surface().capturePresentation(true);
     return { [ROOT]: { generation: data.id, schemaVersion: 1, engineVersion: protocol().engineVersion } };
   }
@@ -91,6 +112,7 @@
     return { [`${ROOT}/batches/${String(row.seq).padStart(6, '0')}`]: batch };
   }
   function disconnectConsumer() {
+    state.viewerClock?.stop(); state.viewerClock = null;
     global.LuminousCombatAudiovisual073?.clear();
     state.consumer?.stop(); state.consumer = null;
     if (state.ref && state.handler) state.ref.off('child_added', state.handler);
@@ -164,6 +186,7 @@
       a.applySnapshot(JSON.parse(checkpoint?.stateJson||current.initialStateJson));
       state.eventCursor=saved.eventCursor;state.batchSeq=Number(checkpoint?.seq)||0;state.transmittedSnapshot=a.snapshotRuntime();
       surface().capturePresentation(true);
+      resetPresentationClock();
       // Discard uncommitted presentation from the abandoned attempt. A new
       // generation makes consumers roll back to the last completed action.
       await s.db.ref(ROOT).set({generation:current.id,schemaVersion:1,engineVersion:protocol().engineVersion});
@@ -192,10 +215,21 @@
       if (!['running', 'sealed'].includes(data.phase)) return;
       a.state.runningLocal = true;
       const shouldPresent = createPresentationGate();
+      const scheduled = data.playback.timelineVersion === protocol().timelineVersion;
+      state.viewerClock = scheduled ? protocol().createPresentationClock({ now: serverNow }) : null;
+      const viewerClock = state.viewerClock;
       surface().beginPlayback(data.round);
       if(data.initialStateJson&&!checkpoint)a.applySnapshot(JSON.parse(data.initialStateJson));
       if (checkpoint?.combatants) { a.applySnapshot(checkpoint.stateJson?JSON.parse(checkpoint.stateJson):checkpoint.combatants); a.state.cursor = Number(checkpoint.rngCursor) || 0; }
       state.consumer = protocol().createConsumer({ generation: data.id, checkpoint,
+        beforeEvents: async (group, row, following) => {
+          if (!scheduled || !shouldPresent(row)) return;
+          const event = [...group, ...following].find(event => event.type === 'Presentation');
+          if (event) {
+            if (event.timing?.schemaVersion !== 1 || !Number.isFinite(event.timing.playAt)) throw new Error('PLAYBACK_INVALID_TIMING');
+            await viewerClock.wait(event.timing.playAt);
+          }
+        },
         apply: snapshot => { a.applySnapshot(snapshot); surface().refreshPlayback(); },
         onEvent: event => {
           surface().acceptEvent(event); a.state.cursor = Number(event.rngCursor) || 0;
@@ -203,11 +237,19 @@
           else if(event.type==='ClashStarted')status('Choque de habilidades…');
           else if(event.type==='RoundFinished')status('Preparando el próximo turno…');
         },
-        present: async (cue, args, row) => {
+        present: async (cue, args, row, event) => {
           // Slow/reconnected viewers catch up by applying states, without waiting
           // through old animation holds. Visual mode never changes the result.
           // Every state/event is still consumed, even when its animation is skipped.
-          if (shouldPresent(row)) await surface().present(cue, args);
+          if (!shouldPresent(row)) return;
+          if (scheduled) {
+            if (!(await viewerClock.wait(event.timing.playAt))) return;
+            // A suspended/slow device rejoins the current phase instead of
+            // carrying its accumulated animation delay through the Clash.
+            if (serverNow() - event.timing.playAt > 800 &&
+                ['powerCoin','hitCoin','hitMotion','clashContact','clashOutcome','wait'].includes(cue)) return;
+          }
+          await surface().present(cue, args);
         },
         finish: row => {
           a.state.cursor = Number(row.rngCursor) || 0;
@@ -242,6 +284,7 @@
     state.offsetRef.on('value',state.offsetHandler);
   }
   function stop() {
+    state.presentationClock?.stop(); state.presentationClock = null;
     disconnectConsumer();
     if (state.connectionRef) state.connectionRef.off('value', state.connectionHandler);
     state.connectionRef = state.connectionHandler = null;
@@ -249,7 +292,8 @@
     state.offsetRef=state.offsetHandler=null;
   }
   global.LuminousCombatPlaybackSync = Object.freeze({ ROOT, state, session, enabled, negotiate, seal, assertOwner,
-    beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl,stageUpdates,commitUpdates,disconnectConsumer,createPresentationGate });
+    beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl,stageUpdates,commitUpdates,disconnectConsumer,createPresentationGate,
+    canSchedule, schedulePresentation, presentScheduled, drainPresentation });
   global.addEventListener('luminous:combat073-hydrated', () => {
     const a = state.authority, data = a?.state.current;
     if (enabled(data) && data.phase === 'complete' && data.checkpoint?.combatants && !a.state.runningLocal) {

@@ -18,8 +18,8 @@ function fixture(){
  const players={p1:p,p2:{uid:friend.uid,name:'Other player'}};for(let i=3;i<=8;i++)players['p'+i]={uid:'absent'+i,name:'Absent '+i};
  return {config:{dm_uid:dm.uid},estado_mundo:{instancia_activa:'combate'},jugadores:players,base_datos_skills:skills,base_datos_unidades:{},actores:{},combate:{estado:{phase:'PRE_COMBAT_PLANNING',round:1,active:true,encounterId:'story',presentation:'full'},combatants:units}};
 }
-async function setupContext(browser,phone=false){
- const context=await browser.newContext({viewport:phone?{width:390,height:844}:{width:1280,height:800},reducedMotion:'no-preference'});
+async function setupContext(browser,phone=false,viewport=null){
+ const context=await browser.newContext({viewport:viewport||(phone?{width:390,height:844}:{width:1280,height:800}),reducedMotion:'no-preference'});
  contexts.add(context);context.on('close',()=>contexts.delete(context));
  await context.route('**/*',async route=>{
   const url=route.request().url();const match=url.match(/firebasejs\/8\.10\.1\/(firebase-[a-z]+\.js)/);
@@ -74,21 +74,33 @@ function corpseCampaign(){
  return c;
 }
 async function setRules(rules){const r=await fetch('http://127.0.0.1:9100/.settings/rules.json?ns='+ns,{method:'PUT',headers:{Authorization:'Bearer owner','Content-Type':'application/json'},body:JSON.stringify(rules)});expect(r.ok,await r.text()).toBe(true);}
-test('PC and phone present live Clash cues while the DM is resolving, then converge',async({browser},info)=>{
+for (const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1280,720],[1920,1080]]) {
+test(`PC and phone present synchronized Clash cues at ${width}x${height}, then converge`,async({browser},info)=>{
  test.setTimeout(150000);await admin('campaña','PUT',initial);
- const dc=await setupContext(browser),pc=await setupContext(browser),cc=await setupContext(browser,true);
+ const dc=await setupContext(browser),pc=await setupContext(browser),cc=await setupContext(browser,true,{width,height});
+ await cc.addInitScript(()=>{
+  let api;Object.defineProperty(window,'LuminousCombatPlayback',{configurable:true,get:()=>api,set(value){api=Object.freeze({...value,createConsumer(options){
+   const core=value.createConsumer(options);return Object.freeze({...core,receive(row){setTimeout(()=>core.receive(row),150+(row.seq%3)*20);}});
+  }});}});
+ });
  const dp=await dc.newPage(),pp=await pc.newPage(),cp=await cc.newPage();
  await login(dp,dm);const df=await frame(dp);await login(pp,player);const pf=await frame(pp);await login(cp,player);const cf=await frame(cp);
  await choose(cf);
  for(const f of [pf,cf])await expect.poll(()=>f.evaluate(()=>window.__qaCues.some(c=>c.cue==='clashStart')),{timeout:30000}).toBe(true);
  expect(await df.evaluate(()=>window.LuminousCombatAuthority073.state.runningLocal)).toBe(true);
  const times=await Promise.all([df,pf,cf].map(f=>f.evaluate(()=>window.__qaCues.find(c=>c.cue==='clashStart').at)));
- expect(Math.max(...times)-Math.min(...times)).toBeLessThan(2000);
+ expect(Math.max(...times)-Math.min(...times)).toBeLessThan(350);
+ expect((await admin('campaña/combate/authority/current/playback')).timelineVersion).toBe(1);
  await expect.poll(()=>cf.evaluate(()=>window.__qaCues.some(c=>c.cue==='powerCoin')),{timeout:15000}).toBe(true);
  await screenshot(cp,info,'phone-live-clash');await screenshot(pp,info,'pc-live-clash');await screenshot(dp,info,'dm-live-clash');
  await expect.poll(async()=> (await admin('campaña/combate/estado')).round,{timeout:90000}).toBe(2);
  await Promise.all([waitRound(pf,2),waitRound(cf,2)]);
  const canonical=(await admin('campaña/combate/combatants/kobold')).hp;
+ const allCues=await Promise.all([df,pf,cf].map(f=>f.evaluate(()=>window.__qaCues)));
+ for(const cues of allCues.slice(1)){
+  expect(cues.map(c=>c.cue)).toEqual(allCues[0].map(c=>c.cue));
+  expect(Math.max(...cues.map((c,i)=>Math.abs(c.at-allCues[0][i].at)))).toBeLessThan(350);
+ }
  for(const f of [pf,cf]){
   const data=await f.evaluate(()=>({hp:window.LuminousCombat073.combatants().kobold.hp,cues:window.__qaCues.map(c=>c.cue)}));
   expect(data.hp).toBe(canonical);expect(data.cues).toContain('hitMotion');expect(data.cues).toContain('clashEnd');
@@ -96,6 +108,7 @@ test('PC and phone present live Clash cues while the DM is resolving, then conve
  console.log('LIVE_CUES_PASS',JSON.stringify({cueSkewMs:Math.max(...times)-Math.min(...times),pcAndPhone:true,finalHp:canonical}));
  await Promise.all([dc.close(),pc.close(),cc.close()]);
 });
+}
 
 test('Ten enemies use eight field slots and two FIFO reinforcements; Victory shows this encounter loot and the next fight starts at one',async({browser},info)=>{
  test.setTimeout(240000);
