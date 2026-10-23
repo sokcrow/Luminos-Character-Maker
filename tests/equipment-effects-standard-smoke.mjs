@@ -50,6 +50,14 @@ assert.equal(perception.base, 5, "Wis 14 + prof 2 + eye 1");
 assert.equal(perception.equipmentBonus, 1);
 assert.equal(effects.checkThresholdAdjustment(jeske, "analyze"), -2);
 assert.equal(effects.checkThresholdAdjustment(jeske, "harvest"), 0);
+const uninstalledEye = { instanceId: "eye_not_installed", runtime: { equipmentEffects: [
+  { type: "skill_check_bonus", skill: "perception", value: 99 },
+] } };
+jeske.augmentations.push(uninstalledEye);
+assert.equal(effects.skillCheckBonus(jeske, "perception"), 1, "Uninstalled augments cannot grant stats");
+uninstalledEye.installed = true;
+assert.equal(effects.skillCheckBonus(jeske, "perception"), 100, "Installed augments activate");
+jeske.augmentations.pop();
 assert.equal(checks.createLootCheckDefinition(jeske, "analyze", {
   threshold: 16,
   thresholdModifier: effects.checkThresholdAdjustment(jeske, "analyze"),
