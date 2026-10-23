@@ -26,7 +26,8 @@
     const seen = new Set();
     for (const [index, item] of [...slots, ...augments].entries()) {
       if (!item || typeof item !== "object") continue;
-      if (index >= slots.length && (item.installed === false || item.equipped === false)) continue;
+      // Augments must actually be installed, not merely present on the unit.
+      if (index >= slots.length && (item.installed !== true || item.equipped === false)) continue;
       if (item.broken === true || item.isBroken === true || item.disabled === true) continue;
       const id = String(item.instanceId || item.instance_id || item.id || "");
       const key = id || `slot:${index}`;
