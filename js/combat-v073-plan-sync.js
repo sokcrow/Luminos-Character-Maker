@@ -247,6 +247,31 @@
     ]);
     return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatDeploymentRuntime&&global.LuminousCombatDeploymentBridge073&&global.LuminousUnitRankRuntime&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);
   }
+  let independentIntentCounter=0;
+  async function onIndependentActionResolved(event){
+    const detail=event?.detail||{},s=state();
+    if(detail.ai||s?.role!=='player'||!s?.db?.ref||!s.playerId||!s.uid)return false;
+    const own=ownCombatant(s);
+    if(clean(own?.[1]?.id||own?.[0])!==clean(detail.unitId)||Number(detail.round)!==Number(s.round))return false;
+    if(!['quick_action','free_action'].includes(clean(detail.cost)))return false;
+    if(!['trait','skill','spell','item'].includes(clean(detail.sourceType)))return false;
+    const id=(global.crypto?.randomUUID?.()||`${Date.now()}-${++independentIntentCounter}`).replace(/[.#$\[\]\/]/g,'_');
+    const payload={
+      schemaVersion:1,playerId:s.playerId,schedulerUid:s.uid,unitId:clean(detail.unitId),
+      round:Number(s.round),sourceId:clean(detail.sourceId),sourceType:clean(detail.sourceType),
+      cost:clean(detail.cost),targetId:clean(detail.targetId)||null,createdAt:Date.now(),
+    };
+    try{
+      await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(id)}`).set(payload);
+      global.dispatchEvent?.(new global.CustomEvent('luminous:unit-independent-action-shared',{detail:{id,round:payload.round}}));
+      return true;
+    }catch(error){
+      console.error('[Combat073 Independent Actions] Failed to send Player choice to DM authority',error);
+      global.dispatchEvent?.(new global.CustomEvent('luminous:unit-independent-action-sync-failed',{detail:{id,reason:clean(error?.message||error)}}));
+      return false;
+    }
+  }
+  global.addEventListener('luminous:unit-independent-action-resolved',onIndependentActionResolved);
   global.addEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);
   global.addEventListener('luminous:combat073-hydrated',recoverReady);
   global.addEventListener('online',recoverReady);global.addEventListener('focus',recoverReady);
