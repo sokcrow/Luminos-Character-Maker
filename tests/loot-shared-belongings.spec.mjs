@@ -26,6 +26,9 @@ async function account(name) {
 async function client(browser, user, playerId) {
   const context = await browser.newContext({viewport:{width:390,height:844}});
   const page = await context.newPage();
+  page.on('pageerror',error=>console.log('LOOT_QA_PAGE_ERROR',playerId || 'dm',error.message));
+  page.on('console',message=>{if(message.type()==='error')console.log('LOOT_QA_CONSOLE',playerId || 'dm',message.text());});
+  console.log('LOOT_QA_CLIENT_BEGIN',playerId || 'dm');
   await context.route('**/*', route => route.request().url().startsWith(base) || /127\.0\.0\.1:9/.test(route.request().url())
     ? route.continue() : route.abort());
   await page.goto(base+'/loot-test');
@@ -43,8 +46,16 @@ async function client(browser, user, playerId) {
     await page.waitForFunction(()=>LuminousPlayerPostCombatLoot.state.db);
     await page.evaluate(()=>LuminousPlayerPostCombatLoot.refreshEncounters());
   }
+  console.log('LOOT_QA_CLIENT_READY',playerId || 'dm');
   return {page,context};
 }
+async function openLoot(page) {
+  if (!await page.locator('#postcombat-loot-modal').isVisible()) {
+    await page.locator('#btn-postcombat-loot').click();
+  }
+  await expect(page.locator('#postcombat-loot-modal')).toBeVisible();
+}
+
 test.beforeAll(async () => {
   server = http.createServer((req,res) => {
     const pathname = new URL(req.url,base).pathname;
@@ -88,13 +99,14 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
       const result = await live.finalizeEncounterLoot({db,encounterId:'shared-belongings',result:'victory',participants:{p1:true,p2:true}});
       return result.finalized[0].lootInstanceId;
     });
+    console.log('LOOT_QA_CORPSE_READY',lootId);
     const one = await client(browser,p1,'p1'); clients.push(one);
     const two = await client(browser,p2,'p2'); clients.push(two);
     const errors=[];
     for (const c of clients) c.page.on('pageerror',e=>errors.push(e.message));
-    await one.page.locator('#btn-postcombat-loot').click();
+    await openLoot(one.page);
     await expect(one.page.locator('[data-loot-action="search"]')).toBeEnabled();
-    await two.page.locator('#btn-postcombat-loot').click();
+    await openLoot(two.page);
     for (const c of [one,two]) {
       await c.page.locator('[data-loot-tab="results"]').click();
       await expect(c.page.locator('.loot-belonging.unknown')).toHaveCount(3);
@@ -102,6 +114,7 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
       expect(await c.page.locator('.loot-belongings-grid').innerText()).not.toContain('Dagger');
     }
     await one.page.locator('[data-loot-tab="actions"]').click();
+    console.log('LOOT_QA_SEARCH');
     await one.page.locator('[data-loot-action="search"]').click();
     for (const c of [one,two]) {
       await expect(c.page.locator('.loot-belonging.known')).toHaveCount(3,{timeout:20000});
@@ -139,7 +152,7 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
     await expect.poll(()=>admin(`campaña/loot_claims/${lootId}`)).toBe(null);
     await two.page.locator('[data-loot-tab="actions"]').click();
     await two.page.evaluate(()=>LuminousPlayerPostCombatLoot.close());
-    await two.page.locator('#btn-postcombat-loot').click();
+    await openLoot(two.page);
     await expect(two.page.locator('[data-corpse-release]')).toBeVisible();
     await two.page.locator('[data-loot-tab="results"]').click();
     await two.page.locator('[data-target-currency]').click();
@@ -161,10 +174,10 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
     await two.page.addScriptTag({url:base+'/js/loot-live-postcombat-runtime.js'});
     await two.page.addScriptTag({url:base+'/js/player-postcombat-loot.js'});
     await expect(two.page.locator('#btn-postcombat-loot')).toBeVisible({timeout:20000});
-    await two.page.locator('#btn-postcombat-loot').click();
+    await openLoot(two.page);
     await two.page.locator('[data-loot-tab="results"]').click();
     await expect(two.page.locator('.loot-belonging.known')).toHaveCount(1);
     expect(await admin('campaña/jugadores/p2/ahn')).toBe(50);
     expect(errors).toEqual([]);
-  } finally {await Promise.all(clients.map(c=>c.context.close()));}
+  } finally {await Promise.allSettled(clients.map(c=>c.context.close()));}
 });
