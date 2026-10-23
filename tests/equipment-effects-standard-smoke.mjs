@@ -22,6 +22,11 @@ const calipsys = {
 };
 assert.equal(effects.resolveSinResistance(calipsys, "gloom", 1), 0.75);
 assert.equal(effects.resolveSinResistance(calipsys, "wrath", 1), 1);
+// An empty optional multiplier is not immunity.
+calipsys.equipment.armor.runtime.equipmentEffects.push({ type: "sin_resistance", sin: "wrath" });
+assert.equal(effects.resolveSinResistance(calipsys, "wrath", 1), 1);
+calipsys.equipment.armor.runtime.equipmentEffects.push({ type: "sin_resistance", sin: "wrath", multiplier: null });
+assert.equal(effects.resolveSinResistance(calipsys, "wrath", 1), 1);
 assert.equal(effects.mitigateSpLoss(calipsys, 2), 0);
 assert.equal(effects.mitigateSpLoss(calipsys, 8), 5);
 assert.equal(effects.mitigateSpLoss(calipsys, 8, { voluntary: true }), 8);
@@ -79,6 +84,12 @@ assert.equal(effects.applyTurnStart(jeske, { authoritative: true, round: 6, enco
 jeske.hp = 140;
 jeske.equipment.armor = null;
 assert.equal(effects.applyTurnStart(jeske, { authoritative: true, round: 7, encounterId: "enc_1" }).healed, 0);
+jeske.equipment.armor = { instanceId: "armor_j", runtime: { equipmentEffects: [
+  { type: "heal_hp_percent", trigger: "on_turn_start", value: 5 },
+] } };
+const missingMax = { hp: 40, equipment: jeske.equipment };
+assert.equal(effects.applyTurnStart(missingMax, { authoritative: true, round: 7 }).reason, "max_hp_required");
+assert.equal(missingMax.hp, 40);
 assert.deepEqual(effects.grantedSkillIds(jeske), []);
 assert.equal(effects.skillCheckBonus(jeske, "perception"), 1, "Eye is independent of armor");
 jeske.augmentations[0].installed = false;
