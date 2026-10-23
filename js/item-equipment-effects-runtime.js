@@ -74,7 +74,10 @@
     const original = Number.isFinite(Number(base)) ? Math.max(0, Number(base)) : 1;
     return effectsFor(unit).reduce((best, effect) => {
       if (effect.type !== "sin_resistance" || norm(effect.sin) !== kind) return best;
-      const value = Number(effect.multiplier ?? effect.value);
+      // Missing/empty data must NEVER grant accidental immunity (Number(null) === 0).
+      const authored = effect.multiplier ?? effect.value;
+      if (authored === null || authored === undefined || authored === "") return best;
+      const value = Number(authored);
       return Number.isFinite(value) && value >= 0 ? Math.min(best, value) : best;
     }, original);
   }
@@ -110,7 +113,10 @@
     const prefix = `${encounter}:${turn}:`;
     let total = 0;
     const applied = [];
-    const maxHp = Math.max(1, Math.floor(positive(unit.maxHp ?? unit.maxHP ?? unit.hp_max ?? unit.combatStats?.hp_max)));
+    const authoredMaxHp = Number(unit.maxHp ?? unit.maxHP ?? unit.hp_max ?? unit.combatStats?.hp_max);
+    if (!Number.isFinite(authoredMaxHp) || authoredMaxHp <= 0)
+      return { applied: false, reason: "max_hp_required" };
+    const maxHp = Math.floor(authoredMaxHp);
     for (const effect of effectsFor(unit, "on_turn_start")) {
       const key = prefix + effect.effectKey;
       if (ledger[key] === true) continue;
