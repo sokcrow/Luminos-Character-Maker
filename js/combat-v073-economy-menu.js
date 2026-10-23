@@ -3,7 +3,7 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.9-player-centered-visibility";
+  const VERSION = "0.7.3-economy-menu.10-canonical-class-trait-quick-load";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
   const state = {
@@ -11,6 +11,10 @@
     tabByMenu: { global: ECONOMY.ACTION, skills: ECONOMY.ACTION, spells: ECONOMY.ACTION, items: ECONOMY.ACTION },
     originals: {},
     traitStateById: new Map(),
+    traitCatalogDefinitions: {},
+    traitCatalogGrants: {},
+    traitDb: null,
+    traitDbListeners: [],
     preparedReaction: null,
     pendingTarget: null,
     lastPlanningRound: null,
@@ -90,7 +94,7 @@
     const raw = normalizeId(
       source?.economyCost ?? source?.economy_cost ?? source?.economy?.cost ?? source?.actionCost ??
       source?.action_cost ?? source?.activation?.actionCost ?? source?.activation?.action_cost ??
-      source?.activationCost ?? source?.activation_cost ?? fallback
+      source?.activationCost ?? source?.activation_cost ?? source?.castingTime ?? source?.casting_time ?? fallback
     );
     if (["quick", "quickaction", "quick_action", "bonus", "bonus_action", "bonusaction"].includes(raw)) return ECONOMY.QUICK;
     if (["reaction", "react", "reactive"].includes(raw)) return ECONOMY.REACTION;
@@ -122,18 +126,63 @@
 
   function flattenTraitRows(value) {
     if (!value) return [];
+    if (typeof value === "string") return [value];
     if (Array.isArray(value)) return value.flatMap(flattenTraitRows);
     if (typeof value !== "object") return [];
+    if (value.trait || value.definition || value.traitDefinition) {
+      return flattenTraitRows(value.trait || value.definition || value.traitDefinition);
+    }
     if (value.activation || value.effects || value.rules || value.mechanics || value.traitId || value.id) return [value];
-    return Object.values(value).flatMap(flattenTraitRows);
+    return Object.entries(value).flatMap(([key, row]) => row === true ? [key] : flattenTraitRows(row));
+  }
+
+  // Never resolve the Combat Player's grants from the DM's character or from
+  // a stale linked Unit. The campaign Player record owns the current build.
+  function authoritativeCharacter(unit = playerUnit() || {}) {
+    const id = canonicalPlayerId(unit) || clean(global.LuminousCombatLiveAdapter073?.state?.playerId);
+    const player = global.LuminousCombatLiveAdapter073?.state?.players?.[id] || {};
+    return {
+      ...unit,
+      ...player,
+      characterBuild: { ...(unit.characterBuild || {}), ...(player.characterBuild || {}) },
+    };
+  }
+
+  function traitCatalogDefinitions() {
+    return {
+      ...(global.LuminousTraitCatalogCore?.allDefinitions?.() || {}),
+      ...(global.LuminousRacialTraitCatalog?.allDefinitions?.() || {}),
+      ...(global.LuminousArchetypeTraitCatalog?.allDefinitions?.() || {}),
+      ...(global.LuminousDmTraitLibrary?.getDefinitions?.() || {}),
+      ...state.traitCatalogDefinitions,
+    };
+  }
+
+  function resolveGrantedTraits(character, definitions) {
+    const engine = global.LuminousTraitEngine;
+    if (!engine?.resolveTraitGrants) return [];
+    const grants = [
+      ...(global.LuminousTraitCatalogCore?.allGrants?.() || []),
+      ...Object.values(state.traitCatalogGrants || {}),
+    ];
+    const resolved = [];
+    try {
+      resolved.push(...engine.resolveTraitGrants(character, grants, definitions));
+      resolved.push(...(global.LuminousRacialTraitCatalog?.resolveTraitGrants?.(character, definitions) || []));
+      resolved.push(...(global.LuminousArchetypeTraitCatalog?.resolveTraitGrants?.(character, definitions) || []));
+      resolved.push(...(global.LuminousClassMilestones?.resolveSelectedGeneralTraits?.(character, definitions) || []));
+    } catch (error) {
+      global.console?.warn?.("[CombatEconomy073] Trait grant resolution failed", error);
+    }
+    return resolved;
   }
 
   function resolvedArchetypeTraits(unit = {}) {
     const catalog = global.LuminousArchetypeTraitCatalog;
     if (!catalog?.resolveTraitGrants) return [];
     try {
-      const resolved = catalog.resolveTraitGrants(unit) || [];
-      return flattenTraitRows(resolved).map((entry) => entry.trait || entry.definition || entry.traitDefinition || entry).filter(Boolean);
+      return flattenTraitRows(catalog.resolveTraitGrants(unit) || [])
+        .map((entry) => entry.trait || entry.definition || entry.traitDefinition || entry).filter(Boolean);
     } catch (error) {
       global.console?.warn?.("[CombatEconomy073] Archetype trait resolution failed", error);
       return [];
@@ -142,32 +191,65 @@
 
   function traitDefinitionsForPlayer() {
     const unit = playerUnit() || {};
+    const character = authoritativeCharacter(unit);
+    const definitions = traitCatalogDefinitions();
     const candidates = [
-      unit.traitDefinitions,
-      unit.combatTraits,
-      unit.actionTraits,
-      unit.traits,
-      unit.classTraits,
-      unit.archetypeTraits,
-      unit.features,
-      unit.characterBuild?.traitDefinitions,
-      resolvedArchetypeTraits(unit),
+      unit.traitDefinitions, unit.combatTraits, unit.actionTraits, unit.traits,
+      unit.classTraits, unit.archetypeTraits, unit.features,
+      unit.characterBuild?.traitDefinitions, unit.characterBuild?.traits,
+      character.traitDefinitions, character.combatTraits, character.actionTraits,
+      character.traits, character.classTraits, character.archetypeTraits,
+      character.features, character.characterBuild?.traitDefinitions,
+      character.characterBuild?.traits,
+      resolvedArchetypeTraits(character),
+      resolveGrantedTraits(character, definitions),
     ];
+    const canonicalId = canonicalPlayerId(unit) || clean(global.LuminousCombatLiveAdapter073?.state?.playerId);
+    let localId = "";
+    try { localId = clean(global.localStorage?.getItem?.("playerId")); } catch (_) {}
+    if (canonicalId && localId === canonicalId) {
+      candidates.push(global.LuminousPlayerTraitRuntime?.getTraits?.() || []);
+    }
     const unique = new Map();
-    candidates.flatMap(flattenTraitRows).forEach((trait) => {
-      if (!trait || typeof trait !== "object") return;
-      const id = normalizeId(trait.id || trait.traitId || trait.name);
-      if (!id || !sourceIsManualTrait(trait)) return;
+    candidates.flatMap(flattenTraitRows).forEach((candidate) => {
+      const id = normalizeId(typeof candidate === "string" ? candidate : candidate?.id || candidate?.traitId || candidate?.name);
+      if (!id) return;
+      const definition = definitions[id] || {};
+      const source = typeof candidate === "string" ? {} : candidate;
+      const trait = {
+        ...clone(definition),
+        ...clone(source),
+        ...(definition.activation || source.activation
+          ? { activation: { ...(definition.activation || {}), ...(source.activation || {}) } }
+          : {}),
+      };
+      if (!sourceIsManualTrait(trait)) {
+        // The active Class runtime can change a Trait's action cost (e.g. an
+        // upgraded Action becoming Quick). Do not hardcode class exceptions.
+        if (!trait.activation || !global.LuminousTraitEngine?.canActivateTrait) return;
+      }
+      try {
+        const effective = global.LuminousTraitEngine?.canActivateTrait?.(trait, {
+          context: "combat", character, self: unit, actor: unit,
+          actionEconomy: { canUse: () => true },
+        }, { usages: {}, ruleScopes: {}, counters: {} });
+        const cost = effective?.actionCost || effective?.trait?.activation?.actionCost;
+        if (cost && normalizeEconomyCost({ actionCost: cost }, "none") !== "none") {
+          trait.activation = { ...(trait.activation || {}), actionCost: cost };
+        }
+      } catch (_) {}
+      if (!sourceIsManualTrait(trait)) return;
+      const economyCost = normalizeEconomyCost(trait);
       unique.set(id, {
-        ...clone(trait),
+        ...trait,
         id,
         traitId: id,
         kind: "trait",
         sourceType: "trait",
-        economyCost: normalizeEconomyCost(trait),
+        economyCost,
         cost: costLabel(trait),
         name: clean(trait.name || trait.nombre || id) || id,
-        tag: clean(trait.tag || `Trait · ${normalizeEconomyCost(trait).replaceAll("_", " ")}`),
+        tag: clean(trait.tag || `Trait · ${economyCost.replaceAll("_", " ")}`),
         description: clean(trait.description || trait.descripcion || "Trait action."),
       });
     });
@@ -1460,8 +1542,41 @@
     await loadScript("trait-engine-economy073", "js/trait-engine.js", () => Boolean(global.LuminousTraitEngine));
     await loadScript("archetype-engine-economy073", "js/archetype-engine.js", () => Boolean(global.LuminousArchetypeEngine));
     await loadScript("archetype-trait-catalog-economy073", "js/archetype-trait-catalog.js", () => Boolean(global.LuminousArchetypeTraitCatalog));
+    await loadScript("trait-catalog-core-economy073", "js/trait-catalog-core.js", () => Boolean(global.LuminousTraitCatalogCore));
+    await loadScript("class-milestone-engine-economy073", "js/class-milestone-engine.js", () => Boolean(global.LuminousClassMilestones));
+    await loadScript("racial-trait-catalog-economy073", "js/racial-trait-catalog.js", () => Boolean(global.LuminousRacialTraitCatalog));
+    // Combat contexts load canonical class/archetype runtimes; they extend the
+    // shared trait catalog and activation engine rather than a duplicate menu list.
+    await loadScript("class-runtime-bootstrap-economy073", "js/class-runtime-bootstrap.js", () => Boolean(global.LuminousClassRuntimeBootstrap));
     await loadScript("action-economy-economy073", "js/universal-action-economy.js", () => Boolean(global.LuminousActionEconomy));
     return Boolean(global.LuminousCombatAction && global.LuminousCombatActionAdapters && global.LuminousActionEconomy);
+  }
+
+  function refreshTraitActionMenu() {
+    if (state.installed && activeMenu() === "global") renderGlobalList();
+  }
+
+  function ensureTraitLibrarySubscriptions() {
+    const db = global.LuminousCombatLiveAdapter073?.state?.db;
+    if (!db?.ref || state.traitDb === db) return false;
+    state.traitDbListeners.forEach(({ ref, callback }) => ref.off?.("value", callback));
+    state.traitDbListeners = [];
+    state.traitDb = db;
+    [
+      ["campaña/config/traits/definitions", "traitCatalogDefinitions"],
+      ["campaña/config/traits/grants", "traitCatalogGrants"],
+    ].forEach(([path, key]) => {
+      const ref = db.ref(path);
+      const callback = (snapshot) => {
+        state[key] = snapshot.val() || {};
+        refreshTraitActionMenu();
+      };
+      ref.on("value", callback, (error) => {
+        global.console?.warn?.("[CombatEconomy073] Trait library read failed", error);
+      });
+      state.traitDbListeners.push({ ref, callback });
+    });
+    return true;
   }
 
   function installTargetHandler() {
@@ -1527,7 +1642,7 @@
       };
       assignLexical("goRoot", "window.__luminousEconomyGoRoot");
     }
-    installPhaseHooks(); installTargetHandler(); installRootMenuClickHandler(); installActionBackRecovery(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout();
+    installPhaseHooks(); installTargetHandler(); ensureTraitLibrarySubscriptions(); installRootMenuClickHandler(); installActionBackRecovery(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout();
     global.addEventListener?.("resize", () => {
       syncResponsiveMenuLayout();
       layoutRadialCommandsStable();
@@ -1544,13 +1659,17 @@
     return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, restoreGlobalCategoryFromActionDetail, installActionBackRecovery, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, authoritativeCharacter, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, restoreGlobalCategoryFromActionDetail, installActionBackRecovery, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
   global.LuminousCombatEconomyMenu073 = Object.freeze(api);
-  global.addEventListener?.("luminous:combat073-hydrated", () => { syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
+  global.addEventListener?.("luminous:combat073-hydrated", () => { ensureTraitLibrarySubscriptions(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
   global.addEventListener?.("luminous:combat073-runtime-ready", () => global.setTimeout(boot, 0));
+  global.addEventListener?.("luminous:class-runtime-bootstrap-ready", refreshTraitActionMenu);
+  global.addEventListener?.("luminous:class-runtimes-ready", refreshTraitActionMenu);
+  global.addEventListener?.("luminous:traits-refreshed", refreshTraitActionMenu);
+  global.addEventListener?.("luminous:player-data", refreshTraitActionMenu);
   global.setTimeout(boot, 0);
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
