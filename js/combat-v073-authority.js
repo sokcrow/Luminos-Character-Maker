@@ -110,9 +110,14 @@
     return{...saved,combatantId:key||null};
   }
   function compactUnit(unit={}){
+    const independentState=unit.combatIndependentActionState?clone(unit.combatIndependentActionState):null;
+    // Trait engine history timestamps are local wall-clock data, not combat state.
+    // Excluding them prevents DM/Player checkpoint digest divergence.
+    if(independentState?.traitState)independentState.traitState.history=[];
     return{
+      ...(independentState?{combatIndependentActionState:independentState}:{}) ,
       ...Object.fromEntries(['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion',
-        'combatEventState','combatTraitState','combatIndependentActionState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
+        'combatEventState','combatTraitState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
         'deployedRound','deploymentState','replacementClaimed'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
       ...(unit.combatDeck?{combatDeck:global.LuminousCombatSlotDeck073?.compact(unit.combatDeck)||clone(unit.combatDeck)}:{}),
       hp:Math.max(0,finite(unit.hp,0)),maxHp:Math.max(1,finite(unit.maxHp,1)),sp:finite(unit.sp,0),
@@ -170,6 +175,13 @@
     const [ready,rawPlans]=await Promise.all([read(ROOT.ready),read(ROOT.plans)]);
     const members=global.LuminousCombatParticipants?.players(s.combatants)||[];
     const plans=Object.fromEntries(members.map(member=>[member.playerId,Object.fromEntries(Object.entries(rawPlans?.[member.playerId]||{}).filter(([,plan])=>plan?.unitId===member.unitId&&Number(plan.round)===round))]));
+    // Flush authenticated Player Quick/Free intents before sealing the round.
+    // Their DM-authoritative mutations belong to the same Unit snapshot as AI.
+    const independent=global.LuminousCombatRemoteIntents073;
+    if(independent?.scheduleIndependentIntents){
+      const pending=await read('campaña/combate/independentIntents');
+      await independent.scheduleIndependentIntents(pending||{});
+    }
     const planningWitness=clone(plans);
     const check=readyComplete(ready||{},plans,round);if(!check.complete){const waiting=members.filter(member=>check.missing.some(key=>key.startsWith(member.playerId+':'))).map(member=>member.name);throw new Error(`Falta confirmar READY: ${waiting.join(', ')}.`);}validateSpellPlans(plans||{});global.LuminousCombatSlotDeck073?.validatePlans(plans||{});
     // Ready-player reactions are authenticated planning choices; DM verifies
