@@ -3,9 +3,9 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.10-canonical-class-trait-quick-load";
+  const VERSION = "0.7.3-economy-menu.11-all-units-independent-actions";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
-  const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
+  const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", FREE: "free_action", REACTION: "reaction" });
   const state = {
     installed: false,
     tabByMenu: { global: ECONOMY.ACTION, skills: ECONOMY.ACTION, spells: ECONOMY.ACTION, items: ECONOMY.ACTION },
@@ -104,14 +104,14 @@
 
   function economyTabFor(source = {}) {
     const cost = normalizeEconomyCost(source);
-    return cost === ECONOMY.QUICK || cost === ECONOMY.REACTION ? cost : ECONOMY.ACTION;
+    return cost === ECONOMY.QUICK || cost === ECONOMY.REACTION ? cost : (["none", "free", "free_action"].includes(cost) && (["manual", "choice", "prompt"].includes(normalizeId(source.activation?.type)) || normalizeId(source.kind || source.sourceType) !== "trait") ? ECONOMY.FREE : ECONOMY.ACTION);
   }
 
   function costLabel(source = {}) {
     const cost = normalizeEconomyCost(source);
     if (cost === ECONOMY.QUICK) return "1 Quick Action";
     if (cost === ECONOMY.REACTION) return "1 Reaction";
-    if (["none", "free", "free_action"].includes(cost)) return "Free";
+    if (["none", "free", "free_action"].includes(cost)) return "Free Action";
     return clean(source.cost || source.costLabel || "1 Action Slot");
   }
 
@@ -121,6 +121,7 @@
     const contexts = asArray(trait.contexts || trait.context || ["any"]).map(normalizeId);
     if (contexts.length && !contexts.includes("any") && !contexts.includes("combat")) return false;
     if (cost === ECONOMY.ACTION || cost === ECONOMY.QUICK || cost === ECONOMY.REACTION) return true;
+    if (["none", "free", "free_action"].includes(cost) && ["manual", "choice", "prompt"].includes(activation)) return true;
     return ["manual", "prompt", "choice"].includes(activation) && !["none", "free", "automatic", "passive"].includes(cost);
   }
 
@@ -683,8 +684,8 @@
     const style = global.document.createElement("style");
     style.id = "combat073-economy-tabs-style";
     style.textContent = `
-      .combat-economy-tabs{display:flex;gap:3px;padding:5px 7px 4px;background:rgba(4,3,2,.88);border-left:1px solid var(--accent);border-right:1px solid rgba(255,255,255,.08)}
-      .combat-economy-tab{flex:1;min-width:0;padding:5px 3px;border:1px solid rgba(255,255,255,.16);background:#0b0907;color:#9a9184;font:900 7px/1 Arial,sans-serif;letter-spacing:.7px;text-transform:uppercase;cursor:pointer}
+      .combat-economy-tabs{display:flex;gap:3px;overflow-x:auto;overscroll-behavior-x:contain;padding:5px 7px 4px;background:rgba(4,3,2,.88);border-left:1px solid var(--accent);border-right:1px solid rgba(255,255,255,.08)}
+      .combat-economy-tab{flex:1 0 auto;min-width:48px;min-height:40px;padding:5px 3px;border:1px solid rgba(255,255,255,.16);background:#0b0907;color:#9a9184;font:900 7px/1 Arial,sans-serif;letter-spacing:.7px;text-transform:uppercase;cursor:pointer}
       .combat-economy-tab.active{color:#090705;background:var(--accent);border-color:#fff}
       .combat-economy-tab:disabled{opacity:.42;cursor:default}
       .combat-economy-empty{padding:22px 14px;text-align:center;color:#8f8679;font:800 9px/1.45 Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;border:1px dashed rgba(255,255,255,.16);background:rgba(0,0,0,.25)}
@@ -713,7 +714,7 @@
       tabs = global.document.createElement("div");
       tabs.id = "combat-economy-tabs";
       tabs.className = "combat-economy-tabs";
-      tabs.innerHTML = `<button type="button" class="combat-economy-tab" data-economy="action">ACTION</button><button type="button" class="combat-economy-tab" data-economy="quick_action">QUICK</button><button type="button" class="combat-economy-tab" data-economy="reaction">REACTION</button>`;
+      tabs.innerHTML = `<button type="button" class="combat-economy-tab" data-economy="action">ACTION</button><button type="button" class="combat-economy-tab" data-economy="quick_action">QUICK</button><button type="button" class="combat-economy-tab" data-economy="free_action">FREE</button><button type="button" class="combat-economy-tab" data-economy="reaction">REACTION</button>`;
       context.insertAdjacentElement("afterend", tabs);
       tabs.addEventListener("click", (event) => {
         const button = event.target?.closest?.("[data-economy]");
@@ -729,6 +730,7 @@
   function tabLabel(tab) {
     const snap = planningSnapshot();
     if (tab === ECONOMY.QUICK) return `QUICK ${Math.max(0, Number(snap.quick_action) || 0)}/1`;
+    if (tab === ECONOMY.FREE) return "FREE";
     if (tab === ECONOMY.REACTION) return `REACTION ${Math.max(0, Number(snap.reaction) || 0)}/1`;
     return "ACTION";
   }
@@ -753,13 +755,14 @@
     const tab = state.tabByMenu[menu] || ECONOMY.ACTION;
     const snap = planningSnapshot();
     if (tab === ECONOMY.QUICK) context.textContent = `QUICK ACTION · AVAILABLE ${Math.max(0, Number(snap.quick_action) || 0)} / 1`;
+    else if (tab === ECONOMY.FREE) context.textContent = "FREE ACTIONS · UNIT ABILITIES";
     else if (tab === ECONOMY.REACTION) context.textContent = `REACTION · AVAILABLE ${Math.max(0, Number(snap.reaction) || 0)} / 1`;
     else context.textContent = `ACTION SLOT ${selectedSlotIndex() + 1}`;
   }
 
   function setTab(menu, tab) {
     const normalized = normalizeEconomyCost({ economyCost: tab });
-    if (!TABBED_MENUS.has(menu) || ![ECONOMY.ACTION, ECONOMY.QUICK, ECONOMY.REACTION].includes(normalized)) return false;
+    if (!TABBED_MENUS.has(menu) || ![ECONOMY.ACTION, ECONOMY.QUICK, ECONOMY.FREE, ECONOMY.REACTION].includes(normalized)) return false;
     state.tabByMenu[menu] = normalized;
     try { global.eval("navState='category';selected=null;focusedIndex=0"); } catch (_) {}
     const render = lexical("renderCategory");
@@ -1177,11 +1180,11 @@
     const tab = economyTabFor(source);
     const body = global.document?.getElementById?.("category-body");
     if (!body) return;
-    const quick = tab === ECONOMY.QUICK;
+    const quick = tab === ECONOMY.QUICK || tab === ECONOMY.FREE;
     const actionItem = tab === ECONOMY.ACTION && normalizeId(source.kind || source.sourceType) === "item";
     const reactionMode = reactionModeOf(source);
     const canPrepare = tab === ECONOMY.REACTION && reactionMode === "prepared";
-    const buttonLabel = actionItem ? "USE ITEM" : (quick ? "USE QUICK ACTION" : (canPrepare ? "PREPARE REACTION" : "ADAPTIVE REACTION"));
+    const buttonLabel = actionItem ? "USE ITEM" : (tab === ECONOMY.FREE ? "USE FREE ACTION" : (quick ? "USE QUICK ACTION" : (canPrepare ? "PREPARE REACTION" : "ADAPTIVE REACTION")));
     body.innerHTML = `<div class="economy-action-detail"><div class="economy-kind">${htmlEscape(tab.replaceAll("_", " "))}${tab === ECONOMY.REACTION ? ` · ${reactionMode}` : ""}</div><h3>${htmlEscape(source.name || source.id || "Action")}</h3><div class="economy-copy">${source.description || ""}</div><div class="economy-cost">${htmlEscape(costLabel(source))}</div><button id="economy-action-confirm" ${tab === ECONOMY.REACTION && !canPrepare ? "disabled" : ""}>${buttonLabel}</button></div>`;
     const confirm = global.document.getElementById("economy-action-confirm");
     if (confirm && !confirm.disabled) {
@@ -1420,6 +1423,26 @@
   async function useQuickAction(sel, targetId = null) {
     const unit = playerUnit(), economy = economyRuntime();
     if (!unit || !economy) return false;
+    const independent = global.LuminousUnitIndependentActions;
+    if (independent) {
+      const type = normalizeId(sel?.type === "items" ? "item" : sel?.type);
+      const source = sel?.data || {};
+      const result = independent.execute(unit, { sourceType: type, definition: source }, {
+        round: roundNumber(), phase: "planning",
+        target: targetId ? combatData()?.[targetId] || null : unit,
+        units: Object.values(combatData() || {}),
+        character: authoritativeCharacter(unit),
+      });
+      if (!result.used) {
+        lexical("setStatus", () => {})(`ACTION · ${source.name || source.id || "Action"} · ${String(result.reason || "UNAVAILABLE").replaceAll("_", " ").toUpperCase()}`);
+        return false;
+      }
+      if (result.cost === ECONOMY.QUICK) state.quickSpentRound = roundNumber();
+      syncQuickBadge(); syncTabs(); updateCategoryContext();
+      lexical("setStatus", () => {})(`${result.cost === ECONOMY.QUICK ? "QUICK" : "FREE"} ACTION · ${source.name || source.id || "Action"} · USED`);
+      lexical("goRoot", () => {})();
+      return true;
+    }
     const gate = economy.availability?.(unit, ECONOMY.QUICK, { phase: "planning" });
     if (gate?.available === false) { lexical("setStatus", () => {})(`QUICK ACTION · ${gate.reason || "UNAVAILABLE"}`); return false; }
     const action = compilerFor(sel, targetId);
