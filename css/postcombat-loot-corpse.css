@@ -280,3 +280,12 @@
 @media(max-width:600px) and (min-height:501px){
   #postcombat-loot-modal .loot-actions{grid-template-columns:minmax(0,1fr);gap:8px}
 }
+
+/* Shared corpse belongings: occupied hidden slots are never decorative blanks. */
+#postcombat-loot-modal .loot-belongings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:10px 0 18px}
+#postcombat-loot-modal .loot-belonging{min-width:0;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;border:1px solid #765236;background:#160e0c;color:#e7d6bd;font:13px/1.35 system-ui;text-align:center;overflow-wrap:anywhere}
+#postcombat-loot-modal .loot-belonging img{width:44px;height:44px;object-fit:contain}
+#postcombat-loot-modal .loot-belonging.unknown strong{font-size:26px;color:#d4ae75;letter-spacing:3px}
+#postcombat-loot-modal .loot-belonging .loot-action{width:100%;min-width:44px;min-height:44px;padding:8px 4px}
+#postcombat-loot-modal .loot-cash-glyph{font-size:30px;color:#e1bb82}
+@media(max-width:400px){#postcombat-loot-modal .loot-belongings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

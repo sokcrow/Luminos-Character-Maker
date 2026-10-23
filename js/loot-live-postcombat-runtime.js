@@ -26,6 +26,7 @@
     "js/item-runtime-engine.js",
     "js/item-inventory-runtime.js",
     "js/item-catalog-hp-healing.js",
+    "js/item-catalog-weapons.js",
     "js/item-catalog-culinary-staples.js",
     "js/item-quality-engine.js",
     "js/item-size-lineage-engine.js",
@@ -50,10 +51,11 @@
     "js/item-catalog-scale-shell-chitin.js",
     "js/item-catalog-feather-raw-fiber.js",
     "js/item-catalog-salvage-raw.js",
-    "js/loot-instance-runtime.js",
+    "js/unit-catalog-kobold-tier1.js?v=20261023-shared-belongings-1",
+    "js/loot-instance-runtime.js?v=20261023-equipment-1",
     "js/loot-check-runtime.js?v=20261022-pickpocket-3",
     "js/loot-knowledge-runtime.js",
-    "js/loot-postcombat-runtime.js?v=20261022-pickpocket-3",
+    "js/loot-postcombat-runtime.js?v=20261023-shared-belongings-1",
     "js/loot-recovery-delivery-runtime.js",
   ]);
 
@@ -349,18 +351,29 @@
       await ref.set(clone(next));
       return { committed: true, snapshot: { val: () => clone(next) } };
     }
-    let failure = null;
-    const response = await ref.transaction((raw) => {
-      // The legacy SDK does not reject its promise when an updater throws on
-      // a server retry. Abort cleanly and propagate the error after completion.
+    // Keep a value listener until the transaction finishes. In the legacy SDK
+    // an uncached null is not proof that a corpse is new: collecting a revealed
+    // item would otherwise abort before Firebase can retry with server truth.
+    let hold = null;
+    if (typeof ref.on === "function" && typeof ref.off === "function") {
       try {
-        failure = null;
-        const result = updater(clone(raw));
-        return result === undefined ? undefined : clone(result);
-      } catch (error) { failure = error;return undefined; }
-    }, undefined, false);
-    if (failure) throw failure;
-    return response;
+        await new Promise((resolve, reject) => { hold = () => resolve(); ref.on("value", hold, reject); });
+      } catch (error) { if (hold) ref.off("value", hold); throw error; }
+    }
+    let failure = null;
+    try {
+      const response = await ref.transaction((raw) => {
+        // The legacy SDK does not reject its promise when an updater throws on
+        // a server retry. Abort cleanly and propagate the error after completion.
+        try {
+          failure = null;
+          const result = updater(clone(raw));
+          return result === undefined ? undefined : clone(result);
+        } catch (error) { failure = error; return undefined; }
+      }, undefined, false);
+      if (failure) throw failure;
+      return response;
+    } finally { if (hold) ref.off("value", hold); }
   }
 
   function unitOptions(unitTruth = {}, interaction = {}) {
@@ -400,11 +413,11 @@
     };
     const actorId = postCombat().actorIdOf(actor, actorIdentityOptions);
     if (!actorId) throw new Error("POST_COMBAT_ACTOR_ID_REQUIRED");
-    const definition = postCombat().checkDefinition(actor, actionId, {
+    const definition = actionId === "collect" ? null : postCombat().checkDefinition(actor, actionId, {
       ...actorIdentityOptions,
       corpseId: locked.corpseId,
     });
-    const checkResult = options.checkResult || checks().rollCheck(definition, options);
+    const checkResult = actionId === "collect" ? postCombat().collectionResult() : options.checkResult || checks().rollCheck(definition, options);
     const stateRef = db.ref(`${ROOTS.postCombat}/${lootInstanceId}`);
     let committedResult = null;
     let committedMaterialized = null;
@@ -693,7 +706,7 @@
     }) || clean(options.playerId);
     const actions = [];
     const searchAvailable = (state.carried || []).some((entry) => int(entry.remaining, 0) > 0) || int(state.currency?.remaining, 0) > 0;
-    if (searchAvailable && !postCombat().hasAttempted(state, actorId, "search", {})) actions.push("search");
+    if (searchAvailable && state.belongingsRevealed !== true && !postCombat().hasAttempted(state, actorId, "search", {})) actions.push("search");
     if (searchAvailable && !postCombat().hasAttempted(state, actorId, "pickpocket", {})) actions.push("pickpocket");
     for (const id of ["harvest", "extract", "salvage"]) {
       if (postCombat().eligibleResources(state, id).length && !postCombat().hasAttempted(state, actorId, id, {})) actions.push(id);
@@ -764,7 +777,8 @@
     if (!db?.ref || !user || !playerId || !lootInstanceId) throw Error('Entra con tu personaje para recuperar el botín.');
     const actionId = normalizeId(options.actionId || 'claim');
     const targetResourceId = clean(options.targetResourceId), deliveryId = clean(options.deliveryId);
-    let key = [lootInstanceId, actionId, targetResourceId, deliveryId].map(v => encodeURIComponent(v).replace(/\./g, '%2E')).join('|');
+    const targetItemId = clean(options.targetItemId), targetCurrency = options.targetCurrency === true;
+    let key = [lootInstanceId, actionId, targetResourceId, deliveryId, targetItemId, targetCurrency ? "currency" : ""].map(v => encodeURIComponent(v).replace(/\./g, '%2E')).join('|');
     const [occupation, existingInitial] = await Promise.all([
       onceValue(db,`${ROOTS.claims}/${lootInstanceId}`),
       onceValue(db, `${ROOTS.requests}/${playerId}/${key}`),
@@ -779,7 +793,7 @@
     const ref = db.ref(`${ROOTS.requests}/${playerId}/${key}`);
     if (!existing) {
       try {
-        await ref.set({uid:user.uid,playerId,lootInstanceId,actionId,targetResourceId,deliveryId,
+        await ref.set({uid:user.uid,playerId,lootInstanceId,actionId,targetResourceId,deliveryId,targetItemId,targetCurrency,
           checkHeads: int(options.checkResult?.heads, 0),status:'pending',createdAt:Date.now()});
       } catch(error) {
         if (/permission[_-]denied/i.test(String(error?.code || error?.message || ''))) {
@@ -813,8 +827,13 @@
     if (!occupation || occupation.uid !== row.uid || occupation.playerId !== playerId || Number(occupation.expiresAt) <= Date.now()) {
       throw Error("Este cadáver está ocupado por otro personaje o la reserva de saqueo expiró.");
     }
-    const options = {db,playerId,actor:{...actor,id:playerId},lootInstance:locked,lootInstanceId:row.lootInstanceId,targetResourceId:row.targetResourceId||undefined};
+    const options = {db,playerId,actor:{...actor,id:playerId},lootInstance:locked,lootInstanceId:row.lootInstanceId,targetResourceId:row.targetResourceId||undefined,targetItemId:row.targetItemId||undefined,targetCurrency:row.targetCurrency===true};
     if (row.actionId === 'claim') return deliverPending({...options,deliveryId:row.deliveryId});
+    if (row.actionId === 'collect') {
+      const result = await executeAction({...options,actionId:'collect'});
+      return {committed:result.committed,check:result.check,materialized:result.materialized||null,
+        delivery:result.delivery?{delivered:result.delivery.delivered,duplicate:result.delivery.duplicate===true}:null};
+    }
     if (!['search','pickpocket','harvest','extract','salvage','examine','autopsy'].includes(row.actionId)) throw Error('Esta acción de recuperación no está disponible.');
     const definition = postCombat().checkDefinition(options.actor,row.actionId,options);
     const heads = Number(row.checkHeads);

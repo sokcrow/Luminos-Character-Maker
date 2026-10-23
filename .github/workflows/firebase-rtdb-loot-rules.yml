@@ -50,9 +50,19 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Install Auth/RTDB emulator test dependencies
-        run: npm install --no-save --no-audit --no-fund firebase@8.10.1 firebase-tools@14.19.1
+        run: npm install --no-save --no-audit --no-fund firebase@8.10.1 firebase-tools@14.19.1 @playwright/test@1.55.0
+      - name: Install browser for shared corpse acceptance
+        run: npx playwright install --with-deps chromium
       - name: Validate RTDB rules and authenticated player loot
-        run: npx firebase emulators:exec --only auth,database --project demo-combat-results --config combat-results-firebase.json 'node tests/loot-authority-emulator.mjs'
+        run: npx firebase emulators:exec --only auth,database --project demo-combat-results --config combat-results-firebase.json 'node tests/loot-authority-emulator.mjs && npx playwright test tests/loot-shared-belongings.spec.mjs --workers=1 --reporter=line'
+
+      - name: Save shared corpse mobile and desktop evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-corpse-browser-evidence
+          path: test-results/
+          if-no-files-found: ignore
 
   deploy-database-rules:
     needs: validate-loot-permissions

@@ -173,17 +173,24 @@ const successfulSearch = postCombat.performAction(failedSearch.state, expert, "s
 assert.equal(successfulSearch.result.check.success, true);
 assert.equal(successfulSearch.result.check.total, 27);
 assert.equal(successfulSearch.result.check.margin, 17);
-assert.equal(successfulSearch.result.recovery.items.length, 3);
-assert.equal(successfulSearch.result.recovery.currency.amount, 150);
-assert.equal(successfulSearch.state.carried.filter((entry) => entry.remaining > 0).length, 0);
-assert.equal(successfulSearch.state.currency.remaining, 0);
-
-for (const item of successfulSearch.result.recovery.items) {
-  assert.equal(item.schemaVersion, inventory.schemaVersion);
-  assert.equal(item.provenance.acquisitionMethod, "search");
-  assert.equal(item.provenance.acquiredByActorId, "player_expert");
-  assert.equal(item.provenance.corpseId, "corpse_postcombat_001");
-}
+assert.equal(successfulSearch.result.recovery.items.length, 0, "Search only reveals");
+assert.equal(successfulSearch.result.recovery.currency, null);
+assert.equal(successfulSearch.state.carried.filter((entry) => entry.remaining > 0).length, 3);
+assert.equal(successfulSearch.state.currency.remaining, 150);
+assert.ok(successfulSearch.state.carried.every(entry => entry.revealed));
+assert.equal(successfulSearch.state.currency.revealed, true);
+assert.deepEqual(postCombat.corpseBelongings(state0), Array.from({length:4}, () => ({kind:"unknown",revealed:false})));
+const firstItem = successfulSearch.state.carried[0];
+const collected = postCombat.performAction(successfulSearch.state, investigator, "collect", {targetItemId:firstItem.instanceId});
+assert.equal(collected.result.recovery.items.length, 1, "another player may collect shared discoveries without rolling");
+assert.equal(collected.result.recovery.items[0].provenance.acquisitionMethod, "collect");
+assert.equal(collected.state.carried.filter(entry => entry.remaining > 0).length, 2, "unselected belongings stay in corpse");
+assert.equal(collected.state.currency.remaining, 150);
+assert.throws(() => postCombat.performAction(state0, expert, "collect", {targetItemId:firstItem.instanceId}), /revelar/);
+assert.throws(() => postCombat.performAction(collected.state, expert, "collect", {targetItemId:firstItem.instanceId}), /ya fue recogida/);
+const cash = postCombat.performAction(collected.state, expert, "collect", {targetCurrency:true});
+assert.equal(cash.result.recovery.currency.amount, 150);
+assert.equal(cash.state.currency.remaining, 0);
 
 const impossibleTarget = postCombat.performAction(state0, { ...expert, id: "player_targeter" }, "search", {
   rng: allHeads,

@@ -427,7 +427,12 @@ const searched = await live.executeAction({
   now: 201,
 });
 assert.equal(searched.committed, true);
-assert.equal(searched.delivery.delivered, true);
+assert.equal(searched.delivery, null);
+assert.equal(getPath(db.data, "campaña/jugadores/searcher/ahn"), 10, "reveal must not transfer money");
+assert.equal(getPath(db.data, "campaña/loot_postcombat/loot_live_currency/currency/remaining"), 100);
+const collectedCash = await live.executeAction({db, lootInstanceId: "loot_live_currency", playerId:"searcher",
+  actor:searcherBefore, actionId:"collect", targetCurrency:true, now:201});
+assert.equal(collectedCash.delivery.delivered, true);
 const searcherAfter = getPath(db.data, "campaña/jugadores/searcher");
 assert.equal(searcherAfter.ahn, 110);
 assert.equal(searcherAfter.finance.currentBalance, 110);
