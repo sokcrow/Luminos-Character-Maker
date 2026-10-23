@@ -136,6 +136,19 @@
   }
   function executeTraitQuick(sel,targetId=null){
     const source=sel?.data||{},actor=playerUnit(),eco=economy(),engine=global.LuminousTraitEngine;
+    const independent=global.LuminousUnitIndependentActions;
+    if(independent&&actor){
+      const cost=independent.costOf({sourceType:'trait',definition:source});
+      const result=independent.execute(actor,{sourceType:'trait',definition:source},{
+        round:roundNumber(),phase:'planning',character:api()?.authoritativeCharacter?.(actor)||actor,
+        target:targetId?combatData()?.[targetId]||null:actor,units:Object.values(combatData()||{})
+      });
+      if(!result.used){status(`${cost==='free_action'?'FREE':'QUICK'} ACTION · ${result.reason||'UNAVAILABLE'}`);return false}
+      if(cost==='quick_action'&&api()?.state)api().state.quickSpentRound=roundNumber();
+      api()?.syncQuickBadge?.();api()?.syncTabs?.();
+      status(`${cost==='free_action'?'FREE':'QUICK'} ACTION · ${source.name||source.id||'Trait'} · USED`);
+      closeToRoot();return true;
+    }
     if(!actor||!eco||!engine?.canActivateTrait||!engine?.activateTrait){status('QUICK ACTION · TRAIT RUNTIME UNAVAILABLE');return false}
     const gate=eco.availability?.(actor,ECONOMY.QUICK,{phase:'planning'});if(gate?.available===false){status(`QUICK ACTION · ${gate.reason||'UNAVAILABLE'}`);return false}
     const target=targetId?combatData()?.[targetId]||null:actor,action=compileTraitAction(sel,targetId),runtime=traitRuntimeContext(source,target,action,'planning'),tState=traitState(source);
@@ -176,7 +189,7 @@
     }
     const confirm=event.target?.closest?.('#economy-action-confirm');if(!confirm)return;
     const sel=lexical('selected',null),source=sel?.data||{};
-    if(sel?.type!=='trait'||canonicalCost(source)!==ECONOMY.QUICK)return;
+    if(sel?.type!=='trait'||![ECONOMY.QUICK,'free','none','free_action'].includes(canonicalCost(source)))return;
     event.preventDefault();event.stopImmediatePropagation();beginTraitQuick(sel);
   }
 
