@@ -53,7 +53,7 @@
     return s;
   }
 
-  function contentSpell(idRaw, o = {}) { const id = normalizeId(idRaw); const supplied = o.spellsById?.[id] || o.spellDefinitions?.[id]; if (supplied) return { ...clone(supplied), id }; try { global.LuminousContentRegistryBootstrap?.registerAvailableCore?.(); } catch (_) {} const e = global.LuminousContentRegistry?.get?.("spell", id); const d = e?.definition || global.LuminousSpellCatalog?.[id] || global.LuminousRoleSpellCatalog?.[id]; return d ? { ...clone(d), id } : null; }
+  function contentSpell(idRaw, o = {}) { const id = normalizeId(idRaw); const supplied = o.spellsById?.[id] || o.spellDefinitions?.[id]; if (supplied) return { ...clone(supplied), id }; try { global.LuminousContentRegistryBootstrap?.registerAvailableCore?.(); } catch (_) {} const e = global.LuminousContentRegistry?.get?.("spell", id); const d = global.LuminousSpellLoadout?.definition(id) || e?.definition || global.LuminousSpellCatalog?.[id] || global.LuminousRoleSpellCatalog?.[id]; return d ? { ...clone(d), id } : null; }
   const spellLevel = (s = {}) => Math.max(0, intOr(s.level ?? s.spellLevel ?? s.slotLevel, 0));
   function wizardSpellAllowed(s = {}) { const a = [s.classIds, s.classes, s.allowedClasses, s.allowedClassIds].flatMap((x) => Array.isArray(x) ? x : []).map((x) => normalizeId(x?.classId || x?.id || x)); const d = normalizeId(s.sourceClassId || s.classId); if (d) a.push(d); return !a.length || a.includes(CLASS_ID); }
   function maxWizardSpellLevel(c = {}) { const t = spellcasting()?.getClassSpellSlotTable?.(c, CLASS_ID) || spellcasting()?.slotTableForClass?.(c, CLASS_ID) || {}; return Math.max(0, ...Object.keys(t).map(Number)); }

@@ -7,7 +7,8 @@
     if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
     return value;
   }
-  function create({ rules: r, presentation = {}, context = () => ({}), snapshot = () => ({}), assertActive = () => {}, publish = async () => {}, onEvent = () => {}, onPresentation = () => {} }) {
+  function create({ rules: r, presentation = {}, context = () => ({}), snapshot = () => ({}), assertActive = () => {}, publish = async () => {}, onEvent = () => {}, onPresentation = () => {},
+    schedulePresentation = () => null, presentScheduled = (_event, render) => render() }) {
     let enabled = true, capture = false, sequence = 0, journal = [];
     // A view failure cannot change rule ordering or interrupt the resolver.
     const notify = (callback, ...args) => { try { callback(...args); } catch (_) {} };
@@ -51,13 +52,17 @@
     }
     async function show(name, ...args) {
       assertActive();
+      let event;
       if (capture) {
-        emit('Presentation', null, { cue: name, args: args.map(presentationValue), combatants: snapshot() });
+        const timing = schedulePresentation(name);
+        event = emit('Presentation', null, { cue: name, args: args.map(presentationValue), combatants: snapshot(), ...(timing ? { timing } : {}) });
         // Enqueue the result before local animation. Transport acknowledgements
         // are drained at action checkpoints, outside the animation clock.
         await publish();
       }
-      if (enabled) { notify(onPresentation, name, args); await presentation[name]?.(...args); }
+      if (enabled) await presentScheduled(event, async () => {
+        assertActive(); notify(onPresentation, name, args); await presentation[name]?.(...args);
+      });
     }
     function powerState(entry, remaining, opponent) {
       const data = r.data(entry.plan), unit = r.unit(entry.ownerId), other = r.unit(opponent?.ownerId);

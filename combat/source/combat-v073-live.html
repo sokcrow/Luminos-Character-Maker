@@ -6922,6 +6922,8 @@ function combatStepRuntime(){
   names.forEach(name=>{rules[name]=(...args)=>window[name](...args)});
   combatStepsInstance=window.LuminousCombatSteps.create({rules,
     publish:()=>window.LuminousCombatAuthority073?.publishPresentation?.(),
+    schedulePresentation:()=>window.LuminousCombatPlaybackSync?.schedulePresentation?.(),
+    presentScheduled:(event,render)=>window.LuminousCombatPlaybackSync?.presentScheduled?.(event,render)??render(),
     onEvent:event=>{try{window.LuminousCombatHudMotion073?.event(event)}finally{window.LuminousCombatAudiovisual073?.event(event)}},
     onPresentation:(cue,args)=>{try{window.LuminousCombatHudMotion073?.cue(cue,args)}finally{window.LuminousCombatAudiovisual073?.cue(cue,args)}},
     assertActive:()=>{

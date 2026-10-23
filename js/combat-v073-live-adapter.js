@@ -225,6 +225,10 @@
       const y = useFormationSpawn ? pos.y : finite(raw.y ?? raw.position?.y ?? raw.combatPosition?.y, pos.y);
       result.push({
         ...clone(raw),
+        ...(global.LuminousSpellLoadout?.hasSelection(authoritativePlayer || {}) ? {
+          spellLoadout: { schemaVersion: 1, spellIds: global.LuminousSpellLoadout.selectedIds(authoritativePlayer) },
+          spellCastOverrides: clone(authoritativePlayer.spellCastOverrides || authoritativePlayer.characterBuild?.spellCastOverrides || {})
+        } : {}),
         inventario_activo: clone(liveActiveInventory),
         equipment: linkedEquipment ? clone(linkedEquipment.equipment) : clone(raw.equipment || {}),
         attunedItemInstanceIds: linkedEquipment
@@ -393,6 +397,8 @@
       unit.confusionTurnMode,
       unit.scores,unit.abilityScores,unit.stats,unit.attributes,
       skillIdsFor(unit),
+      unit.spellLoadout || unit.spellIds || unit.spellSelections || unit.characterBuild?.spellSelections || null,
+      unit.spellCastOverrides || unit.characterBuild?.spellCastOverrides || null,
       inventoryHydrationSignature(unit),
       playerRecordFor(unit)?.itemEquipmentRefs || unit.itemEquipmentRefs || null,
       playerRecordFor(unit)?.attunedItemInstanceIds || unit.attunedItemInstanceIds || null

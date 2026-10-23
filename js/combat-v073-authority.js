@@ -178,7 +178,7 @@
       .map(playerId=>[playerId,clean(ready?.[playerId]?.enchantmentReactionItemInstanceId)])
       .filter(([,id])=>id));
     const seed=makeSeed(round);let payload={schemaVersion:1,engineVersion:'0.7.3-authority.9-step-rng',round,phase:'sealed',seed,authorityUid:s.uid,planningWitness,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
-    if(playback()?.negotiate(ready||{},activePlayerIds()))payload=await playback().seal(payload);
+    if(playback()?.negotiate(ready||{},activePlayerIds()))payload=await playback().seal(payload,{timeline:playback().canSchedule?.(ready||{},activePlayerIds())===true});
     if(!payload.playback){
       const sealed=await global.LuminousCombatSession.updateRoot(s.db,raw=>{
         if(!global.LuminousCombatSession.canSeal(raw,payload)||['sealed','running'].includes(raw.authority?.current?.phase))return;
@@ -300,6 +300,7 @@
           }
           const snapshot=snapshotRuntime(),localDigest=checkpointDigest(snapshot,state.current.round);state.localDigests.set(state.localActionSeq,localDigest);
           if(isDm()){
+            if(batchMode())await playback().drainPresentation?.();
             if(batchMode())state.lastExecutionJson=JSON.stringify(global.LuminousCombatStepRuntime.captureExecution(rest[0],rest[1]));
             publishActionCheckpoint(`queue_entry:${adjusted?.ownerId||'unknown'}:${adjusted?.localIndex??0}`);
             if(batchMode())await state.writeChain;

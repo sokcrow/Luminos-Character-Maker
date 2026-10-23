@@ -14,6 +14,8 @@
       try { require("./spell-batch-cantrips-utility-runtime.js"); } catch (_) {}
     }
     if (global.document) {
+      // Character sheets need definitions, not Combat hook installers/pollers.
+      const definitionsOnly = global.document.currentScript?.dataset?.definitionsOnly === 'true';
       const load = (id, src) => {
         if (global.document.getElementById(id)) return;
         const script = global.document.createElement("script");
@@ -21,6 +23,7 @@
         global.document.head?.appendChild(script);
       };
       if (!global.LuminousRoleSpellCatalog) load("role-spell-catalog-core-script", "js/role-spell-catalog-core.js");
+      if (definitionsOnly) return;
       if (!global.LuminousPierreSpellBatchRuntime) load("spell-batch-pierre-runtime-script", "js/spell-batch-pierre-runtime.js");
       if (!global.LuminousAngeloSpellBatchRuntime) load("spell-batch-angelo-runtime-script", "js/spell-batch-angelo-runtime.js");
       if (!global.LuminousSpellVisualAssetRegistry) load("spell-visual-asset-registry-script", "js/spell-visual-asset-registry.js");

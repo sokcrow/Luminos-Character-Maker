@@ -147,7 +147,7 @@ test('performance: visible combat with one player, one kobold, 1 and 3 coins, th
    const view=await pf.evaluate(()=>Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id,u])=>[id,u.hp])));
    for(const [id,u]of Object.entries(canonical))expect(view[id]).toBe(u.hp);
    if(!process.env.PERFORMANCE_BASELINE){
-    expect(cueSkewMs,'player animation cannot fall seconds behind the authority').toBeLessThan(2000);
+    expect(cueSkewMs,'shared-clock playback must stay within 400ms under 4x CPU load').toBeLessThan(400);
     expect(authority.publish.length).toBeGreaterThan(0);
     expect(Math.max(...authority.publish),'network acknowledgement must not gate each visual cue').toBeLessThan(80);
     expect(authority.maxFrame,'no multi-second authority freeze').toBeLessThan(1000);

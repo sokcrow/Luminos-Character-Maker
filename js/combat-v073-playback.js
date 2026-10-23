@@ -3,7 +3,44 @@
   'use strict';
   const SCHEMA = 1, ENGINE = '0.7.3-playback.1';
   const copy = value => JSON.parse(JSON.stringify(value));
-  function createConsumer({ generation, checkpoint, apply, present, finish, onEvent = () => {}, onError = () => {} }) {
+  const instantCues = new Set(['actionStart', 'powerStart', 'powerEnd', 'hitsStart', 'hitStart', 'spellResult', 'healingMotion']);
+  // Only presentation uses this clock. Rule results and RNG stay authoritative.
+  function createPresentationClock({ now = () => Date.now(), leadMs = 120,
+    setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
+    let stopped = false, failure = null, instantTail = Promise.resolve();
+    const timers = new Map(), pending = new Set();
+    async function wait(playAt) {
+      while (!stopped && Number.isFinite(playAt) && playAt > now()) {
+        await new Promise(resolve => {
+          const id = setTimer(() => { timers.delete(id); resolve(); }, Math.min(250, playAt - now()));
+          timers.set(id, resolve);
+        });
+      }
+      return !stopped;
+    }
+    return Object.freeze({
+      stamp() { if (failure) throw failure; return { schemaVersion: 1, playAt: now() + leadMs }; },
+      wait,
+      run(cue, timing, render) {
+        if (failure) throw failure;
+        const previous = instantTail;
+        const task = (async () => {
+          if (!(await wait(timing.playAt))) return;
+          await previous;
+          if (!stopped) await render();
+        })();
+        pending.add(task);
+        task.then(() => pending.delete(task), error => { pending.delete(task); failure = error; });
+        // DOM preparation has no hold. Queue it at the same server time as the
+        // next animated cue, without charging a network buffer for each label.
+        if (instantCues.has(cue)) { instantTail = task; return Promise.resolve(); }
+        return task;
+      },
+      async drain() { await Promise.all([...pending]); if (failure) throw failure; },
+      stop() { stopped = true; for (const [id, resolve] of timers) { clearTimer(id); resolve(); } timers.clear(); },
+    });
+  }
+  function createConsumer({ generation, checkpoint, apply, present, finish, onEvent = () => {}, onError = () => {}, beforeEvents = async () => {} }) {
     let cursor = Number(checkpoint?.seq) || 0, eventCursor = Number(checkpoint?.eventCursor) || 0;
     let chain = Promise.resolve(), stopped = false;
     const pending = new Map(), seen = new Map();
@@ -24,6 +61,8 @@
             if(next.type!=='Presentation'||next.cue!=='powerCoin'||next.args?.[1]?.index!==first.args?.[1]?.index)break;
             group.push(next);index++;
           }
+          await beforeEvents(group, row, events.slice(index));
+          if (stopped) return;
           const presentations=[];
           for(const event of group){
             if (event.sequence !== eventCursor + 1) throw new Error('PLAYBACK_EVENT_GAP');
@@ -31,7 +70,7 @@
             else if(event.changes?.length) apply(Object.fromEntries(event.changes.filter(change=>change.after).map(change=>[change.unitId,copy(change.after)])));
             await onEvent(copy(event));
             if(stopped)return;
-            if (event.type === 'Presentation') presentations.push(present(event.cue, copy(event.args || []), row));
+            if (event.type === 'Presentation') presentations.push(present(event.cue, copy(event.args || []), row, event));
             eventCursor = event.sequence;
           }
           await Promise.all(presentations);
@@ -66,5 +105,6 @@
       stop() { stopped = true; pending.clear(); seen.clear(); },
     });
   }
-  global.LuminousCombatPlayback = Object.freeze({ schemaVersion: SCHEMA, engineVersion: ENGINE, createConsumer });
+  global.LuminousCombatPlayback = Object.freeze({ schemaVersion: SCHEMA, engineVersion: ENGINE, timelineVersion: 1,
+    createConsumer, createPresentationClock, isInstantCue: cue => instantCues.has(cue) });
 })(typeof window === 'undefined' ? globalThis : window);
