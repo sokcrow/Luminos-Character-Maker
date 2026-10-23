@@ -175,7 +175,20 @@
       }
       const activation = traitEngine.activateTrait(definition, runtime, roundState.traitState);
       if (activation?.available === false) return { used: false, reason: (activation.reasons || ["activation_failed"]).join("; ") };
-      if (generic || arr(activation?.outcomes).length || handled) { handled = true; result = activation; }
+      if (generic || arr(activation?.outcomes).length || handled) {
+        // The Trait Engine tracks status operations in its canonical state.
+        // Mirror applied/removed status effects onto the live Unit so that the
+        // shared Combat status renderer, class hooks and checkpoints see them.
+        for (const outcome of arr(activation?.outcomes)) {
+          if (norm(outcome?.type) === "apply_status" && outcome.statusId && outcome.status) {
+            unit.statusEffects ||= {};
+            unit.statusEffects[norm(outcome.statusId)] = clone(outcome.status);
+          } else if (norm(outcome?.type) === "remove_status" && outcome.removed && outcome.statusId) {
+            if (unit.statusEffects) delete unit.statusEffects[norm(outcome.statusId)];
+          }
+        }
+        handled = true; result = activation;
+      }
       else reason = "trait_specific_runtime_required";
     } else if (type === "item") {
       const live = definition;
