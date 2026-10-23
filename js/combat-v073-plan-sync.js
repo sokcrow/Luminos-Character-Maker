@@ -7,7 +7,7 @@
   const safe=v=>clean(v).replace(/[.#$\[\]\/]/g,'_');
   const finite=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
   const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
-  let chain=Promise.resolve(),targetChain=Promise.resolve(),lastReadySignature='',lastTargetSignature='';
+  let chain=Promise.resolve(),targetChain=Promise.resolve(),independentChain=Promise.resolve(),lastReadySignature='',lastTargetSignature='';
   const delivery={status:'idle',round:0,request:0,error:''};
   const READY_TIMEOUT_MS=8000;
   function reportDelivery(status,round,request,error=''){
@@ -112,6 +112,7 @@
     return null;
   }
   async function syncReady(detail={}){
+    if(detail.ready===true){await independentChain;if(independentDeliveryFailed)throw new Error('INDEPENDENT_ACTION_DELIVERY_FAILED');}
     const ctx=detail.ready===true?await waitForReadyContext(detail):context(detail);if(!ctx)return false;
     const pending=pendingReady(),intent=detail.readyIntentId?pending:null;
     if(detail.readyIntentId&&intent?.id!==detail.readyIntentId)return false;
@@ -247,7 +248,7 @@
     ]);
     return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatDeploymentRuntime&&global.LuminousCombatDeploymentBridge073&&global.LuminousUnitRankRuntime&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);
   }
-  let independentIntentCounter=0;
+  let independentIntentCounter=0,independentDeliveryFailed=false;
   async function onIndependentActionResolved(event){
     const detail=event?.detail||{},s=state();
     if(detail.ai||s?.role!=='player'||!s?.db?.ref||!s.playerId||!s.uid)return false;
@@ -263,15 +264,20 @@
     };
     try{
       await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(id)}`).set(payload);
+      independentDeliveryFailed=false;
       global.dispatchEvent?.(new global.CustomEvent('luminous:unit-independent-action-shared',{detail:{id,round:payload.round}}));
       return true;
     }catch(error){
+      independentDeliveryFailed=true;
       console.error('[Combat073 Independent Actions] Failed to send Player choice to DM authority',error);
       global.dispatchEvent?.(new global.CustomEvent('luminous:unit-independent-action-sync-failed',{detail:{id,reason:clean(error?.message||error)}}));
       return false;
     }
   }
-  global.addEventListener('luminous:unit-independent-action-resolved',onIndependentActionResolved);
+  function queueIndependentAction(event){
+    independentChain=independentChain.then(()=>onIndependentActionResolved(event),()=>onIndependentActionResolved(event));
+  }
+  global.addEventListener('luminous:unit-independent-action-resolved',queueIndependentAction);
   global.addEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);
   global.addEventListener('luminous:combat073-hydrated',recoverReady);
   global.addEventListener('online',recoverReady);global.addEventListener('focus',recoverReady);
