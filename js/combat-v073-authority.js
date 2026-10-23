@@ -112,7 +112,7 @@
   function compactUnit(unit={}){
     return{
       ...Object.fromEntries(['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion',
-        'combatEventState','combatTraitState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
+        'combatEventState','combatTraitState','combatIndependentActionState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
         'deployedRound','deploymentState','replacementClaimed'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
       ...(unit.combatDeck?{combatDeck:global.LuminousCombatSlotDeck073?.compact(unit.combatDeck)||clone(unit.combatDeck)}:{}),
       hp:Math.max(0,finite(unit.hp,0)),maxHp:Math.max(1,finite(unit.maxHp,1)),sp:finite(unit.sp,0),
@@ -267,7 +267,7 @@
   function patchCoinEngine(){const engine=global.LuminousCoinEngine;if(!engine?.runAnimatedRoll)return false;if(engine.__luminousAuthorityCoinEngine)return true;state.originalCoinEngine=state.originalCoinEngine||engine;global.LuminousCoinEngine=Object.freeze({...engine,__luminousAuthorityCoinEngine:true,rollSide:(headsChance,rng)=>engine.rollSide(headsChance,rng||random),runAnimatedRoll:options=>engine.runAnimatedRoll({...options,rng:options?.rng||random})});return true;}
   function patchExecutionQueue(){
     const original=global.buildExecutionQueue;if(typeof original!=='function')return false;if(original.__luminousAuthorityQueue)return true;state.originalBuildQueue=state.originalBuildQueue||original;
-    const wrapped=function(){const queue=original(),data=runtime()?.combatants?.()||{},existing=new Set(queue.map(entry=>`${entry.ownerId}:${entry.localIndex}`));Object.values(data).forEach(unit=>{if(unit?.controlled!=='remote'||!Array.isArray(unit.autoPlans))return;const slots=global.unitSlots?.(unit.id)||[];unit.autoPlans.forEach((plan,index)=>{if(!plan||existing.has(`${unit.id}:${index}`))return;queue.push({ownerId:unit.id,ownerName:unit.name,slot:slots[index]||null,localIndex:index,worldX:Number(unit.x)||0,plan,controller:'remote'});});});queue.forEach(entry=>{const unit=data[entry.ownerId];entry.speed=Number(unit?.speed)||0;entry.tieSeed=Number(unit?.speedTie)||0;});queue.sort((a,b)=>{const speedDelta=b.speed-a.speed;if(speedDelta)return speedDelta;if(a.ownerId===b.ownerId)return a.localIndex-b.localIndex;return a.tieSeed-b.tieSeed;});return queue;};
+    const wrapped=function(){const queue=original(),data=runtime()?.combatants?.()||{},existing=new Set(queue.map(entry=>`${entry.ownerId}:${entry.localIndex}`));Object.values(data).forEach(unit=>{if(unit?.controlled!=='remote'||!Array.isArray(unit.autoPlans))return;const slots=global.unitSlots?.(unit.id)||[];unit.autoPlans.forEach((plan,index)=>{if(!plan||existing.has(`${unit.id}:${index}`))return;queue.push({ownerId:unit.id,ownerName:unit.name,slot:slots[index]||null,localIndex:index,worldX:Number(unit.x)||0,plan,controller:'remote'});});});Object.values(data).forEach(unit=>{if(unit?.controlled!=='ai'||unit.battleActive===false||unit.isBackup||Number(unit.hp)<=0||queue.some(entry=>entry.ownerId===unit.id))return;const actions=global.LuminousUnitIndependentActions?.sourcesFor?.(unit)||[];if(actions.length)queue.push({ownerId:unit.id,ownerName:unit.name,slot:null,localIndex:0,worldX:Number(unit.x)||0,plan:{type:'independent'},controller:'ai_independent'});});queue.forEach(entry=>{const unit=data[entry.ownerId];entry.speed=Number(unit?.speed)||0;entry.tieSeed=Number(unit?.speedTie)||0;});queue.sort((a,b)=>{const speedDelta=b.speed-a.speed;if(speedDelta)return speedDelta;if(a.ownerId===b.ownerId)return a.localIndex-b.localIndex;return a.tieSeed-b.tieSeed;});return queue;};
     wrapped.__luminousAuthorityQueue=true;wrapped.__luminousAuthorityQueueOriginal=original;global.buildExecutionQueue=wrapped;return true;
   }
   function patchExecuteQueueEntry(){
@@ -282,7 +282,14 @@
           if(!owner||owner.battleActive===false||owner.isBackup===true||owner.defeated===true||owner.dead===true||(Number.isFinite(Number(owner.hp))&&Number(owner.hp)<=0)){
             return {skipped:true,reason:'owner_not_in_field',ownerId:adjusted?.ownerId||null};
           }
-          const result=await original.call(scope,adjusted,...rest);
+          // Execute independently selected Quick/Free actions at this Unit's first action.
+          // Player and AI resolve through the same controller; no extra Action Slot.
+          if(owner.controlled==='ai')global.LuminousUnitIndependentActions?.runAiTurn?.(owner,{
+            round:Number(state.current?.round)||Number(adapterState()?.round)||1,
+            units:Object.values(runtime()?.combatants?.()||{}),phase:'combat',ai:true
+          });
+          const result=adjusted?.controller==='ai_independent'
+            ? {resolved:true,independentOnly:true} : await original.call(scope,adjusted,...rest);
           // Skill-driven Enchantment wear touches the canonical inventory,
           // even though the combat queue entry itself is not an Item action.
           if(isDm()&&!batchMode()&&canonicalPlayerId(owner)&&
