@@ -120,10 +120,19 @@
   }
 
   function selectTarget(unit, definition, candidates = [], explicitTarget = null) {
-    if (explicitTarget) return explicitTarget;
+    const attack = Number(definition.basePower ?? definition.base_power) > 0 ||
+      Number(definition.coinPower ?? definition.coin_power) > 0;
     const targetMode = norm(definition.activation?.target || definition.targeting?.allegiance ||
-      definition.targeting?.mode || definition.runtime?.targetMode || definition.targetMode || "self");
+      definition.targeting?.mode || definition.runtime?.targetMode || definition.targetMode ||
+      (attack ? "enemy" : "self"));
     if (["self", "caster", "owner"].includes(targetMode)) return unit;
+    const allies = ["ally", "allies", "friendly", "selected_ally"].includes(targetMode);
+    if (explicitTarget) {
+      if (!active(explicitTarget)) return null;
+      if (allies && explicitTarget.faction !== unit.faction) return null;
+      if (!allies && !["any", "neutral"].includes(targetMode) && explicitTarget.faction === unit.faction) return null;
+      return explicitTarget;
+    }
     const friends = ["ally", "allies", "friendly", "selected_ally"].includes(targetMode);
     return candidates.find(other => active(other) && actorId(other) !== actorId(unit) &&
       (friends ? other.faction === unit.faction : other.faction !== unit.faction)) || (friends ? unit : null);
