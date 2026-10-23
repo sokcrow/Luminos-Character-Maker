@@ -12,6 +12,16 @@ Al confirmar READY, el visor anuncia su versión de reproducción. Si todos los 
 
 En reproducción, solamente el DM ejecuta la cola. Publica lotes de resultados al terminar cada entrada y un lote de cierre. Los Players aplican valores absolutos y reproducen comandos visuales con Coins ya resueltas; no invocan el executor, daño, costes, tiradas ni efectos de impacto. El HUD aplica cada cambio antes de su comando visual. El cliente atrasado omite animaciones antiguas para alcanzar el estado confirmado.
 
+### Reloj compartido de presentación
+
+READY anuncia `playback.timelineVersion: 1`. Si todos los participantes activos lo soportan, el turno sellado conserva esa capacidad. Los turnos anteriores y las sesiones con visores antiguos mantienen su contrato de reproducción anterior.
+
+Cada comando visual lleva `timing.playAt` en milisegundos del servidor. El DM publica el comando antes de mostrarlo y también espera esa hora; los jugadores usan `.info/serverTimeOffset` para esperar la misma hora, independientemente de la hora configurada en su equipo. La preparación instantánea del HUD se programa junto con la siguiente animación, sin añadir una pausa por cada etiqueta. El margen de envío es de 120 ms y la publicación no espera el ACK de Firebase. Los checkpoints mantienen su barrera de confirmación y esperan a que termine la presentación local pendiente.
+
+Cada fase vuelve a consultar el reloj compartido. Las animaciones de Coins, movimiento, resultados y pausas con más de 800 ms de atraso se omiten, conservando sus eventos, estados y limpieza del HUD, para recuperar la fase actual. Cerrar el visor o cambiar de generación cancela las esperas pendientes. Esto limita la acumulación de atraso; no garantiza simultaneidad exacta durante desconexiones, suspensión de pestañas o bloqueos del dispositivo.
+
+`tests/combat-shared-clock-smoke.mjs` usa clientes independientes, relojes desajustados, entrega tardía y un visor suspendido. La aceptación de navegador comprueba DM, PC y otro visor en los seis tamaños obligatorios, con retraso adicional de entrega y un límite de 350 ms entre comandos. La comparación de rendimiento mantiene su presupuesto original de 15 % contra main.
+
 ## Contrato y persistencia
 
 - Se conserva `estado/encounterId`, compartido con setup y botín. Cambiar de fase actualiza sus campos sin borrar los metadatos del encuentro. «Limpiar encuentro» retira autoridad y reproducción junto con los planes.

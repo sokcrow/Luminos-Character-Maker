@@ -19,8 +19,8 @@
     playerListener: null,
     skills: {},
     units: {},
-    selectedCombatSpells: new Set(),
-    selectedRoleSpells: new Set(),
+    selectedSpellIds: new Set(),
+    spellContext: "all",
     search: "",
     compatibleOnly: true,
     ready: false,
@@ -48,7 +48,7 @@
     const link = doc.createElement("link");
     link.id = "dm-player-loadout-manager-style";
     link.rel = "stylesheet";
-    link.href = "css/dm-player-loadout-manager.css";
+    link.href = "css/dm-player-loadout-manager.css?v=20261022-unified-spells-1";
     doc.head?.appendChild(link);
   }
 
@@ -82,7 +82,8 @@
     await ensureScript("combat-skill-loadout-074-script", "js/combat-skill-loadout-074.js", () => global.LuminousCombatSkillLoadout074);
     await ensureScript("role-spell-catalog-core-script", "js/role-spell-catalog-core.js", () => global.LuminousRoleSpellCatalog);
     await ensureScript("spell-catalog-core-script", "js/spell-catalog-core.js", () => global.LuminousSpellCatalog);
-    await ensureScript("combat-spell-loadout-074-script", "js/combat-spell-loadout-074.js", () => global.LuminousCombatSpellLoadout074);
+    await ensureScript("spell-loadout-core-script", "js/spell-loadout-core.js?v=20261022-unified-spells-1", () => global.LuminousSpellLoadout);
+    await ensureScript("combat-spell-loadout-074-script", "js/combat-spell-loadout-074.js?v=20261022-unified-spells-1", () => global.LuminousCombatSpellLoadout074);
     try { global.LuminousContentRegistryBootstrap?.registerAvailableCore?.(); } catch (_) {}
     global.setTimeout(() => {
       try { global.LuminousContentRegistryBootstrap?.registerAvailableCore?.(); } catch (_) {}
@@ -136,32 +137,10 @@
       .sort((a, b) => clean(a.name || a.id).localeCompare(clean(b.name || b.id)));
   }
 
-  function spellEntries(type = "combat") {
-    const rows = new Map();
-    const registry = global.LuminousContentRegistry;
-
-    if (registry?.list) {
-      const registryType = type === "role" ? "role_spell" : "spell";
-      try {
-        registry.list({ type: registryType }).forEach((entry) => {
-          const definition = clone(entry?.definition || {}) || {};
-          const id = normalizeId(definition.id || entry?.id || String(entry?.canonicalId || "").split(":").slice(1).join(":"));
-          if (id) rows.set(id, { ...definition, id, __source: entry?.source || registryType });
-        });
-      } catch (_) {}
-    }
-
-    const source = type === "role" ? global.LuminousRoleSpellCatalog : global.LuminousSpellCatalog;
-    Object.entries(source || {}).forEach(([key, raw]) => {
-      const id = normalizeId(raw?.id || key);
-      if (id && !rows.has(id)) rows.set(id, { ...(clone(raw) || {}), id, __source: type });
-    });
-
-    return [...rows.values()].sort((a, b) => {
-      const levelA = Number(a.level ?? a.spellLevel ?? 0) || 0;
-      const levelB = Number(b.level ?? b.spellLevel ?? 0) || 0;
-      return levelA - levelB || clean(a.name || a.nombre || a.id).localeCompare(clean(b.name || b.nombre || b.id));
-    });
+  function spellEntries(context = "all") {
+    return (global.LuminousSpellLoadout?.catalog() || [])
+      .filter(spell => global.LuminousSpellLoadout.supports(spell, context))
+      .sort((a, b) => Number(a.level || 0) - Number(b.level || 0) || clean(a.name || a.id).localeCompare(clean(b.name || b.id)));
   }
 
   function currentDeck() {
@@ -170,10 +149,7 @@
 
   function syncSpellSelectionsFromPlayer() {
     const player = state.player || {};
-    const combat = player?.characterBuild?.spellSelections || player?.spellSelections || player?.characterBuild?.spellIds || player?.spellIds || [];
-    const role = player?.characterBuild?.roleSpellSelections || player?.roleSpellSelections || [];
-    state.selectedCombatSpells = new Set(core()?.normalizeSpellIds?.(combat) || []);
-    state.selectedRoleSpells = new Set(core()?.normalizeSpellIds?.(role) || []);
+    state.selectedSpellIds = new Set(global.LuminousSpellLoadout?.selectedIds(player) || []);
   }
 
   function bindPlayer(id) {
@@ -243,20 +219,20 @@
     };
   }
 
-  function spellCard(spell, type) {
+  function spellCard(spell) {
     const id = normalizeId(spell.id);
-    const selected = type === "role" ? state.selectedRoleSpells.has(id) : state.selectedCombatSpells.has(id);
+    const selected = state.selectedSpellIds.has(id);
     const compatible = core()?.spellCompatibleWithPlayer?.(spell, state.player || {}) !== false;
     const level = Number(spell.level ?? spell.spellLevel ?? 0) || 0;
     const name = clean(spell.nombre || spell.name || id);
     const classIds = core()?.spellAllowedClassIds?.(spell) || [];
-    const context = Array.isArray(spell.contexts) ? spell.contexts.join(" / ") : type === "role" ? "theater" : "combat";
+    const context = (spell.contexts || []).map(value => value === "theater" ? "Theater" : value === "combat" ? "Combate" : "Todos").join(" / ");
     return `
       <label class="dm-loadout-spell-card ${compatible ? "" : "is-incompatible"}" data-spell-name="${escapeHtml((name + " " + id).toLowerCase())}">
-        <input type="checkbox" data-loadout-spell="${escapeHtml(id)}" data-spell-type="${type}" ${selected ? "checked" : ""}>
+        <input type="checkbox" data-loadout-spell="${escapeHtml(id)}" ${selected ? "checked" : ""}>
         <span class="dm-loadout-spell-level">${level === 0 ? "CANTRIP" : `LV.${level}`}</span>
         <strong>${escapeHtml(name)}</strong>
-        <small>${escapeHtml(spell.school || context || "spell")} · ${classIds.length ? escapeHtml(classIds.join(", ")) : "special / any"}</small>
+        <small>${escapeHtml(context)} · ${escapeHtml(spell.school || "Magia")} · ${classIds.length ? escapeHtml(classIds.join(", ")) : "special / any"}</small>
         ${compatible ? "" : '<b class="dm-loadout-incompatible">FUERA DE CLASE</b>'}
       </label>`;
   }
@@ -294,7 +270,7 @@
     const library = skillLibrary();
     const deck = core()?.deckFromPlayer?.(player, library) || {};
     const deckValidation = core()?.validateDeck?.(deck, library) || { valid: false, errors: ["Deck unavailable"] };
-    const spellCount = core()?.normalizeSpellIds?.(player?.characterBuild?.spellSelections || player?.spellSelections || [])?.length || 0;
+    const spellCount = global.LuminousSpellLoadout?.selectedIds(player)?.length || 0;
     const classCount = core()?.normalizeClassIds?.(player)?.length || 0;
     const unit = playerUnitResolution();
     return {
@@ -402,7 +378,8 @@
       if (feedback) feedback.textContent = "Selecciona un jugador.";
       return false;
     }
-    const updates = core()?.buildSpellUpdates?.([...state.selectedCombatSpells], [...state.selectedRoleSpells], "dm_loadout_manager");
+    const updates = global.LuminousSpellLoadout?.buildUpdates([...state.selectedSpellIds], "dm_loadout_manager");
+    if (!updates) { if (feedback) feedback.textContent = "No se pudieron cargar los hechizos. Vuelve a abrir el panel."; return false; }
     const selection = { playerId: state.playerId, player: clone(state.player) };
     const button = doc.getElementById("dm-loadout-save-spells");
     if (button) button.disabled = true;
@@ -446,7 +423,7 @@
     host.querySelectorAll("[data-loadout-spell]").forEach((checkbox) => {
       checkbox.addEventListener("change", () => {
         const id = normalizeId(checkbox.dataset.loadoutSpell);
-        const target = checkbox.dataset.spellType === "role" ? state.selectedRoleSpells : state.selectedCombatSpells;
+        const target = state.selectedSpellIds;
         if (checkbox.checked) target.add(id);
         else target.delete(id);
         renderSpellCounts();
@@ -455,10 +432,8 @@
   }
 
   function renderSpellCounts() {
-    const combat = doc.getElementById("dm-loadout-combat-spell-count");
-    const role = doc.getElementById("dm-loadout-role-spell-count");
-    if (combat) combat.textContent = `${state.selectedCombatSpells.size} SELECTED`;
-    if (role) role.textContent = `${state.selectedRoleSpells.size} SELECTED`;
+    const count = doc.getElementById("dm-loadout-spell-count");
+    if (count) count.textContent = `${state.selectedSpellIds.size} ASIGNADOS`;
   }
 
   function render() {
@@ -474,8 +449,7 @@
     }
 
     const deck = currentDeck();
-    const combatSpells = filteredSpells("combat");
-    const roleSpells = filteredSpells("role");
+    const spells = filteredSpells(state.spellContext);
 
     host.innerHTML = `
       <section class="dm-player-loadout-manager">
@@ -504,27 +478,22 @@
         <section class="dm-loadout-section">
           <div class="dm-loadout-section-heading">
             <div><span>SPELL LOADOUT</span><h5>CONJUROS DEL JUGADOR</h5></div>
-            <p>El DM puede resolver la selección aquí; el Player puede usar la misma fuente canónica cuando la autogestión esté completa.</p>
+            <p>Asigna cada hechizo una sola vez. Combate y Theater muestran los que pueden usarse en cada contexto.</p>
           </div>
           <div class="dm-loadout-spell-toolbar">
-            <input id="dm-loadout-spell-search" type="search" value="${escapeHtml(state.search)}" placeholder="Buscar Spell por nombre, ID, escuela o clase...">
+            <input id="dm-loadout-spell-search" type="search" value="${escapeHtml(state.search)}" aria-label="Buscar hechizo" placeholder="Buscar hechizo, escuela o clase...">
+            <select id="dm-loadout-spell-context" aria-label="Filtrar hechizos por contexto">
+              ${[["all", "Todos"], ["combat", "Combate"], ["theater", "Theater"]].map(([value, label]) => `<option value="${value}" ${state.spellContext === value ? "selected" : ""}>${label}</option>`).join("")}
+            </select>
             <label><input id="dm-loadout-compatible-only" type="checkbox" ${state.compatibleOnly ? "checked" : ""}> Sólo compatibles con sus clases</label>
           </div>
 
-          <div class="dm-loadout-spell-columns">
-            <section>
-              <header><strong>COMBAT SPELLS</strong><span id="dm-loadout-combat-spell-count">${state.selectedCombatSpells.size} SELECTED</span></header>
-              <div class="dm-loadout-spell-list" id="dm-loadout-combat-spell-list">
-                ${combatSpells.length ? combatSpells.map((spell) => spellCard(spell, "combat")).join("") : '<div class="dm-loadout-list-empty">Sin resultados.</div>'}
-              </div>
-            </section>
-            <section>
-              <header><strong>THEATRE / ROLE SPELLS</strong><span id="dm-loadout-role-spell-count">${state.selectedRoleSpells.size} SELECTED</span></header>
-              <div class="dm-loadout-spell-list" id="dm-loadout-role-spell-list">
-                ${roleSpells.length ? roleSpells.map((spell) => spellCard(spell, "role")).join("") : '<div class="dm-loadout-list-empty">Sin resultados.</div>'}
-              </div>
-            </section>
-          </div>
+          <section class="dm-loadout-unified-spells">
+            <header><strong>HECHIZOS ASIGNADOS</strong><span id="dm-loadout-spell-count">${state.selectedSpellIds.size} ASIGNADOS</span></header>
+            <div class="dm-loadout-spell-list" id="dm-loadout-spell-list">
+              ${spells.length ? spells.map(spellCard).join("") : '<div class="dm-loadout-list-empty">Sin hechizos para este filtro.</div>'}
+            </div>
+          </section>
 
           <div class="dm-loadout-actions">
             <span id="dm-loadout-spell-feedback" aria-live="polite"></span>
@@ -545,6 +514,10 @@
       const search = doc.getElementById("dm-loadout-spell-search");
       search?.focus();
       if (search) search.setSelectionRange(search.value.length, search.value.length);
+    });
+    doc.getElementById("dm-loadout-spell-context")?.addEventListener("change", event => {
+      state.spellContext = event.target.value;
+      render();
     });
     doc.getElementById("dm-loadout-compatible-only")?.addEventListener("change", (event) => {
       state.compatibleOnly = Boolean(event.target.checked);

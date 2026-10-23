@@ -166,20 +166,8 @@
   }
 
   function buildSpellUpdates(combatSpellIds = [], roleSpellIds = [], source = "dm_loadout_manager") {
-    const combat = normalizeSpellIds(combatSpellIds);
-    const role = normalizeSpellIds(roleSpellIds);
-    const index = Object.fromEntries(combat.map((id) => [id, true]));
-    return {
-      "spellIds": combat,
-      "spellSelections": combat,
-      "spellSelectionIndex": index,
-      "roleSpellSelections": role,
-      "characterBuild/spellIds": combat,
-      "characterBuild/spellSelections": combat,
-      "characterBuild/spellSelectionIndex": index,
-      "characterBuild/roleSpellSelections": role,
-      "characterBuild/spellLoadoutSource": source,
-    };
+    if (!global.LuminousSpellLoadout) throw new Error("Spell assignments are still loading.");
+    return global.LuminousSpellLoadout.buildUpdates([...combatSpellIds, ...roleSpellIds], source);
   }
 
   function deckFromPlayer(player = {}, library = {}) {

@@ -132,7 +132,8 @@
       ready,round:ctx.round,schedulerUid:ctx.s.uid,unitId:ctx.unitId,
       ...(intent||current.clientIntentId?{clientIntentId:intent?.id||current.clientIntentId}:{}),
       plannedSlots:ready?ctx.plans.filter(Boolean).length:0,
-      ...(global.LuminousCombatPlayback && !global.LuminousCombatPlaybackCompatibility ? {playback:{schemaVersion:1,engineVersion:global.LuminousCombatPlayback.engineVersion}} : {}),
+      ...(global.LuminousCombatPlayback && !global.LuminousCombatPlaybackCompatibility ? {playback:{schemaVersion:1,engineVersion:global.LuminousCombatPlayback.engineVersion,
+        ...(global.LuminousCombatPlayback.timelineVersion===1?{timelineVersion:1}:{})}} : {}),
       targetIntents:targetIndex(ctx),
       ...(reaction?{enchantmentReactionItemInstanceId:reaction}:{}),
       updatedAt:global.firebase.database.ServerValue.TIMESTAMP,
@@ -241,7 +242,7 @@
       loadBridge('combat-deployment-runtime-script','js/combat-deployment-runtime.js',()=>Boolean(global.LuminousCombatDeploymentRuntime)),
       loadBridge('combat-v073-deployment-bridge-script','js/combat-v073-deployment-bridge.js?v=20261021-encounter-3',()=>Boolean(global.LuminousCombatDeploymentBridge073)),
       loadBridge('unit-rank-runtime-script','js/unit-rank-runtime.js',()=>Boolean(global.LuminousUnitRankRuntime)),
-      loadBridge('combat-v073-authority-script','js/combat-v073-authority.js?v=20261021-performance-1',()=>Boolean(global.LuminousCombatAuthority073)),
+      loadBridge('combat-v073-authority-script','js/combat-v073-authority.js?v=20261022-shared-clock-1',()=>Boolean(global.LuminousCombatAuthority073)),
       loadBridge('combat-v073-runtime-hotfix-script','js/combat-v073-runtime-hotfix.js?v=20261021-encounter-3',()=>Boolean(global.LuminousCombatRuntimeHotfix073)),
     ]);
     return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatDeploymentRuntime&&global.LuminousCombatDeploymentBridge073&&global.LuminousUnitRankRuntime&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);

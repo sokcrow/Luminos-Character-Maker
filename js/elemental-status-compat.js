@@ -191,7 +191,7 @@
     if (global.LuminousBattleViewerRuntime074 || doc.getElementById("battle-viewer-runtime-074-script")) return true;
     const script = doc.createElement("script");
     script.id = "battle-viewer-runtime-074-script";
-    script.src = "js/battle-viewer-runtime-074.js";
+    script.src = "js/battle-viewer-runtime-074.js?v=20261022-unified-spells-1";
     script.async = false;
     script.dataset.engine = "battle-viewer-runtime-074";
     doc.head?.appendChild(script);

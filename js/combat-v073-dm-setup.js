@@ -189,6 +189,7 @@
   }
 
   function spellSelectionProvided(record = {}) {
+    if (global.LuminousSpellLoadout?.hasSelection(record)) return true;
     return ['spellIds', 'spells', 'spell_ids', 'spellSelections', 'spellSelectionIndex']
       .some(key => record[key] != null || record.characterBuild?.[key] != null);
   }
@@ -209,6 +210,10 @@
     const unitRow = resolvePlayerUnit(playerId, player);
     const unit = unitRow?.unit || {};
     const source = { ...clone(actor), ...clone(unit), ...clone(player) };
+    if (global.LuminousSpellLoadout?.hasSelection(player)) {
+      // Do not inherit a linked Unit's versioned assignment over a legacy Player selection.
+      source.spellLoadout = { schemaVersion: 1, spellIds: global.LuminousSpellLoadout.selectedIds(player) };
+    }
     const uid = uidForPlayer(player) || clean(source.uid || source.ownerUid);
     // The Player build is authoritative; a linked Unit may contain an older deck.
     // An explicitly empty Player loadout also must not resurrect that old deck.
