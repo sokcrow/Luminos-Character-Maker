@@ -23,6 +23,7 @@ jobs:
           node tests/combat-encounter-start-authority-smoke.mjs
           node tests/combat-encounter-start-status-expiry-smoke.mjs
           node tests/combat-encounter-recovery-rng-smoke.mjs
+          node tests/combat-encounter-sealed-recovery-smoke.mjs
           node tests/combat-event-dependencies-smoke.mjs
           node tests/battle-master-archetype-runtime-smoke.mjs
           node tests/trait-viewer-encounter-start-smoke.mjs

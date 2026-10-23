@@ -175,7 +175,10 @@
     a.state.current=current;
     const saved=JSON.parse(checkpoint?.executionJson||current.initialExecutionJson);
     saved.eventCursor=Number(checkpoint?.eventCursor)||0;
-    a.state.resumeRuntime=saved;
+    // A sealed turn has not executed any actions. Its saved units predate the
+    // startup effects that setRunning is about to commit; restoring them would
+    // undo those grants and their canonical Speed. Only running turns resume.
+    a.state.resumeRuntime=current.phase==='running'?saved:null;
     if(current.phase==='running'){
       a.state.lastCheckpointSeq=Number(checkpoint?.seq)||0;
       a.state.localActionSeq=Number(checkpoint?.actionSeq??checkpoint?.seq)||0;

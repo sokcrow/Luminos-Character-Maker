@@ -47,6 +47,9 @@ shared pure Speed evaluator and the already saved base roll. Base Speed, tie
 roll and RNG cursor are preserved; the initial execution/recovery snapshots and
 formation use the updated Speed. Recovery without a checkpoint resumes at the
 saved startup RNG cursor; a checkpoint's explicit cursor of zero remains valid.
+Recovering a still-sealed turn discards the pre-execution local resume snapshot,
+so it cannot restore pre-startup units over newly confirmed effects and Speed.
+Running turns retain their baseline/checkpoint restoration path.
 
 ## Validation
 
