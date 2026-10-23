@@ -200,13 +200,13 @@
     }
     return global.LuminousUnitIndependentActions?.sourcesFor?.(unit,{sources:actions})||[];
   }
-  async function processIndependentIntents(){
+  async function processIndependentIntents(pendingOverride=null){
     const s=adapterState(),runtimeUnits=runtime()?.combatants?.()||{},controller=global.LuminousUnitIndependentActions;
     if(!s?.db?.ref||!controller||(s.role!=='dm'&&!s.isAuthority))return false;
     const phase=norm(s.combatState?.phase||s.combatState?.state||s.combatState);
     if(!['planning','pre_combat_planning'].includes(phase)||['sealed','running'].includes(norm(state.authority?.phase)))return false;
     const pending=[];
-    for(const [playerId,rows]of Object.entries(state.independentIntents||{}))
+    for(const [playerId,rows]of Object.entries(pendingOverride||state.independentIntents||{}))
       for(const [intentId,row]of Object.entries(rows||{}))pending.push({playerId,intentId,row});
     pending.sort((a,b)=>(Number(a.row?.createdAt)||0)-(Number(b.row?.createdAt)||0)||a.intentId.localeCompare(b.intentId));
     for(const {playerId,intentId,row} of pending){
@@ -250,8 +250,10 @@
     }
     return true;
   }
-  function scheduleIndependentIntents(){
-    state.independentChain=state.independentChain.then(processIndependentIntents,processIndependentIntents);
+  function scheduleIndependentIntents(pendingOverride=null){
+    state.independentChain=state.independentChain.then(
+      ()=>processIndependentIntents(pendingOverride),()=>processIndependentIntents(pendingOverride)
+    );
     return state.independentChain;
   }
   function bind(){
@@ -282,7 +284,7 @@
   function start(){if(state.started)return true;state.started=true;const attempt=()=>{if(bind())return true;state.retryTimer=global.setTimeout(attempt,250);return false;};attempt();return true;}
   function stop(){if(state.aiTimer)global.clearTimeout(state.aiTimer);state.aiTimer=null;state.extraSubs.splice(0).forEach(off=>off());if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.renderTimer)global.clearTimeout(state.renderTimer);state.retryTimer=state.renderTimer=null;if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.readyRef=state.readyHandler=state.authRef=state.authHandler=null;state.started=false;}
   global.addEventListener('luminous:combat073-hydrated',onHydrated);global.addEventListener('luminous:combat073-runtime-ready',apply);global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.6-reentry',READY_ROOT,AUTH_ROOT,INDEPENDENT_ROOT,state,start,stop,bind,apply,processIndependentIntents,applyRows,canRenderNow,scheduleRender,rowsFromReady,runtimePlan,intentPlan,inferTargetSide,publishPlanningAi,applyPlanningAi,renderPlanLabels});
+  global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.6-reentry',READY_ROOT,AUTH_ROOT,INDEPENDENT_ROOT,state,start,stop,bind,apply,processIndependentIntents,scheduleIndependentIntents,applyRows,canRenderNow,scheduleRender,rowsFromReady,runtimePlan,intentPlan,inferTargetSide,publishPlanningAi,applyPlanningAi,renderPlanLabels});
   global.addEventListener('luminous:combat073-plan-ready-change',scheduleRender);
   start();
 })(window);
