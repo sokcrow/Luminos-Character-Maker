@@ -151,6 +151,23 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
     await expect.poll(async()=>Object.values(await admin('campaña/jugadores/p1/inventario_activo')||{}).filter(i=>i.definitionId==='dagger').length).toBe(1);
     for (const c of [one,two]) await expect(c.page.locator('.loot-belonging.known')).toHaveCount(2);
     await one.page.waitForFunction(()=>!LuminousPlayerPostCombatLoot.state.busy);
+    // Simulate a saved v2 corpse after a partial successful Search: the dagger
+    // has gone, both remaining entries lack reveal flags, and Search is spent.
+    const legacy = await admin(`campaña/loot_postcombat/${lootId}`);
+    legacy.runtimeVersion = 2;
+    delete legacy.belongingsRevealed;
+    for (const entry of legacy.carried) delete entry.revealed;
+    delete legacy.currency.revealed;
+    const oldAttempts = structuredClone(legacy.attempts);
+    const oldReceipts = await admin('campaña/jugadores/p1/lootRecoveryReceipts');
+    await admin(`campaña/loot_postcombat/${lootId}`,'PUT',legacy);
+    for (const c of [one,two]) {
+      await c.page.evaluate(()=>LuminousPlayerPostCombatLoot.refreshEncounters());
+      await expect(c.page.locator('.loot-belonging.known')).toHaveCount(2);
+      await expect(c.page.locator('[data-loot-action="search"]')).toHaveCount(0);
+      await expect(c.page.locator('.loot-corpse.selected')).toContainText('Pertenencias reveladas para todos');
+    }
+    expect(await admin(`campaña/loot_postcombat/${lootId}/runtimeVersion`)).toBe(2);
     await one.page.locator('[data-loot-tab="actions"]').click();
     await one.page.locator('[data-corpse-release]').click();
     await expect.poll(()=>admin(`campaña/loot_claims/${lootId}`)).toBe(null);
@@ -161,6 +178,9 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
     await two.page.locator('[data-loot-tab="results"]').click();
     await two.page.locator('[data-target-currency]').click();
     await expect.poll(()=>admin('campaña/jugadores/p2/ahn')).toBe(50);
+    expect(await admin(`campaña/loot_postcombat/${lootId}/runtimeVersion`)).toBe(3);
+    expect((await admin(`campaña/loot_postcombat/${lootId}/attempts`)).slice(0,oldAttempts.length)).toEqual(oldAttempts);
+    expect(await admin('campaña/jugadores/p1/lootRecoveryReceipts')).toEqual(oldReceipts);
     for (const c of [one,two]) await expect(c.page.locator('.loot-belonging.known')).toHaveCount(1);
     expect((await admin(`campaña/loot_postcombat/${lootId}/carried`)).find(entry=>entry.definitionId==='hp_generic_pocket_recovery_patch').remaining).toBe(2);
     await two.page.locator('[data-loot-tab="actions"]').click();

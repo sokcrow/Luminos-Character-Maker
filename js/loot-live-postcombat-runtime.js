@@ -700,6 +700,7 @@
   }
 
   function availableActions(state = {}, actor = {}, options = {}) {
+    state = postCombat().normalizeInteractionState(state);
     const actorId = postCombat()?.actorIdOf?.(actor, {
       ...options,
       actorId: clean(options.actorId || options.playerId),

@@ -250,7 +250,7 @@
     ]);
     return {
       index: clone(corpseIndex),
-      interaction: clone(interactionSnap.val() || {}),
+      interaction: postCombat().normalizeInteractionState(interactionSnap.val() || {}),
       loot: clone(lootSnap.val() || {}),
     };
   }
@@ -528,12 +528,6 @@
     for (const corpse of corpses) {
       const interaction = corpse.interaction;
       if (!interaction?.lootInstanceId) continue;
-      for (const key of ["carried", "attempts", "pendingDeliveries"]) {
-        if (!Array.isArray(interaction[key])) interaction[key] = Object.values(interaction[key] || {});
-      }
-      if (!Array.isArray(interaction.harvest?.resources) && interaction.harvest) {
-        interaction.harvest.resources = Object.values(interaction.harvest.resources || {});
-      }
       const actions = live().availableActions(interaction, actor, { playerId });
       const pendingRequests = Object.values(state.requests || {}).filter(request => request && request.lootInstanceId === interaction.lootInstanceId && (request.status === "pending" || request.status === "processing"));
       const pending = pendingForPlayer(interaction);

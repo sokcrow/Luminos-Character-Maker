@@ -456,6 +456,37 @@ const examinedCompendium = getPath(db.data, "campaña/jugadores/searcher/compend
 assert.ok(examinedCompendium.units.goblin);
 assert.ok(Object.values(examinedCompendium.units.goblin.facts).some(({id}) => id.startsWith("environment.") || id.startsWith("loot.")));
 
+const legacyLoot = {...currencyLoot, lootInstanceId:'loot_live_legacy'};
+const legacy = deepClone(postCombat.createInteractionState(legacyLoot));
+legacy.runtimeVersion = 2;
+legacy.carried[0].remaining = 0;
+legacy.currency.remaining = 35;
+const legacyAttempt = {key:postCombat.attemptKey('searcher','search'), actorId:'searcher',
+  actionId:'search',success:true,recoveredCurrency:65,recoveredItemIds:[ration.instanceId]};
+legacy.attempts = [legacyAttempt];
+legacy.history = [{type:'post_combat_action',...legacyAttempt}];
+await db.ref('campaña/loot_instances/loot_live_legacy').set(legacyLoot);
+await db.ref('campaña/loot_postcombat/loot_live_legacy').set(legacy);
+for (const id of ['searcher','other-player']) {
+  assert.ok(!live.availableActions(legacy, {id}).includes('search'), 'legacy success already reveals for everyone');
+}
+const oldReceipts = deepClone(getPath(db.data, 'campaña/jugadores/searcher/lootRecoveryReceipts'));
+const legacyCash = await live.executeAction({db,lootInstanceId:legacyLoot.lootInstanceId,
+  playerId:'searcher',actor:searcherBefore,actionId:'collect',targetCurrency:true});
+assert.equal(legacyCash.delivery.delivered,true, 'sole legacy searcher can collect the remainder directly');
+assert.equal(getPath(db.data, 'campaña/jugadores/searcher/ahn'),145, 'only remaining 35 Ahn are delivered');
+const savedLegacy = getPath(db.data, 'campaña/loot_postcombat/loot_live_legacy');
+assert.equal(savedLegacy.runtimeVersion,3, 'authority persists migration in the collection transaction');
+assert.equal(savedLegacy.carried[0].remaining,0);
+assert.deepEqual(savedLegacy.attempts[0],legacyAttempt);
+for (const [id,receipt] of Object.entries(oldReceipts)) {
+  assert.deepEqual(getPath(db.data, 'campaña/jugadores/searcher/lootRecoveryReceipts/'+id),receipt);
+}
+const legacyRetry = await live.executeAction({db,lootInstanceId:legacyLoot.lootInstanceId,
+  playerId:'searcher',actor:searcherBefore,actionId:'collect',targetCurrency:true});
+assert.equal(legacyRetry.committed,false);
+assert.equal(getPath(db.data, 'campaña/jugadores/searcher/ahn'),145);
+
 const battleHtml = fs.readFileSync(new URL("../Battle-viewer.html", import.meta.url), "utf8");
 const playerHtml = fs.readFileSync(new URL("../hoja_personaje.html", import.meta.url), "utf8");
 const playerUi = fs.readFileSync(new URL("../js/player-postcombat-loot.js", import.meta.url), "utf8");

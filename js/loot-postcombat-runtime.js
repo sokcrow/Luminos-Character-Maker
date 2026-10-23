@@ -153,6 +153,24 @@
     return (state.attempts || []).some((entry) => entry.key === key);
   }
 
+  function normalizeInteractionState(state = {}) {
+    const next = clone(state);
+    // RTDB omits empty arrays and can serialize sparse arrays as maps.
+    for (const key of ["carried", "attempts", "history", "pendingDeliveries"]) {
+      next[key] = Array.isArray(next[key]) ? next[key] : Object.values(next[key] || {});
+    }
+    next.harvest = {...next.harvest, resources: Array.isArray(next.harvest?.resources)
+      ? next.harvest.resources : Object.values(next.harvest?.resources || {})};
+    // v2 Search consumed a subset and recorded the attempt. Honor that success
+    // as shared discovery of ONLY the leftovers, without another roll, new
+    // inventory, or changes to the original attempts and delivery receipts.
+    const legacySearch = integer(next.runtimeVersion, 0) < 3 && next.attempts.find(
+      entry => entry.actionId === "search" && entry.success === true);
+    const normalized = legacySearch ? applySearch(next, legacySearch.actorId, {success: true}).next : next;
+    normalized.runtimeVersion = Math.max(VERSION, integer(next.runtimeVersion, 0));
+    return normalized;
+  }
+
   // All Loot skill checks require full proficiency in their actual selected
   // skill. Explicit class/trait expertise in the activity can waive +8 TH.
   const UNTRAINED_LOOT_DC = 8;
@@ -335,6 +353,7 @@
 
   // Safe presentation data: an occupied unknown slot exposes no item identity.
   function corpseBelongings(state = {}) {
+    state = normalizeInteractionState(state);
     const carried = Array.isArray(state.carried) ? state.carried : Object.values(state.carried || {});
     const slots = carried.filter(entry => Number(entry.remaining || 0) > 0).map(entry =>
       entry.revealed === true
@@ -563,11 +582,7 @@
 
   function applyResolvedAction(state = {}, actor = {}, actionId, checkResult = {}, options = {}) {
     if (!state?.lootInstanceId) throw new Error("POST_COMBAT_STATE_REQUIRED");
-    // RTDB omits empty arrays. Restore them before applying the first action
-    // to a persisted corpse, including currency-only search and examination.
-    state = clone(state);
-    for (const key of ['carried','attempts','history','pendingDeliveries']) state[key] = Array.isArray(state[key]) ? state[key] : Object.values(state[key] || {});
-    state.harvest = {...state.harvest,resources:Array.isArray(state.harvest?.resources)?state.harvest.resources:Object.values(state.harvest?.resources||{})};
+    state = normalizeInteractionState(state);
     const action = normalizeId(actionId);
     if (!ACTION_PROFILES[action]) throw new Error(`UNKNOWN_POST_COMBAT_ACTION:${action}`);
     // A hidden random draw or general Search cannot be retried by inventing
@@ -656,6 +671,7 @@
     actorIdOf,
     requireLockedLootInstance,
     createInteractionState,
+    normalizeInteractionState,
     attemptKey,
     hasAttempted,
     hasAnatomyKnowledge,

@@ -69,4 +69,40 @@ assert.equal(state.currency.remaining, 70, 'a player may leave all the money for
 assert.deepEqual(post.corpseBelongings(state), [{kind:'currency',revealed:true,currencyId:'ahn',amount:70}]);
 state = post.performAction(state, actor, 'collect', {targetCurrency:true}).state;
 assert.equal(post.corpseBelongings(state).length, 0);
+
+// A persisted v2 success took only part of the bag/wallet and spent Search.
+// Its leftovers must be visible and collectable by that same sole participant.
+const legacy = structuredClone(post.createInteractionState(frozen));
+legacy.runtimeVersion = 2;
+const spent = {...structuredClone(legacy.carried[0]), instanceId:'already-taken', remaining:0};
+legacy.carried = {0:spent, 2:legacy.carried[0]}; // RTDB sparse-array encoding.
+legacy.currency.remaining = 23;
+const oldAttempt = {key:post.attemptKey(actor.id,'search'), actorId:actor.id,
+  actionId:'search', success:true, recoveredItemIds:['already-taken'], recoveredCurrency:47};
+legacy.attempts = {0:oldAttempt};
+legacy.history = {0:{type:'post_combat_action',...oldAttempt}};
+legacy.pendingDeliveries = {0:{id:'old-pending',actorId:actor.id,status:'awaiting_player_delivery'}};
+const untouched = structuredClone(legacy);
+const migrated = post.normalizeInteractionState(legacy);
+assert.equal(migrated.runtimeVersion, 3);
+assert.equal(migrated.belongingsRevealed, true);
+assert.deepEqual(post.normalizeInteractionState(migrated), migrated, 'migration is idempotent');
+assert.deepEqual(legacy, untouched, 'reading a legacy corpse cannot mutate persisted input');
+assert.deepEqual(migrated.attempts, [oldAttempt], 'migration does not append or reroll Search');
+assert.deepEqual(migrated.pendingDeliveries, Object.values(legacy.pendingDeliveries));
+assert.deepEqual(migrated.history, Object.values(legacy.history));
+assert.equal(migrated.carried[0].remaining, 0, 'spent items never return');
+assert.deepEqual(post.corpseBelongings(legacy).map(slot=>slot.kind), ['item','currency']);
+const samePlayer = post.performAction(legacy, actor, 'collect', {targetItemId:'worn-dagger'});
+assert.equal(samePlayer.result.recovery.items[0].condition, 7);
+assert.equal(samePlayer.state.currency.remaining, 23);
+const otherPlayer = post.performAction(samePlayer.state, {id:'other-player'}, 'collect', {targetCurrency:true});
+assert.equal(otherPlayer.result.recovery.currency.amount, 23, 'only the unspent wallet can be taken');
+assert.equal(post.corpseBelongings(otherPlayer.state).length, 0);
+assert.throws(()=>post.performAction(otherPlayer.state, actor, 'collect', {targetItemId:'worn-dagger'}), /ALREADY_USED/);
+for (const attempt of [{...oldAttempt,success:false}, {...oldAttempt,actionId:'pickpocket'}]) {
+  const unrevealed = {...legacy,attempts:[attempt],history:[]};
+  assert.ok(post.corpseBelongings(unrevealed).every(slot=>!slot.revealed), 'failure or theft never grants legacy discovery');
+  assert.throws(()=>post.performAction(unrevealed, actor, 'collect', {targetCurrency:true}), /revelar/);
+}
 console.log('Shared discovery, chosen collection, hidden random draw and guaranteed enemy equipment passed.');

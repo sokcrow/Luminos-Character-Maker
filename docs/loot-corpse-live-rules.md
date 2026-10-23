@@ -70,6 +70,7 @@ El equipo real del enemigo forma parte de su inventario saqueable. El tier, la r
 - El equipo permanece separado del botín aleatorio en la instantánea congelada, pero ambos entran una sola vez por instancia en el inventario compartido del cadáver.
 - El equipo destruido, perdido, soltado, retirado o con cantidad cero no reaparece. La munición sigue su reconciliación existente. Los ataques naturales no generan armas inventadas.
 - Los cadáveres ya finalizados conservan su estado y sus entregas; no se regeneran para aplicar este cambio.
+- En estados anteriores a v3, un Buscar exitoso ya registrado revela para todos únicamente las pertenencias que todavía quedan. No se repite la tirada ni se reponen objetos o dinero consumidos; el historial y las entregas anteriores se conservan. La vista aplica esta compatibilidad al leer y el DM la persiste dentro de la siguiente acción autorizada. Un intento fallido o Sustraer no revela pertenencias.
 
 ## Sanidad tras combate
 
