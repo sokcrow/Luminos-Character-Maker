@@ -548,6 +548,7 @@
     if (!global.LuminousUnitActionEconomyCatalog) await loadScript("unit-action-economy-catalog-script", "js/unit-action-economy-catalog.js", "LuminousUnitActionEconomyCatalog");
     if (!global.LuminousIndividualGoapCombatAI) await loadScript("individual-goap-combat-ai-script", "js/individual-goap-combat-ai.js", "LuminousIndividualGoapCombatAI");
     if (!global.LuminousUnitAiKitAdapter) await loadScript("unit-ai-kit-adapter-script", "js/unit-ai-kit-adapter.js", "LuminousUnitAiKitAdapter");
+    if (!global.LuminousUnitIndependentActions) await loadScript("unit-independent-actions-script", "js/unit-independent-actions.js", "LuminousUnitIndependentActions");
     if (!global.LuminousEnemyActionSlotAllocator) await loadScript("enemy-action-slot-allocator-script", "js/enemy-action-slot-allocator.js", "LuminousEnemyActionSlotAllocator");
     return Boolean(allocator()?.allocateEnemySlots && kitAdapter()?.planUnitTurn && global.LuminousBattleViewerRuntime073);
   }
