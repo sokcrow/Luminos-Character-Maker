@@ -29,6 +29,7 @@ jobs:
           node tests/trait-viewer-encounter-start-smoke.mjs
           node tests/battle-master-viewer-encounter-integration-smoke.mjs
           node tests/fighter-class-runtime-smoke.mjs
+          node tests/unit-independent-actions-smoke.mjs
           node tests/combat-playback-catchup-smoke.mjs
           node tests/combat-v073-speed-persistence-smoke.mjs
           npm run check:combat-live
