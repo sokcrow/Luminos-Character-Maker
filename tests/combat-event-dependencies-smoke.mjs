@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const callbacks={};
+const existing={getAttribute:()=> 'js/slow-class.js',addEventListener(event,fn){callbacks[event]=fn}};
+const c=vm.createContext({Map,Set,Promise,JSON,document:{getElementById:()=>existing,querySelectorAll:()=>[existing]}});
+c.window=c;
+vm.runInContext(fs.readFileSync(new URL('../js/class-runtime-registry.js',import.meta.url),'utf8'),c);
+const registry=c.LuminousClassRuntimeRegistry;
+registry.register({id:'slow',path:'js/slow-class.js',globalName:'SlowClass'});
+let done=false;const pending=registry.load('slow').then(()=>{done=true});
+for(let i=0;i<4;i++)await Promise.resolve();
+assert.equal(done,false,'An existing script tag is not proof that its runtime finished loading');
+c.SlowClass={};callbacks.load();await pending;
+assert.equal(registry.status('slow').status,'loaded');
+console.log('Combat dependencies: dispatch waits for an already-in-flight class runtime.');

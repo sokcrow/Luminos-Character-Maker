@@ -2820,6 +2820,7 @@ function listCombatStatuses(unit){
 function statusIsValid(def,status){
   if(!def||!status)return false;
   if(def.mode==='zero')return true;
+  if(def.allowZeroCount===true&&Number(status.count)===0)return true;
   if(def.mode==='single')return Number(status.count)>0;
   if(normalizeStatusId(def.name)==='poison')return Number(status.potency)>0||Number(status.count)>0;
   return Number(status.potency)>0&&Number(status.count)>0
@@ -3264,6 +3265,8 @@ function ensureEntryConcentration(entry){
   entry._concentrationId=state?.id||null;return state
 }
 function applySkillStatusEffects(entry,targetId,trigger,context={}){
+  window.LuminousCombatEventRuntime?.notify(trigger,combatData[entry?.ownerId],{target:combatData[targetId],...context});
+  if(window.LuminousCombatEventRuntime&&['on_hit','clash_win'].includes(window.LuminousCombatEventRuntime.normalizeTrigger(trigger)))renderStatusEffects(entry.ownerId);
   const data=entry?.plan?.data||{},sourceType=data.sourceType||(isSpellSkill(data)||entry?.plan?.type==='spells'||data.kind==='spell'?'magic':'skill'),sourceElement=normalizeElement(data.element||'');
   skillEffectRows(data,trigger,context.coinIndex).forEach(effect=>{
     const targetKey=String(effect?.target||'target').toLowerCase(),

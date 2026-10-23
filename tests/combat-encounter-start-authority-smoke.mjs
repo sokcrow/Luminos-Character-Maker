@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+async function setup({rejectWrite=false,role='dm',claimed=false}={}){
+  const writes=[],errors=[],units={fighter:{id:'fighter',hp:100,maxHp:100,sp:0,faction:'ally',classes:[{classId:'fighter',levels:15}],characterBuild:{archetypes:[{classId:'fighter',archetypeId:'battle_master'}],maneuvers:{battle_master:['ambush']}}}};
+  const c=vm.createContext({console:{log(){},error(...args){errors.push(args)}},Math:Object.create(Math),Date,Map,Set,WeakMap,WeakSet,Promise,JSON,Uint32Array,addEventListener(){},setTimeout(){return 1},clearTimeout(){},setInterval(){return 1}});c.window=c;c.globalThis=c;
+  const read=file=>fs.readFileSync(new URL('../'+file,import.meta.url),'utf8');
+  for(const file of ['status-library','status-engine','trait-engine','trait-catalog-core','archetype-engine','archetype-trait-catalog','fighter-maneuver-catalog','fighter-class-runtime','battle-master-archetype-runtime','combat-event-runtime'])vm.runInContext(read(`js/${file}.js`),c);
+  c.LuminousClassRuntimeBootstrap={async boot(){c.LuminousBattleMasterArchetypeRuntime.install();return {ok:true}}};
+  let turn=1,runs=0;
+  c.document={getElementById(id){return id==='round'?{textContent:String(turn)}:null}};
+  c.LuminousCombat073={combatants:()=>units,plans:()=>[],render(){}};
+  const db={ref(){return{on(){},off(){},async once(){return {val:()=>({})}},async update(patch){if(rejectWrite)throw new Error('write rejected');writes.push(patch)}}}};
+  c.LuminousCombatLiveAdapter073={state:{role,uid:'dm',user:{},round:1,encounterId:'encounter-1',db,combatants:units}};
+  vm.runInContext(read('js/combat-v073-authority.js'),c);
+  const authority=c.LuminousCombatAuthority073;
+  authority.state.current={round:1,phase:'sealed',seed:123,encounterId:'encounter-1',plans:{},aiPlans:{}};
+  c.LuminousCombatSession={async updateRoot(db,fn){
+    const raw={authority:{current:{...authority.state.current,phase:claimed?'running':'sealed'}},combatants:units,estado:{encounterId:'encounter-1'}};
+    const result=fn(raw);if(!result)return {committed:false};
+    if(rejectWrite)throw new Error('write rejected');
+    writes.push({'campaña/combate/authority/current/phase':result.authority.current.phase,
+      'campaña/combate/authority/current/initialStateJson':result.authority.current.initialStateJson,
+      'campaña/combate/authority/current/initialExecutionJson':result.authority.current.initialExecutionJson,
+      ...Object.fromEntries(Object.entries(result.combatants.fighter).map(([key,value])=>['campaña/combate/combatants/fighter/'+key,value]))});
+    return {committed:true};
+  }};
+  authority.state.originalStartRound=async()=>{runs++;turn=2};
+  return{c,authority,writes,units,errors,runs:()=>runs};
+}
+const good=await setup();
+assert.equal(await good.authority.requestStartRound(),true);
+assert.equal(good.runs(),1);
+const first=good.writes[0],root='campaña/combate';
+assert.equal(first[`${root}/authority/current/phase`],'running');
+assert.equal(first[`${root}/combatants/fighter/combatEventState`].encounterStarted,'encounter-1','Startup receipt and phase are written atomically');
+assert.equal(first[`${root}/combatants/fighter/resources`].superiority,10);
+assert.equal(first[`${root}/combatants/fighter/statusEffects`].haste.count,5);
+const baseline=JSON.parse(first[`${root}/authority/current/initialStateJson`]);
+assert.equal(baseline.fighter.resources.superiority,10,'Playback baseline already includes startup effects');
+assert.equal(JSON.parse(first[`${root}/authority/current/initialExecutionJson`]).units.fighter.resources.superiority,10,'Recovery baseline also includes startup effects');
+assert.equal(good.units.fighter.resources.superiority,10);
+assert.deepEqual(good.errors,[]);
+const failed=await setup({rejectWrite:true});
+assert.equal(await failed.authority.requestStartRound(),false);
+assert.equal(failed.runs(),0);
+assert.equal(failed.units.fighter.resources,undefined,'A failed write cannot grant live resources');
+assert.equal(failed.units.fighter.combatEventState,undefined,'A failed write cannot mark startup complete');
+const player=await setup({role:'player'});
+assert.equal(await player.authority.requestStartRound(),false);
+assert.equal(player.writes.length,0,'Players never publish or execute startup grants');
+const competing=await setup({claimed:true});
+assert.equal(await competing.authority.requestStartRound(),false);
+assert.equal(competing.runs(),0,'A second DM cannot claim an already running startup');
+assert.equal(competing.units.fighter.resources,undefined);
+console.log('Encounter authority: atomic publication, playback/recovery baselines, write rollback and DM-only execution passed.');

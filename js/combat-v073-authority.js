@@ -112,7 +112,7 @@
   function compactUnit(unit={}){
     return{
       ...Object.fromEntries(['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion',
-        'spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
+        'combatEventState','combatTraitState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
         'deployedRound','deploymentState','replacementClaimed'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
       ...(unit.combatDeck?{combatDeck:global.LuminousCombatSlotDeck073?.compact(unit.combatDeck)||clone(unit.combatDeck)}:{}),
       hp:Math.max(0,finite(unit.hp,0)),maxHp:Math.max(1,finite(unit.maxHp,1)),sp:finite(unit.sp,0),
@@ -182,7 +182,7 @@
     if(!payload.playback){
       const sealed=await global.LuminousCombatSession.updateRoot(s.db,raw=>{
         if(!global.LuminousCombatSession.canSeal(raw,payload)||['sealed','running'].includes(raw.authority?.current?.phase))return;
-        return {...raw,authority:{...(raw.authority||{}),current:payload},estado:{...(typeof raw.estado==='object'?raw.estado:{}),phase:'COMBAT_SEALED',active:true,round,authorityUid:s.uid,seed,updatedAt:serverTime()}};
+        return {...raw,authority:{...(raw.authority||{}),current:payload},estado:{...(typeof raw.estado==='object'?raw.estado:{}),eventAuthority:'combat-event-runtime-v1',phase:'COMBAT_SEALED',active:true,round,authorityUid:s.uid,seed,updatedAt:serverTime()}};
       });
       if(!sealed.committed)throw new Error('El encuentro ya está resolviendo o finalizando.');
     }
@@ -196,6 +196,10 @@
     if(s.role==='player'&&s.playerId&&data.plans?.[s.playerId]){const own=Object.values(units).find(unit=>unit?.controlled==='player'||canonicalPlayerId(unit)===s.playerId);replaceLocalPlans(planRowsToArray(data.plans[s.playerId],own));}else if(s.role==='dm')replaceLocalPlans([]);
     for(const ownerRows of Object.values(data.plans||{})){const sample=Object.values(ownerRows||{})[0];if(!sample)continue;const unit=sample.unitId&&units[sample.unitId]?units[sample.unitId]:Object.values(units).find(row=>canonicalPlayerId(row)===clean(sample.scheduledBy));if(unit?.controlled==='remote')unit.autoPlans=planRowsToArray(ownerRows,unit);}
     for(const [unitId,rows] of Object.entries(data.aiPlans||{})){const unit=units[unitId];if(unit?.controlled==='ai')unit.autoPlans=planRowsToArray(rows,unit);}
+    if(!isDm()&&data.encounterStart&&data.initialStateJson&&!data.checkpoint){
+      const initial=JSON.parse(data.initialStateJson);
+      if(Object.entries(initial).some(([id,row])=>row.combatEventState?.encounterStarted&&units[id]?.combatEventState?.encounterStarted!==row.combatEventState.encounterStarted))applySnapshot(initial);
+    }
     if(isDm()){
       const bridge=global.LuminousItemEnchantmentCombatRuntime;
       for(const [owner,id] of Object.entries(data.defensiveReactions||{})){
@@ -214,7 +218,7 @@
     const combat=runtime(),units=combat?.combatants?.()||{};let changed=false;
     for(const [id,canonical] of Object.entries(snapshot||{})){const unit=units[id];if(!unit)continue;for(const [key,value] of Object.entries(canonical||{})){if(key==='actionSlots'||key==='activeSlots')continue;if(JSON.stringify(unit[key])!==JSON.stringify(value)){unit[key]=clone(value);changed=true;}}
       const count=Math.max(1,Math.trunc(Number(canonical.actionSlots||canonical.activeSlots)||1));if(Number(unit.actionSlots)!==count){global.setUnitActionSlotCount?.(id,count);unit.actionSlots=count;unit.activeSlots=count;changed=true;}}
-    if(changed){combat.render?.();global.LuminousWebGL2Renderer?.requestRender?.(120);}return changed;
+    if(changed){combat.render?.();global.LuminousCombatStepRuntime?.refreshPlayback?.();global.LuminousWebGL2Renderer?.requestRender?.(120);}return changed;
   }
   function reconcileCheckpoint(seq){
     const row=state.pendingRemoteCheckpoints.get(seq);if(!row)return false;const localDigest=state.localDigests.get(seq);if(!localDigest)return false;
@@ -314,8 +318,48 @@
   function installHooks(){patchCoinEngine();patchExecutionQueue();patchExecuteQueueEntry();['beginConcentration','processConditionTurnStart','rollCriticalHit','randomIntInclusive','rollUnitSpeed','rollPower4Save','rollAbilitySkillCheck','damageCombatant','healCombatant','damageCombatantSP','healCombatantSP','applyCombatStatus','removeCombatStatus','consumeStatusCount','setUnitActionSlotCount','rollTurnSpeeds'].forEach(name=>wrapSyncMechanic(name));['smartTargetScore','assignTargetIntents','autoActionScore','shuffle'].forEach(name=>wrapSyncMechanic(name,{deterministic:false}));['resolveSkillClash','resolveUnopposedCoinAction','resolveSaveOnlySpell'].forEach(wrapAsyncMechanic);patchStartRound();return true;}
 
   async function setRunning(current){
-    const s=adapterState(),startedAt=serverTime(),updates={};global.LuminousCombatStepRuntime?.capturePresentation?.(false);if(playback()?.enabled(current))Object.assign(updates,playback().beginUpdates(current));updates[`${ROOT.current}/phase`]='running';updates[`${ROOT.current}/startedAt`]=startedAt;Object.assign(updates,stateUpdates({phase:'COMBAT',active:true,round:Number(current.round)||Number(s.round)||1,authorityUid:s.uid,seed:current.seed,updatedAt:serverTime()}));await s.db.ref().update(updates);
-    state.current={...current,phase:'running',startedAt:Date.now(),checkpoint:null};state.lastCheckpointSeq=0;state.localActionSeq=0;state.localDigests.clear();state.pendingRemoteCheckpoints.clear();state.inFlightActions=0;state.executionChain=Promise.resolve();state.writeChain=Promise.resolve();state.writeFailure=null;resetRandom(current.seed,0);return state.current;
+    const s=adapterState(),startedAt=serverTime(),updates={};
+    let startSnapshot=null;
+    const events=global.LuminousCombatEventRuntime;
+    if(Number(current.round)===1){
+      if(!events)throw new Error('No se pudieron cargar los efectos de inicio de combate. Recarga el encuentro.');
+      resetRandom(current.seed,0);
+      const planned=await events.planEncounterStart(Object.values(runtime()?.combatants?.()||{}),{
+        encounterId:current.encounterId||s.encounterId||`encounter-${current.seed}`,
+        withRandom:withAuthorityRandom
+      });
+      startSnapshot=Object.fromEntries(planned.units.map(unit=>[unit.id,compactUnit(unit)]));
+      current={...current,encounterStart:{rngCursor:state.cursor},initialStateJson:JSON.stringify(startSnapshot)};
+      const execution=current.initialExecutionJson?JSON.parse(current.initialExecutionJson):{queue:[],resolvedKeys:[]};
+      execution.units=Object.fromEntries(planned.units.map(unit=>[unit.id,unit]));
+      current.initialExecutionJson=JSON.stringify(execution);
+      updates[`${ROOT.current}/encounterStart`]=current.encounterStart;
+      updates[`${ROOT.current}/initialStateJson`]=current.initialStateJson;
+      updates[`${ROOT.current}/initialExecutionJson`]=current.initialExecutionJson;
+      Object.assign(updates,combatantFirebaseUpdates(startSnapshot));
+    }
+    global.LuminousCombatStepRuntime?.capturePresentation?.(false);
+    if(playback()?.enabled(current))Object.assign(updates,playback().beginUpdates(current));
+    updates[`${ROOT.current}/phase`]='running';updates[`${ROOT.current}/startedAt`]=startedAt;
+    Object.assign(updates,stateUpdates({phase:'COMBAT',active:true,round:Number(current.round)||Number(s.round)||1,authorityUid:s.uid,seed:current.seed,updatedAt:serverTime()}));
+    if(startSnapshot){
+      const session=global.LuminousCombatSession;
+      if(!session?.updateRoot)throw new Error('El encuentro todavía no está listo para comenzar.');
+      const committed=await session.updateRoot(s.db,raw=>{
+        const sealed=raw?.authority?.current;
+        if(norm(sealed?.phase)!=='sealed'||Number(sealed.round)!==Number(current.round)||Number(sealed.seed)!==Number(current.seed)||sealed.id!==current.id)return;
+        const next=clone(raw);
+        for(const [path,value]of Object.entries(updates)){
+          const parts=path.slice('campaña/combate/'.length).split('/');let node=next;
+          for(const part of parts.slice(0,-1))node=node[part]||={};
+          node[parts.at(-1)]=value;
+        }
+        return next;
+      });
+      if(!committed.committed)throw new Error('El inicio de este encuentro ya fue confirmado en otra pestaña.');
+    }else await s.db.ref().update(updates);
+    if(startSnapshot)applySnapshot(startSnapshot);
+    state.current={...current,phase:'running',startedAt:Date.now(),checkpoint:null};state.lastCheckpointSeq=0;state.localActionSeq=0;state.localDigests.clear();state.pendingRemoteCheckpoints.clear();state.inFlightActions=0;state.executionChain=Promise.resolve();state.writeChain=Promise.resolve();state.writeFailure=null;resetRandom(current.seed,Number(current.encounterStart?.rngCursor)||0);return state.current;
   }
   function domRound(fallback){const node=global.document?.getElementById?.('round'),value=Math.trunc(Number(node?.textContent));return Number.isFinite(value)&&value>0?value:fallback;}
   function combatantFirebaseUpdates(snapshot){const updates={};for(const [id,row] of Object.entries(snapshot||{})){if(batchMode()&&!adapterState()?.combatants?.[id])continue;for(const [key,value] of Object.entries(row||{}))updates[`${ROOT.combatants}/${id}/${key}`]=value;updates[`${ROOT.combatants}/${id}/actionSlotIndex`]=Object.fromEntries(Array.from({length:Math.max(1,Number(row.actionSlots)||1)},(_,i)=>[String(i),true]));}return updates;}
@@ -383,8 +427,9 @@
           if(norm(current.phase)==='running'&&!state.resumeRuntime)throw new Error('Este turno ya fue iniciado. Espera a que la pestaña original confirme los resultados.');
         }
         if(norm(current.phase)!=='running')current=await setRunning(current);
-      }else{state.remoteStart=false;if(batchMode())return false;if(Number(current?.round)!==Number(s.round)||norm(current?.phase)!=='running')return false;state.autoStartedRound=Number(current.round);state.inFlightActions=0;state.executionChain=Promise.resolve();resetRandom(current.seed,0);}
+      }else{state.remoteStart=false;if(batchMode())return false;if(Number(current?.round)!==Number(s.round)||norm(current?.phase)!=='running')return false;state.autoStartedRound=Number(current.round);state.inFlightActions=0;state.executionChain=Promise.resolve();resetRandom(current.seed,Number(current.encounterStart?.rngCursor)||0);}
       state.executingGeneration=current.playback?current.id:null;
+      await global.LuminousCombatEventRuntime?.prepare(Object.values(runtime()?.combatants?.()||{}));
       applyAuthority(current);const completedRound=Number(current.round)||Number(s.round)||1;await original();await state.executionChain;
       const nextRound=domRound(completedRound);
       if(nextRound<=completedRound)throw new Error('No se pudo completar el turno. Vuelve a abrir el combate.');
@@ -396,7 +441,7 @@
   function allReadySnapshot(rows={}){const round=Number(adapterState()?.round)||1,ids=activePlayerIds();return ids.length>0&&ids.every(id=>rows?.[id]?.ready===true&&Number(rows[id].round)===round);}
   function maybeAutoStart(rows={}){if(!isDm()||state.runningLocal||!allReadySnapshot(rows))return false;const phase=norm(adapterState()?.combatState);if(!['pre_combat_planning','planning'].includes(phase))return false;if(state.autoStartTimer)return true;state.autoStartTimer=global.setTimeout(async()=>{state.autoStartTimer=null;const latest=await read(ROOT.ready).catch(()=>({}));if(allReadySnapshot(latest||{}))await requestStartRound();},120);return true;}
   function onAuthority(snapshot){
-    const data=snapshot.val()||{},previous=state.current,previousSeed=previous?.seed,previousRound=previous?.round;state.current=data;if(data.seed&&Number(data.round)===Number(adapterState()?.round)&&!state.runningLocal&&(data.seed!==previousSeed||data.round!==previousRound))resetRandom(data.seed,0);applyAuthority(data);if(data.checkpoint)receiveCheckpoint(data.checkpoint);
+    const data=snapshot.val()||{},previous=state.current,previousSeed=previous?.seed,previousRound=previous?.round;state.current=data;if(data.seed&&Number(data.round)===Number(adapterState()?.round)&&!state.runningLocal&&(data.seed!==previousSeed||data.round!==previousRound))resetRandom(data.seed,Number(data.encounterStart?.rngCursor)||0);applyAuthority(data);if(data.checkpoint)receiveCheckpoint(data.checkpoint);
     if(previous?.playback&&!data.playback&&isPlayer()){
       playback()?.disconnectConsumer();state.runningLocal=false;
       global.LuminousCombatStepRuntime?.lockPlanning(false);adapter()?.scheduleHydrate?.();

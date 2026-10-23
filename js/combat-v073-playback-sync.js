@@ -59,7 +59,7 @@
       payload.playback = { schemaVersion: 1, engineVersion: protocol().engineVersion, session, generation: payload.id };
       if (timeline) payload.playback.timelineVersion = protocol().timelineVersion;
       if (current?.encounterId===payload.encounterId&&Number(current?.round) >= payload.round && ['sealed', 'running', 'complete'].includes(current?.phase)) return;
-      return {...raw,authority:{...(raw.authority||{}),current:payload},estado:{...(typeof raw.estado==='object'?raw.estado:{}),encounterId:payload.encounterId,phase:'COMBAT_SEALED',active:true,round:payload.round}};
+      return {...raw,authority:{...(raw.authority||{}),current:payload},estado:{...(typeof raw.estado==='object'?raw.estado:{}),eventAuthority:'combat-event-runtime-v1',encounterId:payload.encounterId,phase:'COMBAT_SEALED',active:true,round:payload.round}};
     });
     if (!result.committed) throw new Error('Este turno ya está en resolución en otra pestaña del DM.');
     return result.snapshot.val().authority.current;
