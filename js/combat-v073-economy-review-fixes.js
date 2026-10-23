@@ -119,7 +119,7 @@
   }
   function traitRuntimeContext(source,target,action,phase){
     const actor=playerUnit(),eco=economy();
-    return {context:'combat',character:actor,self:actor,actor,target,combatAction:action,actionEconomy:{canUse(cost){return eco?.availability?.(actor,cost,{phase})?.available!==false}}};
+    return {context:'combat',character:api()?.authoritativeCharacter?.(actor)||actor,self:actor,actor,target,combatAction:action,actionEconomy:{canUse(cost){return eco?.availability?.(actor,cost,{phase})?.available!==false}}};
   }
   function traitState(source){
     const menu=api(),engine=global.LuminousTraitEngine,id=norm(source.id||source.traitId||source.name);
