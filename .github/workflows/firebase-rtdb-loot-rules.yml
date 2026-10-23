@@ -8,11 +8,15 @@ on:
       - database.rules.json
       - firebase.json
       - combat-results-firebase.json
+      - js/loot-postcombat-runtime.js
+      - js/loot-instance-runtime.js
       - js/loot-live-postcombat-runtime.js
       - js/player-postcombat-loot.js
       - tests/player-postcombat-loot-auth-smoke.mjs
       - tests/loot-mobile-queue-smoke.mjs
       - css/postcombat-loot-corpse.css
+      - tests/loot-shared-belongings.spec.mjs
+      - tests/loot-shared-belongings-smoke.mjs
       - tests/loot-authority-emulator.mjs
       - .github/workflows/firebase-rtdb-loot-rules.yml
   push:
@@ -27,8 +31,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: luminous-rtdb-rules-production
-  cancel-in-progress: false
+  group: luminous-rtdb-${{ github.event.pull_request.number || 'production' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate-loot-permissions:
@@ -50,9 +54,25 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Install Auth/RTDB emulator test dependencies
-        run: npm install --no-save --no-audit --no-fund firebase@8.10.1 firebase-tools@14.19.1
+        run: npm install --no-save --no-audit --no-fund firebase@8.10.1 firebase-tools@14.19.1 @playwright/test@1.55.0
+      - name: Select browser for shared corpse acceptance
+        shell: bash
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "CHROMIUM_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
       - name: Validate RTDB rules and authenticated player loot
-        run: npx firebase emulators:exec --only auth,database --project demo-combat-results --config combat-results-firebase.json 'node tests/loot-authority-emulator.mjs'
+        run: npx firebase emulators:exec --only auth,database --project demo-combat-results --config combat-results-firebase.json 'node tests/loot-authority-emulator.mjs && npx playwright test tests/loot-shared-belongings.spec.mjs --workers=1 --reporter=line'
+
+      - name: Save shared corpse mobile and desktop evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-corpse-browser-evidence
+          path: test-results/
+          if-no-files-found: ignore
 
   deploy-database-rules:
     needs: validate-loot-permissions
