@@ -14,8 +14,8 @@ async function account(name){
 }
 const [host,player,globalDm,outsider]=await Promise.all(['host','player','global-dm','outsider'].map(account));
 async function write(path,value,token){
-  return fetch(`http://${dbHost}/${path.split('/').map(encodeURIComponent).join('/')}.json?ns=${namespace}`,{
-    method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(value)
+  return fetch(`http://${dbHost}/${path.split('/').map(encodeURIComponent).join('/')}.json?ns=${namespace}${token==='owner'?'':`&auth=${encodeURIComponent(token)}`}`,{
+    method:'PUT',headers:{'Content-Type':'application/json',...(token==='owner'?{Authorization:'Bearer owner'}:{})},body:JSON.stringify(value)
   });
 }
 const encounter={hostUid:host.localId,members:{[host.localId]:true,[player.localId]:true},state:{campaña:{config:{dm_uid:host.localId},jugadores:{hero:{uid:player.localId}},combate:{estado:{phase:'PRE_COMBAT_PLANNING',round:1,encounterId:'isolated'},combatants:{'player:hero':{canonicalPlayerKey:'hero',canonicalOwnerUid:player.localId,isPlayer:true}}}}}};
@@ -30,6 +30,7 @@ await denied(`${base}/independentIntents/hero/wrong-encounter`,{...intent,encoun
 await denied(`${base}/independentIntents/hero/global-dm`,{...intent,schedulerUid:globalDm.localId},globalDm,'Global DM cannot inject isolated intents');
 await denied(`${base}/independentReceipts/hero/valid`,{applied:true},globalDm,'Global DM cannot forge isolated receipts');
 await denied(`${base}/independentReceipts/hero/valid`,{applied:true},player,'Player cannot forge receipts');
+await denied(`${base}/independentReceipts/hero/no-auth`,{applied:true},{idToken:''},'REST harness cannot write without authentication');
 await allowed(`${base}/independentReceipts/hero/valid`,{applied:true},host,'Host member can confirm a receipt');
 const outsiderRoot='campaña/encuentros/room/state/campaña';
 await write(`${outsiderRoot}/jugadores/outsider`,{uid:outsider.localId},'owner');
@@ -54,10 +55,19 @@ async function sdkClient(user,name){
 }
 function productionBrowser(db,search=''){
   const database=()=>db;database.ServerValue=firebase.database.ServerValue;
-  const browser={location:{search},firebase:{database}};
+  const browser={location:{search},firebase:{database},console,addEventListener(){},setTimeout(){return 1},clearTimeout(){}};
   const context=vm.createContext({window:browser,URLSearchParams});
   for(const file of ['combat-context','combat-participants','combat-session-lifecycle'])vm.runInContext(fs.readFileSync(`js/${file}.js`,'utf8'),context,{filename:file});
-  return {db:browser.firebase.database(),session:browser.LuminousCombatSession};
+  return {db:browser.firebase.database(),session:browser.LuminousCombatSession,browser,context};
+}
+async function independentClient(scope){
+  const {browser,context,db}=scope;
+  const raw=(await db.ref('campaña/combate').once('value')).val(),players=(await db.ref('campaña/jugadores').once('value')).val(),units=JSON.parse(JSON.stringify(raw.combatants));
+  browser.LuminousCombatLiveAdapter073={state:{role:'dm',isAuthority:true,round:2,encounterId:raw.estado.encounterId,db,players,combatants:units}};
+  browser.LuminousCombat073={combatants:()=>units,kit:()=>({actions:[]}),render(){}};
+  for(const file of ['status-library','status-engine','trait-engine','trait-catalog-core','archetype-engine','archetype-trait-catalog','universal-action-economy','item-runtime-engine','combat-event-runtime','unit-independent-actions','combat-v073-authority','combat-v073-remote-intents'])vm.runInContext(fs.readFileSync(`js/${file}.js`,'utf8'),context,{filename:file});
+  browser.LuminousClassRuntimeBootstrap={async boot(){return {ok:true}}};
+  return browser.LuminousCombatRemoteIntents073;
 }
 try{
   const hostDb=await sdkClient(host,'host'),globalDb=await sdkClient(globalDm,'global');
@@ -99,6 +109,32 @@ try{
     await assert.rejects(session.updateRoot(db,raw=>{
       const next=JSON.parse(JSON.stringify(raw));next.independentIntents[owner].root.sourceId='forged';return next;
     }),/permission.denied/i,`${label}: root authority cannot rewrite an existing source identity`);
+    // Run the actual Item intent handler against authenticated SDK writes,
+    // including a crash between the combat journal and canonical inventory.
+    const physical=label==='isolated'?base:'campaña/combate',playerPath=physical.replace(/\/combate$/,'')+`/jugadores/${owner}`;
+    const item={instanceId:'Potion-A',category:'consumable',quantity:2,runtime:{actionCost:'quick_action',hpRestore:10}};
+    await write(`${physical}/estado`,{phase:'PRE_COMBAT_PLANNING',round:2,encounterId:expected.encounterId},'owner');
+    await write(`${physical}/authority`,{},'owner');
+    await write(`${physical}/readyPlayers`,{},'owner');
+    await write(`${physical}/combatants/${unitId}`,{id:unitId,battleActive:true,isPlayer:true,canonicalPlayerKey:owner,canonicalOwnerUid:player.localId,hp:40,maxHp:100,actionSlots:1},'owner');
+    await write(`${playerPath}/inventario_activo`,{'Potion-A':item},'owner');
+    const itemIntent={...expected,round:2,sourceId:'Potion-A',sourceType:'item',createdAt:2};
+    await allowed(`${physical}/independentIntents/${owner}/item`,itemIntent,player,`${label}: player submits Quick Item`);
+    const scope=label==='isolated'?isolated:campaignSession,remote=await independentClient(scope);
+    const actualSession=scope.browser.LuminousCombatSession;
+    scope.browser.LuminousCombatSession={...actualSession,async updatePath(){throw Error('inventory connection lost');}};
+    const pending={[owner]:{item:itemIntent}};
+    await assert.rejects(remote.processIndependentIntents(pending),/inventory connection lost/);
+    const staged=(await ref.once('value')).val();
+    assert.equal(staged.independentReceipts[owner].item.applied,false);assert.equal(staged.independentReceipts[owner].item.pendingInventory,true);
+    assert.equal(session.canSeal(staged,{round:2,plans:{}}),false,`${label}: no seal before inventory persistence`);
+    scope.browser.LuminousCombatSession=actualSession;
+    await remote.processIndependentIntents(pending);
+    await remote.processIndependentIntents(pending);
+    const delivered=(await ref.once('value')).val(),savedPlayer=(await db.ref(`campaña/jugadores/${owner}`).once('value')).val();
+    assert.equal(savedPlayer.inventario_activo['Potion-A'].quantity,1,`${label}: canonical item consumed once`);
+    assert.equal(delivered.combatants[unitId].hp,50,`${label}: healing not replayed after reconnect`);
+    assert.equal(delivered.independentReceipts[owner].item.applied,true);assert.equal(delivered.independentReceipts[owner].item.pendingInventory,false);
   }
   const foreign=productionBrowser(globalDb,'?encounter=room');
   await assert.rejects(foreign.session.updateRoot(foreign.db,raw=>({...raw,unauthorized:true})),/permission.denied/i,'Global DM cannot transact the isolated root');

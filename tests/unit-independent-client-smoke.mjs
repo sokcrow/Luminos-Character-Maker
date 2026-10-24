@@ -51,5 +51,15 @@ const reloadedId=writes[3].path.split('/').at(-1);expire();await assert.rejects(
 acknowledge(reloadedId,{applied:true,result:{used:true,cost:'free_action'}});
 const reloaded=boot();assert.equal((await reloaded.requestIndependentAction(freeDetail)).used,true);
 assert.equal(writes.length,4,'Reload keeps the timed-out identity even when its receipt already exists');
+let itemDone=false;
+const item=api.requestIndependentAction({...detail,sourceId:'Potion-A',sourceType:'item'}).then(result=>{itemDone=true;return result});
+await flush(()=>writes.length===5&&listeners.size>0);
+const itemId=writes[4].path.split('/').at(-1),itemReceipt={applied:false,pendingInventory:true,result:{used:true}};
+acknowledge(itemId,itemReceipt);
+await Promise.resolve();await Promise.resolve();
+assert.equal(itemDone,false,'A staged item effect cannot acknowledge unpersisted inventory');
+await assert.rejects(reloaded.syncReady({ready:true,round:1}),/confirme la habilidad pendiente/,'Another tab also waits on staged item delivery');
+acknowledge(itemId,{...itemReceipt,applied:true,pendingInventory:false});
+assert.equal((await item).used,true,'Only the final persisted receipt acknowledges the Item');
 s.round=2;assert.equal((await api.requestIndependentAction(detail)).used,false,'Stale UI cannot submit an action into the next round');
 console.log('Independent client protocol: request before mutation, canonical acknowledgement, timeout, READY guard, same-id retry, rejection and stale-round refusal passed.');

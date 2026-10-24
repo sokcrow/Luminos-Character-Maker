@@ -201,6 +201,61 @@
     return global.LuminousUnitIndependentActions?.sourcesFor?.(unit,{sources:actions})||[];
   }
   const stable=value=>JSON.stringify(value,function(_key,row){return row&&typeof row==='object'&&!Array.isArray(row)?Object.fromEntries(Object.keys(row).sort().map(key=>[key,row[key]])):row;});
+  const activeInventory=player=>player?.inventario_activo||player?.activeInventory||player?.inventory||{};
+  function inventoryDelivery(before,after,encounterId,intentId){
+    const changes=[];
+    for(const key of new Set([...Object.keys(before||{}),...Object.keys(after||{})])){
+      if(stable(before?.[key])!==stable(after?.[key]))changes.push({key,before:clone(before?.[key]??null),after:clone(after?.[key]??null)});
+    }
+    return changes.length?{key:encodeURIComponent(`${encounterId}:${intentId}`).replace(/\./g,'%2E'),changes}:null;
+  }
+  async function finishInventory(s,playerId,intentId,receipt){
+    if(!receipt.pendingInventory)return true;
+    const session=global.LuminousCombatSession,delivery=receipt.inventoryDelivery;
+    if(!delivery?.key||!Array.isArray(delivery.changes)||!session?.updatePath)throw Error('independent_inventory_delivery_missing');
+    const saved=await session.updatePath(s.db,`campaña/jugadores/${playerId}`,player=>{
+      if(!player)return;
+      if(player.independentItemReceipts?.[delivery.key])return;
+      const next=clone(player),inventory=clone(activeInventory(player));
+      for(const {key,before,after}of delivery.changes){
+        const current=inventory[key];
+        // Rebase quantity consumption over unrelated inventory edits, while
+        // guarding every other changed field against concurrent modification.
+        if(!before||!after){
+          if(stable(current??null)!==stable(before))return;
+          if(after)inventory[key]=clone(after);else delete inventory[key];
+          continue;
+        }
+        if(!current)return;
+        for(const field of new Set([...Object.keys(before),...Object.keys(after)])){
+          if(stable(before[field])===stable(after[field]))continue;
+          if(['quantity','qty','cantidad','stack','count'].includes(field)&&Number.isFinite(before[field])&&Number.isFinite(after[field])&&Number.isFinite(current[field])){
+            const value=current[field]+after[field]-before[field];if(value<0)return;current[field]=value;
+          }else{
+            if(stable(current[field])!==stable(before[field]))return;
+            if(after[field]===undefined)delete current[field];else current[field]=clone(after[field]);
+          }
+        }
+      }
+      next.inventario_activo=inventory;next.independentItemReceipts ||= {};next.independentItemReceipts[delivery.key]=true;return next;
+    });
+    const player=saved.snapshot?.val();
+    if(!player?.independentItemReceipts?.[delivery.key])throw Error('independent_inventory_save_pending');
+    if(s.players)s.players[playerId]=clone(player);
+    const finalized=await session.updateRoot(s.db,current=>{
+      const row=current?.independentReceipts?.[playerId]?.[intentId];
+      if(!row?.pendingInventory||row.inventoryDelivery?.key!==delivery.key)return;
+      const next=clone(current);next.independentReceipts[playerId][intentId]={...row,applied:true,pendingInventory:false};
+      if(next.combatants?.[row.unitId])next.combatants[row.unitId].inventario_activo=clone(activeInventory(player));
+      delete next.independentReceipts[playerId][intentId].inventoryDelivery;
+      return next;
+    });
+    if(!finalized.committed){
+      const row=(await s.db.ref(`campaña/combate/independentReceipts/${playerId}/${intentId}`).once('value')).val();
+      if(!row?.applied||row.pendingInventory)throw Error('independent_inventory_confirmation_pending');
+    }
+    return true;
+  }
   async function processIndependentIntents(pendingOverride=null){
     const s=adapterState(),controller=global.LuminousUnitIndependentActions,session=global.LuminousCombatSession,authority=global.LuminousCombatAuthority073;
     if(!s?.db?.ref||!controller||!session?.updateRoot||!authority?.compactUnit||(s.role!=='dm'&&!s.isAuthority))return false;
@@ -212,17 +267,22 @@
       for(let attempt=0;attempt<3&&!committed;attempt++){
         const raw=(await s.db.ref('campaña/combate').once('value')).val();
         if(!raw)return false;
-        if(raw.independentReceipts?.[playerId]?.[intentId]){committed=true;break;}
+        if(raw.independentReceipts?.[playerId]?.[intentId]){await finishInventory(s,playerId,intentId,raw.independentReceipts[playerId][intentId]);committed=true;break;}
         const row=raw.independentIntents?.[playerId]?.[intentId];
         if(!row){committed=true;break;}
         const phase=norm(raw.estado?.phase||raw.estado?.state||raw.estado),turn=Number(raw.estado?.round||s.round)||1;
         const sealed=['sealed','running'].includes(norm(raw.authority?.current?.phase));
         const live=runtime()?.combatants?.()||{};
         let units=Object.entries(raw.combatants||{}).map(([id,unit])=>({...clone(live[id]||{}),...clone(unit),id}));
-        let unit=units.find(unit=>unit.id===clean(row.unitId)),result;
+        let unit=units.find(unit=>unit.id===clean(row.unitId)),result,inventoryBefore=null;
         if(!['planning','pre_combat_planning'].includes(phase)||sealed||Number(row.round)!==turn||row.encounterId!==(raw.estado?.encounterId||s.encounterId))result={used:false,reason:'turn_closed'};
         else if(!unit||clean(row.playerId)!==playerId||clean(unit.canonicalPlayerKey||unit.ownerPlayerId||unit.playerId)!==playerId||clean(unit.canonicalOwnerUid||unit.ownerUid)!==clean(row.schedulerUid))result={used:false,reason:'not_owner'};
         else {
+          if(norm(row.sourceType)==='item'){
+            const player=(await s.db.ref(`campaña/jugadores/${playerId}`).once('value')).val();
+            if(!player)throw Error('independent_player_inventory_missing');
+            inventoryBefore=clone(activeInventory(player));unit.inventario_activo=clone(inventoryBefore);
+          }
           await controller.prepare(units);
           if(turn===1){
             const encounterId=raw.estado?.encounterId||s.encounterId;
@@ -239,6 +299,7 @@
           if(Number(entry.speedRollTurn)===turn&&Number(entry.speedBaseRoll)>0&&runtime()?.speedForBaseRoll)entry.speed=runtime().speedForBaseRoll(entry,turn,Number(entry.speedBaseRoll));
           return [entry.id,authority.compactUnit(entry)];
         })):null;
+        const delivery=result.used&&inventoryBefore?inventoryDelivery(inventoryBefore,unit.inventario_activo,row.encounterId,intentId):null;
         const expected=stable([raw.combatants,raw.estado,row]);
         const transaction=await session.updateRoot(s.db,current=>{
           if(!current||current.independentReceipts?.[playerId]?.[intentId]||stable([current.combatants,current.estado,current.independentIntents?.[playerId]?.[intentId]])!==expected)return;
@@ -249,11 +310,13 @@
             next.combatants[id].actionSlotIndex=Object.fromEntries(Array.from({length:canonical.actionSlots},(_,index)=>[index,true]));
           }
           next.independentReceipts ||= {};next.independentReceipts[playerId] ||= {};
-          next.independentReceipts[playerId][intentId]={encounterId:row.encounterId||null,round:turn,unitId:row.unitId,sourceId:row.sourceId,cost:row.cost,applied:result.used===true,result};
+          next.independentReceipts[playerId][intentId]={encounterId:row.encounterId||null,round:turn,unitId:row.unitId,sourceId:row.sourceId,cost:row.cost,applied:result.used===true&&!delivery,result:clone(result),
+            ...(delivery?{pendingInventory:true,inventoryDelivery:delivery}:{})};
           if(snapshot)delete next.planningAi;
           return next;
         });
         committed=transaction.committed;
+        if(committed&&delivery)await finishInventory(s,playerId,intentId,{pendingInventory:true,inventoryDelivery:delivery});
         if(committed&&snapshot)authority.applySnapshot(snapshot);
       }
       if(!committed)return false;
