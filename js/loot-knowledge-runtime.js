@@ -9,7 +9,7 @@
   const VERSION = 1;
   const SCHEMA_VERSION = 1;
 
-  const SECTIONS = Object.freeze(["combat", "biology", "loot", "environment", "stats", "notes"]);
+  const SECTIONS = Object.freeze(["combat", "biology", "loot", "environment", "stats", "notes", "lore"]);
   const VISIBILITY = Object.freeze(["private", "shared", "direct"]);
 
   const RARITY_LABELS = Object.freeze({
@@ -321,6 +321,16 @@
         ...resourceUseFacts(unit, { ...common, source: "autopsy_medicine" }),
         ...edibleResourceFacts(unit, { ...common, source: "autopsy_medicine" }),
       ];
+    } else if (["arcana", "religion"].includes(skill)) {
+      const source = skill === "religion" ? "divine_autopsy" : options.actionId === "dismantle" ? "construct_study" : "arcane_autopsy";
+      facts = [
+        ...bodyFacts(unit, {...common, source}),
+        ...harvestFacts(unit, postCombatState, {...common, source}),
+        ...valuableResourceFacts(unit, {...common, source}),
+        ...resourceUseFacts(unit, {...common, source}),
+      ];
+    } else if (skill === "history") {
+      facts = [...basicDescriptionFacts(unit, check, common)];
     } else if (skill === "investigation") {
       facts = [
         ...equipmentFacts(postCombatState, { ...common, source: "examine_investigation" }),
@@ -331,6 +341,22 @@
     }
     facts.push(...highMarginStatFacts(unit, check, skill, common));
     return deepFreeze(facts);
+  }
+
+  function basicDescriptionFacts(unit = {}, check = {}, options = {}) {
+    if (check.success !== true) return deepFreeze([]);
+    const description = basicDescription(unit);
+    if (!description) return deepFreeze([]);
+    return deepFreeze([makeFact("lore", "basic_description", {
+      name: String(unit.name || unit.characterName || "Criatura"),
+      description,
+    }, {...options, source: "history", provenance: {...options.provenance,
+      sourceUnitId: canonicalUnitId(unit), skill: "history", checkId: "history"}})]);
+  }
+
+  function basicDescription(unit = {}) {
+    return [unit.basicDescription, unit.description, unit.descripcion, unit.lore?.description]
+      .find(value => typeof value === "string" && value.trim())?.trim() || "";
   }
 
   function materializedLootFacts(items = [], options = {}) {
@@ -664,6 +690,8 @@
     canonicalUnitId,
     actorIdOf,
     makeFact,
+    basicDescriptionFacts,
+    basicDescription,
     bodyFacts,
     harvestFacts,
     equipmentFacts,

@@ -84,7 +84,7 @@ legacy.history = {0:{type:'post_combat_action',...oldAttempt}};
 legacy.pendingDeliveries = {0:{id:'old-pending',actorId:actor.id,status:'awaiting_player_delivery'}};
 const untouched = structuredClone(legacy);
 const migrated = post.normalizeInteractionState(legacy);
-assert.equal(migrated.runtimeVersion, 3);
+assert.equal(migrated.runtimeVersion, post.VERSION);
 assert.equal(migrated.belongingsRevealed, true);
 assert.deepEqual(post.normalizeInteractionState(migrated), migrated, 'migration is idempotent');
 assert.deepEqual(legacy, untouched, 'reading a legacy corpse cannot mutate persisted input');

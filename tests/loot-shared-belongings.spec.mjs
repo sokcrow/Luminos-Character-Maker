@@ -178,7 +178,7 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
     await two.page.locator('[data-loot-tab="results"]').click();
     await two.page.locator('[data-target-currency]').click();
     await expect.poll(()=>admin('campaña/jugadores/p2/ahn')).toBe(50);
-    expect(await admin(`campaña/loot_postcombat/${lootId}/runtimeVersion`)).toBe(3);
+    expect(await admin(`campaña/loot_postcombat/${lootId}/runtimeVersion`)).toBe(4);
     expect((await admin(`campaña/loot_postcombat/${lootId}/attempts`)).slice(0,oldAttempts.length)).toEqual(oldAttempts);
     expect(await admin('campaña/jugadores/p1/lootRecoveryReceipts')).toEqual(oldReceipts);
     for (const c of [one,two]) await expect(c.page.locator('.loot-belonging.known')).toHaveCount(1);
@@ -204,4 +204,99 @@ test('shared corpse discovery, chosen collection and hidden theft work on phone,
     expect(await admin('campaña/jugadores/p2/ahn')).toBe(50);
     expect(errors).toEqual([]);
   } finally {await Promise.allSettled(clients.map(c=>c.context.close()));}
+});
+
+test('anatomy variants and History Compendium work across phone, tablet and desktop', async ({browser},info) => {
+  test.setTimeout(180000);
+  const [dm,user] = await Promise.all(['anatomy-dm','anatomy-player'].map(account));
+  await admin('campaña','PUT',{config:{dm_uid:dm.uid},jugadores:{scholar:{uid:user.uid,scores:{int:30,wis:30,str:30},
+    proficiencyBonus:6,skillProficiency:{arcana:'proficient',medicine:'proficient',survival:'proficient',athletics:'proficient',religion:'proficient',history:'proficient'}}},
+    combate:{estado:{phase:'ENDED',result:'victory',encounterId:'anatomy'}},estado_mundo:{instancia_activa:'teatro'}});
+  const director = await client(browser,dm), player = await client(browser,user,'scholar');
+  const errors=[];player.page.on('pageerror',error=>errors.push(error.message));
+  try {
+    const variants = [
+      {id:'organic',name:'Biológico',kind:'organic',material:'flesh',type:'beast',study:'autopsy',skill:'survival'},
+      {id:'construct',name:'Constructo',kind:'construct',material:'metal',type:'construct',study:'dismantle',skill:'arcana'},
+      {id:'rock',name:'Rocoso',kind:'mineral',material:'stone',type:'elemental',study:'arcane_autopsy',skill:'athletics'},
+      {id:'fey',name:'Feérico',kind:'organic',material:'flesh',type:'fey',study:'arcane_autopsy',skill:'survival'},
+      {id:'celestial',name:'Celestial',kind:'organic',material:'flesh',type:'celestial',study:'divine_autopsy',skill:'survival'},
+    ];
+    await director.page.evaluate(async variants=>{
+      const db=firebase.database(), index={};
+      for (const row of variants) {
+        const unit={id:row.id,name:row.name,creatureType:row.type,basicDescription:`Descripción pública de ${row.name}.`,
+          bodyProfile:{kind:row.kind,materials:[row.material],sizeClass:'medium',resources:[]},secret:'SECRET_DO_NOT_REVEAL'};
+        const locked={lootInstanceId:row.id,sourceUnitId:row.id,corpseId:row.id,sourceUnitInstanceId:row.id,encounterId:'anatomy',
+          generation:1,sourceDigest:'anatomy-fixture',
+          locked:true,creatureType:row.type,carried:[],equipment:{items:[]},currency:{amount:0},
+          harvest:{bodyKind:row.kind,materials:[row.material],resources:[
+            {id:'bulk',integrityFamily:'hard_cover_structural',sourceMaterial:row.material,capacity:2},
+            {id:'delicate',integrityFamily:row.material==='flesh'?'organ_internal':'hard_cover_modular',sourceMaterial:row.material,capacity:1},
+          ]}};
+        await db.ref(`campaña/base_datos_unidades/${row.id}`).set(unit);
+        await db.ref(`campaña/loot_instances/${row.id}`).set(locked);
+        await db.ref(`campaña/loot_postcombat/${row.id}`).set(LuminousLootPostCombatRuntime.createInteractionState(locked));
+        index[row.id]={lootInstanceId:row.id,sourceUnitId:row.id,name:row.name};
+      }
+      await db.ref('campaña/loot_encounters/anatomy').set({meta:{open:true,result:'victory',participants:{scholar:true},corpseCount:variants.length},corpses:index});
+    },variants);
+    await player.page.evaluate(()=>LuminousPlayerPostCombatLoot.refreshEncounters());
+    await openLoot(player.page);
+    for (const row of variants) {
+      await player.page.locator('#postcombat-loot-corpse-picker').selectOption(row.id);
+      await expect(player.page.locator(`.loot-corpse.selected [data-loot-action="${row.study}"]`)).toBeEnabled();
+      const skill = await player.page.evaluate(id=>{
+        const ui=LuminousPlayerPostCombatLoot.state, corpse=ui.corpses.find(row=>row.loot.lootInstanceId===id);
+        return LuminousLootPostCombatRuntime.checkDefinition({},'harvest',{state:corpse.interaction,lootInstance:corpse.loot}).skill;
+      },row.id);
+      expect(skill).toBe(row.skill);
+      const before = await admin(`campaña/loot_postcombat/${row.id}/harvest`);
+      await player.page.locator(`.loot-corpse.selected [data-loot-action="${row.study}"]`).click();
+      await expect.poll(async()=>Object.values(await admin(`campaña/jugadores/scholar/compendium/units/${row.id}/facts`)||{}).some(fact=>fact.id==='biology.body_kind')).toBe(true);
+      expect(await admin(`campaña/loot_postcombat/${row.id}/harvest`)).toEqual(before);
+      await player.page.waitForFunction(()=>!LuminousPlayerPostCombatLoot.state.busy);
+    }
+    await player.page.evaluate(()=>LuminousPlayerPostCombatLoot.close());
+    await player.page.addScriptTag({url:base+'/js/creature-compendium-ui.js'});
+    await player.page.locator('#btn-creature-compendium').click();
+    await expect(player.page.locator('#creature-book-select')).toBeVisible();
+    await player.page.locator('#creature-book-select').selectOption('fey');
+    await expect(player.page.locator('.creature-description')).toContainText('aún no descubierta');
+    await player.page.locator('[data-creature-history]').click();
+    await expect(player.page.locator('.creature-description')).toContainText('Descripción pública de Feérico.');
+    expect(await player.page.locator('#creature-compendium').innerText()).not.toContain('SECRET_DO_NOT_REVEAL');
+    // The same reading and recall control remains available during Planning.
+    await player.page.evaluate(()=>{window.LuminousCombat073={uiState:()=>({running:false}),combatants:()=>({celestial:{libraryUnitId:'celestial',faction:'enemy',name:'Celestial'}})};});
+    await player.page.locator('#creature-book-select').selectOption('celestial');
+    await player.page.locator('[data-creature-history]').click();
+    await expect(player.page.locator('.creature-description')).toContainText('Descripción pública de Celestial.');
+    for (const viewport of [{width:360,height:800},{width:390,height:844},{width:844,height:390},
+      {width:768,height:1024},{width:1280,height:720},{width:1920,height:1080}]) {
+      await player.page.setViewportSize(viewport);
+      await player.page.locator('#creature-book-select').selectOption('organic');
+      const button=player.page.locator('[data-creature-history]');await button.scrollIntoViewIfNeeded();
+      const bounds=await button.boundingBox();expect(bounds.width).toBeGreaterThanOrEqual(44);expect(bounds.height).toBeGreaterThanOrEqual(44);
+      expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(viewport.width);
+      expect(await player.page.locator('.creature-book').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+      await player.page.screenshot({path:info.outputPath(`compendium-${viewport.width}x${viewport.height}.png`)});
+      await player.page.keyboard.press('Escape');await expect(player.page.locator('#creature-compendium')).toBeHidden();
+      await player.page.locator('#btn-creature-compendium').click();await expect(player.page.locator('#creature-book-select')).toBeVisible();
+      await player.page.evaluate(()=>LuminousCreatureCompendium.close());
+      await openLoot(player.page);
+      await player.page.locator('[data-loot-tab="actions"]').click();
+      await player.page.locator('#postcombat-loot-corpse-picker').selectOption('construct');
+      const recover=player.page.locator('.loot-corpse.selected [data-loot-action="extract"]');await recover.scrollIntoViewIfNeeded();
+      const recoveryBounds=await recover.boundingBox();expect(recoveryBounds.width).toBeGreaterThanOrEqual(44);expect(recoveryBounds.height).toBeGreaterThanOrEqual(44);
+      expect(await player.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await player.page.screenshot({path:info.outputPath(`anatomy-${viewport.width}x${viewport.height}.png`)});
+      await player.page.evaluate(()=>LuminousPlayerPostCombatLoot.close());
+      await player.page.locator('#btn-creature-compendium').click();await expect(player.page.locator('#creature-book-select')).toBeVisible();
+    }
+    // Reopening reads the persisted description, without another History roll.
+    await player.page.locator('#creature-book-select').selectOption('fey');
+    await expect(player.page.locator('.creature-description')).toContainText('Descripción pública de Feérico.');
+    await expect(player.page.locator('[data-creature-history]')).toBeDisabled();
+    expect(errors).toEqual([]);
+  } finally {await player.context.close();await director.context.close();}
 });

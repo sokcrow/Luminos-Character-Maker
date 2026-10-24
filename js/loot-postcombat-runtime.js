@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = 3;
+  const VERSION = 4;
   const SCHEMA_VERSION = 1;
 
   const ACTION_PROFILES = Object.freeze({
@@ -15,10 +15,14 @@
     pickpocket: Object.freeze({ id: "pickpocket", checkId: "pickpocket", defaultDc: 10 }),
     harvest: Object.freeze({ id: "harvest", checkId: "harvest", defaultDc: 10 }),
     extract: Object.freeze({ id: "extract", checkId: "extract", defaultDc: 12 }),
-    salvage: Object.freeze({ id: "salvage", checkId: "salvage", defaultDc: 10 }),
+    dismantle: Object.freeze({ id: "dismantle", checkId: "salvage", defaultDc: 10 }),
     autopsy: Object.freeze({ id: "autopsy", checkId: "autopsy", defaultDc: 12 }),
     examine: Object.freeze({ id: "examine", checkId: "autopsy", defaultDc: 10, defaultSkill: "investigation" }),
+    arcane_autopsy: Object.freeze({ id: "arcane_autopsy", checkId: "arcane_autopsy", defaultDc: 12 }),
+    divine_autopsy: Object.freeze({ id: "divine_autopsy", checkId: "divine_autopsy", defaultDc: 12 }),
+    history: Object.freeze({ id: "history", checkId: "history", defaultDc: 10 }),
   });
+  const KNOWLEDGE_ACTIONS = Object.freeze(["examine", "autopsy", "dismantle", "arcane_autopsy", "divine_autopsy", "history"]);
 
   const DELICATE_FAMILIES = Object.freeze(new Set([
     "organ_internal",
@@ -26,15 +30,6 @@
     "organ_brain",
     "organ_gland",
     "venom_secretion",
-  ]));
-
-  const SALVAGE_MATERIALS = Object.freeze(new Set([
-    "metal",
-    "mechanical",
-    "stone",
-    "mineral",
-    "synthetic",
-    "crystal",
   ]));
 
   function checks() { return global.LuminousLootCheckRuntime || null; }
@@ -132,8 +127,10 @@
         provenance: clone(instance.currency?.provenance || {}),
       }),
       equipment: deepFreeze(clone(instance.equipment || { source: "none", items: [] })),
+      creatureType: normalizeId(instance.creatureType),
       harvest: deepFreeze({
         bodyKind: normalizeId(instance.harvest?.bodyKind),
+        materials: clone(instance.harvest?.materials || []),
         sizeClass: normalizeId(instance.harvest?.sizeClass),
         resources: trackedResources(instance),
       }),
@@ -177,11 +174,11 @@
   const ANATOMY_ACTIONS = Object.freeze(new Set(["harvest", "extract", "autopsy"]));
   const hasGrant = (value, action, skill) => value === true || value === "all" ||
     Array.isArray(value) && (value.includes(action) || value.includes(skill) ||
-      ANATOMY_ACTIONS.has(action) && (value.includes("anatomy") || value.includes("medicine"))) ||
+      ANATOMY_ACTIONS.has(action) && ["medicine", "survival"].includes(skill) && (value.includes("anatomy") || value.includes("medicine"))) ||
     Boolean(value && typeof value === "object" && (
       value.all === true || value[action] === true || value[skill] === true ||
       value.actions?.[action] === true || value.skills?.[skill] === true ||
-      ANATOMY_ACTIONS.has(action) && (value.anatomy === true || value.medicine === true)
+      ANATOMY_ACTIONS.has(action) && ["medicine", "survival"].includes(skill) && (value.anatomy === true || value.medicine === true)
     ));
   function hasLootKnowledge(actor = {}, actionId = "", skillId = "") {
     const action = normalizeId(actionId), skill = normalizeId(skillId);
@@ -217,6 +214,15 @@
     if (action === "collect") return "";
     const profile = ACTION_PROFILES[action];
     if (!profile) return "";
+    const contextual = {...options};
+    // Resolve the same first remaining resource in preview and authority when
+    // the player has not yet discovered the resource selector.
+    if (["harvest", "extract"].includes(action) && !contextual.resource && contextual.state) {
+      contextual.resource = eligibleResources(contextual.state, action, contextual)[0];
+    }
+    const anatomy = runtime?.anatomyContext?.(contextual);
+    if (action === "harvest") return anatomy?.harvestSkill || "survival";
+    if (action === "extract") return anatomy?.extractSkill || "medicine";
     return normalizeId(options.skill || profile.defaultSkill ||
       runtime?.getCheckProfile?.(profile.checkId)?.defaultSkill || "");
   }
@@ -238,7 +244,7 @@
     const action = normalizeId(actionId), profile = ACTION_PROFILES[action];
     if (!profile) throw new Error(`UNKNOWN_POST_COMBAT_ACTION:${action}`);
     const skill = lootSkillForAction(action, options);
-    const surcharge = lootProficiencyPenalty(actor, action, { skill });
+    const surcharge = lootProficiencyPenalty(actor, action, { ...options, skill });
     return runtime.createLootCheckDefinition(actor, profile.checkId, {
       threshold: options.threshold ?? options.dc ?? profile.defaultDc,
       thresholdModifier: Number(options.thresholdModifier ?? options.dcModifier ?? 0) + surcharge,
@@ -437,9 +443,7 @@
 
   function resourceAction(resource = {}, bodyKind = "") {
     const family = normalizeId(resource.integrityFamily);
-    const material = normalizeId(resource.sourceMaterial);
-    if (DELICATE_FAMILIES.has(family)) return "extract";
-    if (SALVAGE_MATERIALS.has(material) || ["construct", "mineral", "synthetic"].includes(normalizeId(bodyKind))) return "salvage";
+    if (DELICATE_FAMILIES.has(family) || family === "hard_cover_modular") return "extract";
     return "harvest";
   }
 
@@ -456,11 +460,13 @@
   function applyResourceAction(state, actorId, actionId, result, options = {}) {
     const next = clone(state);
     const candidates = eligibleResources(state, actionId, options);
+    const selectedSkill = lootSkillForAction(actionId, {...options, state});
     const recovered = [];
     let units = recoveryCountFromMargin(result);
 
     if (result.success === true && units > 0) {
       for (const candidate of candidates) {
+        if (lootSkillForAction(actionId, {...options, state, resource: candidate}) !== selectedSkill) continue;
         if (units <= 0) break;
         const index = next.harvest.resources.findIndex((entry) => normalizeId(entry.resourceId || entry.id) === normalizeId(candidate.resourceId || candidate.id));
         if (index < 0) continue;
@@ -529,6 +535,7 @@
         discoveredAt: options.now,
         visibility: options.visibility || "private",
         skill: result.skill,
+        actionId,
       },
     );
 
@@ -585,10 +592,15 @@
     state = normalizeInteractionState(state);
     const action = normalizeId(actionId);
     if (!ACTION_PROFILES[action]) throw new Error(`UNKNOWN_POST_COMBAT_ACTION:${action}`);
+    options = {...options, state};
+    if (["autopsy", "dismantle", "arcane_autopsy", "divine_autopsy"].includes(action) &&
+        checks().anatomyContext(options).studyAction !== action) {
+      throw new Error("POST_COMBAT_ANATOMY_ACTION_NOT_AVAILABLE");
+    }
     // A hidden random draw or general Search cannot be retried by inventing
     // a different target in a client request.
     options = {...options};
-    if (!["collect", "harvest", "extract", "salvage"].includes(action)) {
+    if (!["collect", "harvest", "extract"].includes(action)) {
       delete options.targetItemId; delete options.targetCurrency; delete options.targetResourceId;
     } else if (action === "collect") delete options.targetResourceId;
     else { delete options.targetItemId; delete options.targetCurrency; }
@@ -609,7 +621,7 @@
         ? applyCollect(state, actorId, options)
       : action === "pickpocket"
         ? applyPickpocket(state, actorId, result)
-      : (action === "autopsy" || action === "examine")
+      : KNOWLEDGE_ACTIONS.includes(action)
         ? applyKnowledgeAction(state, actorId, action, result, options)
         : applyResourceAction(state, actorId, action, result, options);
 
@@ -635,7 +647,7 @@
 
   function performAction(state = {}, actor = {}, actionId, options = {}) {
     if (actionId === "collect") return applyResolvedAction(state, actor, actionId, {}, options);
-    const definition = checkDefinition(actor, actionId, { ...options, corpseId: state.corpseId });
+    const definition = checkDefinition(actor, actionId, { ...options, state, corpseId: state.corpseId });
     const runtime = checks();
     if (!runtime?.rollCheck) throw new Error("LOOT_CHECK_RUNTIME_REQUIRED");
     const rolled = runtime.rollCheck(definition, { rng: options.rng });
@@ -644,7 +656,7 @@
 
   async function performActionWithCoinEngine(state = {}, actor = {}, actionId, options = {}) {
     if (actionId === "collect") return applyResolvedAction(state, actor, actionId, {}, options);
-    const definition = checkDefinition(actor, actionId, { ...options, corpseId: state.corpseId });
+    const definition = checkDefinition(actor, actionId, { ...options, state, corpseId: state.corpseId });
     const runtime = checks();
     if (!runtime?.rollCheckWithCoinEngine) throw new Error("LOOT_CHECK_RUNTIME_REQUIRED");
     const rolled = await runtime.rollCheckWithCoinEngine(definition, options);
@@ -665,8 +677,8 @@
     VERSION,
     SCHEMA_VERSION,
     ACTION_PROFILES,
+    KNOWLEDGE_ACTIONS,
     DELICATE_FAMILIES,
-    SALVAGE_MATERIALS,
     normalizeId,
     actorIdOf,
     requireLockedLootInstance,

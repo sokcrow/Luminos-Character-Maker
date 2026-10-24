@@ -65,7 +65,7 @@ try{
  await assert.rejects(live.checkPlayerLootAccess({db:player.db,playerId:'nonparticipant',lootInstanceId}),
    /no aparece entre los participantes/i,'linked but absent characters must not loot');
  assert.match((await import('node:fs')).readFileSync('hoja_de_DM.html','utf8'),
-   /js\/loot-live-postcombat-runtime\.js\?v=20261023-shared-belongings-1/,
+   /js\/loot-live-postcombat-runtime\.js\?v=20261024-anatomy-1/,
    'real DM Theatre dashboard must retain Loot authority after Combat iframe closes');
  assert.equal(await live.installAuthority({db:dm.db,uid:dm.uid}),true);
  // Corpse occupancy is a mandatory player lease before any recovery request.
