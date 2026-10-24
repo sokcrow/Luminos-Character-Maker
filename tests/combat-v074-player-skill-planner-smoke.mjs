@@ -7,6 +7,7 @@ await import('../js/combat-action-schema.js');
 await import('../js/combat-action-adapters.js');
 await import('../js/combat-skill-schema.js');
 await import('../js/combat-skill-loadout-074.js');
+await import('../js/item-enchantment-combat-link.js');
 await import('../js/battle-viewer-ownership-074.js');
 await import('../js/battle-viewer-player-skill-planner-074.js');
 
