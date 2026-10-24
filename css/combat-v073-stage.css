@@ -46,7 +46,7 @@
   bottom:calc(-110px * var(--creature-floor-scale,1));
 }
 
-/* Tiny through Medium use a 75% information HUD. The action panel and its
+/* Only Tiny uses a 75% information HUD. The action panel and its
    hit targets stay outside these scales for every creature size. */
 .sprite-container .floating-hp-group,
 .sprite-container .floating-sp-group,

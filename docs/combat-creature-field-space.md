@@ -13,7 +13,7 @@ Each faction has eight field spaces. This is independent of Action Slots.
 
 Large uses the compact-space variant: it occupies one space while its body appears larger. Huge and Gargantuan costs are the initial homebrew values for this change, not D&D grid footprints. Summons and background spell units cost zero spaces, retain their size multiplier and use a separate formation row.
 
-The existing manual sprite scale multiplies the body scale. Tiny, Small and Medium use a 75% information HUD (HP, SP, name, status, shield, Speed and floor). This replaces the smaller Tiny floor footprint with the same 75% floor used by Small/Medium. Action controls keep their size for every creature and move above taller bodies. Large and larger retain the previous information HUD scale and independent floor footprint. DM-pinned positions are preserved.
+The existing manual sprite scale multiplies the body scale. Only Tiny uses a 75% information HUD (HP, SP, name, status, shield, Speed and floor). Small and Medium retain their original 100% information HUD and floor size. Action controls keep their size for every creature and move above taller bodies. Larger creatures retain the previous information HUD scale and independent floor footprint. DM-pinned positions are preserved.
 
 Deployment checks the incoming creature inside the existing encounter transaction. Bodies that do not fit go to reserves. Reserve promotion chooses the first queued creature that fits; larger skipped creatures remain queued. Existing over-cap encounters are not automatically evicted.
 

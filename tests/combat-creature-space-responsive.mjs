@@ -44,7 +44,7 @@ try{for(const role of ['player','dm'])for(const [width,height]of [[360,800],[390
   const scale={tiny:.55,small:.8,medium:1,large:1.35,huge:1.85,gargantuan:2.5};
   for(const [size,factor]of Object.entries(scale)){
     assert.ok(Math.abs(ratios[size].height/ratios.medium.height-factor)<.02,`${width}x${height}: ${size} body ratio`);
-    const expectedHud=['tiny','small','medium'].includes(size)?.75:1;
+    const expectedHud=size==='tiny'?.75:1;
     assert.equal(ratios[size].hudScale,expectedHud,`${size}: information HUD scale`);
     if(expectedHud===.75)assert.equal(ratios[size].floorWidth,165,`${size}: floor HUD is exactly 75%, independent of body size`);
     assert.ok(Math.abs(ratios[size].control-ratios.medium.control)<1,`${size}: controls retain readable geometry`);
