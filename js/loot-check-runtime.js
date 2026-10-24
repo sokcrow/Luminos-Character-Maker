@@ -50,10 +50,13 @@
   const CHECK_PROFILES = Object.freeze({
     search: Object.freeze({ id: "search", label: "Search", phase: "post_combat", defaultSkill: "investigation", skills: Object.freeze(["investigation"]) }),
     pickpocket: Object.freeze({ id: "pickpocket", label: "Sleight of Hand", phase: "post_combat", defaultSkill: "sleight_of_hand", skills: Object.freeze(["sleight_of_hand"]) }),
-    harvest: Object.freeze({ id: "harvest", label: "Harvest", phase: "post_combat", defaultSkill: "survival", skills: Object.freeze(["survival"]) }),
-    extract: Object.freeze({ id: "extract", label: "Extract", phase: "post_combat", defaultSkill: "medicine", skills: Object.freeze(["medicine"]) }),
+    harvest: Object.freeze({ id: "harvest", label: "Harvest", phase: "post_combat", defaultSkill: "survival", skills: Object.freeze(["survival", "arcana", "athletics"]) }),
+    extract: Object.freeze({ id: "extract", label: "Extract", phase: "post_combat", defaultSkill: "medicine", skills: Object.freeze(["medicine", "arcana"]) }),
     salvage: Object.freeze({ id: "salvage", label: "Salvage", phase: "post_combat", defaultSkill: "arcana", skills: Object.freeze(["arcana"]) }),
     autopsy: Object.freeze({ id: "autopsy", label: "Autopsy", phase: "post_combat", defaultSkill: "medicine", skills: Object.freeze(["medicine", "investigation"]) }),
+    arcane_autopsy: Object.freeze({ id: "arcane_autopsy", label: "Estudio arcano", phase: "post_combat", defaultSkill: "arcana", skills: Object.freeze(["arcana"]) }),
+    divine_autopsy: Object.freeze({ id: "divine_autopsy", label: "Estudio celestial", phase: "post_combat", defaultSkill: "religion", skills: Object.freeze(["religion"]) }),
+    history: Object.freeze({ id: "history", label: "Recordar criatura", phase: "any", defaultSkill: "history", skills: Object.freeze(["history"]) }),
     analyze: Object.freeze({ id: "analyze", label: "Analyze", phase: "combat", defaultSkill: "perception", skills: Object.freeze(["perception"]) }),
   });
 
@@ -71,6 +74,30 @@
 
   function normalizeId(value) {
     return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  }
+
+  // Material controls recovery; creature type controls the study of anatomy.
+  // A stone construct therefore uses Athletics to harvest and Arcana to study.
+  function anatomyContext(options = {}) {
+    const state = options.state || {}, instance = options.lootInstance || {};
+    const unit = options.unitTruth || options.unit || {};
+    const body = unit.bodyProfile || {};
+    const resource = options.resource || Object.values(state.harvest?.resources || instance.harvest?.resources || [])
+      .find(row => normalizeId(row.resourceId || row.id) === normalizeId(options.targetResourceId));
+    const kind = normalizeId(state.harvest?.bodyKind || instance.harvest?.bodyKind || body.kind || options.bodyKind);
+    const rawType = state.creatureType || instance.creatureType || unit.creatureType || unit.metadata?.creatureType;
+    const creatureType = global.LuminousCreatureTypeCatalog?.normalizeCreatureType?.(rawType) || normalizeId(rawType);
+    const material = normalizeId(resource?.sourceMaterial);
+    const materials = material ? [material] : (state.harvest?.materials || instance.harvest?.materials || body.materials || []);
+    const rocky = materials.some(value => ["stone", "mineral"].includes(normalizeId(value))) || !material && kind === "mineral";
+    const mechanical = materials.some(value => ["metal", "mechanical", "synthetic", "crystal"].includes(normalizeId(value))) ||
+      !material && ["construct", "synthetic"].includes(kind);
+    const construct = creatureType === "construct" || ["construct", "synthetic"].includes(kind);
+    const arcane = ["fey", "aberration", "elemental", "monstrosity", "dragon", "undead"].includes(creatureType) || kind === "ethereal";
+    const studyAction = construct ? "dismantle" : creatureType === "celestial" ? "divine_autopsy" : arcane ? "arcane_autopsy" : "autopsy";
+    return Object.freeze({kind, creatureType, rocky, mechanical, construct, studyAction,
+      harvestSkill: rocky ? "athletics" : mechanical ? "arcana" : "survival",
+      extractSkill: construct || mechanical || rocky ? "arcana" : "medicine"});
   }
   function numberOr(value, fallback = 0) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
   function integerOr(value, fallback = 0) { const n = Number.parseInt(value, 10); return Number.isFinite(n) ? n : fallback; }
@@ -296,7 +323,7 @@
 
   const API = Object.freeze({
     VERSION, COIN_COUNT, HEAD_BONUS, PROFICIENCY_STATES, ABILITIES, SKILLS, CHECK_PROFILES, CHECK_ALIASES,
-    normalizeId, normalizeProficiencyState, proficiencyBonus, proficiencyContribution, abilityModifier, abilityScore,
+    normalizeId, anatomyContext, normalizeProficiencyState, proficiencyBonus, proficiencyContribution, abilityModifier, abilityScore,
     skillProficiencyState, skillMath, currentSp, headsChance, canonicalCheckId, getCheckProfile, createSkillCheckDefinition,
     createLootCheckDefinition, resultFromRoll, rollCheck, rollCheckWithCoinEngine, resolveLootCheck, resolveLootCheckWithCoinEngine,
   });

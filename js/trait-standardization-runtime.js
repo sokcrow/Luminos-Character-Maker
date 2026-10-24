@@ -24,6 +24,7 @@
     viewerEncounterStateRef: null,
     viewerEncounterUnitsPresent: false,
     viewerEncounterPhaseActive: false,
+    viewerEncounterAuthoritative: false,
   };
 
   const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
@@ -277,6 +278,9 @@
   }
 
   function dispatchPendingEncounterStart() {
+    // Live Combat owns the authoritative event and publishes its result. A
+    // Firebase phase notification is presentation, never a second activation.
+    if (global.LuminousCombatEventRuntime || state.viewerEncounterAuthoritative) return false;
     if (!state.viewerEncounterPending) return false;
     const runtime = global.LuminousPlayerTraitRuntime;
     const unit = currentRegisteredPlayerUnit();
@@ -340,6 +344,7 @@
     });
     stateRef.on("value", (snapshot) => {
       const raw = snapshot.val() || {};
+      state.viewerEncounterAuthoritative = raw?.eventAuthority === "combat-event-runtime-v1";
       const phase = normalizeId(typeof raw === "string" ? raw : raw.phase || raw.state || raw.status);
       const round = Math.max(1, Math.trunc(numberOr(typeof raw === "object" ? raw.round ?? raw.turn : 1, 1)));
       // Deployment and the planning phase are not Encounter Start.

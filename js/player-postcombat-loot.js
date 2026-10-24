@@ -29,6 +29,7 @@
     claiming: false,
     activeTab: "actions",
     returnFocus: null,
+    anatomyCache: {},
   };
 
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -244,14 +245,23 @@
   async function readCorpse(corpseIndex) {
     const db = state.db;
     const lootId = clean(corpseIndex.lootInstanceId);
-    const [interactionSnap, lootSnap] = await Promise.all([
+    const sourceId = clean(corpseIndex.sourceUnitId);
+    const [interactionSnap, lootSnap, anatomySnap] = await Promise.all([
       db.ref(`${live().ROOTS.postCombat}/${lootId}`).once("value"),
       db.ref(`${live().ROOTS.lootInstances}/${lootId}`).once("value"),
+      sourceId && !corpseIndex.creatureType && !state.anatomyCache[sourceId]
+        ? db.ref(`${live().ROOTS.units}/${live().safeKey(sourceId)}`).once("value") : Promise.resolve(null),
     ]);
+    const loot = clone(lootSnap.val() || {});
+    if (!loot.creatureType && loot.sourceUnitId && !state.anatomyCache[loot.sourceUnitId]) {
+      const unit = anatomySnap?.val?.() || {};
+      state.anatomyCache[loot.sourceUnitId] = {creatureType:unit.creatureType || unit.metadata?.creatureType || "",bodyProfile:{kind:unit.bodyProfile?.kind || loot.harvest?.bodyKind || "",materials:unit.bodyProfile?.materials || loot.harvest?.materials || []}};
+    }
     return {
       index: clone(corpseIndex),
       interaction: postCombat().normalizeInteractionState(interactionSnap.val() || {}),
-      loot: clone(lootSnap.val() || {}),
+      loot,
+      anatomyUnit: state.anatomyCache[loot.sourceUnitId],
     };
   }
 
@@ -269,8 +279,12 @@
       harvest: "Cosechar",
       extract: "Extraer",
       salvage: "Desmontar",
+      dismantle: "Desmontar",
       examine: "Examinar",
       autopsy: "Autopsia",
+      arcane_autopsy: "Estudio arcano",
+      divine_autopsy: "Estudio celestial",
+      history: "Recordar criatura",
     })[actionId] || titleCase(actionId);
   }
 
@@ -282,7 +296,7 @@
   function bodyDiscoveredByPlayer(interaction = {}, playerId = "") {
     return (interaction.attempts || []).some(entry =>
       clean(entry.actorId) === playerId &&
-      ["examine", "autopsy"].includes(normalizeId(entry.actionId)) &&
+      ["examine", "autopsy", "dismantle", "arcane_autopsy", "divine_autopsy"].includes(normalizeId(entry.actionId)) &&
       (entry.success === true || entry.check?.success === true));
   }
 
@@ -513,6 +527,7 @@
       state.db.ref(`campaña/jugadores/${resolvePlayerId()}`).once("value"),
     ]);
     if (generation !== state.renderGeneration || !state.open) return;
+    state.corpses = corpses;
     const actor = clone(playerSnap.val() || {});
     const playerId = resolvePlayerId();
     actor.id = actor.id || playerId;
@@ -528,7 +543,8 @@
     for (const corpse of corpses) {
       const interaction = corpse.interaction;
       if (!interaction?.lootInstanceId) continue;
-      const actions = live().availableActions(interaction, actor, { playerId });
+      const actionContext = {playerId, state: interaction, lootInstance: corpse.loot, unitTruth: corpse.anatomyUnit};
+      const actions = live().availableActions(interaction, actor, actionContext);
       const pendingRequests = Object.values(state.requests || {}).filter(request => request && request.lootInstanceId === interaction.lootInstanceId && (request.status === "pending" || request.status === "processing"));
       const pending = pendingForPlayer(interaction);
       const known = visibleDiscoveredItems(interaction, playerId);
@@ -548,7 +564,7 @@
 
       const resourceActionMarkup = actions.map((action) => {
         let select = "";
-        if (["harvest", "extract", "salvage"].includes(action)) {
+        if (["harvest", "extract"].includes(action)) {
           const resources = postCombat().eligibleResources(interaction, action);
           if (anatomyKnown && resources.length > 1) {
             select = `<select class="loot-resource" data-resource-for="${esc(action)}" aria-label="Elegir recurso a recuperar">${resources.map((resource) => `<option value="${esc(resource.resourceId || resource.id)}">${esc(resourceLabel(resource))}</option>`).join("")}</select>`;
@@ -556,12 +572,12 @@
             select = `<input type="hidden" data-resource-for="${esc(action)}" value="${esc(resources[0].resourceId || resources[0].id)}">`;
           }
         }
-        const requiredSkill = postCombat().lootSkillForAction?.(action) || "skill";
-        const penalty = Number(postCombat().lootProficiencyPenalty?.(actor,action) || 0);
+        const requiredSkill = postCombat().lootSkillForAction?.(action, actionContext) || "skill";
+        const penalty = Number(postCombat().lootProficiencyPenalty?.(actor,action,actionContext) || 0);
         const skillLabel = ({ investigation:"Investigation", survival:"Survival", medicine:"Medicine", arcana:"Arcana" })[requiredSkill] || titleCase(requiredSkill);
-        const penaltyText = penalty ? `SIN ${esc(skillLabel.toUpperCase())} · +${penalty} TH` : "";
+        const penaltyText = penalty ? `${esc(skillLabel)} · Sin competencia: +${penalty} TH` : esc(skillLabel);
         const queued = pendingRequests.some(request => normalizeId(request.actionId) === action);
-        return `<div class="loot-resource-group">${select}<button type="button" class="loot-action${queued ? " pending" : ""}" data-loot-action="${esc(action)}" data-loot-id="${esc(lootId)}" ${accessible && !queued ? "" : "disabled"} title="${queued ? "Esta recuperación está pendiente" : penalty ? `Sin competencia en ${esc(skillLabel)}: +${penalty} al TH` : `Skill: ${esc(skillLabel)}`}">${queued ? "En espera" : esc(actionLabel(action))}</button>${penalty && !queued ? `<small class="loot-skill-penalty">${penaltyText}</small>` : ""}</div>`;
+        return `<div class="loot-resource-group">${select}<button type="button" class="loot-action${queued ? " pending" : ""}" data-loot-action="${esc(action)}" data-loot-id="${esc(lootId)}" ${accessible && !queued ? "" : "disabled"} title="${queued ? "Esta recuperación está pendiente" : penalty ? `Sin competencia en ${esc(skillLabel)}: +${penalty} al TH` : `Skill: ${esc(skillLabel)}`}">${queued ? "En espera" : esc(actionLabel(action))}</button>${!queued ? `<small class="loot-skill-penalty">${penaltyText}</small>` : ""}</div>`;
       }).join("");
       const pendingHtml = pending.map((entry) => `<button type="button" class="loot-action pending" data-pending-id="${esc(entry.id)}" data-loot-id="${esc(lootId)}" ${accessible ? "" : "disabled"}>Recoger pendiente</button>`).join("");
       const discoverySlots = known.map(knownItemSlot).join("");
@@ -636,6 +652,19 @@
     });
     list.querySelectorAll("[data-loot-action]").forEach((button) => {
       button.addEventListener("click", () => runAction(button).catch((error) => showLootError(error)));
+      const group = button.closest(".loot-resource-group"), selector = group?.querySelector("[data-resource-for]");
+      if (!selector || button.classList.contains("pending")) return;
+      const updateSkill = () => {
+        const corpse = corpses.find(row => row.interaction?.lootInstanceId === button.dataset.lootId);
+        const context = {state: corpse?.interaction, lootInstance: corpse?.loot, unitTruth:corpse?.anatomyUnit, targetResourceId: selector.value};
+        const skill = postCombat().lootSkillForAction(button.dataset.lootAction, context);
+        const label = ({survival:"Survival", medicine:"Medicina", arcana:"Arcanos", athletics:"Athletics"})[skill] || titleCase(skill);
+        const penalty = postCombat().lootProficiencyPenalty(actor, button.dataset.lootAction, context);
+        group.querySelector(".loot-skill-penalty").textContent = label + (penalty ? ` · Sin competencia: +${penalty} TH` : "");
+        button.title = `Skill: ${label}`;
+      };
+      selector.addEventListener("change", updateSkill);
+      updateSkill();
     });
     results?.querySelectorAll("[data-loot-collect]").forEach(button => {
       button.addEventListener("click", () => collectBelonging(button).catch(error => showLootError(error)));
@@ -685,7 +714,8 @@
       const actor = clone(playerSnap.val() || {});
       actor.id = actor.id || playerId;
       let checkResult;
-      try { checkResult = await animatedCheck(actor, actionId, { targetResourceId }); }
+      const corpse = state.corpses.find(row => row.interaction?.lootInstanceId === lootInstanceId);
+      try { checkResult = await animatedCheck(actor, actionId, { targetResourceId, state: corpse?.interaction, lootInstance: corpse?.loot, unitTruth:corpse?.anatomyUnit }); }
       catch (error) { await accessPromise; throw error; }
       const access = await accessPromise;
       if (!access.ok) throw access.error;

@@ -218,6 +218,7 @@
       unitId: String(unit.id ?? unit.unitId ?? ""),
       sizeClass: sizeClassFor(unit),
       bodyKind: normalizeId(unit.bodyProfile?.kind),
+      materials: clone(unit.bodyProfile?.materials || []),
       resources: Object.freeze(resolved),
       generatedFrom: Object.freeze({
         bodyProfileVersion: unit.bodyProfile?.version ?? null,

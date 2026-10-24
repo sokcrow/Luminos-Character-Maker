@@ -23,8 +23,7 @@ assert.ok(reviewFixSource.includes("withActionTraits(()=>menu?.renderCleanList?.
 assert.ok(reviewFixSource.includes('return menu?.renderSkills?.()'), 'Action Skills must use the live Player kit renderer instead of the legacy demo renderer');
 assert.ok(menuSource.includes('else if (menu === "skills") renderSkills();') && menuSource.includes('else if (menu === "spells") renderSpells();') && menuSource.includes('else if (menu === "global") renderGlobalList();'), 'renderCategory must refresh live Action content for every Player menu tab');
 assert.ok(reviewFixSource.includes("sel?.type==='global'"), 'Action-cost Trait rows must be converted back to Trait plans before canonical confirmation');
-assert.ok(reviewFixSource.includes('engine.canActivateTrait(source,runtime,tState)') && reviewFixSource.includes('engine.activateTrait(source,runtime,tState)'), 'Quick Action Traits must pass their canonical activation and usage gates');
-assert.ok(reviewFixSource.indexOf('engine.canActivateTrait(source,runtime,tState)') < reviewFixSource.indexOf('engine.activateTrait(source,runtime,tState)'), 'Trait activation gate must run before activation');
+assert.ok(reviewFixSource.includes('return api()?.useQuickAction?.(sel,targetId)'), 'Trait click capture must delegate to the same confirmed execution path');
 assert.ok(reviewFixSource.includes("global.addEventListener?.('luminous:combat073-reaction-trigger',onReactionTrigger)"), 'prepared Reaction resolution must have a runtime handler');
 assert.ok(reviewFixSource.includes('engine.triggerEvent=wrapped') && reviewFixSource.includes('maybeTriggerPrepared(tag,context,targetsHit)'), 'prepared Reactions must be connected to Combat trigger events');
 
@@ -39,10 +38,9 @@ assert.ok(menuSource.includes('syncSpellMenuVisibility'), 'non-caster Spell menu
 const quickUseStart = menuSource.indexOf('function useQuickAction');
 const quickUseEnd = menuSource.indexOf('function beginQuickAction', quickUseStart);
 const quickUseBody = menuSource.slice(quickUseStart, quickUseEnd);
-assert.ok(quickUseBody.includes('requestQuickResolution'), 'Quick Action must resolve before spending its economy resource');
-assert.ok(quickUseBody.includes('economy.consume(unit, ECONOMY.QUICK'), 'successful Quick Action must consume the independent Quick Action resource');
-assert.ok(quickUseBody.indexOf('requestQuickResolution') < quickUseBody.indexOf('economy.consume(unit, ECONOMY.QUICK'), 'failed Quick Actions must not spend the resource');
-assert.ok(!quickUseBody.includes('scheduleAction('), 'Quick Actions must not consume or reserve an Action Slot');
+assert.ok(quickUseBody.includes('await sync.requestIndependentAction'), 'Online Quick/Free selections wait for authority confirmation');
+assert.ok(!quickUseBody.includes('economy.consume('), 'Menu cannot optimistically spend a shared budget');
+assert.ok(!quickUseBody.includes('scheduleAction('), 'Independent actions never reserve an ordinary Action Slot');
 
 const prepareStart = menuSource.indexOf('function prepareReaction');
 const prepareEnd = menuSource.indexOf('function triggerPreparedReaction', prepareStart);
@@ -58,7 +56,7 @@ assert.ok(triggerBody.includes('economy.consume(unit, ECONOMY.REACTION'), 'React
 assert.ok(triggerBody.indexOf('detail.handled') < triggerBody.indexOf('economy.consume(unit, ECONOMY.REACTION'), 'Reaction must not be spent before successful handling');
 
 assert.ok(menuSource.includes('quickSpentRound') && menuSource.includes('reactionSpentRound'), 'economy spend state must survive live combatant rehydration within a Round');
-assert.ok(menuSource.includes('luminous:combat073-quick-action-request'), 'Quick Actions must expose a canonical runtime resolution event');
+assert.ok(menuSource.includes('requestIndependentAction'), 'Quick Actions must use the authoritative request path');
 assert.ok(menuSource.includes('luminous:combat073-reaction-trigger'), 'Reactions must expose a canonical runtime trigger event');
 
 assert.ok(planSync.includes("script.src='js/combat-v073-economy-menu.js'"), 'the live Viewer bridge must actually load the economy menu');

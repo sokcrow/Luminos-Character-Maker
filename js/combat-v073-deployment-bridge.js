@@ -149,9 +149,9 @@
   function promoteNextBackupLocal(side, outgoing = {}, options = {}, updates = {}) {
     const api = deployment();
     const combatants = adapterState()?.combatants || {};
-    if (!api?.canEnterField?.(combatants, side)) return { promoted: false, reason: "field_cap_reached" };
-    const entry = api.nextBackup(state.reserves, side);
-    if (!entry) return { promoted: false, reason: "no_backup" };
+    if (!api) return { promoted: false, reason: "deployment_runtime_unavailable" };
+    const entry = api.nextBackup(state.reserves, side, combatants);
+    if (!entry) return { promoted: false, reason: api.nextBackup(state.reserves, side) ? "field_cap_reached" : "no_backup" };
     const incoming = api.preparePromotion(entry.unit, outgoing, {
       round: options.round ?? round(),
       reason: options.reason || "replacement",

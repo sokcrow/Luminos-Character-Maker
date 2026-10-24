@@ -546,8 +546,17 @@
     if (!global.LuminousKoboldUnitCatalog) await loadScript("kobold-unit-catalog-script", "js/unit-catalog-kobold-tier1.js", "LuminousKoboldUnitCatalog");
     if (!global.LuminousGoblinUnitCatalog) await loadScript("goblin-unit-catalog-script", "js/unit-catalog-goblin.js", "LuminousGoblinUnitCatalog");
     if (!global.LuminousUnitActionEconomyCatalog) await loadScript("unit-action-economy-catalog-script", "js/unit-action-economy-catalog.js", "LuminousUnitActionEconomyCatalog");
+    if (!global.LuminousTraitEngine) await loadScript("trait-engine-independent-ai-script", "js/trait-engine.js", "LuminousTraitEngine");
+    if (!global.LuminousTraitCatalogCore) await loadScript("trait-catalog-independent-ai-script", "js/trait-catalog-core.js", "LuminousTraitCatalogCore");
+    if (!global.LuminousActionEconomy) await loadScript("action-economy-independent-ai-script", "js/universal-action-economy.js", "LuminousActionEconomy");
+    if (!global.LuminousClassRuntimeBootstrap) await loadScript("class-runtime-bootstrap-independent-ai-script", "js/class-runtime-bootstrap.js", "LuminousClassRuntimeBootstrap");
+    if (global.LuminousClassRuntimeBootstrap?.ready) {
+      try { await global.LuminousClassRuntimeBootstrap.ready("combat"); }
+      catch (error) { global.console?.warn?.("[EnemyPlanning074] Class runtime boot", error); }
+    }
     if (!global.LuminousIndividualGoapCombatAI) await loadScript("individual-goap-combat-ai-script", "js/individual-goap-combat-ai.js", "LuminousIndividualGoapCombatAI");
     if (!global.LuminousUnitAiKitAdapter) await loadScript("unit-ai-kit-adapter-script", "js/unit-ai-kit-adapter.js", "LuminousUnitAiKitAdapter");
+    if (!global.LuminousUnitIndependentActions) await loadScript("unit-independent-actions-script", "js/unit-independent-actions.js", "LuminousUnitIndependentActions");
     if (!global.LuminousEnemyActionSlotAllocator) await loadScript("enemy-action-slot-allocator-script", "js/enemy-action-slot-allocator.js", "LuminousEnemyActionSlotAllocator");
     return Boolean(allocator()?.allocateEnemySlots && kitAdapter()?.planUnitTurn && global.LuminousBattleViewerRuntime073);
   }

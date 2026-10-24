@@ -119,7 +119,7 @@
     return {
       phase,
       action: phase === PHASES.PLANNING ? Math.max(0, max - occupied.size) : 0,
-      quick_action: phase === PHASES.PLANNING ? finiteInt(state.quickActionRemaining, 0) : 0,
+      quick_action: [PHASES.PLANNING, PHASES.COMBAT].includes(phase) ? finiteInt(state.quickActionRemaining, 0) : 0,
       reaction: phase === PHASES.COMBAT ? finiteInt(state.reactionRemaining, 0) : 0,
       actionSlots: max,
       plannedActions: { ...(state.plannedActions || {}) },
@@ -137,7 +137,7 @@
       return { available: current.action > 0, reason: current.action > 0 ? null : "no_free_action_slot", remaining: current.action };
     }
     if (id === ACTION_COSTS.QUICK_ACTION) {
-      if (current.phase !== PHASES.PLANNING) return { available: false, reason: "quick_action_before_combat_only", remaining: 0 };
+      if (![PHASES.PLANNING, PHASES.COMBAT].includes(current.phase)) return { available: false, reason: "quick_action_requires_active_turn", remaining: 0 };
       return { available: current.quick_action > 0, reason: current.quick_action > 0 ? null : "quick_action_spent", remaining: current.quick_action };
     }
     if (id === ACTION_COSTS.REACTION) {

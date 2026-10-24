@@ -66,4 +66,7 @@ assert.equal(dispatches().length, 1, "New deployment must not trigger the effect
 emitSnapshot(combatState, { phase: "COMBAT_RUNNING", round: 1 });
 assert.equal(dispatches().length, 2, "A new Encounter may trigger after reset");
 
+emitSnapshot(combatState, { phase: "SETUP", round: 1 });
+emitSnapshot(combatState, { phase: "COMBAT_SEALED", round: 1, eventAuthority: "combat-event-runtime-v1" });
+assert.equal(dispatches().length, 2, "Authoritative Combat suppresses the sheet's old phase-trigger activation");
 console.log("Encounter Start gating smoke passed.");

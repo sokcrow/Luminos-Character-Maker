@@ -91,6 +91,51 @@
         ".write": "auth != null"
       },
       "combate": {
+        "independentIntents": {
+          ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+          "$playerId": {
+            "$intentId": {
+              ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || (root.child('campaña').child('jugadores').child($playerId).child('uid').val() === auth.uid && !data.exists() && newData.exists() && (root.child('campaña').child('combate').child('estado').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña').child('combate').child('estado').child('phase').val() === 'PRE_COMBAT_PLANNING') && root.child('campaña').child('combate').child('readyPlayers').child($playerId).child('ready').val() !== true))",
+              ".validate": "(data.exists() && (auth != null && (true) && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) && (newData.child('schemaVersion').val() === data.child('schemaVersion').val() && newData.child('encounterId').val() === data.child('encounterId').val() && newData.child('playerId').val() === data.child('playerId').val() && newData.child('schedulerUid').val() === data.child('schedulerUid').val() && newData.child('unitId').val() === data.child('unitId').val() && newData.child('sourceId').val() === data.child('sourceId').val() && newData.child('sourceType').val() === data.child('sourceType').val() && newData.child('cost').val() === data.child('cost').val() && newData.child('round').val() === data.child('round').val() && newData.child('targetId').val() === data.child('targetId').val() && newData.child('createdAt').val() === data.child('createdAt').val())) || (!data.exists() && (newData.val() == null || (newData.child('schemaVersion').val() === 1 && newData.child('playerId').val() === $playerId && newData.child('schedulerUid').val() === auth.uid && newData.child('unitId').isString() && newData.child('sourceId').isString() && newData.child('sourceId').val().length > 0 && newData.child('sourceId').val().length <= 128 && (newData.child('sourceType').val() === 'trait' || newData.child('sourceType').val() === 'skill' || newData.child('sourceType').val() === 'spell' || newData.child('sourceType').val() === 'item') && (newData.child('cost').val() === 'quick_action' || newData.child('cost').val() === 'free_action') && newData.child('round').isNumber() && newData.child('round').val() >= 1 && (!newData.child('targetId').exists() || newData.child('targetId').isString()) && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalPlayerKey').val() === $playerId && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalOwnerUid').val() === auth.uid) && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('isPlayer').val() === true && newData.child('createdAt').isNumber() && newData.child('encounterId').isString() && newData.child('encounterId').val() === root.child('campaña').child('combate').child('estado').child('encounterId').val()))",
+              "schemaVersion": {
+                ".validate": "true"
+              },
+              "playerId": {
+                ".validate": "true"
+              },
+              "schedulerUid": {
+                ".validate": "true"
+              },
+              "unitId": {
+                ".validate": "true"
+              },
+              "sourceId": {
+                ".validate": "true"
+              },
+              "sourceType": {
+                ".validate": "true"
+              },
+              "cost": {
+                ".validate": "true"
+              },
+              "round": {
+                ".validate": "true"
+              },
+              "targetId": {
+                ".validate": "true"
+              },
+              "createdAt": {
+                ".validate": "true"
+              },
+              "$other": {
+                ".validate": "false"
+              },
+              "encounterId": {
+                ".validate": "true"
+              }
+            }
+          }
+        },
         "plannedActions": {
           ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
           "$ownerPlayerId": {
@@ -137,7 +182,10 @@
             }
           }
         },
-        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+        "independentReceipts": {
+          ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
+        }
       },
       "efectos_dm": {
         "$effectId": {
@@ -297,7 +345,55 @@
                     }
                   }
                 },
-                ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true && (auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))"
+                ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true && (auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))",
+                "independentIntents": {
+                  ".write": "(auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true) && (auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))",
+                  "$playerId": {
+                    "$intentId": {
+                      ".write": "(auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true) && (auth != null && ((auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || (root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('jugadores').child($playerId).child('uid').val() === auth.uid && !data.exists() && newData.exists() && (root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('combate').child('estado').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('combate').child('estado').child('phase').val() === 'PRE_COMBAT_PLANNING') && root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('combate').child('readyPlayers').child($playerId).child('ready').val() !== true)))",
+                      ".validate": "(data.exists() && (auth != null && (root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true) && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) && (newData.child('schemaVersion').val() === data.child('schemaVersion').val() && newData.child('encounterId').val() === data.child('encounterId').val() && newData.child('playerId').val() === data.child('playerId').val() && newData.child('schedulerUid').val() === data.child('schedulerUid').val() && newData.child('unitId').val() === data.child('unitId').val() && newData.child('sourceId').val() === data.child('sourceId').val() && newData.child('sourceType').val() === data.child('sourceType').val() && newData.child('cost').val() === data.child('cost').val() && newData.child('round').val() === data.child('round').val() && newData.child('targetId').val() === data.child('targetId').val() && newData.child('createdAt').val() === data.child('createdAt').val())) || (!data.exists() && (newData.val() == null || (newData.child('schemaVersion').val() === 1 && newData.child('playerId').val() === $playerId && newData.child('schedulerUid').val() === auth.uid && newData.child('unitId').isString() && newData.child('sourceId').isString() && newData.child('sourceId').val().length > 0 && newData.child('sourceId').val().length <= 128 && (newData.child('sourceType').val() === 'trait' || newData.child('sourceType').val() === 'skill' || newData.child('sourceType').val() === 'spell' || newData.child('sourceType').val() === 'item') && (newData.child('cost').val() === 'quick_action' || newData.child('cost').val() === 'free_action') && newData.child('round').isNumber() && newData.child('round').val() >= 1 && (!newData.child('targetId').exists() || newData.child('targetId').isString()) && root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalPlayerKey').val() === $playerId && root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalOwnerUid').val() === auth.uid) && root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('isPlayer').val() === true && newData.child('createdAt').isNumber() && newData.child('encounterId').isString() && newData.child('encounterId').val() === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('combate').child('estado').child('encounterId').val()))",
+                      "schemaVersion": {
+                        ".validate": "true"
+                      },
+                      "playerId": {
+                        ".validate": "true"
+                      },
+                      "schedulerUid": {
+                        ".validate": "true"
+                      },
+                      "unitId": {
+                        ".validate": "true"
+                      },
+                      "sourceId": {
+                        ".validate": "true"
+                      },
+                      "sourceType": {
+                        ".validate": "true"
+                      },
+                      "cost": {
+                        ".validate": "true"
+                      },
+                      "round": {
+                        ".validate": "true"
+                      },
+                      "targetId": {
+                        ".validate": "true"
+                      },
+                      "createdAt": {
+                        ".validate": "true"
+                      },
+                      "$other": {
+                        ".validate": "false"
+                      },
+                      "encounterId": {
+                        ".validate": "true"
+                      }
+                    }
+                  }
+                },
+                "independentReceipts": {
+                  ".write": "(auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true) && (auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))"
+                }
               },
               "efectos_dm": {
                 "$effectId": {
@@ -329,7 +425,7 @@
                 "$playerId": {
                   "$requestId": {
                     ".write": "(auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config/dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (auth != null && !data.exists() && (root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('jugadores').child($playerId).child('uid').val() === auth.uid || root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('jugadores').child($playerId).child('vinculado_a').val() === auth.uid || root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('jugadores').child($playerId).child('vinculo_jugador').val() === auth.uid) && newData.child('uid').val() === auth.uid && newData.child('playerId').val() === $playerId && newData.child('status').val() === 'pending' && root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('loot_encounters').child(root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('loot_instances').child(newData.child('lootInstanceId').val()).child('encounterId').val()).child('meta').child('participants').child($playerId).val() === true && root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('loot_encounters').child(root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('loot_instances').child(newData.child('lootInstanceId').val()).child('encounterId').val()).child('meta').child('open').val() === true && root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('loot_encounters').child(root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('loot_instances').child(newData.child('lootInstanceId').val()).child('encounterId').val()).child('meta').child('result').val() === 'victory')",
-                    ".validate": "(auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config/dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (newData.hasChildren(['uid','playerId','lootInstanceId','actionId','status','createdAt']) && newData.child('lootInstanceId').isString() && newData.child('actionId').val().matches(/^(search|pickpocket|collect|harvest|extract|salvage|examine|autopsy|claim)$/) && newData.child('createdAt').isNumber() && !newData.child('response').exists() && !newData.child('claimToken').exists() && newData.child('checkHeads').isNumber() && newData.child('checkHeads').val() >= 0 && newData.child('checkHeads').val() <= 5)"
+                    ".validate": "(auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config/dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (newData.hasChildren(['uid','playerId','lootInstanceId','actionId','status','createdAt']) && newData.child('lootInstanceId').isString() && newData.child('actionId').val().matches(/^(search|pickpocket|collect|harvest|extract|dismantle|examine|autopsy|arcane_autopsy|divine_autopsy|history|claim)$/) && newData.child('createdAt').isNumber() && !newData.child('response').exists() && !newData.child('claimToken').exists() && newData.child('checkHeads').isNumber() && newData.child('checkHeads').val() >= 0 && newData.child('checkHeads').val() <= 5)"
                   }
                 }
               },
@@ -417,7 +513,7 @@
         "$playerId": {
           "$requestId": {
             ".write": "(auth != null && (auth.uid === root.child('campaña').child('config/dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (auth != null && !data.exists() && (root.child('campaña').child('jugadores').child($playerId).child('uid').val() === auth.uid || root.child('campaña').child('jugadores').child($playerId).child('vinculado_a').val() === auth.uid || root.child('campaña').child('jugadores').child($playerId).child('vinculo_jugador').val() === auth.uid) && newData.child('uid').val() === auth.uid && newData.child('playerId').val() === $playerId && newData.child('status').val() === 'pending' && root.child('campaña').child('loot_encounters').child(root.child('campaña').child('loot_instances').child(newData.child('lootInstanceId').val()).child('encounterId').val()).child('meta').child('participants').child($playerId).val() === true && root.child('campaña').child('loot_encounters').child(root.child('campaña').child('loot_instances').child(newData.child('lootInstanceId').val()).child('encounterId').val()).child('meta').child('open').val() === true && root.child('campaña').child('loot_encounters').child(root.child('campaña').child('loot_instances').child(newData.child('lootInstanceId').val()).child('encounterId').val()).child('meta').child('result').val() === 'victory')",
-            ".validate": "(auth != null && (auth.uid === root.child('campaña').child('config/dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (newData.hasChildren(['uid','playerId','lootInstanceId','actionId','status','createdAt']) && newData.child('lootInstanceId').isString() && newData.child('actionId').val().matches(/^(search|pickpocket|collect|harvest|extract|salvage|examine|autopsy|claim)$/) && newData.child('createdAt').isNumber() && !newData.child('response').exists() && !newData.child('claimToken').exists() && newData.child('checkHeads').isNumber() && newData.child('checkHeads').val() >= 0 && newData.child('checkHeads').val() <= 5)"
+            ".validate": "(auth != null && (auth.uid === root.child('campaña').child('config/dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')) || (newData.hasChildren(['uid','playerId','lootInstanceId','actionId','status','createdAt']) && newData.child('lootInstanceId').isString() && newData.child('actionId').val().matches(/^(search|pickpocket|collect|harvest|extract|dismantle|examine|autopsy|arcane_autopsy|divine_autopsy|history|claim)$/) && newData.child('createdAt').isNumber() && !newData.child('response').exists() && !newData.child('claimToken').exists() && newData.child('checkHeads').isNumber() && newData.child('checkHeads').val() >= 0 && newData.child('checkHeads').val() <= 5)"
           }
         }
       },

@@ -76,3 +76,27 @@ sandbox.LuminousCombatAuthority073.state.runningLocal=true;
 assert.equal(await api.ensureRoundSpeeds(),false,'running/sealing authority must prevent new background writes');assert.equal(transactions,1);
 
 console.log('combat v0.7.3 speed persistence smoke: ok');
+
+// A startup buff changes canonical Speed within the same round. Apply the new
+// order once; ordinary same-round reads still must not relayout repeatedly.
+const speedRows={unit:{id:'unit',speed:3,speedBaseRoll:3,speedRollTurn:1,speedTie:0.25}};
+let layouts=0;
+sandbox.LuminousCombat073={combatants:()=>speedRows,render(){}};
+sandbox.LuminousCombatLiveAdapter073.state.hydratedOnce=true;
+sandbox.layoutSpeedFormation=()=>{layouts++};
+sandbox.rollTurnSpeeds=()=>{};sandbox.rollUnitSpeed=()=>{};
+api.patchLegacySpeedRollers();
+Object.assign(api.state,{round:1,roundReady:true,lastFormationRound:0,combatants:JSON.parse(JSON.stringify(speedRows))});
+api.forceRuntimeRefresh();api.refreshRuntimeSpeedView();
+assert.equal(layouts,1);
+api.state.combatants.unit.speed=8;
+assert.equal(api.forceRuntimeRefresh(),true,'A canonical startup Speed change invalidates the previous order');
+api.refreshRuntimeSpeedView();
+assert.equal(speedRows.unit.speed,8);
+assert.equal(speedRows.unit.speedBaseRoll,3);
+assert.equal(speedRows.unit.speedTie,0.25);
+assert.equal(layouts,2,'Formation refreshes once for the new Speed');
+sandbox.rollTurnSpeeds(1);sandbox.rollTurnSpeeds(1);
+assert.equal(layouts,2,'Repeated same-round reads do not keep relaying out');
+assert.equal(api.forceRuntimeRefresh(),false,'The same snapshot is idempotent');
+console.log('Startup Speed formation refresh: canonical changes update order once without another roll.');

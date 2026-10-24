@@ -131,7 +131,19 @@ const CombatEngine = {
         return this.currentState;
     },
 
-    triggerEncounterStart: function(allUnits = []) {
+    triggerEncounterStart: function(allUnits = [], options = {}) {
+        const events = (typeof globalThis !== 'undefined') ? globalThis.LuminousCombatEventRuntime : null;
+        if (events) {
+            return events.planEncounterStart(allUnits, { ...options, encounterId: options.encounterId || this.encounterId, engine: this }).then(result => {
+                result.units.forEach((draft, index) => {
+                    const fresh = allUnits[index].combatEventState?.encounterStarted !== draft.combatEventState?.encounterStarted;
+                    Object.assign(allUnits[index], draft);
+                    if (fresh) globalThis.LuminousActionEconomy?.beginCombat?.(allUnits[index]);
+                });
+                this.currentState = 'COMBAT_ACTIVE';
+                return result;
+            });
+        }
         this.currentState = 'COMBAT_ACTIVE';
         const economy = (typeof globalThis !== 'undefined') ? globalThis.LuminousActionEconomy : null;
         if (economy && Array.isArray(allUnits)) allUnits.forEach(unit => economy.beginCombat(unit));

@@ -18,6 +18,11 @@
   function requiredIds(){
     const s=adapterState(),ids=new Set(),fieldOnly=adapter()?.isFieldCombatant;
     Object.values(s?.combatants||{}).filter(unit=>typeof fieldOnly!=='function'||fieldOnly(unit||{})).forEach(unit=>skillIdsFor(unit||{}).forEach(id=>ids.add(id)));
+    // Use the same resolved inventory/equipment as kit hydration, including
+    // player equipment references and installed augmentations.
+    const resolved=adapter()?.normalizedCombatants?.()||Object.values(s?.combatants||{});
+    resolved.filter(unit=>typeof fieldOnly!=='function'||fieldOnly(unit||{})).forEach(unit=>
+      (global.LuminousEquipmentEffects?.grantedSkillIds?.(unit)||[]).forEach(id=>ids.add(id)));
     return [...ids].sort();
   }
   function detachBulkSkills(){

@@ -10,7 +10,7 @@
 .compact-combat-hud #category-surface{max-width:calc(100% - 20px)!important;transform:none!important}.compact-combat-hud .category-header{min-height:42px!important}.compact-combat-hud .category-body{overflow-y:auto!important;overscroll-behavior:contain;min-height:0!important}.compact-combat-hud .skill-stack{max-width:100%;min-width:0!important}.compact-combat-hud .skill-option{max-width:100%!important;min-height:60px!important}.compact-combat-hud .description-name{overflow-wrap:anywhere;font-size:24px!important}.compact-combat-hud .skill-detail-stats{gap:6px}.compact-combat-hud .skill-detail-power{font-size:18px}.compact-combat-hud #back{max-width:calc(100% - 20px);z-index:130!important;font-size:13px!important}
 @media(prefers-reduced-motion:reduce){.combat-product-hud *, .combat-product-hud *::before,.combat-product-hud *::after{scroll-behavior:auto!important;animation-duration:.001ms!important;transition-duration:.001ms!important}}
 .compact-combat-hud #clash-forecast.open{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:10px!important}
-#combat-target-list{position:absolute;z-index:206;left:10px;right:10px;bottom:max(12px,env(safe-area-inset-bottom));display:flex;gap:8px;flex-wrap:wrap;max-height:140px;overflow:auto;padding:8px;background:var(--hud-ink);border-top:2px solid var(--hud-gold)}#combat-target-list[hidden]{display:none!important}#combat-target-list button{min-height:44px;padding:8px 12px;color:var(--hud-paper);background:#2b2520;border:1px solid var(--hud-border);font:14px/1.25 system-ui,sans-serif;cursor:pointer}.compact-combat-hud.targeting-mode #targeting-hint{display:none!important}
+#combat-target-list{position:absolute;z-index:206;left:10px;right:10px;bottom:max(12px,env(safe-area-inset-bottom));display:flex;gap:8px;flex-wrap:wrap;max-height:min(25dvh,180px);box-sizing:border-box;overflow:auto;overscroll-behavior:contain;pointer-events:auto;padding:8px;background:var(--hud-ink);border-top:2px solid var(--hud-gold)}#combat-target-list[hidden]{display:none!important}#combat-target-list button{min-height:44px;min-width:44px;max-width:100%;overflow-wrap:anywhere;flex:0 1 auto;padding:8px 12px;color:var(--hud-paper);background:#2b2520;border:1px solid var(--hud-border);font:14px/1.25 system-ui,sans-serif;cursor:pointer}.combat-product-hud.targeting-mode #targeting-hint{display:none!important}
 .compact-combat-hud .quick-badge{display:none!important}.combat-product-hud #ready{min-height:44px;min-width:88px}
 
 /* Camera transforms can overflow the stage. Hidden still permits focus/click
@@ -148,3 +148,27 @@ html,body,#game-container.combat-product-hud{overflow:clip!important}
   #c073-dm-setup button{flex:1 1 auto}
   #c073-dm-setup #c073-qty{flex:0 0 56px!important;width:56px!important}
 }
+
+/* Responsive unit Status HUD: the original 4-column strip reserves blank cells
+   when only one to three Status icons are active. On narrow Player formations
+   the first real icon can leave the viewport (e.g. 360x800 at x=10%).
+   Keep the same diegetic Status icons and 4-column layout for 4+ entries;
+   only compact short rows without relocating the unit or changing HUD scale. */
+@media (max-width: 600px) {
+  .sprite-container .status-effect-strip:has(> :only-child) {
+    grid-template-columns: 58px;
+    max-width: 58px;
+  }
+  .sprite-container .status-effect-strip:has(> :nth-child(2):last-child) {
+    grid-template-columns: repeat(2, 58px);
+    max-width: 121px;
+  }
+  .sprite-container .status-effect-strip:has(> :nth-child(3):last-child) {
+    grid-template-columns: repeat(3, 58px);
+    max-width: 184px;
+  }
+}
+
+/* Keep the focused Unit's original Status strip inside the viewport, including
+   the 5x camera close-up. Offsets are measured in its local battlefield space. */
+.sprite-container .status-effect-strip{translate:var(--status-viewport-x,0px) var(--status-viewport-y,0px)}

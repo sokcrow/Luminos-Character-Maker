@@ -84,19 +84,27 @@ never invent a Skill in the combat viewer as a fallback.
 ## Runtime integration
 
 - Equipment effects are loaded in the real battle viewer after the packed
-  runtime is expanded; the source is the same equipment/inventory instance
-  used by the combat adapter.
+  runtime is expanded and before its first hydration; the source is the same
+  equipment/inventory instance used by the combat adapter. Sparse library reads
+  include grants from that resolved equipment, without loading the full catalog.
 - The Loot Check runtime applies the equipped bonus at roll computation.
   Analyze reduces the *actual* threshold passed to the check.
 - Elemental Sinking SP loss and `CombatEngine`'s status-based SP losses pass
   through the common mitigation function. Gloom damage uses the equipped
   Sin resistance in the elemental fallback path and Skill hit calculation.
+  The packed viewer also calls the resolver in `damageCombatantSP` and
+  `effectiveResistanceFor`, including live Sinking, Skill damage and forecasts.
+  Fixed damage and explicitly ignored resistance bypass Sin mitigation;
+  voluntary SP costs bypass SP-loss reduction.
 - Granted Skill IDs are added only from the canonical Skill catalog and
   explicitly marked `inDeck:false`, `availability.type:'granted'` so they
   cannot be drawn as Tier I/II/III cards.
 - Turn-start healing executes **only in the DM-authoritative combat round**,
   once per item effect per encounter/round. The consumption ledger is included
-  in combat checkpoints, and no client-side UI hook heals units.
+  in combat checkpoints, and no client-side UI hook heals units. Recovered
+  execution restores HP and the ledger before applying regeneration. Restoring
+  a snapshot without a ledger clears any newer in-memory ledger, so a retry
+  before the first checkpoint preserves healing without duplicating it later.
 
 ## Not yet standardized by this initial bridge
 
@@ -123,6 +131,7 @@ regression testing of those endpoints and end-to-end DM/player sync.
 
 ```bash
 node tests/equipment-effects-standard-smoke.mjs
+node tests/equipment-effects-live-smoke.mjs
 node tests/combat-analyze-end-to-end-smoke.mjs
 node tests/combat-deck-engine-smoke.mjs
 ```

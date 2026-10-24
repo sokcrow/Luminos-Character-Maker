@@ -630,6 +630,7 @@
       unitId: resolved.unitId,
       corpseId: identity.corpseId,
       bodyKind: resolved.bodyKind,
+      materials: clone(resolved.materials || []),
       sizeClass: resolved.sizeClass,
       resources: deepFreeze(resources),
       provenance: provenanceFor(identity, context, generation, { sourceMethod: "corpse_harvest_generation" }),
@@ -639,6 +640,7 @@
   function sourceSnapshot(unit, social, context, overrides, options = {}) {
     return deepFreeze({
       equipment: clone(equipmentSource(unit, options)),
+      creatureType: normalizeId(unit.creatureType || unit.metadata?.creatureType),
       lootProfile: clone(unit.lootProfile || null),
       bodyProfile: clone(unit.bodyProfile || null),
       wealthProfile: clone(unit.wealthProfile || null),
@@ -693,6 +695,7 @@
       runtimeVersion: VERSION,
       lootInstanceId,
       ...identity,
+      creatureType: normalizeId(unit.creatureType || unit.metadata?.creatureType),
       generation,
       seedHash: hashHex(seed),
       sourceDigest,

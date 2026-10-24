@@ -12,12 +12,16 @@ on:
       - js/loot-instance-runtime.js
       - js/loot-live-postcombat-runtime.js
       - js/player-postcombat-loot.js
+      - js/creature-compendium-ui.js
+      - tests/creature-compendium-context-smoke.mjs
+      - tests/loot-anatomy-variants-smoke.mjs
       - tests/player-postcombat-loot-auth-smoke.mjs
       - tests/loot-mobile-queue-smoke.mjs
       - css/postcombat-loot-corpse.css
       - tests/loot-shared-belongings.spec.mjs
       - tests/loot-shared-belongings-smoke.mjs
       - tests/loot-authority-emulator.mjs
+      - tests/unit-independent-rules-emulator.mjs
       - .github/workflows/firebase-rtdb-loot-rules.yml
   push:
     branches: [main]
@@ -49,6 +53,7 @@ jobs:
           node --check js/loot-live-postcombat-runtime.js
           node tests/player-postcombat-loot-auth-smoke.mjs
           node tests/loot-mobile-queue-smoke.mjs
+          node tests/creature-compendium-context-smoke.mjs
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -64,7 +69,7 @@ jobs:
             npx playwright install --with-deps chromium
           fi
       - name: Validate RTDB rules and authenticated player loot
-        run: npx firebase emulators:exec --only auth,database --project demo-combat-results --config combat-results-firebase.json 'node tests/loot-authority-emulator.mjs && npx playwright test tests/loot-shared-belongings.spec.mjs --workers=1 --reporter=line'
+        run: npx firebase emulators:exec --only auth,database --project demo-combat-results --config combat-results-firebase.json 'node tests/loot-authority-emulator.mjs && node tests/unit-independent-rules-emulator.mjs && npx playwright test tests/loot-shared-belongings.spec.mjs --workers=1 --reporter=line'
 
       - name: Save shared corpse mobile and desktop evidence
         if: always()

@@ -140,7 +140,7 @@ assert.equal(checks.skillMath(salvager, "investigation").base, 2, "Investigation
 const searchDef = postCombat.checkDefinition(investigator, "search");
 const harvestDef = postCombat.checkDefinition(survivalist, "harvest");
 const extractDef = postCombat.checkDefinition(medic, "extract");
-const salvageDef = postCombat.checkDefinition(salvager, "salvage");
+const salvageDef = postCombat.checkDefinition(salvager, "dismantle");
 
 assert.equal(searchDef.skill, "investigation");
 assert.equal(searchDef.ability, "int");
@@ -203,7 +203,7 @@ assert.equal(impossibleTarget.state.carried.filter((entry) => entry.remaining > 
 
 assert.equal(postCombat.resourceAction({ integrityFamily: "meat", sourceMaterial: "flesh" }, "mixed"), "harvest");
 assert.equal(postCombat.resourceAction({ integrityFamily: "organ_internal", sourceMaterial: "flesh" }, "mixed"), "extract");
-assert.equal(postCombat.resourceAction({ integrityFamily: "hard_cover_structural", sourceMaterial: "metal" }, "mixed"), "salvage");
+assert.equal(postCombat.resourceAction({ integrityFamily: "hard_cover_structural", sourceMaterial: "metal" }, "mixed"), "harvest");
 
 const harvested = postCombat.performAction(successfulSearch.state, survivalist, "harvest", {
   rng: allHeads,
@@ -225,17 +225,17 @@ assert.equal(extracted.result.recovery.resources[0].quantity, 2);
 assert.equal(extracted.state.harvest.resources.find((r) => r.resourceId === "internal_organs").remaining, 0);
 assert.equal(extracted.result.recovery.resources[0].provenance.acquisitionMethod, "extract");
 
-const salvaged = postCombat.performAction(extracted.state, salvager, "salvage", {
+const salvaged = postCombat.performAction(extracted.state, salvager, "harvest", {
   rng: allHeads,
   targetResourceId: "metal_frame",
 });
 assert.equal(salvaged.result.check.success, true);
 assert.equal(salvaged.result.recovery.resources[0].quantity, 2);
 assert.equal(salvaged.state.harvest.resources.find((r) => r.resourceId === "metal_frame").remaining, 0);
-assert.equal(salvaged.result.recovery.resources[0].provenance.acquisitionMethod, "salvage");
+assert.equal(salvaged.result.recovery.resources[0].provenance.acquisitionMethod, "harvest");
 
 const secondSalvager = { ...salvager, id: "player_salvager_2" };
-const noDuplicate = postCombat.performAction(salvaged.state, secondSalvager, "salvage", {
+const noDuplicate = postCombat.performAction(salvaged.state, secondSalvager, "harvest", {
   rng: allHeads,
   targetResourceId: "metal_frame",
 });

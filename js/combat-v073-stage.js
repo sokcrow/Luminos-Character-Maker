@@ -37,7 +37,15 @@
     const token = byId(`token-${unit.id}`);
     if (!token) return;
     const depth = depthAt(unit.y, unit.combatOffsetY, fieldHeight ?? byId('battlefield')?.offsetHeight);
-    const values = { '--scene-depth-scale': String(depth.scale), '--scene-order': String(depth.order) };
+    const deployment = global.LuminousCombatDeploymentRuntime;
+    const profile = deployment?.sizeProfile(unit) || { spriteScale: 1, spaces: 1, hudScale: 1 };
+    const artScale = Math.max(.01, finite(unit.scale, 1));
+    const panelTop = Math.min(60, 360 - 240 * artScale * profile.spriteScale * depth.scale - 64 - finite(unit.spriteY, 0));
+    const values = { '--scene-depth-scale': String(depth.scale), '--scene-order': String(depth.order),
+      '--creature-size-scale': String(profile.spriteScale),
+      '--creature-floor-scale': String(profile.hudScale < 1 ? profile.hudScale : Math.sqrt(profile.spaces)),
+      '--creature-hud-scale': String(profile.hudScale ?? 1),
+      '--creature-panel-top': `${panelTop}px` };
     for (const [key, value] of Object.entries(values)) if (token.style.getPropertyValue(key) !== value) token.style.setProperty(key, value);
     token.classList.toggle('stage-selected', state.placing && unit.id === state.selected);
   }

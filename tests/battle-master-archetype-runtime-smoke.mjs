@@ -142,7 +142,7 @@ assert.equal(engine.calculateCoinDamage(foreign, {}, {}, 100, false, 0), 100, "O
 
 engine.triggerEncounterStart([three]);
 assert.equal(runtime.superiorityCount(three), 0, "Superiority resets at encounter start");
-assert.equal(three.statusEffects.superiority, undefined, "Zero Count must not produce an empty combat Status");
+assert.equal(three.statusEffects.superiority.count, 0, "Battle Master retains its waiting resource Status at zero Count");
 
 const ambush = makeCharacter(15, { faction: "ally" });
 ambush.characterBuild.maneuvers = { battle_master: ["ambush", "tactical_assessment"] };
@@ -167,7 +167,7 @@ engine.triggerEncounterStart([ambush, ally, enemy]);
 assert.equal(runtime.superiorityCount(ambush), 10, "New encounter resets and reapplies the opening grant once");
 assert.equal(ambush.statusEffects.superiority?.count, 10);
 runtime.setSuperiorityCount(ambush, 0);
-assert.equal(ambush.statusEffects.superiority, undefined, "Spending final Count hides resource Status");
+assert.equal(ambush.statusEffects.superiority.count, 0, "Spending final Count preserves the resource Status");
 
 engine.resolveStandardClash(three, {}, {}, {});
 assert.equal(runtime.superiorityCount(three), 3, "Clash Win awards one +3 grant");

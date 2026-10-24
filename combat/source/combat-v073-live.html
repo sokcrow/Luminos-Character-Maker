@@ -2451,6 +2451,7 @@
 <script src="js/skill-catalog-player-signature.js"></script>
 <script src="js/combat-skill-loadout-074.js"></script>
 <script src="js/combat-participants.js"></script>
+<script src="js/combat-deployment-runtime.js?v=20261024-creature-hud-2"></script>
 <script src="js/combat-v073-live-adapter.js?v=20261021-encounter-3"></script>
 <script>
 (function (global) {
@@ -2820,6 +2821,7 @@ function listCombatStatuses(unit){
 function statusIsValid(def,status){
   if(!def||!status)return false;
   if(def.mode==='zero')return true;
+  if(def.allowZeroCount===true&&Number(status.count)===0)return true;
   if(def.mode==='single')return Number(status.count)>0;
   if(normalizeStatusId(def.name)==='poison')return Number(status.potency)>0||Number(status.count)>0;
   return Number(status.potency)>0&&Number(status.count)>0
@@ -2864,7 +2866,8 @@ function renderStatusEffects(id){
   if(!unit||!host)return;
   const rows=combatStatusHudRows(unit),overflow=rows.length>8,visible=overflow?rows.slice(0,7):rows.slice(0,8);
   host.innerHTML=visible.map(statusHudRowMarkup).join('')+(overflow?`<button type="button" class="status-overflow-button" data-status-overflow-unit="${htmlEscape(id)}" aria-label="Show ${rows.length-7} more Status Effects">...</button>`:'');
-  if(activeStatusOverflowUnitId===id&&$('status-overflow-popover')?.classList.contains('open'))refreshStatusOverflowPopover(id)
+  if(activeStatusOverflowUnitId===id&&$('status-overflow-popover')?.classList.contains('open'))refreshStatusOverflowPopover(id);
+  window.LuminousCombatHudMotion073?.scheduleStatusLayout?.()
 }
 function pulseStatusIcon(id,statusId){
   const node=$(`statuses-${id}`)?.querySelector(`[data-status-id="${normalizeStatusId(statusId)}"]`);
@@ -3193,12 +3196,14 @@ function statusLevelDamageMultiplier(attacker,defender,skillData=null){
   const off=statusOffenseLevel(attacker),def=statusDefenseLevel(defender),diff=off-def;
   return Math.max(0,1+(diff/(Math.abs(diff)+25)))
 }
-function damageCombatantSP(id,amount){
+function damageCombatantSP(id,amount,{voluntary=false,isCost=false}={}){
   const unit=combatData[id],orb=$(`token-${id}`)?.querySelector('.floating-sp-group');
   if(!unit||!Number.isFinite(Number(unit.sp)))return false;
   const min=Number.isFinite(Number(unit.minSp))?Number(unit.minSp):-45,
         multiplier=unitHasStatus(unit,'sleep')?3:1,
-        value=Math.max(min,(Number(unit.sp)||0)-(Math.max(0,Number(amount)||0)*multiplier));
+        incoming=Math.max(0,Number(amount)||0)*multiplier,
+        loss=window.LuminousEquipmentEffects?.mitigateSpLoss?.(unit,incoming,{voluntary,isCost})??incoming,
+        value=Math.max(min,(Number(unit.sp)||0)-loss);
   unit.sp=value;if(orb)orb.textContent=Math.round(value);if(unit.faction==='enemy')syncUnitVisibility(id);return true
 }
 function triggerBleedOnCoinFlip(id){
@@ -3264,6 +3269,8 @@ function ensureEntryConcentration(entry){
   entry._concentrationId=state?.id||null;return state
 }
 function applySkillStatusEffects(entry,targetId,trigger,context={}){
+  window.LuminousCombatEventRuntime?.notify(trigger,combatData[entry?.ownerId],{target:combatData[targetId],...context});
+  if(window.LuminousCombatEventRuntime&&['on_hit','clash_win'].includes(window.LuminousCombatEventRuntime.normalizeTrigger(trigger)))renderStatusEffects(entry.ownerId);
   const data=entry?.plan?.data||{},sourceType=data.sourceType||(isSpellSkill(data)||entry?.plan?.type==='spells'||data.kind==='spell'?'magic':'skill'),sourceElement=normalizeElement(data.element||'');
   skillEffectRows(data,trigger,context.coinIndex).forEach(effect=>{
     const targetKey=String(effect?.target||'target').toLowerCase(),
@@ -3342,7 +3349,8 @@ function setCameraTransform(field,mode,scale,rawX,rawY){
     backgroundLayer.dataset.cameraMode=mode;
   }
   window.LuminousCombatStage073?.camera({x:clamped.x,y:clamped.y,scale});
-  field.classList.toggle('camera-focus',scale!==1||clamped.x!==0||clamped.y!==0)
+  field.classList.toggle('camera-focus',scale!==1||clamped.x!==0||clamped.y!==0);
+  window.LuminousCombatHudMotion073?.scheduleStatusLayout?.()
 }
 function combatantVisualScale(id){
   const combatant=$(`token-${id}`)?.querySelector('.combatant');
@@ -3361,7 +3369,7 @@ function playerVisualFocusPoint(viewW,viewH){
   const unit=combatData[PLAYER_ID],
         sprite=$(`sprite-${PLAYER_ID}`),
         visualScale=combatantVisualScale(PLAYER_ID),
-        unitScale=Math.max(.01,Number(unit?.scale)||1),
+        unitScale=Math.max(.01,Number(unit?.scale)||1)*(window.LuminousCombatDeploymentRuntime?.sizeProfile(unit||{}).spriteScale||1),
         spriteHeight=Number(sprite?.offsetHeight)||240,
         groundX=viewW*((Number(unit?.x)||50)/100),
         groundY=viewH*(1-((Number(unit?.y)||25)/100)),
@@ -3533,6 +3541,11 @@ function randomIntInclusive(min,max){
   max=Math.floor(Number(max)||0);
   return Math.floor(Math.random()*(max-min+1))+min
 }
+function speedForBaseRoll(unit,turnNumber,rolled){
+  const chillPenalty=Math.floor(statusModifier(unit,'chill')/2),
+        speedMod=statusModifier(unit,'haste')-statusModifier(unit,'bind')-chillPenalty;
+  return conditionSpeedForcedToOne(unit,turnNumber)?1:Math.max(1,Number(rolled)+speedMod)
+}
 function rollUnitSpeed(unit,turnNumber){
   if(!unit)return 0;
   if(unit.speedRollTurn===turnNumber)return Number(unit.speed)||0;
@@ -3541,10 +3554,8 @@ function rollUnitSpeed(unit,turnNumber){
         baseMax=Math.max(Number(range[0])||1,Number(range[1])||1),
         exhaustionMaxPenalty=statusModifier(unit,'exhaustion')>=2?2:0,
         max=Math.max(1,baseMax-exhaustionMaxPenalty),
-        rolled=randomIntInclusive(Math.min(min,max),max),
-        chillPenalty=Math.floor(statusModifier(unit,'chill')/2),
-        speedMod=statusModifier(unit,'haste')-statusModifier(unit,'bind')-chillPenalty;
-  unit.speed=conditionSpeedForcedToOne(unit,turnNumber)?1:Math.max(1,rolled+speedMod);
+        rolled=randomIntInclusive(Math.min(min,max),max);
+  unit.speed=speedForBaseRoll(unit,turnNumber,rolled);
   unit.speedBaseRoll=rolled;
   unit.speedRollTurn=turnNumber;
   unit.speedTie=Math.random();
@@ -3571,21 +3582,12 @@ function setUnitFormationPoint(unit,point){
   }
 }
 function layoutSpeedFormation(){
-  // v0.7.3 field test supports a full 8v8 without shrinking any unit HUD.
-  // Two depth rows keep every sprite, floor HUD and Action Slot readable.
-  const allyPoints=[
-          {x:6,y:18},{x:16,y:18},{x:26,y:18},{x:36,y:18},
-          {x:8,y:42},{x:18,y:42},{x:28,y:42},{x:38,y:42}
-        ],
-        enemyPoints=[
-          {x:94,y:18},{x:84,y:18},{x:74,y:18},{x:64,y:18},
-          {x:92,y:42},{x:82,y:42},{x:72,y:42},{x:62,y:42}
-        ],
-        allies=Object.values(combatData).filter(unit=>unit.faction==='ally'&&unit.battleActive!==false&&!unit.incapacitated).sort(formationSort),
-        enemies=Object.values(combatData).filter(unit=>unit.faction==='enemy'&&unit.battleActive!==false&&!unit.incapacitated).sort(formationSort);
-
-  allies.forEach((unit,index)=>setUnitFormationPoint(unit,allyPoints[index]||allyPoints[allyPoints.length-1]));
-  enemies.forEach((unit,index)=>setUnitFormationPoint(unit,enemyPoints[index]||enemyPoints[enemyPoints.length-1]));
+  const deployment=window.LuminousCombatDeploymentRuntime;
+  for(const side of ['ally','enemy']){
+    const units=Object.values(combatData).filter(unit=>unit.faction===side&&unit.battleActive!==false&&!unit.incapacitated).sort(formationSort);
+    const points=deployment?.formationPoints(units,side)||{};
+    units.forEach(unit=>{if(points[unit.id])setUnitFormationPoint(unit,points[unit.id])})
+  }
 }
 function rollTurnSpeeds(turnNumber){
   Object.values(combatData).filter(unit=>unit.battleActive!==false&&!unit.incapacitated).forEach(unit=>rollUnitSpeed(unit,turnNumber));
@@ -4474,6 +4476,7 @@ function beginPlayerTargeting(plan,slotIndex){
   });
   setCameraFocus('full',false);
   setStatus(`TARGETING · ${plan.data?.name||'Action'} · ${rule.toUpperCase()} SLOTS ONLY`);
+  window.LuminousCombatHudMotion073?.refresh();
   if(combatData[PLAYER_ID]?.confusionTurnMode==='indiscriminate'){
     const valid=[...document.querySelectorAll('.action-slot-wrapper.target-valid')];
     const random=valid.length?valid[Math.floor(Math.random()*valid.length)]:null;
@@ -4621,7 +4624,7 @@ function grantActionSlotToUnit(id){
   const unit=combatData[id];
   if(!unit)return false;
   const current=unitSlots(id).length;
-  if(current>=3)return false;
+  if(current>=3+(Number(unit.combatIndependentActionState?.temporaryActionSlots)||0))return false;
   const host=$(`ui-panel-${id}`)?.querySelector('.action-slots');
   if(!host)return false;
   const slot=createActionSlotElement(unit,current);
@@ -4634,7 +4637,7 @@ function grantActionSlotToUnit(id){
 function setUnitActionSlotCount(id,count){
   const unit=combatData[id];
   if(!unit)return false;
-  const desired=Math.max(1,Math.min(3,Math.floor(Number(count)||1))),host=$(`ui-panel-${id}`)?.querySelector('.action-slots');
+  const desired=Math.max(1,Math.min(3+(Number(unit.combatIndependentActionState?.temporaryActionSlots)||0),Math.floor(Number(count)||1))),host=$(`ui-panel-${id}`)?.querySelector('.action-slots');
   if(!host)return false;
   while(unitSlots(id).length<desired)grantActionSlotToUnit(id);
   while(unitSlots(id).length>desired){
@@ -4999,15 +5002,28 @@ function staggerFatalMultiplierFor(unit,turnNumber=round){
   const stage=Math.max(0,Math.min(3,Number(unit.staggerStage)||0));
   return STAGGER_FATAL_MULTIPLIERS[stage]||1
 }
-function effectiveResistanceFor(unit,damageType,{ignoreResistance=false,ignoreStagger=false,turnNumber=round}={}){
+function sinResistanceForDamage(unit,damageType,skillData=null,base=1){
+  const type=normalizeDamageType(damageType).toLowerCase(),
+        isSin=['wrath','lust','sloth','gluttony','gloom','pride','envy'].includes(type),
+        sin=isSin?type:String(skillData?.sinAffinity||skillData?.sin||'').trim().toLowerCase();
+  if(!sin||sin==='sinless')return isSin?base:1;
+  const table=unit?.sinResistances||unit?.sin_resistances||unit?.sinResistance||unit?.sin_resistance,
+        authored=table?.[sin]??table?.[sin.toUpperCase()]??unit?.sinRes,
+        original=authored!=null&&authored!==''&&Number.isFinite(Number(authored))?Math.max(0,Number(authored)):(isSin?base:1);
+  return window.LuminousEquipmentEffects?.resolveSinResistance?.(unit,sin,original)??original
+}
+function effectiveResistanceFor(unit,damageType,{ignoreResistance=false,ignoreStagger=false,turnNumber=round,skillData=null}={}){
   const baseState=ignoreResistance?'NORMAL':resistanceStateFor(unit,damageType),
-        baseMultiplier=ignoreResistance?1:resistanceMultiplierFor(unit,damageType),
+        physicalBase=ignoreResistance?1:resistanceMultiplierFor(unit,damageType),
+        isSin=['WRATH','LUST','SLOTH','GLUTTONY','GLOOM','PRIDE','ENVY'].includes(normalizeDamageType(damageType)),
+        sinMultiplier=ignoreResistance?1:sinResistanceForDamage(unit,damageType,skillData,isSin?physicalBase:1),
+        baseMultiplier=ignoreResistance?1:(isSin?sinMultiplier:physicalBase*sinMultiplier),
         fatalActive=!ignoreStagger&&isStaggerEffectActive(unit,turnNumber),
         fatalMultiplier=fatalActive?staggerFatalMultiplierFor(unit,turnNumber):1;
   if(fatalActive){
     return{
       state:'FATAL',
-      multiplier:fatalMultiplier,
+      multiplier:fatalMultiplier*sinMultiplier,
       baseState,
       baseMultiplier,
       staggerStage:Math.max(0,Math.min(3,Number(unit?.staggerStage)||0))
@@ -5484,7 +5500,7 @@ function damageCombatant(id,amount,{damageType='NORMAL',ignoreResistance=false,i
   if(sourceStatus==='poison'&&unitHasStatus(d,'petrified'))return{finalDamage:0,hpDamage:0,absorbed:0,critical:false};
 
   const raw=Math.max(0,Number(amount)||0),
-        effective=fixed?{state:'FIXED',multiplier:1,baseState:'FIXED',baseMultiplier:1}:effectiveResistanceFor(d,damageType,{ignoreResistance,ignoreStagger,turnNumber:round}),
+        effective=fixed?{state:'FIXED',multiplier:1,baseState:'FIXED',baseMultiplier:1}:effectiveResistanceFor(d,damageType,{ignoreResistance,ignoreStagger,turnNumber:round,skillData}),
         attacker=attackerId?combatData[attackerId]:null,
         damagePercent=fixed?0:statusDamagePercent(attacker,d,skillData),
         dealtMultiplier=fixed?1:statusDamageMultiplier(attacker,d,skillData),
@@ -5494,7 +5510,7 @@ function damageCombatant(id,amount,{damageType='NORMAL',ignoreResistance=false,i
         critical=!fixed&&(poiseAutoCrit||(critChance>0&&Math.random()*100<critChance)),
         critMultiplier=critical?1.2:1,
         calculated=raw*effective.multiplier*dealtMultiplier*levelMultiplier*critMultiplier,
-        finalDamage=Math.max(1,Math.floor(calculated)),
+        finalDamage=calculated>0?Math.max(1,Math.floor(calculated)):0,
         hpBefore=Math.max(0,Number(d.hp)||0),
         radianceShield=unitHasStatus(d,'radiance'),
         frozenWeak=unitHasStatus(d,'frozen')&&(String(skillData?.sinAffinity||'').toLowerCase()==='wrath'||sourceStatus==='burn'),
@@ -5553,7 +5569,7 @@ function spawnCombatant(d){
         slots=Array.from({length:d.actionSlots}).map((_,i)=>`<div class="action-slot-wrapper" id="${d.id}_slot_${i}" data-slot-index="${i}" data-owner-id="${d.id}" data-controller="${controlled}" data-faction="${faction}"><svg class="action-slot-svg" viewBox="0 0 100 100"><polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78"/><line class="slot-center-line" x1="25" y1="50" x2="75" y2="50"/></svg></div>`).join(''),
         h=generateHeptagonPoints(85),
         c=document.createElement('div');
-  combatData[d.id]={...d,level:Number(d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,offensiveLevel:Number(d.offensiveLevel??d.offensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,defensiveLevel:Number(d.defensiveLevel??d.defensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,faction,controlled,focusMenu,isBackup:Boolean(d.isBackup),battleActive:d.battleActive!==false&&!d.isBackup,replacementClaimed:false,deployedRound:d.isBackup?0:round,resistances:d.resistances||'Slash NORMAL · Pierce NORMAL · Blunt NORMAL',staggerThresholds:thresholds,triggeredStaggerThresholds:Array.isArray(d.triggeredStaggerThresholds)?[...d.triggeredStaggerThresholds]:[],staggerStage:Number(d.staggerStage)||0,staggerActivatedRound:Number(d.staggerActivatedRound)||0,staggerUntilRound:Number(d.staggerUntilRound)||0,incapacitated:Boolean(d.incapacitated)||(Number(d.hp)||0)<=0,shieldPools:{ephemeral:Math.max(0,Number(d.ephemeralShield)||0),frozen:Math.max(0,Number(d.frozenShield)||0)},autoPlans:[],speedRollTurn:0,speedTie:0,observationKnown:[],observationLastCheck:null,statusEffects:{...(d.statusEffects||{})},pendingStatusEffects:[],abilityMods:{...(d.abilityMods||{})},saveMods:{...(d.saveMods||{})},lastSaveCheck:null,lastAbilityCheck:null,reactiveDefense:{turn:0,evade:null,counters:[]},xpEligible:d.xpEligible!==false,escaped:false,retreatPendingRound:0,escapePendingRound:0,wakePendingRound:0,damageTakenThisRound:0,concentration:null,detectedInvisibleIds:[],invisibleAwarenessRound:0,confusionTurnMode:null,proneSpeedRound:0,originalMaxHp:Math.max(1,Number(d.originalMaxHp||d.maxHp)||1),baseStaggerThresholds:[...thresholds],size:d.size||d.unitSize||'medium',elementResistances:{...(d.elementResistances||{})},conditionImmunities:[...(d.conditionImmunities||[])],conditionSourceImmunities:[...(d.conditionSourceImmunities||[])],sourceImmunities:[...(d.sourceImmunities||[])]};
+  combatData[d.id]={...d,level:Number(d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,offensiveLevel:Number(d.offensiveLevel??d.offensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,defensiveLevel:Number(d.defensiveLevel??d.defensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,faction,controlled,focusMenu,isBackup:Boolean(d.isBackup),battleActive:d.battleActive!==false&&!d.isBackup,replacementClaimed:false,deployedRound:d.isBackup?0:round,resistances:d.resistances||'Slash NORMAL · Pierce NORMAL · Blunt NORMAL',staggerThresholds:thresholds,triggeredStaggerThresholds:Array.isArray(d.triggeredStaggerThresholds)?[...d.triggeredStaggerThresholds]:[],staggerStage:Number(d.staggerStage)||0,staggerActivatedRound:Number(d.staggerActivatedRound)||0,staggerUntilRound:Number(d.staggerUntilRound)||0,incapacitated:Boolean(d.incapacitated)||(Number(d.hp)||0)<=0,shieldPools:{ephemeral:Math.max(0,Number(d.ephemeralShield)||0),frozen:Math.max(0,Number(d.frozenShield)||0)},autoPlans:[],speedRollTurn:0,speedTie:0,observationKnown:[],observationLastCheck:null,statusEffects:{...(d.statusEffects||{})},pendingStatusEffects:[],abilityMods:{...(d.abilityMods||{})},saveMods:{...(d.saveMods||{})},lastSaveCheck:null,lastAbilityCheck:null,reactiveDefense:{turn:0,evade:null,counters:[]},xpEligible:d.xpEligible!==false,escaped:false,retreatPendingRound:0,escapePendingRound:0,wakePendingRound:0,damageTakenThisRound:0,concentration:null,detectedInvisibleIds:[],invisibleAwarenessRound:0,confusionTurnMode:null,proneSpeedRound:0,originalMaxHp:Math.max(1,Number(d.originalMaxHp||d.maxHp)||1),baseStaggerThresholds:[...thresholds],size:window.LuminousCombatDeploymentRuntime?.sizeOf(d)||d.size||d.unitSize||'medium',elementResistances:{...(d.elementResistances||{})},conditionImmunities:[...(d.conditionImmunities||[])],conditionSourceImmunities:[...(d.conditionSourceImmunities||[])],sourceImmunities:[...(d.sourceImmunities||[])]};
   const spawnedUnit=combatData[d.id],initialHpPct=(Math.max(0,Number(spawnedUnit.hp)||0)/Math.max(1,Number(spawnedUnit.maxHp)||1))*100,
         startConsumed=thresholds.map((threshold,index)=>({threshold,index})).filter(row=>initialHpPct<=row.threshold).map(row=>row.index);
   spawnedUnit.triggeredStaggerThresholds=[...new Set([...(spawnedUnit.triggeredStaggerThresholds||[]),...startConsumed])].sort((a,b)=>a-b);
@@ -5564,7 +5580,7 @@ function spawnCombatant(d){
   c.id=`token-${d.id}`;
   c.style.left=`${d.x}%`;
   c.style.bottom=`${d.y}%`;
-  c.innerHTML=`<div class="combatant"><svg class="diegetic-floor" viewBox="-100 -100 200 200"><polygon class="floor-bg-poly" points="${h.full}"/><polyline class="hp-track" points="${h.front}"/><polyline class="hp-transition-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/><polyline class="hp-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/>${staggerThresholdMarkup(h.frontPoints,thresholds)}<polyline class="shield-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:100"/></svg><div class="top-ui-panel" id="ui-panel-${d.id}" style="top:60px"><div class="speed-number">${d.speed}</div><div class="action-slots">${slots}</div></div><div class="sprite-anchor" id="anchor-${d.id}" style="bottom:${d.spriteY}px;margin-left:${d.spriteX}px;transform:scale(calc(${d.scale} * var(--scene-depth-scale,1)))"><img src="${d.img}" class="sprite-img" id="sprite-${d.id}" onerror="this.style.opacity='.25'">${staggerGlassMarkup()}</div><div class="stagger-pop" aria-live="polite"></div><div class="floating-hp-group"><div class="name-plate">${d.name}</div><div class="hp-number">${d.hp}</div></div><div class="floating-sp-group sp-neutral">${d.sp}</div><div class="status-effect-strip" id="statuses-${d.id}" aria-label="Status Effects"></div></div>`;
+  c.innerHTML=`<div class="combatant"><svg class="diegetic-floor" viewBox="-100 -100 200 200"><polygon class="floor-bg-poly" points="${h.full}"/><polyline class="hp-track" points="${h.front}"/><polyline class="hp-transition-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/><polyline class="hp-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/>${staggerThresholdMarkup(h.frontPoints,thresholds)}<polyline class="shield-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:100"/></svg><div class="top-ui-panel" id="ui-panel-${d.id}" style="top:60px"><div class="speed-number">${d.speed}</div><div class="action-slots">${slots}</div></div><div class="sprite-anchor" id="anchor-${d.id}" style="bottom:${d.spriteY}px;margin-left:${d.spriteX}px;transform:scale(calc(${d.scale} * var(--scene-depth-scale,1) * var(--creature-size-scale,1)))"><img src="${d.img}" class="sprite-img" id="sprite-${d.id}" onerror="this.style.opacity='.25'">${staggerGlassMarkup()}</div><div class="stagger-pop" aria-live="polite"></div><div class="floating-hp-group"><div class="name-plate">${d.name}</div><div class="hp-number">${d.hp}</div></div><div class="floating-sp-group sp-neutral">${d.sp}</div><div class="status-effect-strip" id="statuses-${d.id}" aria-label="Status Effects"></div></div>`;
   field.appendChild(c);
   window.LuminousCombatStage073?.refreshUnit(combatData[d.id]);
   (combatData[d.id].triggeredStaggerThresholds||[]).forEach(index=>removeStaggerThresholdVisual(d.id,index));
@@ -6111,6 +6127,7 @@ function assignSelectedToSlot(){
 }
 function setPlanReady(){
   if(roundRunning)return;
+  if(window.LuminousCombatEconomyMenu073?.state.independentPending){setStatus('Espera a que se confirme la habilidad antes de READY');return}
   if(clashConfirmationActive){setStatus('CLASH · primero confirma el enfrentamiento o pulsa fuera para escoger otro objetivo');return}
   const ready=$('ready');
   if(planReady){
@@ -6566,9 +6583,10 @@ function clashForecastPowerRange(unit,plan,opponent){
   return{min:Number.isFinite(min)?min:base,max:Number.isFinite(max)?max:base}
 }
 function forecastSingleHitDamage(raw,attacker,defender,damageType,skillData=null){
-  const effective=effectiveResistanceFor(defender,damageType,{ignoreResistance:false,ignoreStagger:false,turnNumber:round}),
+  const effective=effectiveResistanceFor(defender,damageType,{ignoreResistance:false,ignoreStagger:false,turnNumber:round,skillData}),
         multiplier=effective.multiplier*statusDamageMultiplier(attacker,defender,skillData)*statusLevelDamageMultiplier(attacker,defender);
-  return Math.max(1,Math.floor(Math.max(0,Number(raw)||0)*multiplier))
+  const calculated=Math.max(0,Number(raw)||0)*multiplier;
+  return calculated>0?Math.max(1,Math.floor(calculated)):0
 }
 function clashForecastDamageRange(unit,plan,opponent){
   const data=clashData(plan),base=Math.max(0,data.basePower+data.finalPowerBonus+statusAttackPowerModifier(unit)+targetFinalPowerVulnerabilityBonus(opponent)),startParalysis=statusModifier(unit,'paralysis');
@@ -6594,7 +6612,7 @@ function clashForecastDamageRange(unit,plan,opponent){
   return{min:Number.isFinite(min)?min:0,max:Number.isFinite(max)?max:0}
 }
 function clashForecastDamagePercent(attacker,defender,plan){
-  const data=clashData(plan),effective=effectiveResistanceFor(defender,data.damageType,{ignoreResistance:false,ignoreStagger:false,turnNumber:round}),
+  const data=clashData(plan),effective=effectiveResistanceFor(defender,data.damageType,{ignoreResistance:false,ignoreStagger:false,turnNumber:round,skillData:plan?.data||null}),
         multiplier=effective.multiplier*statusDamageMultiplier(attacker,defender,plan?.data||null)*statusLevelDamageMultiplier(attacker,defender);
   return Math.round((multiplier-1)*100)
 }
@@ -7743,6 +7761,17 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
   setExecutingSlot(slot,false);
   await wait(COMBAT_PACE.actionGap)
 }
+function applyEquipmentTurnStart(turnNumber=round){
+  const authority=window.LuminousCombatAuthority073;
+  if(!authority?.isDm?.()||!window.LuminousEquipmentEffects?.applyTurnStart)return false;
+  const encounterId=String(window.LuminousCombatLiveAdapter073?.state?.encounterId||authority.state?.current?.encounterId||authority.state?.current?.id||'active');
+  for(const unit of Object.values(combatData)){
+    if(unit?.isBackup===true)continue;
+    const result=window.LuminousEquipmentEffects.applyTurnStart(unit,{authoritative:true,round:turnNumber,encounterId});
+    if(result.healed>0)setCombatantHP(unit.id,unit.hp,{triggerStagger:false});
+  }
+  return true
+}
 async function startRound(){
   if(roundRunning)return;
   hideClashForecast();
@@ -7770,12 +7799,15 @@ async function startRound(){
   setCameraFocus('full',false);
   await wait(COMBAT_PACE.cameraSettle);
 
+  if(!recovered?.eventCursor)window.LuminousUnitIndependentActions?.runAiPhase('before_actions',{round,units:Object.values(combatData),mutate:combatStepRuntime().mutate});
   const queue=buildExecutionQueue(),
         resolvedKeys=new Set();
   if(recovered){
     window.LuminousCombatStepRuntime.restoreExecution(queue,resolvedKeys,recovered);
     if(!recovered.queue?.length)armReactiveDefenses(queue)
   }else armReactiveDefenses(queue);
+  // Recovery restores HP and the persisted ledger before any turn-start effect.
+  applyEquipmentTurnStart(round);
   try{
     await executeCombatTimeline(queue,resolvedKeys)
   }finally{
@@ -7788,6 +7820,7 @@ async function startRound(){
   clearReactiveDefenses();
   // Concentration only sees damage taken during the active Round. Turn-End Status
   // damage resolves afterwards and therefore never raises this Round's DC.
+  window.LuminousUnitIndependentActions?.runAiPhase('after_actions',{round,units:Object.values(combatData),mutate:combatStepRuntime().mutate});
   combatStepRuntime().mutate('RoundEndEffects',null,{},()=>{
     processConcentrationChecks(round);
     processStatusRoundEnd(round);
@@ -7834,6 +7867,7 @@ async function startRound(){
   rollTurnSpeeds(round);
   await animatePreparedBackupDeployments(backupDeployments);
   applyGrappleSlotEconomy();
+  window.LuminousUnitIndependentActions?.endRound(Object.values(combatData));
   const granted=grantTurnSlot(round);
   turnStartDeck();
   beginPlanningPhase(round);
@@ -8203,12 +8237,20 @@ window.addEventListener('scroll',()=>{closeStatusPopover();closeStatusOverflow()
 
 document.addEventListener('pointerdown',e=>{
   if(!targetingModeActive)return;
-  const validSlots=Array.from(document.querySelectorAll('.action-slot-wrapper.target-valid')),
-        slot=validSlots.find(node=>{
-          const r=node.getBoundingClientRect(),
-                pad=7;
-          return e.clientX>=r.left-pad&&e.clientX<=r.right+pad&&e.clientY>=r.top-pad&&e.clientY<=r.bottom+pad
-        });
+  // Screen-space target buttons must receive their own click/touch/keyboard action.
+  if(e.target.closest?.('#combat-target-list,button,input,select,textarea,a'))return;
+  const direct=e.target.closest?.('.action-slot-wrapper');
+  if(direct){
+    if(!direct.classList.contains('target-valid'))return;
+    e.preventDefault();e.stopPropagation();choosePlayerTarget(direct);return
+  }
+  // Tiny pairs can have overlapping touch padding. Prefer the nearest slot,
+  // rather than whichever slot happened to be first in DOM order.
+  const slot=Array.from(document.querySelectorAll('.action-slot-wrapper.target-valid')).map(node=>{
+    const r=node.getBoundingClientRect(),pad=e.pointerType==='touch'?12:7;
+    if(!(r.width>0&&r.height>0)||e.clientX<r.left-pad||e.clientX>r.right+pad||e.clientY<r.top-pad||e.clientY>r.bottom+pad)return null;
+    return{node,distance:Math.hypot(e.clientX-(r.left+r.right)/2,e.clientY-(r.top+r.bottom)/2)}
+  }).filter(Boolean).sort((a,b)=>a.distance-b.distance)[0]?.node;
   if(!slot)return;
   e.preventDefault();
   e.stopPropagation();
@@ -8279,7 +8321,11 @@ window.LuminousCombatStepRuntime=Object.freeze({
       }
       return value
     };
-    for(const [id,unit]of Object.entries(saved.units||{}))if(combatData[id])Object.assign(combatData[id],attach(unit));
+    for(const [id,unit]of Object.entries(saved.units||{}))if(combatData[id]){
+      Object.assign(combatData[id],attach(unit));
+      // A pre-effect snapshot must also clear a newer in-memory ledger.
+      combatData[id].equipmentEffectTurnLedger=attach(unit.equipmentEffectTurnLedger||{});
+    }
     if(saved.queue?.length)queue.splice(0,queue.length,...attach(saved.queue));
     for(const key of saved.resolvedKeys||[])resolvedKeys.add(key);
     activeGrapples=attach(saved.activeGrapples||[]);grappleSerial=Number(saved.grappleSerial)||0
@@ -8343,8 +8389,16 @@ window.LuminousCombat073=Object.freeze({
   initialize:initializeCombatSurface,
   playerId:()=>PLAYER_ID,
   combatants:()=>combatData,
+  speedForBaseRoll,
   kit:id=>UNIT_KITS[id],
   plans:()=>plannedActions,
+  chooseTarget(ownerId,slotIndex=0){
+    if(!targetingModeActive||!pendingTargetPlan)return false;
+    const slot=unitSlots(ownerId).find(node=>Number(node.dataset.slotIndex)===Number(slotIndex));
+    if(!slot||!targetSlotIsValid(slot,planTargetRule(pendingTargetPlan,combatData[PLAYER_ID])))return false;
+    choosePlayerTarget(slot);
+    return !targetingModeActive
+  },
   restorePlanning(plans,ready){
     plannedActions=plans;planReady=Boolean(ready);
     $('game-container').classList.toggle('ready-plan-visible',planReady);

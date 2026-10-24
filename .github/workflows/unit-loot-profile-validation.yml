@@ -25,6 +25,9 @@ on:
       - "js/loot-recovery-delivery-runtime.js"
       - "js/loot-live-postcombat-runtime.js"
       - "js/player-postcombat-loot.js"
+      - "js/creature-compendium-ui.js"
+      - "tests/creature-compendium-context-smoke.mjs"
+      - "tests/loot-anatomy-variants-smoke.mjs"
       - "Battle-viewer.html"
       - "hoja_personaje.html"
       - "js/combat-v073-dm-setup.js"
@@ -81,6 +84,9 @@ on:
       - "js/loot-recovery-delivery-runtime.js"
       - "js/loot-live-postcombat-runtime.js"
       - "js/player-postcombat-loot.js"
+      - "js/creature-compendium-ui.js"
+      - "tests/creature-compendium-context-smoke.mjs"
+      - "tests/loot-anatomy-variants-smoke.mjs"
       - "Battle-viewer.html"
       - "hoja_personaje.html"
       - "js/combat-v073-dm-setup.js"
@@ -133,6 +139,10 @@ jobs:
         run: node tests/loot-instance-runtime-smoke.mjs
       - name: Validate finite post-combat Loot interactions and D&D checks
         run: node tests/loot-postcombat-runtime-smoke.mjs
+      - name: Validate anatomy skills, study variants and History disclosure
+        run: node tests/loot-anatomy-variants-smoke.mjs
+      - name: Validate Compendium routing through combat and Mirror iframes
+        run: node tests/creature-compendium-context-smoke.mjs
       - name: Validate shared corpse discovery chosen collection and enemy equipment
         run: node tests/loot-shared-belongings-smoke.mjs
       - name: Validate Autopsy Examine and Compendium knowledge

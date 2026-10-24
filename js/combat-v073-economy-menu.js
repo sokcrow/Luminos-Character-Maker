@@ -3,14 +3,18 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.9-player-centered-visibility";
+  const VERSION = "0.7.3-economy-menu.11-all-units-independent-actions";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
-  const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", REACTION: "reaction" });
+  const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", FREE: "free_action", REACTION: "reaction" });
   const state = {
     installed: false,
     tabByMenu: { global: ECONOMY.ACTION, skills: ECONOMY.ACTION, spells: ECONOMY.ACTION, items: ECONOMY.ACTION },
     originals: {},
     traitStateById: new Map(),
+    traitCatalogDefinitions: {},
+    traitCatalogGrants: {},
+    traitDb: null,
+    traitDbListeners: [],
     preparedReaction: null,
     pendingTarget: null,
     lastPlanningRound: null,
@@ -90,7 +94,7 @@
     const raw = normalizeId(
       source?.economyCost ?? source?.economy_cost ?? source?.economy?.cost ?? source?.actionCost ??
       source?.action_cost ?? source?.activation?.actionCost ?? source?.activation?.action_cost ??
-      source?.activationCost ?? source?.activation_cost ?? fallback
+      source?.activationCost ?? source?.activation_cost ?? source?.castingTime ?? source?.casting_time ?? fallback
     );
     if (["quick", "quickaction", "quick_action", "bonus", "bonus_action", "bonusaction"].includes(raw)) return ECONOMY.QUICK;
     if (["reaction", "react", "reactive"].includes(raw)) return ECONOMY.REACTION;
@@ -100,14 +104,14 @@
 
   function economyTabFor(source = {}) {
     const cost = normalizeEconomyCost(source);
-    return cost === ECONOMY.QUICK || cost === ECONOMY.REACTION ? cost : ECONOMY.ACTION;
+    return cost === ECONOMY.QUICK || cost === ECONOMY.REACTION ? cost : (["none", "free", "free_action"].includes(cost) && (["manual", "choice", "prompt"].includes(normalizeId(source.activation?.type)) || normalizeId(source.kind || source.sourceType) !== "trait") ? ECONOMY.FREE : ECONOMY.ACTION);
   }
 
   function costLabel(source = {}) {
     const cost = normalizeEconomyCost(source);
     if (cost === ECONOMY.QUICK) return "1 Quick Action";
     if (cost === ECONOMY.REACTION) return "1 Reaction";
-    if (["none", "free", "free_action"].includes(cost)) return "Free";
+    if (["none", "free", "free_action"].includes(cost)) return "Free Action";
     return clean(source.cost || source.costLabel || "1 Action Slot");
   }
 
@@ -117,23 +121,69 @@
     const contexts = asArray(trait.contexts || trait.context || ["any"]).map(normalizeId);
     if (contexts.length && !contexts.includes("any") && !contexts.includes("combat")) return false;
     if (cost === ECONOMY.ACTION || cost === ECONOMY.QUICK || cost === ECONOMY.REACTION) return true;
+    if (["none", "free", "free_action"].includes(cost) && ["manual", "choice", "prompt"].includes(activation)) return true;
     return ["manual", "prompt", "choice"].includes(activation) && !["none", "free", "automatic", "passive"].includes(cost);
   }
 
   function flattenTraitRows(value) {
     if (!value) return [];
+    if (typeof value === "string") return [value];
     if (Array.isArray(value)) return value.flatMap(flattenTraitRows);
     if (typeof value !== "object") return [];
+    if (value.trait || value.definition || value.traitDefinition) {
+      return flattenTraitRows(value.trait || value.definition || value.traitDefinition);
+    }
     if (value.activation || value.effects || value.rules || value.mechanics || value.traitId || value.id) return [value];
-    return Object.values(value).flatMap(flattenTraitRows);
+    return Object.entries(value).flatMap(([key, row]) => row === true ? [key] : flattenTraitRows(row));
+  }
+
+  // Never resolve the Combat Player's grants from the DM's character or from
+  // a stale linked Unit. The campaign Player record owns the current build.
+  function authoritativeCharacter(unit = playerUnit() || {}) {
+    const id = canonicalPlayerId(unit) || clean(global.LuminousCombatLiveAdapter073?.state?.playerId);
+    const player = global.LuminousCombatLiveAdapter073?.state?.players?.[id] || {};
+    return {
+      ...unit,
+      ...player,
+      characterBuild: { ...(unit.characterBuild || {}), ...(player.characterBuild || {}) },
+    };
+  }
+
+  function traitCatalogDefinitions() {
+    return {
+      ...(global.LuminousTraitCatalogCore?.allDefinitions?.() || {}),
+      ...(global.LuminousRacialTraitCatalog?.allDefinitions?.() || {}),
+      ...(global.LuminousArchetypeTraitCatalog?.allDefinitions?.() || {}),
+      ...(global.LuminousDmTraitLibrary?.getDefinitions?.() || {}),
+      ...state.traitCatalogDefinitions,
+    };
+  }
+
+  function resolveGrantedTraits(character, definitions) {
+    const engine = global.LuminousTraitEngine;
+    if (!engine?.resolveTraitGrants) return [];
+    const grants = [
+      ...(global.LuminousTraitCatalogCore?.allGrants?.() || []),
+      ...Object.values(state.traitCatalogGrants || {}),
+    ];
+    const resolved = [];
+    try {
+      resolved.push(...engine.resolveTraitGrants(character, grants, definitions));
+      resolved.push(...(global.LuminousRacialTraitCatalog?.resolveTraitGrants?.(character, definitions) || []));
+      resolved.push(...(global.LuminousArchetypeTraitCatalog?.resolveTraitGrants?.(character, definitions) || []));
+      resolved.push(...(global.LuminousClassMilestones?.resolveSelectedGeneralTraits?.(character, definitions) || []));
+    } catch (error) {
+      global.console?.warn?.("[CombatEconomy073] Trait grant resolution failed", error);
+    }
+    return resolved;
   }
 
   function resolvedArchetypeTraits(unit = {}) {
     const catalog = global.LuminousArchetypeTraitCatalog;
     if (!catalog?.resolveTraitGrants) return [];
     try {
-      const resolved = catalog.resolveTraitGrants(unit) || [];
-      return flattenTraitRows(resolved).map((entry) => entry.trait || entry.definition || entry.traitDefinition || entry).filter(Boolean);
+      return flattenTraitRows(catalog.resolveTraitGrants(unit) || [])
+        .map((entry) => entry.trait || entry.definition || entry.traitDefinition || entry).filter(Boolean);
     } catch (error) {
       global.console?.warn?.("[CombatEconomy073] Archetype trait resolution failed", error);
       return [];
@@ -142,35 +192,76 @@
 
   function traitDefinitionsForPlayer() {
     const unit = playerUnit() || {};
+    const character = authoritativeCharacter(unit);
+    const definitions = traitCatalogDefinitions();
     const candidates = [
-      unit.traitDefinitions,
-      unit.combatTraits,
-      unit.actionTraits,
-      unit.traits,
-      unit.classTraits,
-      unit.archetypeTraits,
-      unit.features,
-      unit.characterBuild?.traitDefinitions,
-      resolvedArchetypeTraits(unit),
+      unit.traitDefinitions, unit.combatTraits, unit.actionTraits, unit.traits,
+      unit.classTraits, unit.archetypeTraits, unit.features,
+      unit.characterBuild?.traitDefinitions, unit.characterBuild?.traits,
+      character.traitDefinitions, character.combatTraits, character.actionTraits,
+      character.traits, character.classTraits, character.archetypeTraits,
+      character.features, character.characterBuild?.traitDefinitions,
+      character.characterBuild?.traits,
+      resolvedArchetypeTraits(character),
+      resolveGrantedTraits(character, definitions),
     ];
+    const canonicalId = canonicalPlayerId(unit) || clean(global.LuminousCombatLiveAdapter073?.state?.playerId);
+    let localId = "";
+    try { localId = clean(global.localStorage?.getItem?.("playerId")); } catch (_) {}
+    if (canonicalId && localId === canonicalId) {
+      candidates.push(global.LuminousPlayerTraitRuntime?.getTraits?.() || []);
+    }
     const unique = new Map();
-    candidates.flatMap(flattenTraitRows).forEach((trait) => {
-      if (!trait || typeof trait !== "object") return;
-      const id = normalizeId(trait.id || trait.traitId || trait.name);
-      if (!id || !sourceIsManualTrait(trait)) return;
+    candidates.flatMap(flattenTraitRows).forEach((candidate) => {
+      const id = normalizeId(typeof candidate === "string" ? candidate : candidate?.id || candidate?.traitId || candidate?.name);
+      if (!id) return;
+      const definition = definitions[id] || {};
+      const source = typeof candidate === "string" ? {} : candidate;
+      const trait = {
+        ...clone(definition),
+        ...clone(source),
+        ...(definition.activation || source.activation
+          ? { activation: { ...(definition.activation || {}), ...(source.activation || {}) } }
+          : {}),
+      };
+      if (!sourceIsManualTrait(trait)) {
+        // The active Class runtime can change a Trait's action cost (e.g. an
+        // upgraded Action becoming Quick). Do not hardcode class exceptions.
+        if (!trait.activation || !global.LuminousTraitEngine?.canActivateTrait) return;
+      }
+      try {
+        const effective = global.LuminousTraitEngine?.canActivateTrait?.(trait, {
+          context: "combat", character, self: unit, actor: unit,
+          actionEconomy: { canUse: () => true },
+        }, { usages: {}, ruleScopes: {}, counters: {} });
+        const cost = effective?.actionCost || effective?.trait?.activation?.actionCost;
+        if (cost && normalizeEconomyCost({ actionCost: cost }, "none") !== "none") {
+          trait.activation = { ...(trait.activation || {}), actionCost: cost };
+        }
+      } catch (_) {}
+      if (!sourceIsManualTrait(trait)) return;
+      const economyCost = normalizeEconomyCost(trait);
       unique.set(id, {
-        ...clone(trait),
+        ...trait,
         id,
         traitId: id,
         kind: "trait",
         sourceType: "trait",
-        economyCost: normalizeEconomyCost(trait),
+        economyCost,
         cost: costLabel(trait),
         name: clean(trait.name || trait.nombre || id) || id,
-        tag: clean(trait.tag || `Trait · ${normalizeEconomyCost(trait).replaceAll("_", " ")}`),
+        tag: clean(trait.tag || `Trait · ${economyCost.replaceAll("_", " ")}`),
         description: clean(trait.description || trait.descripcion || "Trait action."),
       });
     });
+    const shared = global.LuminousUnitIndependentActions;
+    if (shared) {
+      for (const [id, row] of unique) if ([ECONOMY.QUICK, ECONOMY.FREE].includes(economyTabFor(row))) unique.delete(id);
+      for (const row of shared.sourcesFor(unit).filter(row => row.sourceType === "trait")) {
+        const trait = row.definition, id = normalizeId(trait.id);
+        unique.set(id, { ...clone(trait), id, traitId: id, kind: "trait", sourceType: "trait", economyCost: row.cost, cost: costLabel({ actionCost: row.cost }) });
+      }
+    }
     return [...unique.values()];
   }
 
@@ -563,6 +654,7 @@
     const newUnitObject = state.lastEconomyUnit !== unit;
     if (!force && !newRound && !newUnitObject) { syncQuickBadge(); return true; }
     economy.beginPlanning(unit);
+    global.LuminousUnitIndependentActions?.prepareRound(unit, currentRound);
     const runtimeState = economy.ensureState?.(unit);
     if (state.quickSpentRound === currentRound && runtimeState) runtimeState.quickActionRemaining = 0;
     if (state.reactionSpentRound === currentRound && runtimeState) runtimeState.reactionRemaining = 0;
@@ -601,8 +693,8 @@
     const style = global.document.createElement("style");
     style.id = "combat073-economy-tabs-style";
     style.textContent = `
-      .combat-economy-tabs{display:flex;gap:3px;padding:5px 7px 4px;background:rgba(4,3,2,.88);border-left:1px solid var(--accent);border-right:1px solid rgba(255,255,255,.08)}
-      .combat-economy-tab{flex:1;min-width:0;padding:5px 3px;border:1px solid rgba(255,255,255,.16);background:#0b0907;color:#9a9184;font:900 7px/1 Arial,sans-serif;letter-spacing:.7px;text-transform:uppercase;cursor:pointer}
+      .combat-economy-tabs{display:flex;gap:3px;overflow-x:auto;overscroll-behavior-x:contain;padding:5px 7px 4px;background:rgba(4,3,2,.88);border-left:1px solid var(--accent);border-right:1px solid rgba(255,255,255,.08)}
+      .combat-economy-tab{flex:1 0 auto;min-width:48px;min-height:40px;padding:5px 3px;border:1px solid rgba(255,255,255,.16);background:#0b0907;color:#9a9184;font:900 7px/1 Arial,sans-serif;letter-spacing:.7px;text-transform:uppercase;cursor:pointer}
       .combat-economy-tab.active{color:#090705;background:var(--accent);border-color:#fff}
       .combat-economy-tab:disabled{opacity:.42;cursor:default}
       .combat-economy-empty{padding:22px 14px;text-align:center;color:#8f8679;font:800 9px/1.45 Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;border:1px dashed rgba(255,255,255,.16);background:rgba(0,0,0,.25)}
@@ -631,7 +723,7 @@
       tabs = global.document.createElement("div");
       tabs.id = "combat-economy-tabs";
       tabs.className = "combat-economy-tabs";
-      tabs.innerHTML = `<button type="button" class="combat-economy-tab" data-economy="action">ACTION</button><button type="button" class="combat-economy-tab" data-economy="quick_action">QUICK</button><button type="button" class="combat-economy-tab" data-economy="reaction">REACTION</button>`;
+      tabs.innerHTML = `<button type="button" class="combat-economy-tab" data-economy="action">ACTION</button><button type="button" class="combat-economy-tab" data-economy="quick_action">QUICK</button><button type="button" class="combat-economy-tab" data-economy="free_action">FREE</button><button type="button" class="combat-economy-tab" data-economy="reaction">REACTION</button>`;
       context.insertAdjacentElement("afterend", tabs);
       tabs.addEventListener("click", (event) => {
         const button = event.target?.closest?.("[data-economy]");
@@ -647,6 +739,7 @@
   function tabLabel(tab) {
     const snap = planningSnapshot();
     if (tab === ECONOMY.QUICK) return `QUICK ${Math.max(0, Number(snap.quick_action) || 0)}/1`;
+    if (tab === ECONOMY.FREE) return "FREE";
     if (tab === ECONOMY.REACTION) return `REACTION ${Math.max(0, Number(snap.reaction) || 0)}/1`;
     return "ACTION";
   }
@@ -671,13 +764,14 @@
     const tab = state.tabByMenu[menu] || ECONOMY.ACTION;
     const snap = planningSnapshot();
     if (tab === ECONOMY.QUICK) context.textContent = `QUICK ACTION · AVAILABLE ${Math.max(0, Number(snap.quick_action) || 0)} / 1`;
+    else if (tab === ECONOMY.FREE) context.textContent = "FREE ACTIONS · UNIT ABILITIES";
     else if (tab === ECONOMY.REACTION) context.textContent = `REACTION · AVAILABLE ${Math.max(0, Number(snap.reaction) || 0)} / 1`;
     else context.textContent = `ACTION SLOT ${selectedSlotIndex() + 1}`;
   }
 
   function setTab(menu, tab) {
     const normalized = normalizeEconomyCost({ economyCost: tab });
-    if (!TABBED_MENUS.has(menu) || ![ECONOMY.ACTION, ECONOMY.QUICK, ECONOMY.REACTION].includes(normalized)) return false;
+    if (!TABBED_MENUS.has(menu) || ![ECONOMY.ACTION, ECONOMY.QUICK, ECONOMY.FREE, ECONOMY.REACTION].includes(normalized)) return false;
     state.tabByMenu[menu] = normalized;
     try { global.eval("navState='category';selected=null;focusedIndex=0"); } catch (_) {}
     const render = lexical("renderCategory");
@@ -1095,11 +1189,11 @@
     const tab = economyTabFor(source);
     const body = global.document?.getElementById?.("category-body");
     if (!body) return;
-    const quick = tab === ECONOMY.QUICK;
+    const quick = tab === ECONOMY.QUICK || tab === ECONOMY.FREE;
     const actionItem = tab === ECONOMY.ACTION && normalizeId(source.kind || source.sourceType) === "item";
     const reactionMode = reactionModeOf(source);
     const canPrepare = tab === ECONOMY.REACTION && reactionMode === "prepared";
-    const buttonLabel = actionItem ? "USE ITEM" : (quick ? "USE QUICK ACTION" : (canPrepare ? "PREPARE REACTION" : "ADAPTIVE REACTION"));
+    const buttonLabel = actionItem ? "USE ITEM" : (tab === ECONOMY.FREE ? "USE FREE ACTION" : (quick ? "USE QUICK ACTION" : (canPrepare ? "PREPARE REACTION" : "ADAPTIVE REACTION")));
     body.innerHTML = `<div class="economy-action-detail"><div class="economy-kind">${htmlEscape(tab.replaceAll("_", " "))}${tab === ECONOMY.REACTION ? ` · ${reactionMode}` : ""}</div><h3>${htmlEscape(source.name || source.id || "Action")}</h3><div class="economy-copy">${source.description || ""}</div><div class="economy-cost">${htmlEscape(costLabel(source))}</div><button id="economy-action-confirm" ${tab === ECONOMY.REACTION && !canPrepare ? "disabled" : ""}>${buttonLabel}</button></div>`;
     const confirm = global.document.getElementById("economy-action-confirm");
     if (confirm && !confirm.disabled) {
@@ -1231,52 +1325,6 @@
     return null;
   }
 
-  function executeTraitQuickAction(source, action, targetId) {
-    const engine = global.LuminousTraitEngine;
-    if (!engine?.dispatchTrait) return { handled: false, reason: "trait_runtime_unavailable" };
-    const actor = playerUnit();
-    const id = normalizeId(source.id || source.traitId || source.name);
-    let traitState = state.traitStateById.get(id);
-    if (!traitState) { traitState = engine.createState?.() || { usages: {}, ruleScopes: {}, counters: {} }; state.traitStateById.set(id, traitState); }
-    const target = targetId ? combatData()?.[targetId] || null : actor;
-    try {
-      const result = engine.dispatchTrait(source, "on_use", { context: "combat", character: actor, self: actor, actor, target, combatAction: action }, traitState);
-      const hasGenericRuntime = asArray(source.effects).length > 0 || asArray(source.rules).length > 0 || asArray(result?.outcomes).length > 0;
-      return { handled: hasGenericRuntime, result, reason: hasGenericRuntime ? null : "trait_specific_runtime_required" };
-    } catch (error) {
-      return { handled: false, reason: clean(error?.message || error) || "trait_runtime_failed" };
-    }
-  }
-
-  function quickMutationSnapshot(unit = {}, item = null) {
-    return {
-      hp: unit.hp,
-      hpActual: unit.hp_actual,
-      sp: unit.sp,
-      spActual: unit.sp_actual,
-      combatStats: clone(unit.combatStats || null),
-      statusEffects: clone(unit.statusEffects || {}),
-      itemRuntimeEffects: clone(unit.itemRuntimeEffects || []),
-      item: item ? clone(item) : null,
-    };
-  }
-
-  function restoreQuickMutation(unit = {}, item = null, snapshot = null) {
-    if (!snapshot) return false;
-    if (snapshot.hp !== undefined) unit.hp = snapshot.hp;
-    if (snapshot.hpActual !== undefined) unit.hp_actual = snapshot.hpActual;
-    if (snapshot.sp !== undefined) unit.sp = snapshot.sp;
-    if (snapshot.spActual !== undefined) unit.sp_actual = snapshot.spActual;
-    if (snapshot.combatStats) unit.combatStats = clone(snapshot.combatStats);
-    unit.statusEffects = clone(snapshot.statusEffects || {});
-    unit.itemRuntimeEffects = clone(snapshot.itemRuntimeEffects || []);
-    if (item && snapshot.item) {
-      Object.keys(item).forEach((key) => { if (!Object.prototype.hasOwnProperty.call(snapshot.item, key)) delete item[key]; });
-      Object.assign(item, clone(snapshot.item));
-    }
-    return true;
-  }
-
   async function persistQuickItemState(unit = {}) {
     const adapterState = global.LuminousCombatLiveAdapter073?.state;
     const db = adapterState?.db;
@@ -1318,59 +1366,40 @@
     }
   }
 
-  function requestQuickResolution(sel, action, targetId) {
-    const detail = { version: VERSION, action, source: clone(sel.data || {}), sourceType: sel.type, targetId, handled: false, result: null };
-    try { global.dispatchEvent(new CustomEvent("luminous:combat073-quick-action-request", { detail })); } catch (_) {}
-    if (detail.handled) return { handled: true, result: detail.result };
-    if (sel.type === "trait") return executeTraitQuickAction(sel.data || {}, action, targetId);
-    if (sel.type === "item" || sel.type === "items") {
-      const unit = playerUnit(), runtime = global.LuminousItemRuntime;
-      const liveItem = findActiveInventoryItem(unit || {}, sel.data || {});
-      if (!unit || !liveItem) return { handled: false, reason: "active_inventory_item_missing" };
-      if (!runtime?.useItem) return { handled: false, reason: "item_runtime_unavailable" };
-      const target = targetId ? combatData()?.[targetId] || null : unit;
-      const result = runtime.useItem(unit, liveItem, { phase: "planning", target, ignoreActionCost: true });
-      return result?.used ? { handled: true, result } : { handled: false, reason: result?.reason || "item_use_failed", result };
-    }
-    return { handled: false, reason: "quick_action_runtime_unavailable" };
+  function independentMessage(reason) {
+    if (/quick.*spent|No quick/.test(reason)) return "Ya usaste tu Quick Action este turno.";
+    if (/invalid_target/.test(reason)) return "Elige un objetivo válido.";
+    if (/uses remaining|Count remaining|not_enough|No .*remaining/.test(reason)) return "No tienes usos o recursos suficientes.";
+    if (/trait_specific_runtime_required/.test(reason)) return "Esta habilidad necesita una selección o resolución que aún no está conectada.";
+    if (/timeout|pending/.test(reason)) return "La habilidad sigue pendiente de confirmación del DM.";
+    return "No se pudo usar la habilidad. Revisa sus requisitos e inténtalo de nuevo.";
   }
-
   async function useQuickAction(sel, targetId = null) {
-    const unit = playerUnit(), economy = economyRuntime();
-    if (!unit || !economy) return false;
-    const gate = economy.availability?.(unit, ECONOMY.QUICK, { phase: "planning" });
-    if (gate?.available === false) { lexical("setStatus", () => {})(`QUICK ACTION · ${gate.reason || "UNAVAILABLE"}`); return false; }
-    const action = compilerFor(sel, targetId);
-    if (!action) { lexical("setStatus", () => {})("QUICK ACTION · COMBAT ACTION COMPILER UNAVAILABLE"); return false; }
-
-    const isItem = sel.type === "item" || sel.type === "items";
-    const liveItem = isItem ? findActiveInventoryItem(unit, sel.data || {}) : null;
-    const before = isItem ? quickMutationSnapshot(unit, liveItem) : null;
-    const resolution = requestQuickResolution(sel, action, targetId);
-    if (!resolution.handled) {
-      lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Action"} · ${String(resolution.reason || "RUNTIME NOT CONNECTED").replaceAll("_", " ").toUpperCase()}`);
-      return false;
-    }
-
-    if (isItem) {
-      const persisted = await persistQuickItemState(unit);
-      if (persisted.saved === false && persisted.skipped !== true) {
-        restoreQuickMutation(unit, liveItem, before);
-        lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Item"} · PERSISTENCE FAILED`);
+    const unit = playerUnit(), independent = global.LuminousUnitIndependentActions;
+    if (!unit || !independent) return false;
+    const type = normalizeId(sel?.type === "items" ? "item" : sel?.type), source = sel?.data || {};
+    const label = economyTabFor(source) === ECONOMY.FREE ? "FREE ACTION" : "QUICK ACTION";
+    if (state.independentPending) return false;
+    state.independentPending = true;
+    lexical("setStatus", () => {})(`${label} · Confirmando ${source.name || "habilidad"}…`);
+    try {
+      const sync = global.LuminousCombatPlanSync073, online = global.LuminousCombatLiveAdapter073?.state?.db;
+      const result = online
+        ? await sync.requestIndependentAction({ unitId: unit.id, sourceId: clean(source.instanceId || source.id), sourceType: type,
+          cost: independent.costOf(source), targetId: targetId || unit.id, round: roundNumber() })
+        : independent.execute(unit, { sourceType: type, definition: source }, { round: roundNumber(), phase: "planning", target: combatData()?.[targetId] || unit, units: Object.values(combatData() || {}) });
+      if (!result?.used) {
+        lexical("setStatus", () => {})(`${source.name || "Habilidad"} · ${independentMessage(result?.reason || "")}`);
         return false;
       }
-    }
-
-    if (!economy.consume(unit, ECONOMY.QUICK, { phase: "planning" })) {
-      if (isItem) restoreQuickMutation(unit, liveItem, before);
-      return false;
-    }
-    state.quickSpentRound = roundNumber();
-    syncQuickBadge(); syncTabs(); updateCategoryContext();
-    lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Action"} · USED`);
-    try { global.dispatchEvent(new CustomEvent("luminous:combat073-quick-action-resolved", { detail: { version: VERSION, action, result: resolution.result || null } })); } catch (_) {}
-    lexical("goRoot", () => {})();
-    return true;
+      if (result.cost === ECONOMY.QUICK) state.quickSpentRound = roundNumber();
+      syncQuickBadge(); syncTabs(); updateCategoryContext();
+      lexical("setStatus", () => {})(`${label} · ${source.name || "Habilidad"} · USADA`);
+      lexical("goRoot", () => {})(); return true;
+    } catch (error) {
+      global.console?.error?.("[Independent Action]", error);
+      lexical("setStatus", () => {})(independentMessage(error?.message || "")); return false;
+    } finally { state.independentPending = false; }
   }
 
   function beginQuickAction(sel) {
@@ -1460,8 +1489,45 @@
     await loadScript("trait-engine-economy073", "js/trait-engine.js", () => Boolean(global.LuminousTraitEngine));
     await loadScript("archetype-engine-economy073", "js/archetype-engine.js", () => Boolean(global.LuminousArchetypeEngine));
     await loadScript("archetype-trait-catalog-economy073", "js/archetype-trait-catalog.js", () => Boolean(global.LuminousArchetypeTraitCatalog));
+    await loadScript("trait-catalog-core-economy073", "js/trait-catalog-core.js", () => Boolean(global.LuminousTraitCatalogCore));
+    await loadScript("class-milestone-engine-economy073", "js/class-milestone-engine.js", () => Boolean(global.LuminousClassMilestones));
+    await loadScript("racial-trait-catalog-economy073", "js/racial-trait-catalog.js", () => Boolean(global.LuminousRacialTraitCatalog));
+    // Combat contexts load canonical class/archetype runtimes; they extend the
+    // shared trait catalog and activation engine rather than a duplicate menu list.
+    await loadScript("class-runtime-bootstrap-economy073", "js/class-runtime-bootstrap.js", () => Boolean(global.LuminousClassRuntimeBootstrap));
     await loadScript("action-economy-economy073", "js/universal-action-economy.js", () => Boolean(global.LuminousActionEconomy));
+    await loadScript("unit-independent-actions-economy073", "js/unit-independent-actions.js", () => Boolean(global.LuminousUnitIndependentActions));
+    await loadScript("combat-events-economy073", "js/combat-event-runtime.js", () => Boolean(global.LuminousCombatEventRuntime));
+    if (playerUnit() && global.document) await global.LuminousUnitIndependentActions?.prepare(Object.values(combatData() || {}));
     return Boolean(global.LuminousCombatAction && global.LuminousCombatActionAdapters && global.LuminousActionEconomy);
+  }
+
+  function refreshTraitActionMenu() {
+    if (state.installed && activeMenu() === "global") renderGlobalList();
+  }
+
+  function ensureTraitLibrarySubscriptions() {
+    const db = global.LuminousCombatLiveAdapter073?.state?.db;
+    if (!db?.ref || state.traitDb === db) return false;
+    state.traitDbListeners.forEach(({ ref, callback }) => ref.off?.("value", callback));
+    state.traitDbListeners = [];
+    state.traitDb = db;
+    [
+      ["campaña/config/traits/definitions", "traitCatalogDefinitions"],
+      ["campaña/config/traits/grants", "traitCatalogGrants"],
+    ].forEach(([path, key]) => {
+      const ref = db.ref(path);
+      const callback = (snapshot) => {
+        state[key] = snapshot.val() || {};
+        global.LuminousUnitIndependentActions?.configureCatalog({ definitions: state.traitCatalogDefinitions, grants: state.traitCatalogGrants });
+        refreshTraitActionMenu();
+      };
+      ref.on("value", callback, (error) => {
+        global.console?.warn?.("[CombatEconomy073] Trait library read failed", error);
+      });
+      state.traitDbListeners.push({ ref, callback });
+    });
+    return true;
   }
 
   function installTargetHandler() {
@@ -1527,7 +1593,7 @@
       };
       assignLexical("goRoot", "window.__luminousEconomyGoRoot");
     }
-    installPhaseHooks(); installTargetHandler(); installRootMenuClickHandler(); installActionBackRecovery(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout();
+    installPhaseHooks(); installTargetHandler(); ensureTraitLibrarySubscriptions(); installRootMenuClickHandler(); installActionBackRecovery(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout();
     global.addEventListener?.("resize", () => {
       syncResponsiveMenuLayout();
       layoutRadialCommandsStable();
@@ -1544,13 +1610,17 @@
     return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, restoreGlobalCategoryFromActionDetail, installActionBackRecovery, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, authoritativeCharacter, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, restoreGlobalCategoryFromActionDetail, installActionBackRecovery, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
   global.LuminousCombatEconomyMenu073 = Object.freeze(api);
-  global.addEventListener?.("luminous:combat073-hydrated", () => { syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
+  global.addEventListener?.("luminous:combat073-hydrated", () => { ensureTraitLibrarySubscriptions(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
   global.addEventListener?.("luminous:combat073-runtime-ready", () => global.setTimeout(boot, 0));
+  global.addEventListener?.("luminous:class-runtime-bootstrap-ready", refreshTraitActionMenu);
+  global.addEventListener?.("luminous:class-runtimes-ready", refreshTraitActionMenu);
+  global.addEventListener?.("luminous:traits-refreshed", refreshTraitActionMenu);
+  global.addEventListener?.("luminous:player-data", refreshTraitActionMenu);
   global.setTimeout(boot, 0);
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;

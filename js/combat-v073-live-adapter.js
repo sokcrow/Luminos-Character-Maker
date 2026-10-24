@@ -205,12 +205,18 @@
   function normalizedCombatants() {
     const sideIndex = { ally: 0, enemy: 0 };
     const result = [];
+    const deployment = global.LuminousCombatDeploymentRuntime;
+    const fieldUnits = Object.entries(state.combatants || {}).filter(([, unit]) => isFieldCombatant(unit || {}))
+      .map(([key, unit]) => ({ ...unit, id: clean(unit.id || unit.combatId || unit.unitId || key) }));
+    const formation = Object.assign({}, ...['ally', 'enemy'].map(side =>
+      deployment?.formationPoints(fieldUnits.filter(unit => factionFor(unit) === side), side) || {}));
     for (const [key, rawValue] of Object.entries(state.combatants || {})) {
       const raw = rawValue || {};
       if (!isFieldCombatant(raw)) continue;
       const id = clean(raw.id || raw.combatId || raw.unitId || key) || key;
       const faction = factionFor(raw);
-      const pos = defaultPosition(faction, sideIndex[faction]++);
+      const pos = formation[id] || defaultPosition(faction, sideIndex[faction]);
+      sideIndex[faction]++;
       const maxHp = maxHpFor(raw);
       const humanPlayer = isPlayerUnit(raw);
       const liveActiveInventory = activeInventoryContainer(raw);
@@ -257,6 +263,7 @@
         formationColumn: Math.max(0, Math.floor((sideIndex[faction] - 1) / 2)),
         positionPinned: explicitBattlePosition(raw),
         formationSource: useFormationSpawn ? "pre_combat_zigzag" : "runtime_position",
+        size: deployment?.sizeOf(raw) || raw.size || raw.unitSize || raw.mechanics?.size || "medium",
         scale: finite(raw.scale ?? raw.visualScale ?? raw.escala ?? raw.combatVisual?.scale, 1) || 1,
         spriteX: finite(raw.spriteX ?? raw.combatVisual?.x, 0) || 0,
         spriteY: finite(raw.spriteY ?? raw.combatVisual?.y, 0) || 0,
@@ -269,6 +276,7 @@
         statusEffects: clone(raw.statusEffects || {}),
       });
     }
+    for (const unit of result) Object.assign(unit, clone(unit.combatIndependentActionState?.runtimeFields || {}));
     return result;
   }
 
@@ -396,6 +404,11 @@
       unit.y,
       unit.positionPinned,
       unit.scale,
+      unit.size,
+      unit.isSummon,
+      unit.isBackgroundUnit,
+      unit.kind,
+      unit.unitType,
       unit.spriteX,
       unit.spriteY,
       unit.actionSlots,
@@ -405,6 +418,9 @@
       unit.combatDeck,
       unit.proneSpeedRound,
       unit.confusionTurnMode,
+      unit.equipment,
+      unit.augmentations,
+      unit.equipmentInactive,
       unit.scores,unit.abilityScores,unit.stats,unit.attributes,
       skillIdsFor(unit),
       unit.spellLoadout || unit.spellIds || unit.spellSelections || unit.characterBuild?.spellSelections || null,

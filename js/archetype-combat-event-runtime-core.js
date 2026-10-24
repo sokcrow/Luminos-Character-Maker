@@ -474,6 +474,7 @@
 
     if (originalEncounterStart) {
       engine.triggerEncounterStart = function (allUnits = [], ...rest) {
+        if (global.LuminousCombatEventRuntime) return originalEncounterStart.call(this, allUnits, ...rest);
         clearEncounterState();
         const result = originalEncounterStart.call(this, allUnits, ...rest);
         (Array.isArray(allUnits) ? allUnits : []).forEach((unit) => {
