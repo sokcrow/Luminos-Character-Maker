@@ -146,7 +146,7 @@
   async function commitEnd({db,uid,result,token,xpAward=null}){
     if(result==='victory'){
       const recipients=xpAward?.participantIds;
-      const validId=id=>typeof id==='string'&&id.length>0&&!/[.#$\\/\[\]]/.test(id);
+      const validId=id=>typeof id==='string'&&id.length>0&&!['.','#','$','/','[',']'].some(char=>id.includes(char));
       if(!global.LuminousCombatXpRuntime?.eligibleVictoryPlayers
         || !validId(xpAward?.encounterId)
         || !Array.isArray(recipients)
