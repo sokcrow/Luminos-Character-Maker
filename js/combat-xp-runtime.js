@@ -271,7 +271,12 @@
             .then(snapshot => snapshot.val() || null));
         }
         const stored = await lookupCache.get(id);
-        if (stored) definition = stored;
+        // Bundled canonical data is authoritative when a previously seeded
+        // Firebase Unit lacks the newer CR/XP fields. Existing explicit custom
+        // CR/XP fields are still respected.
+        if (stored) definition = { ...(definition || {}), ...stored,
+          challengeRating: stored.challengeRating ?? definition?.challengeRating,
+          xpValue: stored.xpValue ?? definition?.xpValue };
       }
       // Preserve per-instance CR/XP overrides, while inheriting original CR
       // and special CR 0 (0 vs 10 XP) from the authored unit definition.
