@@ -27,7 +27,7 @@ assert.match(cameraControls,/LuminousCombatStage073\?\.camera\(\{x:next\.x,y:nex
 for(const name of ['css/combat-v073-stage.css','css/combat-v073-hud-motion.css','js/combat-v073-stage.js','js/combat-encounter-lifecycle.js']) {
   assert.ok(boot.includes(name),'packed Combat must load '+name);
 }
-assert.match(boot, /p1Version='20261021-p1-camera-hud-1'/, 'stage script and CSS need fresh browser URLs');
+assert.match(boot, /p1Version='20261024-creature-space-1'/, 'stage script and CSS need fresh browser URLs');
 
 function classList() {
   const values=new Set();
