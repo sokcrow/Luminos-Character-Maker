@@ -96,7 +96,7 @@
         const id=deployment.unitId(unit);if(!id||combatants[id]||reserves[id])continue;
         changed=true;
         const side=deployment.sideOf(unit);
-        if(deployment.canEnterField(combatants,side))combatants[id]=deployment.markField(unit,{round:raw.estado?.round||1});
+        if(deployment.canEnterField(combatants,side,deployment.FIELD_CAP_PER_SIDE,unit))combatants[id]=deployment.markField(unit,{round:raw.estado?.round||1});
         else reserves[id]=deployment.markBackup(unit,{queueOrder:deployment.nextQueueOrder(reserves,side),round:raw.estado?.round||1,reason:'field_full'});
       }
       return changed?{...raw,combatants,reserves,participants:participantIndex({...raw,combatants}),plannedActions:null,readyPlayers:null}:raw;

@@ -12,6 +12,75 @@
   const finiteInt = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
   const normalizeId = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
+  // Field spaces are a side budget, independent of action slots and art tuning.
+  const SIZE_PROFILES = Object.freeze(Object.fromEntries(Object.entries({
+    tiny: [0.5, 0.55], small: [1, 0.8], medium: [1, 1],
+    large: [1, 1.35], huge: [2, 1.85], gargantuan: [3, 2.5],
+  }).map(([size, [spaces, spriteScale]]) => [size, Object.freeze({ size, spaces, spriteScale, hudScale: size === 'tiny' ? 0.75 : 1 })])));
+
+  function sizeOf(unit = {}) {
+    const raw = normalizeId(String(unit.size || unit.unitSize || unit.unit_size || unit.creatureSize ||
+      unit.creature_size || unit.mechanics?.size || unit.bodyProfile?.sizeClass || 'medium').normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+    const aliases = { diminuto: 'tiny', minusculo: 'tiny', pequeno: 'small', mediano: 'medium',
+      grande: 'large', enorme: 'huge', gigantesco: 'gargantuan', gargantuesco: 'gargantuan' };
+    return SIZE_PROFILES[raw] ? raw : aliases[raw] || 'medium';
+  }
+
+  function isSummon(unit = {}) {
+    return unit.isSummon === true || unit.isBackgroundUnit === true ||
+      ['summon', 'background_unit'].includes(normalizeId(unit.kind)) ||
+      normalizeId(unit.unitType) === 'summon';
+  }
+
+  function sizeProfile(unit = {}) { return SIZE_PROFILES[sizeOf(unit)]; }
+  function fieldSpace(unit = {}) { return isSummon(unit) ? 0 : sizeProfile(unit).spaces; }
+
+  // Pack larger bodies first. Tiny pairs share a cell, with distinct anchors.
+  // Extra depth rows also keep legacy over-cap encounters visible without stacking.
+  function formationPoints(units = [], side = 'ally') {
+    const points = {}, rows = [], summons = [], placements = [];
+    const ordered = units.map((unit, index) => ({ unit, index, spaces: fieldSpace(unit) }))
+      .sort((a, b) => b.spaces - a.spaces || a.index - b.index);
+    for (const { unit, spaces } of ordered) {
+      if (!spaces) { summons.push(unit); continue; }
+      const halves = spaces * 2;
+      let chosen = null;
+      if (halves === 1) {
+        for (let row = 0; row < rows.length && !chosen; row++) {
+          for (let cell = 0; cell < 8; cell++) {
+            if (rows[row]?.[cell] === false && rows[row]?.[cell ^ 1] === true) {
+              chosen = { row, cell }; break;
+            }
+          }
+        }
+      }
+      // Columns first preserves the familiar two-row zigzag for normal bodies.
+      for (let cell = 0; cell < 8 && !chosen; cell++) {
+        for (let row = 0; row < Math.max(2, rows.length) && !chosen; row++) {
+          const occupied = rows[row] || Array(8).fill(false);
+          if (cell + halves <= 8 && occupied.slice(cell, cell + halves).every(value => !value)) {
+            chosen = { row, cell }; rows[row] = occupied;
+          }
+        }
+      }
+      if (!chosen) { chosen = { row: rows.length, cell: 0 }; rows.push(Array(8).fill(false)); }
+      const { row, cell } = chosen;
+      rows[row].fill(true, cell, cell + halves);
+      const x = 10 + ((cell + halves / 2) / 2 - 0.5) * 9;
+      placements.push({ unit, x, row });
+    }
+    const rowGap = rows.length > 2 ? 30 / (rows.length - 1) : 24;
+    placements.forEach(({ unit, x, row }) => {
+      points[unitId(unit)] = { x: side === 'enemy' ? 100 - x : x, y: 18 + row * rowGap };
+    });
+    summons.forEach((unit, index) => {
+      const x = 10 + (index % 6) * 5.4;
+      points[unitId(unit)] = { x: side === 'enemy' ? 100 - x : x,
+        y: 56 + Math.floor(index / 6) * 6 };
+    });
+    return points;
+  }
+
   function unitId(unit = {}, fallback = "") {
     return clean(unit.id ?? unit.combatId ?? unit.instanceId ?? unit.unitId ?? unit.characterId ?? unit.actorId ?? fallback);
   }
@@ -136,8 +205,15 @@
     return fieldEntries(combatants).filter((entry) => sideOf(entry.unit) === wanted).length;
   }
 
-  function canEnterField(combatants = {}, side, cap = FIELD_CAP_PER_SIDE) {
-    return fieldCount(combatants, side) < Math.max(1, finiteInt(cap, FIELD_CAP_PER_SIDE));
+  function fieldSpaceUsed(combatants = {}, side) {
+    const wanted = normalizeId(side).startsWith('enem') ? 'enemy' : 'ally';
+    return fieldEntries(combatants).filter(({ unit }) => sideOf(unit) === wanted)
+      .reduce((total, { unit }) => total + fieldSpace(unit), 0);
+  }
+
+  function canEnterField(combatants = {}, side, cap = FIELD_CAP_PER_SIDE, incoming = {}) {
+    const spaces = fieldSpace(incoming);
+    return spaces === 0 || fieldSpaceUsed(combatants, side) + spaces <= Math.max(1, finiteInt(cap, FIELD_CAP_PER_SIDE));
   }
 
   function queueOrder(unit = {}, fallback = 0) {
@@ -161,8 +237,9 @@
     return entries[entries.length - 1].order + 1;
   }
 
-  function nextBackup(reserves = {}, side) {
-    return sortedBackupEntries(reserves, side)[0] || null;
+  function nextBackup(reserves = {}, side, combatants = null) {
+    return sortedBackupEntries(reserves, side).find(({ unit }) =>
+      !combatants || canEnterField(combatants, side, FIELD_CAP_PER_SIDE, unit)) || null;
   }
 
   function inheritedActionSlots(outgoing = {}, incoming = {}, cap = 2) {
@@ -192,6 +269,7 @@
   const api = Object.freeze({
     version: "1.0.0",
     FIELD_CAP_PER_SIDE,
+    SIZE_PROFILES, sizeOf, sizeProfile, isSummon, fieldSpace, fieldSpaceUsed, formationPoints,
     unitId,
     sideOf,
     deploymentState,

@@ -2451,6 +2451,7 @@
 <script src="js/skill-catalog-player-signature.js"></script>
 <script src="js/combat-skill-loadout-074.js"></script>
 <script src="js/combat-participants.js"></script>
+<script src="js/combat-deployment-runtime.js?v=20261024-creature-hud-2"></script>
 <script src="js/combat-v073-live-adapter.js?v=20261021-encounter-3"></script>
 <script>
 (function (global) {
@@ -3366,7 +3367,7 @@ function playerVisualFocusPoint(viewW,viewH){
   const unit=combatData[PLAYER_ID],
         sprite=$(`sprite-${PLAYER_ID}`),
         visualScale=combatantVisualScale(PLAYER_ID),
-        unitScale=Math.max(.01,Number(unit?.scale)||1),
+        unitScale=Math.max(.01,Number(unit?.scale)||1)*(window.LuminousCombatDeploymentRuntime?.sizeProfile(unit||{}).spriteScale||1),
         spriteHeight=Number(sprite?.offsetHeight)||240,
         groundX=viewW*((Number(unit?.x)||50)/100),
         groundY=viewH*(1-((Number(unit?.y)||25)/100)),
@@ -3579,21 +3580,12 @@ function setUnitFormationPoint(unit,point){
   }
 }
 function layoutSpeedFormation(){
-  // v0.7.3 field test supports a full 8v8 without shrinking any unit HUD.
-  // Two depth rows keep every sprite, floor HUD and Action Slot readable.
-  const allyPoints=[
-          {x:6,y:18},{x:16,y:18},{x:26,y:18},{x:36,y:18},
-          {x:8,y:42},{x:18,y:42},{x:28,y:42},{x:38,y:42}
-        ],
-        enemyPoints=[
-          {x:94,y:18},{x:84,y:18},{x:74,y:18},{x:64,y:18},
-          {x:92,y:42},{x:82,y:42},{x:72,y:42},{x:62,y:42}
-        ],
-        allies=Object.values(combatData).filter(unit=>unit.faction==='ally'&&unit.battleActive!==false&&!unit.incapacitated).sort(formationSort),
-        enemies=Object.values(combatData).filter(unit=>unit.faction==='enemy'&&unit.battleActive!==false&&!unit.incapacitated).sort(formationSort);
-
-  allies.forEach((unit,index)=>setUnitFormationPoint(unit,allyPoints[index]||allyPoints[allyPoints.length-1]));
-  enemies.forEach((unit,index)=>setUnitFormationPoint(unit,enemyPoints[index]||enemyPoints[enemyPoints.length-1]));
+  const deployment=window.LuminousCombatDeploymentRuntime;
+  for(const side of ['ally','enemy']){
+    const units=Object.values(combatData).filter(unit=>unit.faction===side&&unit.battleActive!==false&&!unit.incapacitated).sort(formationSort);
+    const points=deployment?.formationPoints(units,side)||{};
+    units.forEach(unit=>{if(points[unit.id])setUnitFormationPoint(unit,points[unit.id])})
+  }
 }
 function rollTurnSpeeds(turnNumber){
   Object.values(combatData).filter(unit=>unit.battleActive!==false&&!unit.incapacitated).forEach(unit=>rollUnitSpeed(unit,turnNumber));
@@ -4482,6 +4474,7 @@ function beginPlayerTargeting(plan,slotIndex){
   });
   setCameraFocus('full',false);
   setStatus(`TARGETING · ${plan.data?.name||'Action'} · ${rule.toUpperCase()} SLOTS ONLY`);
+  window.LuminousCombatHudMotion073?.refresh();
   if(combatData[PLAYER_ID]?.confusionTurnMode==='indiscriminate'){
     const valid=[...document.querySelectorAll('.action-slot-wrapper.target-valid')];
     const random=valid.length?valid[Math.floor(Math.random()*valid.length)]:null;
@@ -5561,7 +5554,7 @@ function spawnCombatant(d){
         slots=Array.from({length:d.actionSlots}).map((_,i)=>`<div class="action-slot-wrapper" id="${d.id}_slot_${i}" data-slot-index="${i}" data-owner-id="${d.id}" data-controller="${controlled}" data-faction="${faction}"><svg class="action-slot-svg" viewBox="0 0 100 100"><polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78"/><line class="slot-center-line" x1="25" y1="50" x2="75" y2="50"/></svg></div>`).join(''),
         h=generateHeptagonPoints(85),
         c=document.createElement('div');
-  combatData[d.id]={...d,level:Number(d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,offensiveLevel:Number(d.offensiveLevel??d.offensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,defensiveLevel:Number(d.defensiveLevel??d.defensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,faction,controlled,focusMenu,isBackup:Boolean(d.isBackup),battleActive:d.battleActive!==false&&!d.isBackup,replacementClaimed:false,deployedRound:d.isBackup?0:round,resistances:d.resistances||'Slash NORMAL · Pierce NORMAL · Blunt NORMAL',staggerThresholds:thresholds,triggeredStaggerThresholds:Array.isArray(d.triggeredStaggerThresholds)?[...d.triggeredStaggerThresholds]:[],staggerStage:Number(d.staggerStage)||0,staggerActivatedRound:Number(d.staggerActivatedRound)||0,staggerUntilRound:Number(d.staggerUntilRound)||0,incapacitated:Boolean(d.incapacitated)||(Number(d.hp)||0)<=0,shieldPools:{ephemeral:Math.max(0,Number(d.ephemeralShield)||0),frozen:Math.max(0,Number(d.frozenShield)||0)},autoPlans:[],speedRollTurn:0,speedTie:0,observationKnown:[],observationLastCheck:null,statusEffects:{...(d.statusEffects||{})},pendingStatusEffects:[],abilityMods:{...(d.abilityMods||{})},saveMods:{...(d.saveMods||{})},lastSaveCheck:null,lastAbilityCheck:null,reactiveDefense:{turn:0,evade:null,counters:[]},xpEligible:d.xpEligible!==false,escaped:false,retreatPendingRound:0,escapePendingRound:0,wakePendingRound:0,damageTakenThisRound:0,concentration:null,detectedInvisibleIds:[],invisibleAwarenessRound:0,confusionTurnMode:null,proneSpeedRound:0,originalMaxHp:Math.max(1,Number(d.originalMaxHp||d.maxHp)||1),baseStaggerThresholds:[...thresholds],size:d.size||d.unitSize||'medium',elementResistances:{...(d.elementResistances||{})},conditionImmunities:[...(d.conditionImmunities||[])],conditionSourceImmunities:[...(d.conditionSourceImmunities||[])],sourceImmunities:[...(d.sourceImmunities||[])]};
+  combatData[d.id]={...d,level:Number(d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,offensiveLevel:Number(d.offensiveLevel??d.offensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,defensiveLevel:Number(d.defensiveLevel??d.defensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,faction,controlled,focusMenu,isBackup:Boolean(d.isBackup),battleActive:d.battleActive!==false&&!d.isBackup,replacementClaimed:false,deployedRound:d.isBackup?0:round,resistances:d.resistances||'Slash NORMAL · Pierce NORMAL · Blunt NORMAL',staggerThresholds:thresholds,triggeredStaggerThresholds:Array.isArray(d.triggeredStaggerThresholds)?[...d.triggeredStaggerThresholds]:[],staggerStage:Number(d.staggerStage)||0,staggerActivatedRound:Number(d.staggerActivatedRound)||0,staggerUntilRound:Number(d.staggerUntilRound)||0,incapacitated:Boolean(d.incapacitated)||(Number(d.hp)||0)<=0,shieldPools:{ephemeral:Math.max(0,Number(d.ephemeralShield)||0),frozen:Math.max(0,Number(d.frozenShield)||0)},autoPlans:[],speedRollTurn:0,speedTie:0,observationKnown:[],observationLastCheck:null,statusEffects:{...(d.statusEffects||{})},pendingStatusEffects:[],abilityMods:{...(d.abilityMods||{})},saveMods:{...(d.saveMods||{})},lastSaveCheck:null,lastAbilityCheck:null,reactiveDefense:{turn:0,evade:null,counters:[]},xpEligible:d.xpEligible!==false,escaped:false,retreatPendingRound:0,escapePendingRound:0,wakePendingRound:0,damageTakenThisRound:0,concentration:null,detectedInvisibleIds:[],invisibleAwarenessRound:0,confusionTurnMode:null,proneSpeedRound:0,originalMaxHp:Math.max(1,Number(d.originalMaxHp||d.maxHp)||1),baseStaggerThresholds:[...thresholds],size:window.LuminousCombatDeploymentRuntime?.sizeOf(d)||d.size||d.unitSize||'medium',elementResistances:{...(d.elementResistances||{})},conditionImmunities:[...(d.conditionImmunities||[])],conditionSourceImmunities:[...(d.conditionSourceImmunities||[])],sourceImmunities:[...(d.sourceImmunities||[])]};
   const spawnedUnit=combatData[d.id],initialHpPct=(Math.max(0,Number(spawnedUnit.hp)||0)/Math.max(1,Number(spawnedUnit.maxHp)||1))*100,
         startConsumed=thresholds.map((threshold,index)=>({threshold,index})).filter(row=>initialHpPct<=row.threshold).map(row=>row.index);
   spawnedUnit.triggeredStaggerThresholds=[...new Set([...(spawnedUnit.triggeredStaggerThresholds||[]),...startConsumed])].sort((a,b)=>a-b);
@@ -5572,7 +5565,7 @@ function spawnCombatant(d){
   c.id=`token-${d.id}`;
   c.style.left=`${d.x}%`;
   c.style.bottom=`${d.y}%`;
-  c.innerHTML=`<div class="combatant"><svg class="diegetic-floor" viewBox="-100 -100 200 200"><polygon class="floor-bg-poly" points="${h.full}"/><polyline class="hp-track" points="${h.front}"/><polyline class="hp-transition-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/><polyline class="hp-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/>${staggerThresholdMarkup(h.frontPoints,thresholds)}<polyline class="shield-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:100"/></svg><div class="top-ui-panel" id="ui-panel-${d.id}" style="top:60px"><div class="speed-number">${d.speed}</div><div class="action-slots">${slots}</div></div><div class="sprite-anchor" id="anchor-${d.id}" style="bottom:${d.spriteY}px;margin-left:${d.spriteX}px;transform:scale(calc(${d.scale} * var(--scene-depth-scale,1)))"><img src="${d.img}" class="sprite-img" id="sprite-${d.id}" onerror="this.style.opacity='.25'">${staggerGlassMarkup()}</div><div class="stagger-pop" aria-live="polite"></div><div class="floating-hp-group"><div class="name-plate">${d.name}</div><div class="hp-number">${d.hp}</div></div><div class="floating-sp-group sp-neutral">${d.sp}</div><div class="status-effect-strip" id="statuses-${d.id}" aria-label="Status Effects"></div></div>`;
+  c.innerHTML=`<div class="combatant"><svg class="diegetic-floor" viewBox="-100 -100 200 200"><polygon class="floor-bg-poly" points="${h.full}"/><polyline class="hp-track" points="${h.front}"/><polyline class="hp-transition-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/><polyline class="hp-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/>${staggerThresholdMarkup(h.frontPoints,thresholds)}<polyline class="shield-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:100"/></svg><div class="top-ui-panel" id="ui-panel-${d.id}" style="top:60px"><div class="speed-number">${d.speed}</div><div class="action-slots">${slots}</div></div><div class="sprite-anchor" id="anchor-${d.id}" style="bottom:${d.spriteY}px;margin-left:${d.spriteX}px;transform:scale(calc(${d.scale} * var(--scene-depth-scale,1) * var(--creature-size-scale,1)))"><img src="${d.img}" class="sprite-img" id="sprite-${d.id}" onerror="this.style.opacity='.25'">${staggerGlassMarkup()}</div><div class="stagger-pop" aria-live="polite"></div><div class="floating-hp-group"><div class="name-plate">${d.name}</div><div class="hp-number">${d.hp}</div></div><div class="floating-sp-group sp-neutral">${d.sp}</div><div class="status-effect-strip" id="statuses-${d.id}" aria-label="Status Effects"></div></div>`;
   field.appendChild(c);
   window.LuminousCombatStage073?.refreshUnit(combatData[d.id]);
   (combatData[d.id].triggeredStaggerThresholds||[]).forEach(index=>removeStaggerThresholdVisual(d.id,index));
@@ -8215,12 +8208,20 @@ window.addEventListener('scroll',()=>{closeStatusPopover();closeStatusOverflow()
 
 document.addEventListener('pointerdown',e=>{
   if(!targetingModeActive)return;
-  const validSlots=Array.from(document.querySelectorAll('.action-slot-wrapper.target-valid')),
-        slot=validSlots.find(node=>{
-          const r=node.getBoundingClientRect(),
-                pad=7;
-          return e.clientX>=r.left-pad&&e.clientX<=r.right+pad&&e.clientY>=r.top-pad&&e.clientY<=r.bottom+pad
-        });
+  // Screen-space target buttons must receive their own click/touch/keyboard action.
+  if(e.target.closest?.('#combat-target-list,button,input,select,textarea,a'))return;
+  const direct=e.target.closest?.('.action-slot-wrapper');
+  if(direct){
+    if(!direct.classList.contains('target-valid'))return;
+    e.preventDefault();e.stopPropagation();choosePlayerTarget(direct);return
+  }
+  // Tiny pairs can have overlapping touch padding. Prefer the nearest slot,
+  // rather than whichever slot happened to be first in DOM order.
+  const slot=Array.from(document.querySelectorAll('.action-slot-wrapper.target-valid')).map(node=>{
+    const r=node.getBoundingClientRect(),pad=e.pointerType==='touch'?12:7;
+    if(!(r.width>0&&r.height>0)||e.clientX<r.left-pad||e.clientX>r.right+pad||e.clientY<r.top-pad||e.clientY>r.bottom+pad)return null;
+    return{node,distance:Math.hypot(e.clientX-(r.left+r.right)/2,e.clientY-(r.top+r.bottom)/2)}
+  }).filter(Boolean).sort((a,b)=>a.distance-b.distance)[0]?.node;
   if(!slot)return;
   e.preventDefault();
   e.stopPropagation();
@@ -8358,6 +8359,13 @@ window.LuminousCombat073=Object.freeze({
   speedForBaseRoll,
   kit:id=>UNIT_KITS[id],
   plans:()=>plannedActions,
+  chooseTarget(ownerId,slotIndex=0){
+    if(!targetingModeActive||!pendingTargetPlan)return false;
+    const slot=unitSlots(ownerId).find(node=>Number(node.dataset.slotIndex)===Number(slotIndex));
+    if(!slot||!targetSlotIsValid(slot,planTargetRule(pendingTargetPlan,combatData[PLAYER_ID])))return false;
+    choosePlayerTarget(slot);
+    return !targetingModeActive
+  },
   restorePlanning(plans,ready){
     plannedActions=plans;planReady=Boolean(ready);
     $('game-container').classList.toggle('ready-plan-visible',planReady);

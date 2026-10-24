@@ -409,6 +409,14 @@
     node.style.color = bad ? '#ff8b78' : '#9fd6a8';
   }
 
+  function fieldSpaceLabel(unit) {
+    const deployment = global.LuminousCombatDeploymentRuntime;
+    if (!deployment) return '';
+    if (deployment.isSummon(unit)) return ' · Invocación · sin coste de espacio';
+    const size = deployment.sizeOf(unit), spaces = deployment.fieldSpace(unit);
+    return ` · ${size[0].toUpperCase() + size.slice(1)} · ${spaces} ${spaces === 1 ? 'espacio' : 'espacios'}`;
+  }
+
   function render() {
     if (!state.mounted) return;
     const locked = !planningPhase();
@@ -436,10 +444,12 @@
     }
     if (roster) {
       const members=global.LuminousCombatParticipants,progress=members?.progress(state.combatants,state.readyPlayers,state.encounter?.round||1);
-      const reserveRows=Object.entries(state.reserves||{}).map(([id,unit])=>`<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><span style="flex:1">${esc(nameFor(unit,id))} · ${unit.faction==='enemy'?'Enemigo':'Aliado'} · RESERVA</span><button data-remove="${esc(id)}" aria-label="Quitar reserva">×</button></div>`).join('');
+      const reserveRows=Object.entries(state.reserves||{}).map(([id,unit])=>`<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><span style="flex:1">${esc(nameFor(unit,id))}${fieldSpaceLabel(unit)} · ${unit.faction==='enemy'?'Enemigo':'Aliado'} · RESERVA</span><button data-remove="${esc(id)}" aria-label="Quitar reserva">×</button></div>`).join('');
       roster.innerHTML = Object.entries(state.combatants || {}).length
-        ? Object.entries(state.combatants).map(([id, combatant]) => `<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><span style="flex:1">${esc(nameFor(combatant, id))} · ${esc(combatant.faction || '')}${members?.isPlayer(combatant)?' · '+(members.isField(combatant)?(state.readyPlayers?.[members.playerId(combatant)]?.ready===true&&Number(state.readyPlayers[members.playerId(combatant)].round)===Number(state.encounter?.round||1)?'LISTO':'PREPARANDO'):'FUERA DEL COMBATE'):''} · ${skillIdsFor(combatant).length} skills${spriteFor(combatant) ? ' · sprite' : ''}</span><button data-remove="${esc(id)}">×</button></div>`).join('')
+        ? Object.entries(state.combatants).map(([id, combatant]) => `<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><span style="flex:1">${esc(nameFor(combatant, id))}${fieldSpaceLabel(combatant)} · ${esc(combatant.faction || '')}${members?.isPlayer(combatant)?' · '+(members.isField(combatant)?(state.readyPlayers?.[members.playerId(combatant)]?.ready===true&&Number(state.readyPlayers[members.playerId(combatant)].round)===Number(state.encounter?.round||1)?'LISTO':'PREPARANDO'):'FUERA DEL COMBATE'):''} · ${skillIdsFor(combatant).length} skills${spriteFor(combatant) ? ' · sprite' : ''}</span><button data-remove="${esc(id)}">×</button></div>`).join('')
         : '<div style="opacity:.65">Aún no hay combatientes desplegados.</div>';
+      const deployment = global.LuminousCombatDeploymentRuntime;
+      if (deployment) roster.insertAdjacentHTML('afterbegin', `<div class="combat-field-space" style="margin-bottom:6px">Espacio en campo · Aliados ${deployment.fieldSpaceUsed(state.combatants,'ally')}/${deployment.FIELD_CAP_PER_SIDE} · Enemigos ${deployment.fieldSpaceUsed(state.combatants,'enemy')}/${deployment.FIELD_CAP_PER_SIDE}</div>`);
       if(reserveRows)roster.insertAdjacentHTML('beforeend',`<div style="margin-top:8px"><b>Refuerzos en reserva</b>${reserveRows}</div>`);
       if(progress?.total)roster.insertAdjacentHTML('afterbegin',`<div class="combat-participant-progress">Participantes: ${progress.total} · Listos ${progress.ready}/${progress.total}</div>`);
       roster.querySelectorAll('[data-remove]').forEach((button) => {
