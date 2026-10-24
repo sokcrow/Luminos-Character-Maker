@@ -3270,6 +3270,11 @@ function ensureEntryConcentration(entry){
   entry._concentrationId=state?.id||null;return state
 }
 function applySkillStatusEffects(entry,targetId,trigger,context={}){
+  if(trigger==='[On Evade]' && String(entry?.plan?.data?.id||'')==='sapphire_spiderling_skittering_evasion'){
+    const spiderling=combatData[entry.ownerId];
+    if(spiderling?.lastSpiderlingEvadeHasteRound===round)return;
+    if(spiderling)spiderling.lastSpiderlingEvadeHasteRound=round;
+  }
   window.LuminousCombatEventRuntime?.notify(trigger,combatData[entry?.ownerId],{target:combatData[targetId],...context});
   if(window.LuminousCombatEventRuntime&&['on_hit','clash_win'].includes(window.LuminousCombatEventRuntime.normalizeTrigger(trigger)))renderStatusEffects(entry.ownerId);
   const data=entry?.plan?.data||{},sourceType=data.sourceType||(isSpellSkill(data)||entry?.plan?.type==='spells'||data.kind==='spell'?'magic':'skill'),sourceElement=normalizeElement(data.element||'');
@@ -6938,6 +6943,7 @@ function combatStepRuntime(){
     rollSide:chance=>window.LuminousCoinEngine.rollSide(chance),coinSrc:side=>window.LuminousCoinEngine.coinSrc(side)};
   names.forEach(name=>{rules[name]=(...args)=>window[name](...args)});
   rules.caveEvadeBonus=(unit,plan)=>window.LuminousCaveSapphireSpiderRuntime?.evadeBonus?.(unit,plan)||0;
+  rules.caveEvadePower=(unit,plan)=>window.LuminousCaveSapphireSpiderRuntime?.evadePower?.(unit,plan)||null;
   combatStepsInstance=window.LuminousCombatSteps.create({rules,
     publish:()=>window.LuminousCombatAuthority073?.publishPresentation?.(),
     schedulePresentation:()=>window.LuminousCombatPlaybackSync?.schedulePresentation?.(),
