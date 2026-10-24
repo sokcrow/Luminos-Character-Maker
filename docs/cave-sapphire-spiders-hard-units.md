@@ -1,0 +1,33 @@
+# Sapphire Spider family — Hard Units (Cueva Cristalina)
+
+Both are Hard Units, not Bosses. Only Normal rank, Level 30 native, up to Level 65. HP = floor(HP Base + Coefficient * Level).
+
+| Unit | Size | HP Base | Coefficient | HP L30 | OFF | DEF | Speed |
+|---|---|---:|---:|---:|---|---|---|
+| Sapphire Spider | Large | 48 | 1.50 | 93 | L+2 | L-2 | 1–8 |
+| Sapphire Spiderling | Medium | 30 | 1.20 | 66 | L-1 | L-1 | 1–7 |
+
+Both use the exact same user-provided art, represented for now by a genuine 64×64 WebP thumbnail embedded in js/sapphire-spider-art.js. The original 1254×1254 RGBA PNG is available in the separate handoff ZIP, **not inside this PR**. Upgrade the thumbnail before final visual sign-off.
+
+## Skills
+
+Adult: Prismatic Slash, Crystal Thread, Hunter's Sting; Faceted Evasion. Passive Swift Predator.
+Spiderling: Shard Claws, Silken Snare; Skittering Evasion. Passive Brood Instinct. The Spiderling does not have an S3.
+
+The live Combat runtime executes conditional Coin effects and speed-based bonuses: adult 1 Haste per 3 Poise Potency at Turn Start, +5% Damage per positive Speed difference capped +20%; juvenile 1 Haste per 4 Poise Potency capped 2, damage speed bonus capped +10%. Faceted Evasion gains up to +3 Final Defense Power from Poise Count, and Skittering Evasion up to +2. Both Evades compute base and Coin Power dynamically from current DEX. Juvenile Evade Haste activates at most once per Turn.
+
+Crystal Thread can apply up to 3 Restrained on its critical final Coin. Hunter's Sting can apply Fragile on restrained targets and boosts its final Coin Crit Damage by +20% against Restrained.
+
+**Poise runtime compatibility:** The live Status store discards Potency-only Poise stacks when Count=0. To prevent user-authored Potency gains from vanishing, three initial Poise grants include a minimal +1 Count where otherwise required. This is a deliberate small implementation deviation, not a change to all Poise rules.
+
+## Mineral corpse loot
+
+Body profiles are mineral, materials stone and crystal; never edible. Recoverable families: hard_parts (crystal fragments) and hard_cover_modular (stone carapace), mapped to existing hard_exotic material items. No biological organs, meat, blood, gear or currency.
+
+The existing postcombat resolver maps mineral bodies and stone/crystal material to Salvage / Desmontar (Arcana INT; base DC 10, +8 DC if unproficient), never Medicine-based Extract.
+
+## Compatibility and validation
+
+Live engine resistance bands are WEAK x1.5, NORMAL x1, RESIST x0.5. These units use Slash WEAK, Pierce RESIST, Blunt NORMAL and Pride RESIST. Previous proposal-only Pierce x0.75 is not directly supported by current resistance bands.
+
+Smoke command: node tests/cave-sapphire-spiders-smoke.mjs. It is wired to the Loot Foundation Validation PR workflow. Workflows and Codex review are left to GitHub after PR creation.

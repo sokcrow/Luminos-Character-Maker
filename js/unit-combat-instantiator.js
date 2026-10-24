@@ -93,6 +93,9 @@
     if (species.includes('wolf') || id.includes('wolf') || catalog.includes('wolf')) {
       return global.LuminousWolfUnitCatalog || safeRequire('./unit-catalog-wolf.js');
     }
+    if (id === 'sapphire_spider' || id === 'sapphire_spiderling' || catalog === 'cave-sapphire-spider') {
+      return global.LuminousCaveSapphireSpiderUnitCatalog || safeRequire('./unit-catalog-cave-sapphire-spiders.js');
+    }
     return null;
   }
 
