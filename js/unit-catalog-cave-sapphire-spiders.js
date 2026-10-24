@@ -43,7 +43,7 @@
       offensiveLevelModifier, defensiveLevelModifier, offensiveLevel:30+offensiveLevelModifier,
       defensiveLevel:30+defensiveLevelModifier,
       allowedRanks:['normal'], rank:'normal', staggerThresholds:thresholds,
-      resistances: {SLASH:'WEAK', PIERCE:'RESIST', BLUNT:'NORMAL'},
+      resistances: {SLASH:'WEAK', PIERCE:'RESIST', BLUNT:'NORMAL', PRIDE:'RESIST'},
       sinResistances: {wrath:1,lust:1,sloth:1,gluttony:1,gloom:1,pride:.5,envy:1},
       primarySin: 'pride',
       actionSlots:1, activeSlots:1, action_slots:skills, traitIds:traits.map(x=>x.id),
