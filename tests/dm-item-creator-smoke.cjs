@@ -28,6 +28,8 @@ assert.equal(result.definition.equipment.handCost,2);
 assert.equal(result.definition.icon,icons.resolveIcon("weapon_sword"));
 assert.equal(result.definition.runtime.equipmentEffects[0].skill,"athletics");
 assert.equal(result.definition.stackable,false);
+assert.equal(result.definition.conditionMax,100);
+assert.equal(model.buildDefinition({...base,conditionMax:0},id,{iconRegistry:icons}).ok,false);
 const instance=inventory.createItemInstance(result.definition,{quantity:1});
 const granted={...result.definition,...instance};
 const serialized=persistence.serializeInventoryState({inventario_activo:{[instance.instanceId]:granted},inventario_stash:{},equipment:{mainHand:granted,offHand:granted}});
