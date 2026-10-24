@@ -60,6 +60,8 @@
     if (clean(draft.description,2001).length>2000) errors.push("La descripción supera 2000 caracteres.");
     if (draft.iconFamily && options.iconRegistry?.get && !options.iconRegistry.get(draft.iconFamily,{fallback:false}))
       errors.push("Selecciona un icono del registro oficial.");
+    const durability=number(draft.conditionMax ?? 100);
+    if (!Number.isSafeInteger(durability) || durability<1 || durability>100000) errors.push("La resistencia máxima debe estar entre 1 y 100000.");
     const handCost=number(draft.handCost);
     if (category==="weapon" && ![1,2].includes(handCost)) errors.push("Elige si el arma ocupa una o dos manos.");
     const hp=number(draft.hpRestore || 0),sp=number(draft.spRestore || 0);
@@ -101,6 +103,7 @@
       category,tipo_categoria:category,itemType:category,tier:draft.tier,
       priceAhn:price,price,costo:price,valorBase:price,currency:"AHN",
       stackable:single?false:draft.stackable===true,
+      conditionMax:Number(draft.conditionMax ?? 100),
       iconFamily,icon,icono:icon,
       tags:[category,...String(draft.tags || "").split(",").map(slug).filter(Boolean)].filter((x,i,a)=>a.indexOf(x)===i),
       dmCustomDefinition:true,
