@@ -6,10 +6,10 @@ La UI `js/player-postcombat-loot.js` utiliza `js/loot-live-postcombat-runtime.js
 
 1. El DM finaliza un encuentro como `victory` y el motor congela las Loot Instances. El menú del jugador solo aparece cuando hay restos de la victoria en la cola de `campaña/loot_encounters`.
 2. El jugador selecciona un cadáver y solicita una reserva de `campaña/loot_claims/<lootInstanceId>` (una por cadáver). Solo el propietario puede interactuar. La reserva caduca a los 90 segundos y se renueva mientras la UI está abierta; al cerrar, cambiar o pulsar «Soltar cadáver», se libera.
-3. El jugador elige **Buscar, Sustraer, Cosechar, Extraer, Desmontar, Examinar o Autopsia**. Los checks se animan en el cliente; la resolución autoritativa se recompone en el DM a partir del resultado de las monedas y del estado guardado.
+3. El jugador elige **Buscar, Sustraer, Cosechar, Extraer, Examinar, Recordar criatura** o el estudio anatómico correspondiente (**Autopsia, Desmontar, Estudio arcano o Estudio celestial**). Los checks se animan en el cliente; la resolución autoritativa se recompone en el DM a partir del resultado de las monedas y del estado guardado.
 4. **Buscar** revela las pertenencias y el dinero restante **para todos los jugadores** si tiene éxito. No entrega objetos, no acredita Ahn y no consume existencias. En **Cadáver** cada casilla ocupada sin revelar muestra **???**, sin nombre, icono, cantidad ni tooltip que filtre su contenido. Las casillas vacías no se simulan como botín oculto.
 5. **Recoger** es una elección posterior, sin nueva tirada: el propietario de la reserva selecciona una instancia revelada o el dinero revelado. Se retira únicamente esa pila o ese dinero y se actualiza el inventario compartido. Los demás objetos permanecen para el siguiente jugador. La autoridad rechaza objetivos ocultos, inexistentes o agotados.
-6. El apartado **Cuerpo** comienza oculto y solo muestra la lista de recursos disponibles/agotados tras un check exitoso de **Examinar** o **Autopsia**. Los recursos ya recuperados también se muestran al personaje que los obtuvo.
+6. El apartado **Cuerpo** comienza oculto y solo muestra la lista de recursos disponibles/agotados tras un check exitoso de **Examinar** o del **estudio anatómico correspondiente**. Los recursos ya recuperados también se muestran al personaje que los obtuvo.
 7. Lo obtenido se acredita en Active Inventory / Stash, Ahn y Compendium a través del runtime existente. Si no hay capacidad, se conserva una **entrega pendiente**, reclamable más tarde.
 8. La cola se puede retirar desde la vista del DM; su cierre retira el acceso al menú.
 
@@ -21,20 +21,26 @@ Cada acción usa una Skill específica. Si el personaje carece de Proficiency co
 | --- | --- | --- | --- |
 | Buscar | Investigation (INT) | 10 | 18 |
 | Sustraer | Sleight of Hand (DEX) | 10 | 18 |
-| Cosechar | Survival (WIS) | 10 | 18 |
-| Extraer | Medicine (WIS) | 12 | 20 |
-| Desmontar | Arcana (INT) | 10 | 18 |
+| Cosechar: biológico | Survival (WIS) | 10 | 18 |
+| Cosechar: mecánico | Arcana (INT) | 10 | 18 |
+| Cosechar: rocoso | Athletics (STR) | 10 | 18 |
+| Extraer: biológico | Medicine (WIS) | 12 | 20 |
+| Extraer: constructo/componentes artificiales | Arcana (INT) | 12 | 20 |
+| Desmontar: estudiar constructos | Arcana (INT) | 10 | 18 |
 | Examinar | Investigation (INT) | 10 | 18 |
 | Autopsia | Medicine (WIS) | 12 | 20 |
+| Estudio arcano | Arcana (INT) | 12 | 20 |
+| Estudio celestial | Religion (INT) | 12 | 20 |
+| Recordar criatura | History (INT) | 10 | 18 |
 
 Autopsia puede admitir Investigation como skill alternativa cuando el motor reciba explícitamente esa opción; en tal caso se aplica la competencia de Investigation.
 
 Los grants explícitos de conocimiento por clase o Trait pueden eximir el +8 en su acción pertinente. Por ejemplo:
 
 ```js
-player.lootKnowledge = { anatomy: true }; // cosechar, extraer, autopsia
+player.lootKnowledge = { anatomy: true }; // actividades biológicas, no Athletics/Arcana
 player.traits = [{ id: "anatomist", grants: { lootKnowledge: { autopsy: true, extract: true } } }];
-player.classFeatures = [{ id: "arcane_scholar", lootKnowledge: { salvage: true } }];
+player.classFeatures = [{ id: "arcane_scholar", lootKnowledge: { dismantle: true, arcane_autopsy: true } }];
 ```
 
 Estos son ejemplos del contrato, no Trait/Clase otorgados automáticamente por nombre. Conocer Medicina **no elimina** el penalizador de Survival al Cosechar: solo una Proficiency en Survival o un grant de conocimiento autorizado lo elimina.
@@ -43,7 +49,28 @@ Estos son ejemplos del contrato, no Trait/Clase otorgados automáticamente por n
 
 - **Examinar** no mueve ítems ni extrae órganos: por check de Investigation revela hechos para el Compendium sobre equipo observado, zona/eventos del encuentro, botín previamente identificado y rarezas plausibles. Puede identificar el nivel defensivo con un margen de éxito de al menos 10 si está disponible.
 - **Autopsia**, por check de Medicine, registra biología (materiales, tamaño, anatomía), recursos recuperables, sustancias valiosas, usos conocidos y comestibilidad. Con gran margen de éxito puede registrar Constitución si ese dato existe.
-- La vista del HUD permite abrir el panel de recursos corporales después de un Examinar o Autopsia exitosos. Es una regla de visualización; no significa que Examinar por sí mismo haya extraído nada ni que cree loot.
+- La vista del HUD permite abrir el panel de recursos corporales después de Examinar o de cualquier estudio anatómico exitoso. Es una regla de visualización; no significa que Examinar por sí mismo haya extraído nada ni que cree loot.
+
+### Material y estudio anatómico
+
+La skill de recuperación se decide por el recurso seleccionado y el cuerpo congelado, no por una skill enviada por el cliente. En cuerpos mixtos, una tirada de Cosechar solo recupera recursos compatibles con esa skill. Sin selección, se usa el primer recurso elegible restante tanto en el HUD como en la autoridad.
+
+- Extraer recupera órganos delicados o componentes modulares. Cosechar recupera los materiales generales y estructurales. Un constructo de piedra usa Athletics para Cosechar y Arcana para Extraer.
+- Desmontar (`dismantle`) es ahora el estudio de constructos y cuerpos sintéticos: registra composición, recursos y usos; no entrega ni consume componentes. Extraer reemplaza su antigua función de recuperación. Los intentos históricos `salvage` se conservan y no cuentan como estudios.
+- Autopsia conserva Medicine y la alternativa explícita de Investigation para la información correspondiente.
+- Estudio arcano se ofrece para feéricos, aberraciones, elementales, monstruosidades, dragones, no muertos y cuerpos etéreos. Estudio celestial usa Religion para celestiales. Los constructos tienen prioridad y utilizan Desmontar.
+- Cada cadáver ofrece el estudio correspondiente a su anatomía, además de Examinar. Los estudios arcanos/celestiales no revelan Constitución ni comestibilidad médica por defecto.
+- Las instantáneas nuevas conservan tipo de criatura y materiales. Los cadáveres antiguos consultan el tipo canónico como compatibilidad sin regenerar recursos, equipo ni entregas.
+
+### Historia dentro y fuera del combate
+
+**Compendio** está disponible en la hoja del jugador y las superficies de combate. Lista únicamente criaturas ya registradas, restos de encuentros en los que participó el personaje y enemigos desplegados visibles en su combate actual.
+
+**Recordar · Historia** realiza el check canónico de cinco Coins y registra únicamente el nombre y la descripción básica en `lore.basic_description`. Se puede usar durante Planning y fuera de combate; durante la resolución se permite leer lo aprendido. No revela skills ocultas, atributos, inventarios ni el stat block.
+
+La descripción procede de `basicDescription`, `description`, `descripcion` o `lore.description` de la unidad canónica. Si no existe, se informa de que no hay descripción disponible sin inventar contenido ni gastar un intento de recuerdo. La creación de descripciones ausentes del catálogo queda fuera de este cambio.
+
+Los resultados de Historia se guardan en el Compendio propio mediante transacción. La consulta tiene un intento por criatura y encuentro (o contexto de exploración), y la descripción descubierta persiste al reabrir. El acceso post-combate desde el cadáver conserva la autoridad y reserva del motor de Loot. El Compendio usa los permisos de escritura existentes del propio jugador; no modifica recursos compartidos.
 
 ## Sprite y sustracción
 
@@ -89,3 +116,5 @@ La reducción se aplica una sola vez por Encounter al pasar por `LuminousCombatS
 ## Verificación
 
 Las regresiones cubren búsqueda sin transferencia, revelación compartida, recogida elegida, robo aleatorio sin revelar, exclusión de objetos agotados y conservación de armas/condición. `tests/loot-shared-belongings.spec.mjs` prueba el HUD real con Firebase Auth/RTDB emulados, DM y dos jugadores, cambio de propietario del cadáver, recarga y los seis tamaños exigidos por TX-01. Estas pruebas no despliegan ni modifican la campaña de producción.
+
+`tests/loot-anatomy-variants-smoke.mjs` cubre la matriz contextual, competencia real, cuerpos mixtos, recursos finitos y límites de divulgación de Historia. La aceptación Auth/RTDB en `tests/loot-shared-belongings.spec.mjs` incluye las variantes y el Compendio en los seis viewports TX-01.

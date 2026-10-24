@@ -39,7 +39,7 @@
     "js/creature-type-catalog.js",
     "js/loot-social-profile-contract.js",
     "js/loot-encounter-context.js",
-    "js/corpse-harvest-runtime.js",
+    "js/corpse-harvest-runtime.js?v=20261024-anatomy-1",
     "js/loot-ammo-reconciliation.js",
     "js/item-catalog-meat.js",
     "js/item-catalog-hide-pelt.js",
@@ -52,10 +52,10 @@
     "js/item-catalog-feather-raw-fiber.js",
     "js/item-catalog-salvage-raw.js",
     "js/unit-catalog-kobold-tier1.js?v=20261023-shared-belongings-1",
-    "js/loot-instance-runtime.js?v=20261023-equipment-1",
-    "js/loot-check-runtime.js?v=20261022-pickpocket-3",
-    "js/loot-knowledge-runtime.js",
-    "js/loot-postcombat-runtime.js?v=20261023-shared-belongings-1",
+    "js/loot-instance-runtime.js?v=20261024-anatomy-1",
+    "js/loot-check-runtime.js?v=20261024-anatomy-1",
+    "js/loot-knowledge-runtime.js?v=20261024-anatomy-1",
+    "js/loot-postcombat-runtime.js?v=20261024-anatomy-1",
     "js/loot-recovery-delivery-runtime.js",
   ]);
 
@@ -301,6 +301,7 @@
         corpseId,
         sourceUnitId,
         sourceUnitInstanceId: unitInstanceId,
+        creatureType: locked.creatureType || "",
         name: clean(entry.unit.name || entry.unit.characterName || sourceUnitId),
         spriteUrl: defeatedSprite(entry.unit, baseTruth),
         finalizedAt: options.now ?? Date.now(),
@@ -398,7 +399,7 @@
     const locked = clone(options.lootInstance || await onceValue(db, `${ROOTS.lootInstances}/${lootInstanceId}`));
     if (!locked?.locked) throw new Error("LOOT_LIVE_LOCKED_INSTANCE_REQUIRED");
     let unitTruth = clone(options.unitTruth || null);
-    if (!unitTruth && ["autopsy", "examine"].includes(actionId)) {
+    if (!unitTruth && postCombat().KNOWLEDGE_ACTIONS.includes(actionId)) {
       unitTruth = await onceValue(db, `${ROOTS.units}/${safeKey(locked.sourceUnitId)}`);
     }
     unitTruth = mergeUnitTruth(unitTruth || {}, {
@@ -409,12 +410,15 @@
 
     const actorIdentityOptions = {
       ...options,
+      state: options.state || await onceValue(db, `${ROOTS.postCombat}/${lootInstanceId}`) || postCombat().createInteractionState(locked),
       actorId: clean(options.actorId || options.playerId),
     };
     const actorId = postCombat().actorIdOf(actor, actorIdentityOptions);
     if (!actorId) throw new Error("POST_COMBAT_ACTOR_ID_REQUIRED");
     const definition = actionId === "collect" ? null : postCombat().checkDefinition(actor, actionId, {
       ...actorIdentityOptions,
+      unitTruth,
+      lootInstance: locked,
       corpseId: locked.corpseId,
     });
     const checkResult = actionId === "collect" ? postCombat().collectionResult() : options.checkResult || checks().rollCheck(definition, options);
@@ -709,11 +713,13 @@
     const searchAvailable = (state.carried || []).some((entry) => int(entry.remaining, 0) > 0) || int(state.currency?.remaining, 0) > 0;
     if (searchAvailable && state.belongingsRevealed !== true && !postCombat().hasAttempted(state, actorId, "search", {})) actions.push("search");
     if (searchAvailable && !postCombat().hasAttempted(state, actorId, "pickpocket", {})) actions.push("pickpocket");
-    for (const id of ["harvest", "extract", "salvage"]) {
+    for (const id of ["harvest", "extract"]) {
       if (postCombat().eligibleResources(state, id).length && !postCombat().hasAttempted(state, actorId, id, {})) actions.push(id);
     }
     if (!postCombat().hasAttempted(state, actorId, "examine", {})) actions.push("examine");
-    if (!postCombat().hasAttempted(state, actorId, "autopsy", {})) actions.push("autopsy");
+    const study = checks().anatomyContext({...options, state}).studyAction;
+    if (!postCombat().hasAttempted(state, actorId, study, {})) actions.push(study);
+    if (!postCombat().hasAttempted(state, actorId, "history", {})) actions.push("history");
     return deepFreeze(actions);
   }
 
@@ -835,7 +841,12 @@
       return {committed:result.committed,check:result.check,materialized:result.materialized||null,
         delivery:result.delivery?{delivered:result.delivery.delivered,duplicate:result.delivery.duplicate===true}:null};
     }
-    if (!['search','pickpocket','harvest','extract','salvage','examine','autopsy'].includes(row.actionId)) throw Error('Esta acción de recuperación no está disponible.');
+    if (!['search','pickpocket','harvest','extract','dismantle','examine','autopsy','arcane_autopsy','divine_autopsy','history'].includes(row.actionId)) throw Error('Esta acción de recuperación no está disponible.');
+    const [interaction, unitTruth] = await Promise.all([
+      onceValue(db, `${ROOTS.postCombat}/${row.lootInstanceId}`),
+      onceValue(db, `${ROOTS.units}/${safeKey(locked.sourceUnitId)}`),
+    ]);
+    Object.assign(options, {state: interaction || postCombat().createInteractionState(locked), unitTruth: unitTruth || {}});
     const definition = postCombat().checkDefinition(options.actor,row.actionId,options);
     const heads = Number(row.checkHeads);
     if (!Number.isInteger(heads) || heads < 0 || heads > definition.coinCount) throw Error('La tirada de recuperación no es válida.');

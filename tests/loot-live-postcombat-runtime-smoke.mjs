@@ -476,7 +476,7 @@ const legacyCash = await live.executeAction({db,lootInstanceId:legacyLoot.lootIn
 assert.equal(legacyCash.delivery.delivered,true, 'sole legacy searcher can collect the remainder directly');
 assert.equal(getPath(db.data, 'campaña/jugadores/searcher/ahn'),145, 'only remaining 35 Ahn are delivered');
 const savedLegacy = getPath(db.data, 'campaña/loot_postcombat/loot_live_legacy');
-assert.equal(savedLegacy.runtimeVersion,3, 'authority persists migration in the collection transaction');
+assert.equal(savedLegacy.runtimeVersion,postCombat.VERSION, 'authority persists migration in the collection transaction');
 assert.equal(savedLegacy.carried[0].remaining,0);
 assert.deepEqual(savedLegacy.attempts[0],legacyAttempt);
 for (const [id,receipt] of Object.entries(oldReceipts)) {

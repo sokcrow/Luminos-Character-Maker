@@ -12,6 +12,9 @@ on:
       - js/loot-instance-runtime.js
       - js/loot-live-postcombat-runtime.js
       - js/player-postcombat-loot.js
+      - js/creature-compendium-ui.js
+      - tests/creature-compendium-context-smoke.mjs
+      - tests/loot-anatomy-variants-smoke.mjs
       - tests/player-postcombat-loot-auth-smoke.mjs
       - tests/loot-mobile-queue-smoke.mjs
       - css/postcombat-loot-corpse.css
@@ -50,6 +53,7 @@ jobs:
           node --check js/loot-live-postcombat-runtime.js
           node tests/player-postcombat-loot-auth-smoke.mjs
           node tests/loot-mobile-queue-smoke.mjs
+          node tests/creature-compendium-context-smoke.mjs
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

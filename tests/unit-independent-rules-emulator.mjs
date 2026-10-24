@@ -55,7 +55,7 @@ async function sdkClient(user,name){
 }
 function productionBrowser(db,search=''){
   const database=()=>db;database.ServerValue=firebase.database.ServerValue;
-  const browser={location:{search},firebase:{database},console,addEventListener(){},setTimeout(){return 1},clearTimeout(){}};
+  const browser={location:{search},firebase:{database},Math:Object.create(Math),console,addEventListener(){},setTimeout(){return 1},clearTimeout(){}};
   const context=vm.createContext({window:browser,URLSearchParams});
   for(const file of ['combat-context','combat-participants','combat-session-lifecycle'])vm.runInContext(fs.readFileSync(`js/${file}.js`,'utf8'),context,{filename:file});
   return {db:browser.firebase.database(),session:browser.LuminousCombatSession,browser,context};
