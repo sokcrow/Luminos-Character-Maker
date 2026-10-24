@@ -97,13 +97,17 @@ jobs:
           source = smoke.read_text()
           source = source.replace("const spritePath = 'Assets/Images/Units/Cave_Crystal/sapphire_spider.webp';",
                                   f"const spritePath = '{output.as_posix()}';")
-          old = """assert.equal(rendered.toString('ascii', 0, 4), 'RIFF');
-          assert.equal(rendered.toString('ascii', 8, 12), 'WEBP');
-          assert.ok(rendered.length > 2000, 'A real binary image asset, not a data URL or placeholder');"""
-          new = """assert.ok(rendered.length > 20000, 'Sprite must be a full-resolution repository asset');
-          if (spritePath.endsWith('.png')) assert.equal(rendered.toString('hex', 0, 8), '89504e470d0a1a0a');
-          else if (spritePath.endsWith('.jpg')) assert.equal(rendered.toString('hex', 0, 2), 'ffd8');
-          else if (spritePath.endsWith('.webp')) assert.equal(rendered.toString('ascii', 0, 4), 'RIFF');"""
+          old = "\n".join((
+              "assert.equal(rendered.toString('ascii', 0, 4), 'RIFF');",
+              "assert.equal(rendered.toString('ascii', 8, 12), 'WEBP');",
+              "assert.ok(rendered.length > 2000, 'A real binary image asset, not a data URL or placeholder');",
+          ))
+          new = "\n".join((
+              "assert.ok(rendered.length > 20000, 'Sprite must be a full-resolution repository asset');",
+              "if (spritePath.endsWith('.png')) assert.equal(rendered.toString('hex', 0, 8), '89504e470d0a1a0a');",
+              "else if (spritePath.endsWith('.jpg')) assert.equal(rendered.toString('hex', 0, 2), 'ffd8');",
+              "else if (spritePath.endsWith('.webp')) assert.equal(rendered.toString('ascii', 0, 4), 'RIFF');",
+          ))
           if old not in source:
               raise SystemExit('Smoke test no longer matches expected asset check')
           smoke.write_text(source.replace(old, new))
