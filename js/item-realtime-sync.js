@@ -96,6 +96,8 @@
       return JSON.stringify({
         active: data.inventario_activo || {},
         stash: data.inventario_stash || {},
+        refs: data.equipmentRefs || data.itemEquipmentRefs || {},
+        augments: value?.augmentations || value?.augments || value?.bodyAugmentations || [],
       });
     }
 
