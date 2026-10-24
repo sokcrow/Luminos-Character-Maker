@@ -37,3 +37,23 @@
 #game-container.round-running .combat-stage-layer {
   transition:transform .46s cubic-bezier(.18,.76,.22,1);
 }
+
+/* Body and floor grow independently; action controls retain their readable size. */
+.sprite-container .top-ui-panel { top:var(--creature-panel-top,60px)!important; }
+.sprite-container .diegetic-floor {
+  width:calc(220px * var(--creature-floor-scale,1));
+  height:calc(220px * var(--creature-floor-scale,1));
+  bottom:calc(-110px * var(--creature-floor-scale,1));
+}
+
+/* Only Tiny uses a 75% information HUD. The action panel and its
+   hit targets stay outside these scales for every creature size. */
+.sprite-container .floating-hp-group,
+.sprite-container .floating-sp-group,
+.sprite-container .status-effect-strip,
+.sprite-container .shield-number,
+.sprite-container .speed-number { scale:var(--creature-hud-scale,1); }
+.sprite-container .floating-hp-group,
+.sprite-container .shield-number { transform-origin:left bottom!important; }
+.sprite-container .floating-sp-group { transform-origin:right bottom!important; }
+.sprite-container .speed-number { transform-origin:right top!important; }

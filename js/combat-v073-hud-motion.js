@@ -115,24 +115,35 @@
       if(moving||resized)scheduleStatusLayout();
     });
   }
+  function refreshTargets(value=ui()) {
+    const targets=byId('combat-target-list');
+    if(!targets)return;
+    targets.hidden=!value.targeting||Boolean(value.running);
+    if(targets.hidden){targets.dataset.choices='';return;}
+    const choices=[...doc.querySelectorAll('.action-slot-wrapper.target-valid')];
+    const labels=choices.map(slot=>`${name(slot.dataset.ownerId)} · Slot ${Number(slot.dataset.slotIndex)+1}`);
+    const key=JSON.stringify(choices.map((slot,index)=>[slot.id,labels[index]]));
+    if(targets.dataset.choices===key)return;
+    targets.dataset.choices=key;targets.replaceChildren();
+    choices.forEach((slot,index)=>{
+      const button=doc.createElement('button');button.type='button';
+      button.dataset.targetOwner=slot.dataset.ownerId;
+      button.dataset.targetSlot=slot.dataset.slotIndex;
+      button.textContent=labels[index];
+      // Resolve the current slot through the combat API; hydration can replace DOM nodes.
+      button.onclick=()=>{runtime()?.chooseTarget?.(button.dataset.targetOwner,Number(button.dataset.targetSlot));refresh();};
+      targets.appendChild(button);
+    });
+    if(!choices.length){
+      const empty=doc.createElement('span');empty.textContent='No hay objetivos válidos para esta acción.';targets.appendChild(empty);
+    }
+  }
   function refresh(){
     if(!state.mounted)return;
     const host=byId('game-container'),value=ui(),role=global.LuminousCombatLiveAdapter073?.state?.role;
     const small=compact();if(host.classList.contains('compact-combat-hud')!==small)host.classList.toggle('compact-combat-hud',small);
     const categoryOpen=value.nav!=='root';if(host.classList.contains('hud-category-open')!==categoryOpen)host.classList.toggle('hud-category-open',categoryOpen);
-    const targets=byId('combat-target-list');
-    if(targets){
-      targets.hidden=!small||!value.targeting||Boolean(value.running);
-      if(!targets.hidden){
-        const choices=[...doc.querySelectorAll('.action-slot-wrapper.target-valid')];
-        const key=choices.map(slot=>slot.id).join('|');
-        if(targets.dataset.choices!==key){targets.dataset.choices=key;targets.replaceChildren();
-          for(const slot of choices){const id=slot.dataset.ownerId,button=doc.createElement('button');button.type='button';button.dataset.targetOwner=id;
-            button.textContent=`${name(id)} · Slot ${Number(slot.dataset.slotIndex)+1}`;
-            button.onclick=()=>{global.choosePlayerTarget?.(slot);refresh();};targets.appendChild(button);}
-        }
-      }else targets.dataset.choices='';
-    }
+    refreshTargets(value);
     const network=byId('status')?.textContent||'';
     const s=global.LuminousCombatLiveAdapter073?.state,ready=global.LuminousCombatAuthority073?.state.readyRows||{};
     const group=global.LuminousCombatParticipants?.progress(s?.combatants,ready,value.round);
@@ -186,6 +197,6 @@
     if(global.MutationObserver&&byId('status'))new global.MutationObserver(refresh).observe(byId('status'),{childList:true,characterData:true,subtree:true});
     refresh();
   }
-  global.LuminousCombatHudMotion073=Object.freeze({state,compact,reduced,entryPose,canRead,event,cue,refresh,layoutCommands,layoutCategory,placeClashHud,layoutClashForecast,statusViewportOffset,layoutStatusHud,scheduleStatusLayout,clearMotion,applyPreference,mount});
+  global.LuminousCombatHudMotion073=Object.freeze({state,compact,reduced,entryPose,canRead,event,cue,refresh,refreshTargets,layoutCommands,layoutCategory,placeClashHud,layoutClashForecast,statusViewportOffset,layoutStatusHud,scheduleStatusLayout,clearMotion,applyPreference,mount});
   mount();
 })(window);

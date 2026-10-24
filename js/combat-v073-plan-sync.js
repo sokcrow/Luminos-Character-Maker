@@ -241,7 +241,7 @@
       loadBridge('combat-v073-universal-library-script','js/universal-library-runtime.js',()=>Boolean(global.LuminousUniversalLibrary)),
       loadBridge('combat-v073-library-client-script','js/combat-v073-library-client.js',()=>Boolean(global.LuminousCombatLibraryClient073)),
       loadBridge('combat-deployment-runtime-script','js/combat-deployment-runtime.js',()=>Boolean(global.LuminousCombatDeploymentRuntime)),
-      loadBridge('combat-v073-deployment-bridge-script','js/combat-v073-deployment-bridge.js?v=20261021-encounter-3',()=>Boolean(global.LuminousCombatDeploymentBridge073)),
+      loadBridge('combat-v073-deployment-bridge-script','js/combat-v073-deployment-bridge.js?v=20261024-creature-space-1',()=>Boolean(global.LuminousCombatDeploymentBridge073)),
       loadBridge('unit-rank-runtime-script','js/unit-rank-runtime.js',()=>Boolean(global.LuminousUnitRankRuntime)),
       loadBridge('combat-v073-authority-script','js/combat-v073-authority.js?v=20261022-shared-clock-1',()=>Boolean(global.LuminousCombatAuthority073)),
       loadBridge('combat-v073-runtime-hotfix-script','js/combat-v073-runtime-hotfix.js?v=20261021-encounter-3',()=>Boolean(global.LuminousCombatRuntimeHotfix073)),

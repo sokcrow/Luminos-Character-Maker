@@ -2,6 +2,7 @@ import {test,expect} from '@playwright/test';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import {freezeBenchmarkSpeeds,hasVisibleCombatCoin} from './helpers/combat-performance-workload.mjs';
 const root=process.cwd(),project='demo-combat-results',ns=project+'-default-rtdb',base='http://127.0.0.1:4173';
 let server,dm,player,friend,initial;const errors=[],production=[];
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -122,6 +123,7 @@ test('performance: visible combat with one player, one kobold, 1 and 3 coins, th
   campaign.combate.combatants['player:p1'].hp=10000;campaign.combate.combatants['player:p1'].maxHp=10000;
   for(const s of Object.values(campaign.base_datos_skills)){s.coinAmount=coins;s.coins=Array.from({length:coins},()=>({effects:[]}));}
   for(let n=1;n<enemies;n++)campaign.combate.combatants['kobold'+n]={...clone(campaign.combate.combatants.kobold),id:'kobold'+n,name:'Kobold '+n};
+  freezeBenchmarkSpeeds(campaign.combate.combatants,'player:p1','kobold');
   await admin('campaña','PUT',campaign);
   const dc=await setupContext(browser),pc=await setupContext(browser,true);
   await instrument(dc);await instrument(pc);
@@ -133,7 +135,28 @@ test('performance: visible combat with one player, one kobold, 1 and 3 coins, th
    await profiler.send('Profiler.enable');await profiler.send('Profiler.start');
    await startMeasure(df);await startMeasure(pf);
    const t=Date.now();await choose(pf);
-   await expect.poll(()=>pf.evaluate(()=>window.__qaCues.some(c=>c.cue==='powerCoin')),{timeout:30000}).toBe(true);
+   try{
+    await expect.poll(async()=>hasVisibleCombatCoin(await pf.evaluate(()=>window.__qaCues)),{timeout:30000,message:'Player must present a real Clash or unilateral hit Coin'}).toBe(true);
+   }catch(error){
+    const snapshot=async f=>f.evaluate(()=>({
+      ui:window.LuminousCombat073?.uiState?.(),delivery:window.LuminousCombatPlanSync073?.delivery,
+      status:document.getElementById('status')?.textContent,cues:window.__qaCues,
+      authority:{phase:window.LuminousCombatAuthority073?.state.current?.phase,
+        running:window.LuminousCombatAuthority073?.state.runningLocal,
+        preparing:window.LuminousCombatAuthority073?.state.preparingRound,
+        error:window.LuminousCombatAuthority073?.state.lastStartError},
+      ready:window.LuminousCombatAuthority073?.state.readyRows,
+    }));
+    const probe=async read=>{let timer;try{return await Promise.race([read(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Diagnostic probe timed out')),5000);})]);}finally{clearTimeout(timer);}};
+    const diagnostics=await Promise.allSettled([
+      probe(()=>snapshot(df)),probe(()=>snapshot(pf)),probe(()=>admin('campaña/combate/estado')),
+      probe(()=>admin('campaña/combate/readyPlayers')),
+      probe(async()=>{const a=await admin('campaña/combate/authority/current');return {id:a?.id,round:a?.round,phase:a?.phase};}),
+    ]);
+    fs.writeFileSync(info.outputPath(`startup-failure-${coins}coins-${enemies}enemies.json`),JSON.stringify(diagnostics,null,2));
+    await Promise.allSettled([dp.screenshot({path:info.outputPath(`startup-failure-dm-${coins}coins-${enemies}enemies.png`),timeout:5000}),pp.screenshot({path:info.outputPath(`startup-failure-player-${coins}coins-${enemies}enemies.png`),timeout:5000})]);
+    throw error;
+   }
    await screenshot(pp,info,`live-${coins}coins-${enemies}enemies`);
    await waitRound(pf,2);await waitRound(df,2);
    const authority=await stopMeasure(df),viewer=await stopMeasure(pf);
@@ -143,6 +166,8 @@ test('performance: visible combat with one player, one kobold, 1 and 3 coins, th
    await saveMetrics(info,`combat-${coins}coins-${enemies}enemies`,metrics);
    await screenshot(pp,info,`combat-${coins}coins-${enemies}enemies`);
    expect(viewer.cues.some(c=>c.cue==='hitMotion')).toBe(true);
+   expect(viewer.cues.some(c=>c.cue==='clashStart'),'The controlled workload must still exercise a Clash').toBe(true);
+   expect(viewer.cues.some(c=>c.cue==='powerCoin'),'The completed workload must still present Clash Coins').toBe(true);
    const canonical=await admin('campaña/combate/combatants');
    const view=await pf.evaluate(()=>Object.fromEntries(Object.entries(window.LuminousCombat073.combatants()).map(([id,u])=>[id,u.hp])));
    for(const [id,u]of Object.entries(canonical))expect(view[id]).toBe(u.hp);
