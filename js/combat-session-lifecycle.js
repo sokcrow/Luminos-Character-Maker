@@ -141,10 +141,11 @@
       return {...raw,estado:{...raw.estado,ending:{...raw.estado.ending,failed:true}}};
     });
   }
-  async function commitEnd({db,uid,result,token}){
+  async function commitEnd({db,uid,result,token,xpAward=null}){
     const response=await updateRoot(db,raw=>{
       if(raw?.estado?.phase!=='ENDING'||raw.estado.ending?.token!==token||raw.estado.ending?.uid!==uid||raw.estado.ending?.result!==result)return;
-      return {...raw,estado:{...raw.estado,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now()}};
+      if(result==='victory'&&(!xpAward||xpAward.encounterId!==raw.estado.encounterId))return;
+      return {...raw,estado:{...raw.estado,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now(),...(result==='victory'?{xpAward:{encounterId:xpAward.encounterId,totalXp:xpAward.totalXp,participantCount:xpAward.participantCount,xpPerParticipant:xpAward.xpPerParticipant,remainderXp:xpAward.remainderXp,missingCr:xpAward.missingCr||[]}}:{})}};
     });
     if(!response.committed)throw Error('El encuentro cambió antes de confirmar el resultado.');
     return response.snapshot.val().estado;
