@@ -82,8 +82,8 @@
     byId("load").addEventListener("click",loadExisting);
     byId("new").addEventListener("click",()=>{if(state.dirty&&!global.confirm("¿Descartar cambios sin guardar?"))return;reset();byId("name").focus();});
     overlay.querySelectorAll("[data-step]").forEach(b=>b.addEventListener("click",()=>setStep(Number(b.dataset.step))));
-    overlay.addEventListener("input",e=>{if(e.target.id!=="dmic-icon-search")state.dirty=true; if(e.target.id==="dmic-icon-search")renderIcons(); renderPreview();});
-    overlay.addEventListener("change",e=>{state.dirty=true;if(e.target.id==="dmic-category"){renderCategory();renderIcons();}if(e.target.id==="dmic-icon")renderIconPreview();renderPreview();});
+    overlay.addEventListener("input",e=>{if(!["dmic-icon-search","dmic-existing"].includes(e.target.id))state.dirty=true; if(e.target.id==="dmic-icon-search")renderIcons(); renderPreview();});
+    overlay.addEventListener("change",e=>{if(e.target.id!=="dmic-existing")state.dirty=true;if(e.target.id==="dmic-category"){renderCategory();renderIcons();}if(e.target.id==="dmic-icon")renderIconPreview();renderPreview();});
     overlay.addEventListener("click",e=>{if(e.target===overlay)close();const remove=e.target.closest("[data-remove-effect]");if(remove){remove.closest(".dmic-effect").remove();state.dirty=true;renderPreview();}});
     doc.addEventListener("keydown",e=>{if(state.open&&e.key==="Escape"){e.preventDefault();close();}});
     reset();
