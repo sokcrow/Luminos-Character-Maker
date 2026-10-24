@@ -61,7 +61,7 @@
   }
 
   function traitStateFor(character) {
-    return state.traitStateByOwner?.get(character) || null;
+    return character?.combatTraitState || state.traitStateByOwner?.get(character) || null;
   }
 
   function recoverMechanics(trait = {}) {
@@ -93,6 +93,7 @@
     const playerId = String(global.localStorage?.getItem?.(PLAYER_ID_STORAGE_KEY) || character.playerId || character.player_id || "").trim();
     if (!db || !playerId) return null;
     const updates = { restResources: clone(character.restResources || {}) };
+    if (character.combatTraitState) updates.combatTraitState = clone(character.combatTraitState);
     if (options.includeHp !== false) {
       const hpCandidates = [character.hp, character.hp_actual, character.currentHp, character.currentHP, character.combatStats?.hp_actual];
       const hp = hpCandidates.find((value) => Number.isFinite(Number(value)));

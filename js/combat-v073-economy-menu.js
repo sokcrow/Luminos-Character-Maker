@@ -254,6 +254,14 @@
         description: clean(trait.description || trait.descripcion || "Trait action."),
       });
     });
+    const shared = global.LuminousUnitIndependentActions;
+    if (shared) {
+      for (const [id, row] of unique) if ([ECONOMY.QUICK, ECONOMY.FREE].includes(economyTabFor(row))) unique.delete(id);
+      for (const row of shared.sourcesFor(unit).filter(row => row.sourceType === "trait")) {
+        const trait = row.definition, id = normalizeId(trait.id);
+        unique.set(id, { ...clone(trait), id, traitId: id, kind: "trait", sourceType: "trait", economyCost: row.cost, cost: costLabel({ actionCost: row.cost }) });
+      }
+    }
     return [...unique.values()];
   }
 
@@ -646,6 +654,7 @@
     const newUnitObject = state.lastEconomyUnit !== unit;
     if (!force && !newRound && !newUnitObject) { syncQuickBadge(); return true; }
     economy.beginPlanning(unit);
+    global.LuminousUnitIndependentActions?.prepareRound(unit, currentRound);
     const runtimeState = economy.ensureState?.(unit);
     if (state.quickSpentRound === currentRound && runtimeState) runtimeState.quickActionRemaining = 0;
     if (state.reactionSpentRound === currentRound && runtimeState) runtimeState.reactionRemaining = 0;
@@ -1316,52 +1325,6 @@
     return null;
   }
 
-  function executeTraitQuickAction(source, action, targetId) {
-    const engine = global.LuminousTraitEngine;
-    if (!engine?.dispatchTrait) return { handled: false, reason: "trait_runtime_unavailable" };
-    const actor = playerUnit();
-    const id = normalizeId(source.id || source.traitId || source.name);
-    let traitState = state.traitStateById.get(id);
-    if (!traitState) { traitState = engine.createState?.() || { usages: {}, ruleScopes: {}, counters: {} }; state.traitStateById.set(id, traitState); }
-    const target = targetId ? combatData()?.[targetId] || null : actor;
-    try {
-      const result = engine.dispatchTrait(source, "on_use", { context: "combat", character: actor, self: actor, actor, target, combatAction: action }, traitState);
-      const hasGenericRuntime = asArray(source.effects).length > 0 || asArray(source.rules).length > 0 || asArray(result?.outcomes).length > 0;
-      return { handled: hasGenericRuntime, result, reason: hasGenericRuntime ? null : "trait_specific_runtime_required" };
-    } catch (error) {
-      return { handled: false, reason: clean(error?.message || error) || "trait_runtime_failed" };
-    }
-  }
-
-  function quickMutationSnapshot(unit = {}, item = null) {
-    return {
-      hp: unit.hp,
-      hpActual: unit.hp_actual,
-      sp: unit.sp,
-      spActual: unit.sp_actual,
-      combatStats: clone(unit.combatStats || null),
-      statusEffects: clone(unit.statusEffects || {}),
-      itemRuntimeEffects: clone(unit.itemRuntimeEffects || []),
-      item: item ? clone(item) : null,
-    };
-  }
-
-  function restoreQuickMutation(unit = {}, item = null, snapshot = null) {
-    if (!snapshot) return false;
-    if (snapshot.hp !== undefined) unit.hp = snapshot.hp;
-    if (snapshot.hpActual !== undefined) unit.hp_actual = snapshot.hpActual;
-    if (snapshot.sp !== undefined) unit.sp = snapshot.sp;
-    if (snapshot.spActual !== undefined) unit.sp_actual = snapshot.spActual;
-    if (snapshot.combatStats) unit.combatStats = clone(snapshot.combatStats);
-    unit.statusEffects = clone(snapshot.statusEffects || {});
-    unit.itemRuntimeEffects = clone(snapshot.itemRuntimeEffects || []);
-    if (item && snapshot.item) {
-      Object.keys(item).forEach((key) => { if (!Object.prototype.hasOwnProperty.call(snapshot.item, key)) delete item[key]; });
-      Object.assign(item, clone(snapshot.item));
-    }
-    return true;
-  }
-
   async function persistQuickItemState(unit = {}) {
     const adapterState = global.LuminousCombatLiveAdapter073?.state;
     const db = adapterState?.db;
@@ -1403,79 +1366,40 @@
     }
   }
 
-  function requestQuickResolution(sel, action, targetId) {
-    const detail = { version: VERSION, action, source: clone(sel.data || {}), sourceType: sel.type, targetId, handled: false, result: null };
-    try { global.dispatchEvent(new CustomEvent("luminous:combat073-quick-action-request", { detail })); } catch (_) {}
-    if (detail.handled) return { handled: true, result: detail.result };
-    if (sel.type === "trait") return executeTraitQuickAction(sel.data || {}, action, targetId);
-    if (sel.type === "item" || sel.type === "items") {
-      const unit = playerUnit(), runtime = global.LuminousItemRuntime;
-      const liveItem = findActiveInventoryItem(unit || {}, sel.data || {});
-      if (!unit || !liveItem) return { handled: false, reason: "active_inventory_item_missing" };
-      if (!runtime?.useItem) return { handled: false, reason: "item_runtime_unavailable" };
-      const target = targetId ? combatData()?.[targetId] || null : unit;
-      const result = runtime.useItem(unit, liveItem, { phase: "planning", target, ignoreActionCost: true });
-      return result?.used ? { handled: true, result } : { handled: false, reason: result?.reason || "item_use_failed", result };
-    }
-    return { handled: false, reason: "quick_action_runtime_unavailable" };
+  function independentMessage(reason) {
+    if (/quick.*spent|No quick/.test(reason)) return "Ya usaste tu Quick Action este turno.";
+    if (/invalid_target/.test(reason)) return "Elige un objetivo válido.";
+    if (/uses remaining|Count remaining|not_enough|No .*remaining/.test(reason)) return "No tienes usos o recursos suficientes.";
+    if (/trait_specific_runtime_required/.test(reason)) return "Esta habilidad necesita una selección o resolución que aún no está conectada.";
+    if (/timeout|pending/.test(reason)) return "La habilidad sigue pendiente de confirmación del DM.";
+    return "No se pudo usar la habilidad. Revisa sus requisitos e inténtalo de nuevo.";
   }
-
   async function useQuickAction(sel, targetId = null) {
-    const unit = playerUnit(), economy = economyRuntime();
-    if (!unit || !economy) return false;
-    const independent = global.LuminousUnitIndependentActions;
-    if (independent) {
-      const type = normalizeId(sel?.type === "items" ? "item" : sel?.type);
-      const source = sel?.data || {};
-      const result = independent.execute(unit, { sourceType: type, definition: source }, {
-        round: roundNumber(), phase: "planning",
-        target: targetId ? combatData()?.[targetId] || null : unit,
-        units: Object.values(combatData() || {}),
-        character: authoritativeCharacter(unit),
-      });
-      if (!result.used) {
-        lexical("setStatus", () => {})(`ACTION · ${source.name || source.id || "Action"} · ${String(result.reason || "UNAVAILABLE").replaceAll("_", " ").toUpperCase()}`);
+    const unit = playerUnit(), independent = global.LuminousUnitIndependentActions;
+    if (!unit || !independent) return false;
+    const type = normalizeId(sel?.type === "items" ? "item" : sel?.type), source = sel?.data || {};
+    const label = economyTabFor(source) === ECONOMY.FREE ? "FREE ACTION" : "QUICK ACTION";
+    if (state.independentPending) return false;
+    state.independentPending = true;
+    lexical("setStatus", () => {})(`${label} · Confirmando ${source.name || "habilidad"}…`);
+    try {
+      const sync = global.LuminousCombatPlanSync073, online = global.LuminousCombatLiveAdapter073?.state?.db;
+      const result = online
+        ? await sync.requestIndependentAction({ unitId: unit.id, sourceId: clean(source.instanceId || source.id), sourceType: type,
+          cost: independent.costOf(source), targetId: targetId || unit.id, round: roundNumber() })
+        : independent.execute(unit, { sourceType: type, definition: source }, { round: roundNumber(), phase: "planning", target: combatData()?.[targetId] || unit, units: Object.values(combatData() || {}) });
+      if (!result?.used) {
+        lexical("setStatus", () => {})(`${source.name || "Habilidad"} · ${independentMessage(result?.reason || "")}`);
         return false;
       }
       if (result.cost === ECONOMY.QUICK) state.quickSpentRound = roundNumber();
       syncQuickBadge(); syncTabs(); updateCategoryContext();
-      lexical("setStatus", () => {})(`${result.cost === ECONOMY.QUICK ? "QUICK" : "FREE"} ACTION · ${source.name || source.id || "Action"} · USED`);
-      lexical("goRoot", () => {})();
-      return true;
-    }
-    const gate = economy.availability?.(unit, ECONOMY.QUICK, { phase: "planning" });
-    if (gate?.available === false) { lexical("setStatus", () => {})(`QUICK ACTION · ${gate.reason || "UNAVAILABLE"}`); return false; }
-    const action = compilerFor(sel, targetId);
-    if (!action) { lexical("setStatus", () => {})("QUICK ACTION · COMBAT ACTION COMPILER UNAVAILABLE"); return false; }
-
-    const isItem = sel.type === "item" || sel.type === "items";
-    const liveItem = isItem ? findActiveInventoryItem(unit, sel.data || {}) : null;
-    const before = isItem ? quickMutationSnapshot(unit, liveItem) : null;
-    const resolution = requestQuickResolution(sel, action, targetId);
-    if (!resolution.handled) {
-      lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Action"} · ${String(resolution.reason || "RUNTIME NOT CONNECTED").replaceAll("_", " ").toUpperCase()}`);
-      return false;
-    }
-
-    if (isItem) {
-      const persisted = await persistQuickItemState(unit);
-      if (persisted.saved === false && persisted.skipped !== true) {
-        restoreQuickMutation(unit, liveItem, before);
-        lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Item"} · PERSISTENCE FAILED`);
-        return false;
-      }
-    }
-
-    if (!economy.consume(unit, ECONOMY.QUICK, { phase: "planning" })) {
-      if (isItem) restoreQuickMutation(unit, liveItem, before);
-      return false;
-    }
-    state.quickSpentRound = roundNumber();
-    syncQuickBadge(); syncTabs(); updateCategoryContext();
-    lexical("setStatus", () => {})(`QUICK ACTION · ${sel.data?.name || "Action"} · USED`);
-    try { global.dispatchEvent(new CustomEvent("luminous:combat073-quick-action-resolved", { detail: { version: VERSION, action, result: resolution.result || null } })); } catch (_) {}
-    lexical("goRoot", () => {})();
-    return true;
+      lexical("setStatus", () => {})(`${label} · ${source.name || "Habilidad"} · USADA`);
+      lexical("goRoot", () => {})(); return true;
+    } catch (error) {
+      global.console?.error?.("[Independent Action]", error);
+      lexical("setStatus", () => {})(independentMessage(error?.message || "")); return false;
+    } finally { state.independentPending = false; }
   }
 
   function beginQuickAction(sel) {
@@ -1573,6 +1497,8 @@
     await loadScript("class-runtime-bootstrap-economy073", "js/class-runtime-bootstrap.js", () => Boolean(global.LuminousClassRuntimeBootstrap));
     await loadScript("action-economy-economy073", "js/universal-action-economy.js", () => Boolean(global.LuminousActionEconomy));
     await loadScript("unit-independent-actions-economy073", "js/unit-independent-actions.js", () => Boolean(global.LuminousUnitIndependentActions));
+    await loadScript("combat-events-economy073", "js/combat-event-runtime.js", () => Boolean(global.LuminousCombatEventRuntime));
+    if (playerUnit() && global.document) await global.LuminousUnitIndependentActions?.prepare(Object.values(combatData() || {}));
     return Boolean(global.LuminousCombatAction && global.LuminousCombatActionAdapters && global.LuminousActionEconomy);
   }
 
@@ -1593,6 +1519,7 @@
       const ref = db.ref(path);
       const callback = (snapshot) => {
         state[key] = snapshot.val() || {};
+        global.LuminousUnitIndependentActions?.configureCatalog({ definitions: state.traitCatalogDefinitions, grants: state.traitCatalogGrants });
         refreshTraitActionMenu();
       };
       ref.on("value", callback, (error) => {

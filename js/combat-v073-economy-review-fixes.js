@@ -135,41 +135,7 @@
     global.document?.querySelectorAll?.('.sprite-container.economy-target-candidate')?.forEach(node=>node.classList.remove('economy-target-candidate'));
   }
   function executeTraitQuick(sel,targetId=null){
-    const source=sel?.data||{},actor=playerUnit(),eco=economy(),engine=global.LuminousTraitEngine;
-    const independent=global.LuminousUnitIndependentActions;
-    if(independent&&actor){
-      const cost=independent.costOf({sourceType:'trait',definition:source});
-      const result=independent.execute(actor,{sourceType:'trait',definition:source},{
-        round:roundNumber(),phase:'planning',character:api()?.authoritativeCharacter?.(actor)||actor,
-        target:targetId?combatData()?.[targetId]||null:actor,units:Object.values(combatData()||{})
-      });
-      if(!result.used){status(`${cost==='free_action'?'FREE':'QUICK'} ACTION · ${result.reason||'UNAVAILABLE'}`);return false}
-      if(cost==='quick_action'&&api()?.state)api().state.quickSpentRound=roundNumber();
-      api()?.syncQuickBadge?.();api()?.syncTabs?.();
-      status(`${cost==='free_action'?'FREE':'QUICK'} ACTION · ${source.name||source.id||'Trait'} · USED`);
-      closeToRoot();return true;
-    }
-    if(!actor||!eco||!engine?.canActivateTrait||!engine?.activateTrait){status('QUICK ACTION · TRAIT RUNTIME UNAVAILABLE');return false}
-    const gate=eco.availability?.(actor,ECONOMY.QUICK,{phase:'planning'});if(gate?.available===false){status(`QUICK ACTION · ${gate.reason||'UNAVAILABLE'}`);return false}
-    const target=targetId?combatData()?.[targetId]||null:actor,action=compileTraitAction(sel,targetId),runtime=traitRuntimeContext(source,target,action,'planning'),tState=traitState(source);
-    const check=engine.canActivateTrait(source,runtime,tState);
-    if(!check?.available){status(`QUICK ACTION · ${(check?.reasons||['TRAIT UNAVAILABLE']).join(' · ')}`);return false}
-    const generic=arr(source.effects).length>0||arr(source.rules).length>0;
-    let external=null;
-    if(!generic){
-      const detail={version:VERSION,action,source:clone(source),sourceType:'trait',targetId,handled:false,result:null,preflight:check};
-      try{global.dispatchEvent(new CustomEvent('luminous:combat073-quick-action-request',{detail}))}catch(_){}
-      if(!detail.handled){status(`QUICK ACTION · ${source.name||source.id||'Trait'} · RUNTIME NOT CONNECTED`);return false}
-      external=detail.result;
-    }
-    const activation=engine.activateTrait(source,runtime,tState);
-    if(!activation?.available){status(`QUICK ACTION · ${(activation?.reasons||['TRAIT ACTIVATION FAILED']).join(' · ')}`);return false}
-    if(!eco.consume(actor,ECONOMY.QUICK,{phase:'planning'})){status('QUICK ACTION · SPEND FAILED');return false}
-    if(api()?.state)api().state.quickSpentRound=roundNumber();
-    api()?.syncQuickBadge?.();api()?.syncTabs?.();
-    status(`QUICK ACTION · ${source.name||source.id||'Trait'} · USED`);
-    try{global.dispatchEvent(new CustomEvent('luminous:combat073-quick-action-resolved',{detail:{version:VERSION,action,result:external??activation}}))}catch(_){}
-    closeToRoot();return true;
+    return api()?.useQuickAction?.(sel,targetId);
   }
   function beginTraitQuick(sel){
     const source=sel?.data||{};

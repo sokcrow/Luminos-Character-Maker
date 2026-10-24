@@ -91,14 +91,51 @@
         ".write": "auth != null"
       },
       "combate": {
-          "independentIntents": {
-            "$playerId": {
-              "$intentId": {
-                ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || (root.child('campaña').child('jugadores').child($playerId).child('uid').val() === auth.uid && !data.exists() && newData.exists() && (root.child('campaña').child('combate').child('estado').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña').child('combate').child('estado').child('phase').val() === 'PRE_COMBAT_PLANNING')))",
-                ".validate": "newData.val() == null || (newData.child('schemaVersion').val() === 1 && newData.child('playerId').val() === $playerId && newData.child('schedulerUid').val() === auth.uid && newData.child('unitId').isString() && newData.child('sourceId').isString() && newData.child('sourceId').val().length > 0 && newData.child('sourceId').val().length <= 128 && (newData.child('sourceType').val() === 'trait' || newData.child('sourceType').val() === 'skill' || newData.child('sourceType').val() === 'spell' || newData.child('sourceType').val() === 'item') && (newData.child('cost').val() === 'quick_action' || newData.child('cost').val() === 'free_action') && newData.child('round').isNumber() && newData.child('round').val() >= 1 && (!newData.child('targetId').exists() || newData.child('targetId').isString()) && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalPlayerKey').val() === $playerId && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalOwnerUid').val() === auth.uid)"
+        "independentIntents": {
+          ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+          "$playerId": {
+            "$intentId": {
+              ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || (root.child('campaña').child('jugadores').child($playerId).child('uid').val() === auth.uid && !data.exists() && newData.exists() && (root.child('campaña').child('combate').child('estado').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña').child('combate').child('estado').child('phase').val() === 'PRE_COMBAT_PLANNING') && root.child('campaña').child('combate').child('readyPlayers').child($playerId).child('ready').val() !== true))",
+              ".validate": "newData.val() == null || (newData.child('schemaVersion').val() === 1 && newData.child('playerId').val() === $playerId && newData.child('schedulerUid').val() === auth.uid && newData.child('unitId').isString() && newData.child('sourceId').isString() && newData.child('sourceId').val().length > 0 && newData.child('sourceId').val().length <= 128 && (newData.child('sourceType').val() === 'trait' || newData.child('sourceType').val() === 'skill' || newData.child('sourceType').val() === 'spell' || newData.child('sourceType').val() === 'item') && (newData.child('cost').val() === 'quick_action' || newData.child('cost').val() === 'free_action') && newData.child('round').isNumber() && newData.child('round').val() >= 1 && (!newData.child('targetId').exists() || newData.child('targetId').isString()) && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalPlayerKey').val() === $playerId && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalOwnerUid').val() === auth.uid) && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('isPlayer').val() === true && newData.child('createdAt').isNumber() && newData.child('encounterId').isString() && newData.child('encounterId').val() === root.child('campaña').child('combate').child('estado').child('encounterId').val()",
+              "schemaVersion": {
+                ".validate": "true"
+              },
+              "playerId": {
+                ".validate": "true"
+              },
+              "schedulerUid": {
+                ".validate": "true"
+              },
+              "unitId": {
+                ".validate": "true"
+              },
+              "sourceId": {
+                ".validate": "true"
+              },
+              "sourceType": {
+                ".validate": "true"
+              },
+              "cost": {
+                ".validate": "true"
+              },
+              "round": {
+                ".validate": "true"
+              },
+              "targetId": {
+                ".validate": "true"
+              },
+              "createdAt": {
+                ".validate": "true"
+              },
+              "$other": {
+                ".validate": "false"
+              },
+              "encounterId": {
+                ".validate": "true"
               }
             }
-          },
+          }
+        },
         "plannedActions": {
           ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
           "$ownerPlayerId": {
@@ -145,7 +182,10 @@
             }
           }
         },
-        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+        "independentReceipts": {
+          ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
+        }
       },
       "efectos_dm": {
         "$effectId": {
@@ -305,7 +345,55 @@
                     }
                   }
                 },
-                ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true && (auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))"
+                ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true && (auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))",
+                "independentIntents": {
+                  ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+                  "$playerId": {
+                    "$intentId": {
+                      ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || (root.child('campaña').child('jugadores').child($playerId).child('uid').val() === auth.uid && !data.exists() && newData.exists() && (root.child('campaña').child('combate').child('estado').val() === 'PRE_COMBAT_PLANNING' || root.child('campaña').child('combate').child('estado').child('phase').val() === 'PRE_COMBAT_PLANNING') && root.child('campaña').child('combate').child('readyPlayers').child($playerId).child('ready').val() !== true))",
+                      ".validate": "newData.val() == null || (newData.child('schemaVersion').val() === 1 && newData.child('playerId').val() === $playerId && newData.child('schedulerUid').val() === auth.uid && newData.child('unitId').isString() && newData.child('sourceId').isString() && newData.child('sourceId').val().length > 0 && newData.child('sourceId').val().length <= 128 && (newData.child('sourceType').val() === 'trait' || newData.child('sourceType').val() === 'skill' || newData.child('sourceType').val() === 'spell' || newData.child('sourceType').val() === 'item') && (newData.child('cost').val() === 'quick_action' || newData.child('cost').val() === 'free_action') && newData.child('round').isNumber() && newData.child('round').val() >= 1 && (!newData.child('targetId').exists() || newData.child('targetId').isString()) && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalPlayerKey').val() === $playerId && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('canonicalOwnerUid').val() === auth.uid) && root.child('campaña').child('combate').child('combatants').child(newData.child('unitId').val()).child('isPlayer').val() === true && newData.child('createdAt').isNumber() && newData.child('encounterId').isString() && newData.child('encounterId').val() === root.child('campaña').child('combate').child('estado').child('encounterId').val()",
+                      "schemaVersion": {
+                        ".validate": "true"
+                      },
+                      "playerId": {
+                        ".validate": "true"
+                      },
+                      "schedulerUid": {
+                        ".validate": "true"
+                      },
+                      "unitId": {
+                        ".validate": "true"
+                      },
+                      "sourceId": {
+                        ".validate": "true"
+                      },
+                      "sourceType": {
+                        ".validate": "true"
+                      },
+                      "cost": {
+                        ".validate": "true"
+                      },
+                      "round": {
+                        ".validate": "true"
+                      },
+                      "targetId": {
+                        ".validate": "true"
+                      },
+                      "createdAt": {
+                        ".validate": "true"
+                      },
+                      "$other": {
+                        ".validate": "false"
+                      },
+                      "encounterId": {
+                        ".validate": "true"
+                      }
+                    }
+                  }
+                },
+                "independentReceipts": {
+                  ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
+                }
               },
               "efectos_dm": {
                 "$effectId": {

@@ -4627,7 +4627,7 @@ function grantActionSlotToUnit(id){
   const unit=combatData[id];
   if(!unit)return false;
   const current=unitSlots(id).length;
-  if(current>=3)return false;
+  if(current>=3+(Number(unit.combatIndependentActionState?.temporaryActionSlots)||0))return false;
   const host=$(`ui-panel-${id}`)?.querySelector('.action-slots');
   if(!host)return false;
   const slot=createActionSlotElement(unit,current);
@@ -4640,7 +4640,7 @@ function grantActionSlotToUnit(id){
 function setUnitActionSlotCount(id,count){
   const unit=combatData[id];
   if(!unit)return false;
-  const desired=Math.max(1,Math.min(3,Math.floor(Number(count)||1))),host=$(`ui-panel-${id}`)?.querySelector('.action-slots');
+  const desired=Math.max(1,Math.min(3+(Number(unit.combatIndependentActionState?.temporaryActionSlots)||0),Math.floor(Number(count)||1))),host=$(`ui-panel-${id}`)?.querySelector('.action-slots');
   if(!host)return false;
   while(unitSlots(id).length<desired)grantActionSlotToUnit(id);
   while(unitSlots(id).length>desired){
@@ -6117,6 +6117,7 @@ function assignSelectedToSlot(){
 }
 function setPlanReady(){
   if(roundRunning)return;
+  if(window.LuminousCombatEconomyMenu073?.state.independentPending){setStatus('Espera a que se confirme la habilidad antes de READY');return}
   if(clashConfirmationActive){setStatus('CLASH · primero confirma el enfrentamiento o pulsa fuera para escoger otro objetivo');return}
   const ready=$('ready');
   if(planReady){
@@ -7776,6 +7777,7 @@ async function startRound(){
   setCameraFocus('full',false);
   await wait(COMBAT_PACE.cameraSettle);
 
+  if(!recovered?.eventCursor)window.LuminousUnitIndependentActions?.runAiPhase('before_actions',{round,units:Object.values(combatData),mutate:combatStepRuntime().mutate});
   const queue=buildExecutionQueue(),
         resolvedKeys=new Set();
   if(recovered){
@@ -7794,6 +7796,7 @@ async function startRound(){
   clearReactiveDefenses();
   // Concentration only sees damage taken during the active Round. Turn-End Status
   // damage resolves afterwards and therefore never raises this Round's DC.
+  window.LuminousUnitIndependentActions?.runAiPhase('after_actions',{round,units:Object.values(combatData),mutate:combatStepRuntime().mutate});
   combatStepRuntime().mutate('RoundEndEffects',null,{},()=>{
     processConcentrationChecks(round);
     processStatusRoundEnd(round);
@@ -7840,6 +7843,7 @@ async function startRound(){
   rollTurnSpeeds(round);
   await animatePreparedBackupDeployments(backupDeployments);
   applyGrappleSlotEconomy();
+  window.LuminousUnitIndependentActions?.endRound(Object.values(combatData));
   const granted=grantTurnSlot(round);
   turnStartDeck();
   beginPlanningPhase(round);

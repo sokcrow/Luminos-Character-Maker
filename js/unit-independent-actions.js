@@ -4,7 +4,9 @@
 
   // One resolver for Player, NPC, Enemy and AI. UI and GOAP only select sources.
   // No Action Slot is scheduled by this runtime.
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
+  const catalogState = { definitions: {}, grants: {} };
+  function configureCatalog(value = {}) { Object.assign(catalogState, value); }
   const QUICK = "quick_action";
   const FREE = "free_action";
   const clean = (v) => String(v ?? "").trim();
@@ -34,21 +36,23 @@
   function characterFor(unit = {}) {
     const key = clean(unit.canonicalPlayerKey || unit.ownerPlayerId || unit.playerId);
     const player = key ? global.LuminousCombatLiveAdapter073?.state?.players?.[key] : null;
-    return { ...unit, ...(player || {}), characterBuild: { ...(unit.characterBuild || {}), ...(player?.characterBuild || {}) } };
+    return { ...(player || {}), ...unit,
+      ...(player?.classes ? { classes: clone(player.classes) } : {}),
+      characterBuild: { ...(unit.characterBuild || {}), ...(player?.characterBuild || {}) } };
   }
 
   function definitions() {
     return { ...(global.LuminousTraitCatalogCore?.allDefinitions?.() || {}),
       ...(global.LuminousRacialTraitCatalog?.allDefinitions?.() || {}),
       ...(global.LuminousArchetypeTraitCatalog?.allDefinitions?.() || {}),
-      ...(global.LuminousCombatEconomyMenu073?.state?.traitCatalogDefinitions || {}) };
+      ...(global.LuminousDmTraitLibrary?.getDefinitions?.() || {}), ...catalogState.definitions };
   }
 
   function ownedTraits(unit = {}) {
     const character = characterFor(unit), catalog = definitions(), traitEngine = engine();
     const rows = [];
     const grants = [...(global.LuminousTraitCatalogCore?.allGrants?.() || []),
-      ...Object.values(global.LuminousCombatEconomyMenu073?.state?.traitCatalogGrants || {})];
+      ...Object.values(catalogState.grants)];
     try {
       if (traitEngine?.resolveTraitGrants) rows.push(...traitEngine.resolveTraitGrants(character, grants, catalog));
       rows.push(...(global.LuminousRacialTraitCatalog?.resolveTraitGrants?.(character, catalog) || []));
@@ -112,7 +116,7 @@
       }
       if (![QUICK, FREE].includes(cost) || ["reaction", "universal"].includes(type) || candidate.available === false) continue;
       if (type === "trait" && !["manual", "prompt", "choice"].includes(norm(definition.activation?.type || definition.activationType))) continue;
-      const id = norm(definition.id || definition.traitId || definition.skillId || definition.spellId || definition.instanceId);
+      const id = clean(definition.instanceId || definition.id || definition.traitId || definition.skillId || definition.spellId);
       if (!id) continue;
       const key = type + ":" + id;
       if (!unique.has(key)) unique.set(key, { sourceType: type, definition, cost });
@@ -121,9 +125,17 @@
   }
 
   function stateFor(unit) {
-    if (!unit.combatIndependentActionState || typeof unit.combatIndependentActionState !== "object")
-      unit.combatIndependentActionState = { round: 0, freeUses: {}, traitState: engine()?.createState?.() || { usages: {}, ruleScopes: {}, counters: {} } };
-    return unit.combatIndependentActionState;
+    const state = unit.combatIndependentActionState ||= { round: 0, freeUses: {} };
+    // Encounter Start, manual activations and rest recovery share one Trait state.
+    unit.combatTraitState ||= state.traitState || engine()?.createState?.() || { usages: {}, ruleScopes: {}, counters: {} };
+    state.traitState = unit.combatTraitState;
+    state.traitState.resources ||= {};
+    for (const [id, resource] of Object.entries(unit.resources || {})) {
+      const value = Number(typeof resource === "object" ? resource?.value : resource);
+      if (Number.isFinite(value)) state.traitState.resources[id] = { ...state.traitState.resources[id], value, min: 0 };
+    }
+    state.freeUses ||= {};
+    return state;
   }
 
   function prepareRound(unit, round = currentRound()) {
@@ -133,8 +145,7 @@
         unit.quickActionRemaining = 1;
         engine()?.resetStateScope?.(state.traitState, "turn");
       }
-      state.round = next;
-      state.freeUses = {};
+      state.round = next; state.freeUses = {}; state.aiUsed = {};
     }
     const runtimeState = economy()?.ensureState?.(unit);
     if (runtimeState) runtimeState.quickActionRemaining = Math.max(0, Number(unit.quickActionRemaining ?? runtimeState.quickActionRemaining ?? 1));
@@ -160,145 +171,180 @@
       (friends ? other.faction === unit.faction : other.faction !== unit.faction)) || (friends ? unit : null);
   }
 
-  function execute(unit, candidate, options = {}) {
-    if (!active(unit)) return { used: false, reason: "unit_not_active" };
+  function executeDraft(unit, candidate, options = {}) {
+    if (!active(unit) || unit.incapacitated) return { used: false, reason: "unit_not_active" };
     const definition = definitionOf(candidate), type = norm(options.sourceType || typeOf(candidate));
-    const cost = candidate.cost || costOf({ ...candidate, definition });
+    const cost = candidate.cost || costOf(candidate);
     if (![QUICK, FREE].includes(cost)) return { used: false, reason: "not_independent_action" };
-    const roundState = prepareRound(unit, options.round);
-    const sourceId = norm(definition.id || definition.traitId || definition.skillId || definition.spellId || definition.instanceId);
+    const roundState = prepareRound(unit, options.round), sourceId = clean(definition.instanceId || definition.id || definition.traitId || definition.skillId || definition.spellId);
     const key = type + ":" + sourceId;
     if (!sourceId) return { used: false, reason: "missing_source_id" };
-    const phase = norm(options.phase || (options.ai ? "combat" : "planning"));
-    const budget = economy();
+    const phase = norm(options.phase || (options.ai ? "combat" : "planning")), budget = economy();
+    const condition = global.LuminousConditionRuntime?.actionAvailability?.(unit, cost, { phase });
+    if (condition?.available === false) return { used: false, reason: condition.reason || "condition_blocks_action" };
     if (cost === QUICK) {
       const gate = budget?.availability?.(unit, QUICK, { phase });
       if (!budget || gate?.available === false) return { used: false, reason: gate?.reason || "quick_action_unavailable" };
     } else {
-      const limit = Math.max(1, Number(definition.maxFreeUsesPerTurn || definition.maxUsesPerTurn || 1) || 1);
-      if ((roundState.freeUses[key] || 0) >= limit) return { used: false, reason: "free_action_limit_reached" };
+      // Free has no invented global cap. The authored uses/resources/mechanic
+      // govern player activation; AI prevents loops in its decision traversal.
+      const limit = Number(definition.maxFreeUsesPerTurn ?? definition.maxUsesPerTurn ?? definition.activation?.maxUsesPerTurn);
+      if (limit > 0 && (roundState.freeUses[key] || 0) >= limit) return { used: false, reason: "free_action_limit_reached" };
     }
-
-    const units = options.units || Object.values(global.LuminousCombat073?.combatants?.() || {});
-    const target = selectTarget(unit, definition, units, options.target || null);
-    const character = options.character || characterFor(unit);
-    let result = null, handled = false, reason = "independent_action_runtime_unavailable";
+    const units = options.units || [unit], target = selectTarget(unit, definition, units, options.target);
+    if (!target) return { used: false, reason: "invalid_target" };
+    let result, handled = false;
     if (type === "trait") {
       const traitEngine = engine();
-      if (!traitEngine?.canActivateTrait || !traitEngine?.activateTrait) return { used: false, reason: "trait_engine_unavailable" };
-      const runtime = {
-        context: "combat", character, self: unit, actor: unit, target, phase,
+      if (!traitEngine?.activateTrait || !global.LuminousCombatEventRuntime?.activate) return { used: false, reason: "trait_engine_unavailable" };
+      const runtime = { context: "combat", character: unit, self: unit, actor: unit, target, units,
+        phase, round: roundState.round, turnNumber: roundState.round, choice: options.choice, skill: options.skill,
         actionEconomy: {
-          canUse: actionCost => costOf({ actionCost }) !== QUICK || budget?.availability?.(unit, QUICK, { phase })?.available !== false,
-          // The shared controller commits the budget exactly once after success.
+          canUse: actionCost => costOf({ actionCost }) !== QUICK || budget?.canUse?.(unit, QUICK, { phase }),
           consume: () => true,
-        },
-      };
+          grantActionSlots: amount => budget?.grantTemporaryActionSlots?.(unit, amount, { phase: "planning" }),
+        } };
       const check = traitEngine.canActivateTrait(definition, runtime, roundState.traitState);
-      if (!check?.available) return { used: false, reason: (check?.reasons || ["trait_unavailable"]).join("; ") };
-      const generic = arr(definition.effects).length > 0 || arr(definition.rules).length > 0;
-      if (!generic) {
-        const detail = { source: clone(definition), sourceType: "trait", unit, actor: unit,
-          targetId: actorId(target), handled: false, result: null, preflight: check };
-        if (typeof global.CustomEvent === "function")
-          global.dispatchEvent?.(new global.CustomEvent("luminous:combat073-quick-action-request", { detail }));
-        if (detail.handled) { handled = true; result = detail.result; }
-      }
-      const activation = traitEngine.activateTrait(definition, runtime, roundState.traitState);
-      if (activation?.available === false) return { used: false, reason: (activation.reasons || ["activation_failed"]).join("; ") };
-      if (generic || arr(activation?.outcomes).length || handled) {
-        // The Trait Engine tracks status operations in its canonical state.
-        // Mirror applied/removed status effects onto the live Unit so that the
-        // shared Combat status renderer, class hooks and checkpoints see them.
-        for (const outcome of arr(activation?.outcomes)) {
-          if (norm(outcome?.type) === "apply_status" && outcome.statusId && outcome.status) {
-            unit.statusEffects ||= {};
-            unit.statusEffects[norm(outcome.statusId)] = clone(outcome.status);
-          } else if (norm(outcome?.type) === "remove_status" && outcome.removed && outcome.statusId) {
-            if (unit.statusEffects) delete unit.statusEffects[norm(outcome.statusId)];
-          }
-        }
-        handled = true; result = activation;
-      }
-      else reason = "trait_specific_runtime_required";
+      if (!check?.available) return { used: false, reason: check?.reasons?.join(" · ") || "trait_unavailable" };
+      const before = JSON.stringify(units.map(gameplayState));
+      result = global.LuminousCombatEventRuntime.activate(definition, unit, runtime);
+      if (!result?.available) return { used: false, reason: result?.reasons?.join(" · ") || "activation_failed" };
+      const outcomes = arr(result.outcomes).filter(row => !["log", "register_dm_effect"].includes(row.type));
+      handled = outcomes.length > 0 || before !== JSON.stringify(units.map(gameplayState));
     } else if (type === "item") {
-      // Menus use display snapshots, but every Unit must mutate the actual
-      // inventory instance (same identifier for Player, NPC and Enemy).
       const inventory = unit.inventario_activo || unit.activeInventory || unit.inventory || {};
       const entries = Array.isArray(inventory) ? inventory.map((value,index)=>[String(index),value]) : Object.entries(inventory);
-      const instance = norm(definition.instanceId || definition.instance_id || definition.id);
-      const found = entries.find(([key,item])=>item&&norm(item.instanceId||item.instance_id||key)===instance);
-      const live = found?.[1] || null;
-      if (!live || Number(live.quantity ?? live.qty ?? live.cantidad ?? 1) <= 0)
-        return { used: false, reason: "active_inventory_item_missing" };
-      const use = global.LuminousItemRuntime?.useItem;
-      if (typeof use === "function") {
-        result = use(unit, live, { phase, target, ignoreActionCost: true });
-        handled = result?.used === true;
-        reason = result?.reason || "item_use_failed";
-      }
+      const instance = clean(definition.instanceId || definition.instance_id || definition.id);
+      const live = entries.find(([key,item]) => item && clean(item.instanceId || item.instance_id || key) === instance)?.[1];
+      if (!live || Number(live.quantity ?? live.qty ?? live.cantidad ?? 1) <= 0) return { used: false, reason: "active_inventory_item_missing" };
+      result = global.LuminousItemRuntime?.useItem?.(unit, live, { phase, target, ignoreActionCost: true });
+      handled = result?.used === true;
     } else if (type === "skill" || type === "spell") {
-      const adapters = global.LuminousCombatActionAdapters;
-      const resolver = global.LuminousCombatActionResolver;
-      const schema = global.LuminousCombatAction;
+      const adapters = global.LuminousCombatActionAdapters, resolver = global.LuminousCombatActionResolver, schema = global.LuminousCombatAction;
       const compiler = type === "skill" ? adapters?.compileSkillToCombatAction : adapters?.compileSpellToCombatAction;
       if (compiler && resolver?.resolveCombatAction && schema) {
-        const action = compiler(unit, definition, {
-          actorId: actorId(unit), targetId: actorId(target), mainTargetId: actorId(target),
-          targetIds: target ? [actorId(target)] : [],
-          cost: cost === FREE ? "action" : QUICK,
-          selectedAt: options.ai ? schema.PHASES.PLANNING_PHASE_AI : schema.PHASES.PLANNING_PHASE_PLAYER,
-          executesAt: schema.PHASES.COMBAT_PHASE,
-          metadata: { independentActionCost: cost, sourceDefinition: clone(definition) },
-        });
-        result = resolver.resolveCombatAction(action, {
-          phase: schema.PHASES.COMBAT_PHASE, units, combatData: Object.fromEntries(units.map(u => [actorId(u), u])),
-          engine: global.CombatEngine, consumeQuickAction: () => ({ consumed: true }),
-        });
+        const action = compiler(unit, definition, { actorId: actorId(unit), targetId: actorId(target), mainTargetId: actorId(target), targetIds: [actorId(target)],
+          cost: cost === FREE ? "action" : QUICK, selectedAt: options.ai ? schema.PHASES.PLANNING_PHASE_AI : schema.PHASES.PLANNING_PHASE_PLAYER,
+          executesAt: schema.PHASES.COMBAT_PHASE, metadata: { independentActionCost: cost, sourceDefinition: clone(definition) } });
+        result = resolver.resolveCombatAction(action, { phase: schema.PHASES.COMBAT_PHASE, units,
+          combatData: Object.fromEntries(units.map(u => [actorId(u), u])), engine: options.engine || global.CombatEngine,
+          consumeQuickAction: () => ({ consumed: true }) });
         handled = result?.resolved === true;
-        reason = result?.reason || "action_resolution_failed";
       }
     }
-    if (!handled) return { used: false, reason, sourceId, cost };
+    if (!handled) return { used: false, reason: result?.reason || (type === "trait" ? "trait_specific_runtime_required" : "independent_action_runtime_unavailable"), sourceId, cost };
     if (cost === QUICK) {
-      if (!budget.consume(unit, QUICK, { phase })) return { used: false, reason: "quick_spend_failed", sourceId, cost };
-      unit.quickActionRemaining = Math.max(0, Number(budget.snapshot(unit, { phase }).quick_action) || 0);
+      if (!budget.consume(unit, QUICK, { phase })) return { used: false, reason: "quick_spend_failed" };
+      unit.quickActionRemaining = Number(budget.snapshot(unit, { phase }).quick_action) || 0;
     } else roundState.freeUses[key] = (roundState.freeUses[key] || 0) + 1;
-    const detail = { unitId: actorId(unit), sourceId, sourceType: type, cost, round: roundState.round, targetId: actorId(target) || null, result, ai: options.ai === true };
-    if (typeof global.CustomEvent === "function") global.dispatchEvent?.(new global.CustomEvent("luminous:unit-independent-action-resolved", { detail }));
-    return { used: true, sourceId, cost, result };
+    // Materialize a granted Action once. It is a real temporary normal slot,
+    // never a slot consumed by the Free Action itself.
+    const extra = Number(budget?.ensureState?.(unit)?.bonusActionSlots) || 0;
+    if (extra) {
+      const base = Number(unit.activeSlots || unit.actionSlots) || 1;
+      unit.actionSlots = base + extra; unit.activeSlots = unit.actionSlots;
+      roundState.temporaryActionSlots = (Number(roundState.temporaryActionSlots) || 0) + extra;
+      budget.ensureState(unit).bonusActionSlots = 0;
+    }
+    if (extra && options.ai) {
+      const plans = planExtraActions(unit, options.units);
+      if (!plans || plans.length <= (Number(unit.actionSlots) - extra)) return { used: false, reason: "additional_action_has_no_legal_plan" };
+      unit.autoPlans = plans;
+    }
+    return { used: true, sourceId, sourceType: type, cost, targetId: actorId(target), additionalActions: extra };
   }
 
+  function gameplayState(unit) {
+    const { combatIndependentActionState, combatTraitState, currentHp, currentSp, ...rest } = unit;
+    return rest;
+  }
+  function execute(unit, candidate, options = {}) {
+    const live = options.units?.includes(unit) ? options.units : [unit, ...(options.units || [])];
+    const drafts = clone(live), actor = drafts[live.indexOf(unit)];
+    // Build metadata can come from the sheet; mutable resources belong to this
+    // same combat entity, never to a detached character copy.
+    Object.assign(actor, characterFor(actor));
+    const target = options.target ? drafts.find(row => actorId(row) === actorId(options.target)) : null;
+    if (options.target && !target) return { used: false, reason: "invalid_target" };
+    drafts.forEach(row => { row.currentHp = row.hp; row.currentSp = row.sp; });
+    let result;
+    try { result = executeDraft(actor, candidate, { ...options, units: drafts, target }); }
+    catch (error) { return { used: false, reason: error?.message || "activation_failed" }; }
+    if (!result.used) return result;
+    drafts.forEach((draft, index) => {
+      const state = stateFor(draft);
+      const fields = state.runtimeFields ||= {};
+      for (const key of Object.keys(draft)) if (key.startsWith("__") && JSON.stringify(draft[key]) !== JSON.stringify(live[index][key])) fields[key] = clone(draft[key]);
+      for (const key of Object.keys(live[index])) if (!(key in draft)) delete live[index][key];
+      Object.assign(live[index], draft);
+      const saved = economy()?.ensureState?.(live[index]);
+      if (saved) saved.quickActionRemaining = Number(draft.quickActionRemaining ?? saved.quickActionRemaining);
+    });
+    if (!options.silent && typeof global.CustomEvent === "function") global.dispatchEvent?.(new global.CustomEvent("luminous:unit-independent-action-resolved", {
+      detail: { ...result, unitId: actorId(unit), round: Number(options.round) || currentRound(), ai: options.ai === true }
+    }));
+    return result;
+  }
+
+  function planExtraActions(unit, units) {
+    const rows = global.LuminousCombat073?.kit?.(unit.id)?.actions || [];
+    const actor = { ...unit, resolvedSkills: rows.filter(row => row.kind !== "spell" && costOf(row) === "action"),
+      resolvedSpells: rows.filter(row => row.kind === "spell" && costOf(row) === "action") };
+    const plan = global.LuminousUnitAiKitAdapter?.planUnitTurn({ actor, availableSlots: unit.actionSlots,
+      slotIds: Array.from({length: unit.actionSlots}, (_, index) => `${unit.id}_slot_${index}`), allowEscape: false,
+      targets: units.filter(target => active(target) && target.faction !== unit.faction), random: global.LuminousCombatAuthority073?.random });
+    if (!plan?.planned) return null;
+    return plan.actions.map((action, index) => {
+      const definition = clone(action.metadata?.sourceDefinition || rows.find(row => clean(row.id) === clean(action.source?.id)) || {});
+      const kind = action.source?.type === "spell" ? "spell" : definition.kind === "defense" ? "defense" : "skill";
+      return global.LuminousCombatRemoteIntents073?.runtimePlan({ kind, sourceSlotIndex: index, actionData: definition,
+        ...(kind === "spell" ? {spellId: action.source.id, slotLevel: definition.slotLevel} : {skillId: action.source.id}),
+        targetId: action.targeting?.mainTargetId, targetSlotIndex: 0, planType: "auto" }, index, unit);
+    }).filter(Boolean);
+  }
+  function runAiPhase(timing, options = {}) {
+    const units = options.units || Object.values(global.LuminousCombat073?.combatants?.() || {}), results = [];
+    for (const unit of units) {
+      if (unit.controlled !== "ai") continue;
+      const decide = () => runAiTurn(unit, { ...options, units, timing });
+      const run = () => global.LuminousCombatAuthority073?.withAuthorityRandom ? global.LuminousCombatAuthority073.withAuthorityRandom(decide) : decide();
+      const result = options.mutate ? options.mutate("IndependentActionsResolved", null, { unitId: unit.id, timing }, run) : run();
+      if (result.used?.length) {
+        global.setUnitActionSlotCount?.(unit.id, unit.actionSlots);
+        results.push(...result.used);
+      }
+    }
+    global.LuminousCombat073?.render?.();
+    return results;
+  }
+  function endRound(units) {
+    for (const unit of units) {
+      const count = Number(unit.combatIndependentActionState?.temporaryActionSlots) || 0;
+      if (!count) continue;
+      unit.combatIndependentActionState.temporaryActionSlots = 0;
+      const size = Math.max(1, Number(unit.actionSlots) - count);
+      global.setUnitActionSlotCount?.(unit.id, size);
+      unit.actionSlots = size; unit.activeSlots = size;
+    }
+  }
   function runAiTurn(unit, options = {}) {
     if (!active(unit) || unit.controlled !== "ai") return { used: [], reason: "not_active_ai" };
-    const state = prepareRound(unit, options.round);
-    if (state.aiExecutedRound === state.round) return { used: [], reason: "already_resolved_this_round" };
-    const entries = sourcesFor(unit, options);
-    // A deterministic decision; no RNG, no additional Action Slots.
-    const hpRatio = Number(unit.hp || 0) / Math.max(1, Number(unit.maxHp || 1));
-    const utility = candidate => {
-      const d = candidate.definition, role = norm(d.aiRole || d.role || d.aiEstimate?.role);
-      const id = norm(d.id || d.name);
-      const recovery = role.includes("recover") || role.includes("heal") || /heal|recover|second_wind/.test(id);
-      const defense = role.includes("defense") || role.includes("protect") || /rage|shield|guard/.test(id);
-      return (recovery ? (hpRatio < 0.65 ? 100 : -100) : 0) + (defense ? 25 : 0) +
-        Number(d.aiEstimate?.advantage || 0) + Number(d.aiPriority || 0);
-    };
-    entries.sort((a,b) => utility(b) - utility(a) || norm(a.definition.id).localeCompare(norm(b.definition.id)));
-    const used = [];
-    for (const cost of [QUICK, FREE]) {
-      const pool = entries.filter(entry => entry.cost === cost).slice(0, cost === FREE ? 2 : 8);
-      for (const candidate of pool) {
-        const outcome = execute(unit, candidate, { ...options, ai: true, phase: "combat" });
-        if (outcome.used) { used.push(outcome); if (cost === QUICK) break; }
-      }
+    prepareRound(unit, options.round);
+    const timing = options.timing || "before_actions", entries = sourcesFor(unit, options), used = [];
+    const goap = global.LuminousIndividualGoapCombatAI;
+    const decisions = goap?.rankIndependentActions?.(unit, entries, { ...options, timing }) || [];
+    for (const candidate of decisions) {
+      const state = stateFor(unit), key = candidate.sourceType + ":" + clean(candidate.definition.id);
+      if (state.aiUsed?.[key]) continue;
+      const outcome = execute(unit, candidate, { ...options, ai: true, phase: "combat" });
+      if (outcome.used) { stateFor(unit).aiUsed ||= {}; stateFor(unit).aiUsed[key] = true; used.push(outcome); }
     }
-    state.aiExecutedRound = state.round;
-    return { used, round: state.round };
+    return { used, round: stateFor(unit).round };
   }
+  async function prepare(units) { await global.LuminousCombatEventRuntime.prepare(units.map(characterFor)); }
 
   const api = Object.freeze({ VERSION, QUICK, FREE, costOf, characterFor, ownedTraits, sourcesFor,
-    stateFor, prepareRound, selectTarget, execute, runAiTurn });
+    stateFor, prepareRound, selectTarget, execute, runAiTurn, runAiPhase, endRound, prepare, configureCatalog });
   global.LuminousUnitIndependentActions = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

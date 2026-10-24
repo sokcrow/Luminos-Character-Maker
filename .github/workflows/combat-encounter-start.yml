@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'js/**'
+      - 'database.rules.json'
+      - 'tests/unit-independent*'
+      - 'tests/combat-v073-class-trait-quick-actions-smoke.mjs'
       - 'Battle-viewer.html'
       - 'combat/**'
       - 'tests/combat*encounter*'
@@ -31,6 +34,10 @@ jobs:
           node tests/fighter-class-runtime-smoke.mjs
           node tests/unit-independent-actions-smoke.mjs
           node tests/unit-independent-intents-smoke.mjs
+          node tests/unit-independent-regressions-smoke.mjs
+          node tests/unit-independent-client-smoke.mjs
+          node tests/combat-v073-economy-menu-smoke.mjs
+          node tests/combat-v073-class-trait-quick-actions-smoke.mjs
           node tests/combat-playback-catchup-smoke.mjs
           node tests/combat-v073-speed-persistence-smoke.mjs
           npm run check:combat-live

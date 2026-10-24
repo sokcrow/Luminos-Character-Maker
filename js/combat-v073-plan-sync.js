@@ -112,7 +112,7 @@
     return null;
   }
   async function syncReady(detail={}){
-    if(detail.ready===true){await independentChain;if(independentDeliveryFailed)throw new Error('INDEPENDENT_ACTION_DELIVERY_FAILED');}
+    if(detail.ready===true){await independentChain;const s=state();if(s?.db)await confirmIndependentChoices(s);}
     const ctx=detail.ready===true?await waitForReadyContext(detail):context(detail);if(!ctx)return false;
     const pending=pendingReady(),intent=detail.readyIntentId?pending:null;
     if(detail.readyIntentId&&intent?.id!==detail.readyIntentId)return false;
@@ -249,41 +249,50 @@
     return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatDeploymentRuntime&&global.LuminousCombatDeploymentBridge073&&global.LuminousUnitRankRuntime&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);
   }
   let independentIntentCounter=0,independentDeliveryFailed=false;
-  async function onIndependentActionResolved(event){
-    const detail=event?.detail||{},s=state();
-    if(detail.ai||s?.role!=='player'||!s?.db?.ref||!s.playerId||!s.uid)return false;
-    const own=ownCombatant(s);
-    if(clean(own?.[1]?.id||own?.[0])!==clean(detail.unitId)||Number(detail.round)!==Number(s.round))return false;
-    if(!['quick_action','free_action'].includes(clean(detail.cost)))return false;
-    if(!['trait','skill','spell','item'].includes(clean(detail.sourceType)))return false;
+  async function requestIndependentAction(detail){
+    const s=state(),own=ownCombatant(s);
+    if(s?.role!=='player'||!s?.db||!own||!s.encounterId||!planning(s)||Number(detail.round)!==Number(s.round)||clean(own[0])!==clean(detail.unitId))return {used:false,reason:'player_not_available'};
     const id=(global.crypto?.randomUUID?.()||`${Date.now()}-${++independentIntentCounter}`).replace(/[.#$\[\]\/]/g,'_');
-    const payload={
-      schemaVersion:1,playerId:s.playerId,schedulerUid:s.uid,unitId:clean(detail.unitId),
+    const payload={schemaVersion:1,encounterId:s.encounterId,playerId:s.playerId,schedulerUid:s.uid,unitId:detail.unitId,
       round:Number(s.round),sourceId:clean(detail.sourceId),sourceType:clean(detail.sourceType),
-      cost:clean(detail.cost),targetId:clean(detail.targetId)||null,createdAt:Date.now(),
-    };
-    try{
-      await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(id)}`).set(payload);
+      cost:clean(detail.cost),targetId:clean(detail.targetId)||null,createdAt:Date.now()};
+    const execute=async()=>{
+      const intents=(await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}`).once('value')).val()||{};
+      const receipts=(await s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}`).once('value')).val()||{};
+      // Retrying a timed-out selection reuses its immutable request, including
+      // across a reload; it cannot spend an unlimited Free Action twice.
+      const previous=Object.entries(intents).find(([key,row])=>!receipts[key]&&['encounterId','unitId','round','sourceId','sourceType','targetId','cost'].every(key=>row[key]===payload[key]));
+      const requestId=previous?.[0]||id;
+      if(!previous)await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(requestId)}`).set(payload);
       independentDeliveryFailed=false;
-      global.dispatchEvent?.(new global.CustomEvent('luminous:unit-independent-action-shared',{detail:{id,round:payload.round}}));
-      return true;
-    }catch(error){
-      independentDeliveryFailed=true;
-      console.error('[Combat073 Independent Actions] Failed to send Player choice to DM authority',error);
-      global.dispatchEvent?.(new global.CustomEvent('luminous:unit-independent-action-sync-failed',{detail:{id,reason:clean(error?.message||error)}}));
-      return false;
-    }
+      const receiptRef=s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}/${safe(requestId)}`);
+      const receipt=await new Promise((resolve,reject)=>{
+        let timer;
+        const done=snapshot=>{const row=snapshot.val();if(!row)return;receiptRef.off('value',done);global.clearTimeout(timer);resolve(row);};
+        timer=global.setTimeout(()=>{receiptRef.off('value',done);reject(new Error('independent_confirmation_pending'));},12000);
+        receiptRef.on('value',done,error=>{receiptRef.off('value',done);global.clearTimeout(timer);reject(error);});
+      });
+      if(receipt.applied){
+        const canonical=(await s.db.ref(`${ROOT}/combatants`).once('value')).val()||{};
+        global.LuminousCombatAuthority073?.applySnapshot(canonical);
+      }
+      return receipt.result||{used:receipt.applied===true,sourceId:payload.sourceId,cost:payload.cost,reason:receipt.reason};
+    };
+    const result=independentChain.then(execute,execute);
+    independentChain=result.catch(()=>{independentDeliveryFailed=true;});
+    return result;
   }
-  function queueIndependentAction(event){
-    independentChain=independentChain.then(()=>onIndependentActionResolved(event),()=>onIndependentActionResolved(event));
+  async function confirmIndependentChoices(s){
+    const [requests,receipts]=await Promise.all(['independentIntents','independentReceipts'].map(path=>s.db.ref(`${ROOT}/${path}/${safe(s.playerId)}`).once('value').then(snapshot=>snapshot.val()||{})));
+    if(Object.entries(requests).some(([id,row])=>row.encounterId===s.encounterId&&Number(row.round)===Number(s.round)&&!receipts[id]))throw new Error('Espera a que el DM confirme la habilidad pendiente antes de READY.');
+    independentDeliveryFailed=false;
   }
-  global.addEventListener('luminous:unit-independent-action-resolved',queueIndependentAction);
   global.addEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);
   global.addEventListener('luminous:combat073-hydrated',recoverReady);
   global.addEventListener('online',recoverReady);global.addEventListener('focus',recoverReady);
   global.addEventListener('luminous:combat073-plan-ready-change',onReady);global.addEventListener('luminous:combat073-plan-change',onPlan);global.addEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);
   global.document?.addEventListener?.('click',retryReady,true);
   global.addEventListener('beforeunload',()=>{global.removeEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);global.removeEventListener('luminous:combat073-plan-ready-change',onReady);global.removeEventListener('luminous:combat073-plan-change',onPlan);global.removeEventListener('luminous:combat073-runtime-ready',ensureEconomyMenu);},{once:true});
-  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.14-bounded-confirmation',ROOT,delivery,READY_TIMEOUT_MS,sync:syncReady,syncReady,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
+  global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.14-bounded-confirmation',ROOT,delivery,READY_TIMEOUT_MS,sync:syncReady,syncReady,requestIndependentAction,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
   ensureEconomyMenu();global.setTimeout(()=>ensureCoreBridges().catch(error=>console.error('[Combat073 core bridges]',error)),0);
 })(window);

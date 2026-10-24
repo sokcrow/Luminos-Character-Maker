@@ -8,7 +8,7 @@
   const clean=value=>String(value??'').trim();
   const norm=value=>clean(value).toLowerCase().replace(/[\s-]+/g,'_');
   const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
-  const state={started:false,readyRef:null,readyHandler:null,authRef:null,authHandler:null,rawTargets:{},ready:{},plans:{},planningAi:{},authority:{},extraSubs:[],publishingAi:false,restoreOwn:false,readyLoaded:false,plansLoaded:false,aiTimer:null,aiAttempts:0,retryTimer:null,renderTimer:null,independentIntents:{},independentChain:Promise.resolve()};
+  const state={started:false,readyRef:null,readyHandler:null,authRef:null,authHandler:null,rawTargets:{},ready:{},plans:{},planningAi:{},authority:{},extraSubs:[],publishingAi:false,restoreOwn:false,readyLoaded:false,plansLoaded:false,aiTimer:null,aiAttempts:0,retryTimer:null,renderTimer:null,independentIntents:{},independentChain:Promise.resolve(),independentRetryTimer:null,independentRetryCount:0};
   function adapter(){return global.LuminousCombatLiveAdapter073||null;}
   function adapterState(){return adapter()?.state||null;}
   function runtime(){return global.LuminousCombat073||null;}
@@ -200,64 +200,76 @@
     }
     return global.LuminousUnitIndependentActions?.sourcesFor?.(unit,{sources:actions})||[];
   }
+  const stable=value=>JSON.stringify(value,function(_key,row){return row&&typeof row==='object'&&!Array.isArray(row)?Object.fromEntries(Object.keys(row).sort().map(key=>[key,row[key]])):row;});
   async function processIndependentIntents(pendingOverride=null){
-    const s=adapterState(),runtimeUnits=runtime()?.combatants?.()||{},controller=global.LuminousUnitIndependentActions;
-    if(!s?.db?.ref||!controller||(s.role!=='dm'&&!s.isAuthority))return false;
-    const phase=norm(s.combatState?.phase||s.combatState?.state||s.combatState);
-    if(!['planning','pre_combat_planning'].includes(phase)||['sealed','running'].includes(norm(state.authority?.phase)))return false;
+    const s=adapterState(),controller=global.LuminousUnitIndependentActions,session=global.LuminousCombatSession,authority=global.LuminousCombatAuthority073;
+    if(!s?.db?.ref||!controller||!session?.updateRoot||!authority?.compactUnit||(s.role!=='dm'&&!s.isAuthority))return false;
     const pending=[];
-    for(const [playerId,rows]of Object.entries(pendingOverride||state.independentIntents||{}))
-      for(const [intentId,row]of Object.entries(rows||{}))pending.push({playerId,intentId,row});
+    for(const [playerId,rows]of Object.entries(pendingOverride||state.independentIntents||{}))for(const [intentId,row]of Object.entries(rows||{}))pending.push({playerId,intentId,row});
     pending.sort((a,b)=>(Number(a.row?.createdAt)||0)-(Number(b.row?.createdAt)||0)||a.intentId.localeCompare(b.intentId));
-    for(const {playerId,intentId,row} of pending){
-      const unit=runtimeUnits[clean(row?.unitId)];
-      if(!unit||unit.battleActive===false||unit.isBackup||Number(row.round)!==Number(s.round)||clean(row.playerId)!==playerId)continue;
-      if(clean(unit.canonicalPlayerKey||unit.ownerPlayerId||unit.playerId)!==playerId)continue;
-      if(clean(unit.canonicalOwnerUid||unit.ownerUid)!==clean(row.schedulerUid))continue;
-      const tracker=controller.stateFor(unit);
-      if(tracker.processedIntents?.[intentId])continue;
-      const choices=trustedIndependentSources(unit);
-      const choice=choices.find(c=>norm(c.sourceType)===norm(row.sourceType)&&
-        norm(c.definition?.id||c.definition?.traitId||c.definition?.instanceId)===norm(row.sourceId)&&c.cost===row.cost);
-      if(!choice)continue; // Never trust a client-provided definition, cost or trait grant.
-      const target=runtimeUnits[clean(row.targetId)]||null;
-      if(row.targetId&&!target)continue;
-      const result=controller.execute(unit,choice,{
-        round:Number(s.round),phase:'planning',units:Object.values(runtimeUnits),
-        character:controller.characterFor(unit),target,
-      });
-      if(!result.used)continue;
-      tracker.processedIntents ||= {};
-      tracker.processedIntents[intentId]=true;
-      const updates={};
-      const updateUnit=(entry)=>{
-        const id=clean(entry.id);
-        updates[`campaña/combate/combatants/${id}/hp`]=Number(entry.hp)||0;
-        updates[`campaña/combate/combatants/${id}/sp`]=Number(entry.sp)||0;
-        updates[`campaña/combate/combatants/${id}/statusEffects`]=clone(entry.statusEffects||{});
-        if(entry.resources)updates[`campaña/combate/combatants/${id}/resources`]=clone(entry.resources);
-        if(entry.combatStats)updates[`campaña/combate/combatants/${id}/combatStats`]=clone(entry.combatStats);
-      };
-      updateUnit(unit);
-      if(target&&target!==unit)updateUnit(target);
-      updates[`campaña/combate/combatants/${unit.id}/quickActionRemaining`]=Number(unit.quickActionRemaining??1);
-      updates[`campaña/combate/combatants/${unit.id}/combatIndependentActionState`]=clone(tracker);
-      if(norm(row.sourceType)==='item'){
-        updates[`campaña/combate/combatants/${unit.id}/inventario_activo`]=clone(unit.inventario_activo||{});
-        updates[`campaña/jugadores/${playerId}/inventario_activo`]=clone(unit.inventario_activo||{});
+    for(const {playerId,intentId}of pending){
+      let committed=false;
+      for(let attempt=0;attempt<3&&!committed;attempt++){
+        const raw=(await s.db.ref('campaña/combate').once('value')).val();
+        if(!raw)return false;
+        if(raw.independentReceipts?.[playerId]?.[intentId]){committed=true;break;}
+        const row=raw.independentIntents?.[playerId]?.[intentId];
+        if(!row){committed=true;break;}
+        const phase=norm(raw.estado?.phase||raw.estado?.state||raw.estado),turn=Number(raw.estado?.round||s.round)||1;
+        const sealed=['sealed','running'].includes(norm(raw.authority?.current?.phase));
+        const live=runtime()?.combatants?.()||{};
+        let units=Object.entries(raw.combatants||{}).map(([id,unit])=>({...clone(live[id]||{}),...clone(unit),id}));
+        let unit=units.find(unit=>unit.id===clean(row.unitId)),result;
+        if(!['planning','pre_combat_planning'].includes(phase)||sealed||Number(row.round)!==turn||row.encounterId!==(raw.estado?.encounterId||s.encounterId))result={used:false,reason:'turn_closed'};
+        else if(!unit||clean(row.playerId)!==playerId||clean(unit.canonicalPlayerKey||unit.ownerPlayerId||unit.playerId)!==playerId||clean(unit.canonicalOwnerUid||unit.ownerUid)!==clean(row.schedulerUid))result={used:false,reason:'not_owner'};
+        else {
+          await controller.prepare(units);
+          if(turn===1){
+            const encounterId=raw.estado?.encounterId||s.encounterId;
+            if(!encounterId)throw new Error('Encounter identity is not ready');
+            units=(await global.LuminousCombatEventRuntime.planEncounterStart(units,{encounterId,round:turn})).units;
+            unit=units.find(entry=>entry.id===clean(row.unitId));
+          }
+          const choice=trustedIndependentSources(unit).find(candidate=>norm(candidate.sourceType)===norm(row.sourceType)&&clean(candidate.definition?.instanceId||candidate.definition?.id)===clean(row.sourceId)&&candidate.cost===row.cost);
+          const target=units.find(entry=>entry.id===clean(row.targetId));
+          result=!choice?{used:false,reason:'ability_not_granted'}:row.targetId&&!target?{used:false,reason:'invalid_target'}:
+            controller.execute(unit,choice,{round:turn,phase:'planning',units,target,silent:true});
+        }
+        const snapshot=result.used?Object.fromEntries(units.map(entry=>{
+          if(Number(entry.speedRollTurn)===turn&&Number(entry.speedBaseRoll)>0&&runtime()?.speedForBaseRoll)entry.speed=runtime().speedForBaseRoll(entry,turn,Number(entry.speedBaseRoll));
+          return [entry.id,authority.compactUnit(entry)];
+        })):null;
+        const expected=stable([raw.combatants,raw.estado,row]);
+        const transaction=await session.updateRoot(s.db,current=>{
+          if(!current||current.independentReceipts?.[playerId]?.[intentId]||stable([current.combatants,current.estado,current.independentIntents?.[playerId]?.[intentId]])!==expected)return;
+          if(result.used&&['sealed','running'].includes(norm(current.authority?.current?.phase)))return;
+          const next=clone(current);
+          if(snapshot)for(const [id,canonical]of Object.entries(snapshot)){
+            Object.assign(next.combatants[id],canonical);
+            next.combatants[id].actionSlotIndex=Object.fromEntries(Array.from({length:canonical.actionSlots},(_,index)=>[index,true]));
+          }
+          next.independentReceipts ||= {};next.independentReceipts[playerId] ||= {};
+          next.independentReceipts[playerId][intentId]={encounterId:row.encounterId||null,round:turn,unitId:row.unitId,sourceId:row.sourceId,cost:row.cost,applied:result.used===true,result};
+          if(snapshot)delete next.planningAi;
+          return next;
+        });
+        committed=transaction.committed;
+        if(committed&&snapshot)authority.applySnapshot(snapshot);
       }
-      updates[`campaña/combate/independentReceipts/${playerId}/${intentId}`]={
-        round:Number(s.round),unitId:unit.id,sourceId:result.sourceId,cost:result.cost,applied:true
-      };
-      try{await s.db.ref().update(updates);}
-      catch(error){console.error('[Combat073 Independent Actions] DM persistence failed',error);return false;}
+      if(!committed)return false;
     }
     return true;
   }
   function scheduleIndependentIntents(pendingOverride=null){
-    state.independentChain=state.independentChain.then(
-      ()=>processIndependentIntents(pendingOverride),()=>processIndependentIntents(pendingOverride)
-    );
+    const retry=()=>{
+      const s=adapterState();
+      if((s?.role!=='dm'&&!s?.isAuthority)||state.independentRetryTimer||state.independentRetryCount>=3)return;
+      state.independentRetryCount++;
+      state.independentRetryTimer=global.setTimeout(()=>{state.independentRetryTimer=null;scheduleIndependentIntents();},750);
+    };
+    state.independentChain=state.independentChain.catch(()=>false).then(()=>processIndependentIntents(pendingOverride)).then(result=>{
+      if(result)state.independentRetryCount=0;else retry();return result;
+    }).catch(error=>{console.error('[Independent Actions] Persistence failed',error);retry();return false;});
     return state.independentChain;
   }
   function bind(){
@@ -276,6 +288,9 @@
       state.rawTargets=rowsFromReady(state.ready);apply();
     };listen(state.readyRef,state.readyHandler,'[Combat073 TargetIntents]');
     state.authRef=s.db.ref(AUTH_ROOT);state.authHandler=snapshot=>{state.authority=snapshot.val()||{};apply();};listen(state.authRef,state.authHandler,'[Combat073 AuthorityPlans]');
+    for(const [path,key]of [['definitions','definitions'],['grants','grants']]){
+      listen(s.db.ref(`campaña/config/traits/${path}`),snapshot=>global.LuminousUnitIndependentActions?.configureCatalog({[key]:snapshot.val()||{}}),'[Combat Trait catalog]');
+    }
     const independentRef=s.db.ref(INDEPENDENT_ROOT);
     listen(independentRef,snapshot=>{state.independentIntents=snapshot.val()||{};scheduleIndependentIntents();},'[Combat073 Independent choices]');
     for(const [path,key]of [[PLANS_ROOT,'plans'],[AI_ROOT,'planningAi']]){
@@ -286,9 +301,10 @@
   }
   function onHydrated(){state.aiAttempts=0;state.restoreOwn=true;apply();publishPlanningAi();scheduleIndependentIntents();}
   function start(){if(state.started)return true;state.started=true;const attempt=()=>{if(bind())return true;state.retryTimer=global.setTimeout(attempt,250);return false;};attempt();return true;}
-  function stop(){if(state.aiTimer)global.clearTimeout(state.aiTimer);state.aiTimer=null;state.extraSubs.splice(0).forEach(off=>off());if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.renderTimer)global.clearTimeout(state.renderTimer);state.retryTimer=state.renderTimer=null;if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.readyRef=state.readyHandler=state.authRef=state.authHandler=null;state.started=false;}
+  function stop(){if(state.independentRetryTimer)global.clearTimeout(state.independentRetryTimer);state.independentRetryTimer=null;if(state.aiTimer)global.clearTimeout(state.aiTimer);state.aiTimer=null;state.extraSubs.splice(0).forEach(off=>off());if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.renderTimer)global.clearTimeout(state.renderTimer);state.retryTimer=state.renderTimer=null;if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);if(state.authRef&&state.authHandler)state.authRef.off('value',state.authHandler);state.readyRef=state.readyHandler=state.authRef=state.authHandler=null;state.started=false;}
   global.addEventListener('luminous:combat073-hydrated',onHydrated);global.addEventListener('luminous:combat073-runtime-ready',apply);global.addEventListener('beforeunload',stop,{once:true});
   global.LuminousCombatRemoteIntents073=Object.freeze({version:'0.7.3-remote-intents.6-reentry',READY_ROOT,AUTH_ROOT,INDEPENDENT_ROOT,state,start,stop,bind,apply,processIndependentIntents,scheduleIndependentIntents,applyRows,canRenderNow,scheduleRender,rowsFromReady,runtimePlan,intentPlan,inferTargetSide,publishPlanningAi,applyPlanningAi,renderPlanLabels});
   global.addEventListener('luminous:combat073-plan-ready-change',scheduleRender);
+  for(const event of ['online','focus'])global.addEventListener(event,()=>{state.independentRetryCount=0;scheduleIndependentIntents();});
   start();
 })(window);

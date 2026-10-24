@@ -13,7 +13,7 @@
     if(raw?.estado?.encounterId&&live(raw))return;
     if(raw?.estado&&live(raw)&&Object.keys(raw.combatants||{}).length)
       return {...raw,estado:{...(typeof raw.estado==='object'?raw.estado:{}),encounterId:id,encounterCreatedAt:time,active:true}};
-    return {...(raw||{}),combatants:null,reserves:null,defeated:null,departed:null,participants:null,plannedActions:null,readyPlayers:null,authority:null,playback:null,
+    return {...(raw||{}),combatants:null,reserves:null,defeated:null,departed:null,participants:null,plannedActions:null,readyPlayers:null,independentIntents:null,independentReceipts:null,authority:null,playback:null,
       estado:{encounterId:id,encounterCreatedAt:time,phase:'PRE_COMBAT_PLANNING',active:true,round:1,presentation:'full',createdBy:uid,updatedAt:time},
       planningStartedAt:time,planningDuration:60};
   }
@@ -45,6 +45,7 @@
   }
   function canSeal(raw,payload){
     if(!raw||!['PRE_COMBAT_PLANNING','PLANNING'].includes(String(raw.estado?.phase||raw.estado).toUpperCase())||Number(raw.estado?.round||1)!==payload.round)return false;
+    if(Object.entries(raw.independentIntents||{}).some(([owner,rows])=>Object.entries(rows||{}).some(([id,row])=>Number(row.round)===Number(payload.round)&&!raw.independentReceipts?.[owner]?.[id])))return false;
     const members=global.LuminousCombatParticipants?.players(raw.combatants)||[];
     if(members.length!==Object.keys(payload.plans||{}).length)return false;
     const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>k!=='updatedAt').map(k=>[k,stable(v[k])])):v;

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import "../js/status-library.js";
+import "../js/status-engine.js";
 import "../js/trait-engine.js";
+import "../js/combat-event-runtime.js";
 import "../js/trait-catalog-core.js";
 import "../js/universal-action-economy.js";
 import "../js/combat-action-schema.js";
@@ -40,7 +43,7 @@ assert.equal(controller.execute(player, { sourceType: "trait", definition: rage 
   { round: 1, phase: "planning", units }).used, false, "One Quick Action per Unit / round");
 
 const free = { id: "free_signal", name: "Free Signal", contexts: ["combat"],
-  activation: { type: "manual", actionCost: "none" },
+  activation: { type: "manual", actionCost: "none" }, maxUsesPerTurn: 1,
   effects: [{ trigger: "on_use", operations: [{ type: "apply_status", statusId: "signal", count: 1 }] }] };
 assert.equal(controller.execute(player, { sourceType: "trait", definition: free },
   { round: 1, phase: "planning", units }).used, true);
@@ -90,7 +93,7 @@ assert.equal(schema.validateCombatAction(action).valid, true,
 
 const authority = fs.readFileSync("js/combat-v073-authority.js", "utf8");
 const menu = fs.readFileSync("js/combat-v073-economy-menu.js", "utf8");
-assert.ok(authority.includes("runAiTurn") && authority.includes("ai_independent"),
+assert.ok(fs.readFileSync("combat/source/combat-v073-live.html","utf8").includes("runAiPhase") && authority.includes("ai_independent"),
   "Real Combat queue must support AI with and without regular Action Slots");
 assert.ok(authority.includes("combatIndependentActionState"),
   "Independent budget and trait state must persist in canonical checkpoints");
