@@ -4,7 +4,13 @@ require("../js/item-inventory-runtime.js");
 require("../js/anatomy-equipment-engine.js");
 require("../js/item-augmentation-runtime.js");
 require("../js/item-equipment-bridge.js");
-const core=require("../js/dm-character-gear-core.js");
+require("../js/item-persistence-runtime.js");
+require("../js/dm-character-gear-core.js");
+// Package uses ESM: require() runs the side effects but does not return module.exports.
+const core=globalThis.LuminousDmCharacterGearCore;
+const persistence=globalThis.LuminousItemPersistenceRuntime;
+const bridge=globalThis.LuminousItemEquipmentBridge;
+assert.equal(typeof core?.apply,"function","DM gear core must load in Node 22");
 const base=(removable=true)=>({id:"p1",inventario_activo:{
  knife:{instanceId:"knife1",category:"weapon",equipment:{kind:"weapon",handCost:1},quantity:1},
  great:{instanceId:"great1",category:"weapon",equipment:{kind:"weapon",handCost:2},quantity:1},
@@ -61,4 +67,67 @@ result=core.apply(stashed,{type:"install",key:"eye",source:"stash"});
 assert.equal(result.ok,true,result.reason);
 assert.equal(result.unit.inventario_stash.eye,undefined);
 assert.equal(result.unit.augmentations.length,1);
-console.log("DM_GEAR_SMOKE_PASS");
+// The player should see the installed Augment and equipment from Firebase.
+const dmEquipped=core.apply(base(),{type:"equip",key:"knife",slot:"mainHand"}).unit;
+const dmInstalled=core.apply(dmEquipped,{type:"install",key:"eye",at:123}).unit;
+const snapshotOf=(unit)=>({
+  schemaVersion:persistence.schemaVersion,
+  inventario_activo:unit.inventario_activo,
+  inventario_stash:unit.inventario_stash,
+  equipmentRefs:unit.itemEquipmentRefs,
+  augmentations:unit.augmentations || [],
+});
+const playerHud={equipment:{
+  mainHand:{instanceId:"old_weapon"},
+  accessories:[{instanceId:"old_accessory"}],
+}};
+assert.equal(persistence.applyInventoryState(playerHud,snapshotOf(dmInstalled)).applied,true);
+assert.equal(bridge.getSlotItem(playerHud,"mainHand")?.instanceId,"knife1");
+assert.equal(bridge.equippedSlots(playerHud).augments.length,1);
+assert.deepEqual(playerHud.equipment.accessories,[]);
+const dmUnequipped=core.apply(dmInstalled,{type:"unequip",slot:"mainHand"}).unit;
+const dmRemoved=core.apply(dmUnequipped,{type:"remove",key:"eye1"}).unit;
+persistence.applyInventoryState(playerHud,snapshotOf(dmRemoved));
+assert.equal(bridge.getSlotItem(playerHud,"mainHand"),null,"DM unequip clears live HUD");
+assert.equal(bridge.equippedSlots(playerHud).augments.length,0,"DM removal clears live Augments");
+assert.equal(persistence.serializeInventoryState(playerHud).equipmentRefs.mainHand,null,
+  "Player save cannot re-equip removed weapon");
+
+// Legacy anatomy keys must also hydrate without preserving stale aliases.
+persistence.syncInstalledAugments(playerHud,{bodyAugmentations:dmInstalled.augmentations});
+assert.equal(bridge.equippedSlots(playerHud).augments.length,1);
+assert.equal(playerHud.augmentations,undefined);
+persistence.syncInstalledAugments(playerHud,{}, {clearMissing:true});
+assert.equal(bridge.equippedSlots(playerHud).augments.length,0);
+
+(async()=>{
+  const prefix="campaña/jugadores/p1";
+  const values=new Map([
+    [prefix+"/inventario_activo",dmInstalled.inventario_activo],
+    [prefix+"/inventario_stash",dmInstalled.inventario_stash],
+    [prefix+"/itemEquipmentRefs",dmInstalled.itemEquipmentRefs],
+    [prefix+"/itemInventorySchemaVersion",persistence.schemaVersion],
+    [prefix+"/augmentations",dmInstalled.augmentations],
+  ]);
+  const watchers=new Map();
+  const snapshot=(path)=>({val:()=>values.get(path)??null});
+  const db={ref(path){return {
+    once:async()=>snapshot(path),
+    on(event,handler){watchers.set(path,handler);handler(snapshot(path));},
+    off(event,handler){if(watchers.get(path)===handler)watchers.delete(path);},
+  }}};
+  const loaded=await persistence.loadPlayerInventory(db,"p1");
+  assert.equal(loaded.loaded,true);
+  assert.equal(loaded.state.augmentations.length,1,"Reload keeps Augments");
+  let received=null;
+  const unsubscribe=persistence.subscribePlayerInventory(db,"p1",(state)=>{received=state});
+  await Promise.resolve();
+  assert.equal(received.augmentations.length,1,"Realtime subscription includes Augments");
+  values.set(prefix+"/augmentations",[]);
+  watchers.get(prefix+"/augmentations")(snapshot(prefix+"/augmentations"));
+  await Promise.resolve();
+  assert.deepEqual(received.augmentations,[],"Realtime removal propagates");
+  unsubscribe();
+  assert.equal(watchers.size,0,"Subscription cleanup includes anatomy listeners");
+  console.log("DM_GEAR_SMOKE_PASS");
+})().catch((error)=>{console.error(error);process.exitCode=1;});
