@@ -31,3 +31,7 @@ The existing postcombat resolver maps mineral bodies and stone/crystal material 
 Live engine resistance bands are WEAK x1.5, NORMAL x1, RESIST x0.5. These units use Slash WEAK, Pierce RESIST, Blunt NORMAL and Pride RESIST. Previous proposal-only Pierce x0.75 is not directly supported by current resistance bands.
 
 Smoke command: node tests/cave-sapphire-spiders-smoke.mjs. It is wired to the Loot Foundation Validation PR workflow. Workflows and Codex review are left to GitHub after PR creation.
+
+## CR and experience
+
+No official CR exists for these **homebrew** units in the supplied design. `challengeRating: null` and `metadata.crPending: true` are deliberate until the DM approves a value; **Level 30 is not CR 30**. The Victory XP engine logs these as missing CR rather than inventing an XP reward. A DM-supplied `threat.rating` or explicit `xpValue` on the combatant can award XP without guessing.
