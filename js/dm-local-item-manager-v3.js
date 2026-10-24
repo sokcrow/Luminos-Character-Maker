@@ -1109,6 +1109,10 @@
     const qtyInput = global.document.getElementById("otorgar-item-cant");
     const playerId = clean(playerSelect && playerSelect.value);
     const quantity = Math.max(1, Math.trunc(Number(qtyInput && qtyInput.value) || 1));
+    if (item?.stackable === false && quantity !== 1) {
+      global.alert && global.alert("Este objeto no se apila. Entrégalo de uno en uno.");
+      return;
+    }
 
     if (!item) {
       global.alert && global.alert("Selecciona un ítem.");
@@ -1177,7 +1181,7 @@
       active.dataset.dmItemManagerV3Bound = "1";
       active.addEventListener("click", () => grantSelected("inventario_activo").catch((error) => {
         console.error("DM active item grant failed:", error);
-        global.alert && global.alert("No se pudo equipar el ítem: " + (error && error.message || error));
+        global.alert && global.alert("No se pudo entregar el ítem: " + (error && error.message || error));
       }));
     }
   }
