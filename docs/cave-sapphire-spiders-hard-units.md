@@ -2,10 +2,10 @@
 
 Sapphire Spider is a **Hard Unit**; Sapphire Spiderling is a **normal Unit** (neither is a Boss). Both are rock elementals with crystalline sapphire growths. Both currently allow only the Normal **rank** (which is separate from Unit classification), have native Level 30 and can be spawned up to Level 65. HP = floor(HP Base + Coefficient * Level).
 
-| Unit | Classification | Size | HP Base | Coefficient | HP L30 | OFF | DEF | Speed |
-|---|---|---|---:|---:|---:|---|---|---|
-| Sapphire Spider | Hard Unit | Large | 48 | 1.50 | 93 | L+2 | L-2 | 1–8 |
-| Sapphire Spiderling | Unit normal | Medium | 30 | 1.20 | 66 | L-1 | L-1 | 1–7 |
+| Unit | Classification | CR | XP | Size | HP Base | Coefficient | HP L30 | OFF | DEF | Speed |
+|---|---|---:|---:|---|---:|---:|---:|---|---|---|
+| Sapphire Spider | Hard Unit | 3 | 700 | Large | 48 | 1.50 | 93 | L+2 | L-2 | 1–8 |
+| Sapphire Spiderling | Unit normal | 1 | 200 | Medium | 15 | 1.20 | 51 | L-1 | L-1 | 1–7 |
 
 Both units load the exact same full-resolution original image from the user-supplied Imgur ID 0c9WpCr: Assets/Images/Units/Cave_Crystal/sapphire_spider.png (1254×1254). The original image bytes are stored as a binary file in the repository Units folder, not as a data URL or thumbnail.
 
@@ -34,4 +34,8 @@ Smoke command: node tests/cave-sapphire-spiders-smoke.mjs. It is wired to the Lo
 
 ## CR and experience
 
-No official CR exists for these **homebrew** units in the supplied design. `challengeRating: null` and `metadata.crPending: true` are deliberate until the DM approves a value; **Level 30 is not CR 30**. The Victory XP engine logs these as missing CR rather than inventing an XP reward. A DM-supplied `threat.rating` or explicit `xpValue` on the combatant can award XP without guessing.
+The DM approved CR values **two points below the previous balance proposals**: adult CR 3 (700 XP), Spiderling CR 1 (200 XP). Both retain their natural Luminos Level 30; there is no invented Level-to-CR conversion. The existing `combat-xp-runtime.js` maps `challengeRating` to XP. At Victory, this is distributed automatically when the separate Encounter XP integration PR #1032 is deployed.
+
+The Spiderling remains a **normal Unit**, not a Hard Unit. Its **HP Base is halved from 30 to 15**, while its existing coefficient 1.20 remains unchanged. Level 30 HP therefore becomes `floor(15 + 1.20 × 30) = 51`. The adult stays at 93 HP.
+
+Both units are already registered through the universal Unit Catalog and Combat Unit Instantiator, using original local sprite, skills, mineral loot, and elemental type. The PR must be merged and the updated catalog synchronized before these new data values are available in a live campaign.
