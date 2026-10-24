@@ -28,14 +28,14 @@
   }) || null;
   const scoreMap = s => ({ fuerza: s.str, destreza: s.dex, constitucion: s.con,
     inteligencia: s.int, sabiduria: s.wis, carisma: s.cha });
-  function define({id, name, size, classification, scores, hpBase, hpCoefficient, offensiveLevelModifier,
+  function define({id, name, size, classification, challengeRating, scores, hpBase, hpCoefficient, offensiveLevelModifier,
     defensiveLevelModifier, movementFeet, thresholds, traits, skills}) {
     const profile = mineralProfile(size);
     return {
       id, name, species: 'sapphire_spider', family: 'cave_sapphire_spiders',
       creatureType: 'elemental', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
-      // Homebrew: no D&D CR has been approved. Do not infer CR from L30.
-      challengeRating:null,
+      // DM-approved Homebrew CR: separate from Luminos runtime Level.
+      challengeRating,
       tags: ['cave', 'mineral', 'crystal', ...(classification === 'hard' ? ['hard_unit'] : []), 'pride', 'sapphire_spider'],
       naturalWorldLevel: {min: 30, max: 30}, baseLevel: {min: 30, max: 30},
       scores, stats: scoreMap(scores), proficiencies: {savingThrows:{}, skills:{}},
@@ -61,16 +61,16 @@
         skills:[...skills],staggerThresholds:[...thresholds],movementFeet:{ground:movementFeet,climb:movementFeet},
         preferredMovementMode:'ground',build:['Poise','Speed','Bind',...(size==='large'?['Restrained']:[])],
         offensiveLevelModifier,defensiveLevelModifier},
-      metadata:{canonicalUnit:true,catalog:'cave-sapphire-spider',homebrew:true,classification,crPending:true,
+      metadata:{canonicalUnit:true,catalog:'cave-sapphire-spider',homebrew:true,classification,crPending:false,
         spritePending:!sharedSprite,speedModel:'movement_feet_plus_size',levelCapContext:65,
-        naturalWorldLevelIsReferenceOnly:true,physicalProfilePending:false},schemaVersion:4
+        naturalWorldLevelIsReferenceOnly:true,physicalProfilePending:false},schemaVersion:5
     };
   }
   const ADULT_SCORES={str:13,dex:18,con:12,int:3,wis:12,cha:5};
   const JUVENILE_SCORES={str:10,dex:16,con:10,int:2,wis:10,cha:4};
   const DEFINITIONS=Object.freeze({
     sapphire_spider:define({
-      id:'sapphire_spider',name:'Sapphire Spider',size:'large',classification:'hard',scores:ADULT_SCORES,
+      id:'sapphire_spider',name:'Sapphire Spider',size:'large',classification:'hard',challengeRating:3,scores:ADULT_SCORES,
       hpBase:48,hpCoefficient:1.5,offensiveLevelModifier:2,defensiveLevelModifier:-2,
       movementFeet:45,thresholds:[70,40,15],
       traits:[{id:'swift_predator',name:'Swift Predator',type:'passive',
@@ -78,8 +78,8 @@
       skills:skillCatalog.loadout('sapphire_spider')
     }),
     sapphire_spiderling:define({
-      id:'sapphire_spiderling',name:'Sapphire Spiderling',size:'medium',classification:'normal',scores:JUVENILE_SCORES,
-      hpBase:30,hpCoefficient:1.2,offensiveLevelModifier:-1,defensiveLevelModifier:-1,
+      id:'sapphire_spiderling',name:'Sapphire Spiderling',size:'medium',classification:'normal',challengeRating:1,scores:JUVENILE_SCORES,
+      hpBase:15,hpCoefficient:1.2,offensiveLevelModifier:-1,defensiveLevelModifier:-1,
       movementFeet:35,thresholds:[65,30],
       traits:[{id:'brood_instinct',name:'Brood Instinct',type:'passive',
         description:'[On Turn Start] Gain 1 Haste per 4 Poise Potency (Max 2). Deal +5% Damage per point of positive Speed difference (Max +10%).'}],
