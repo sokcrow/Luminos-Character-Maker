@@ -370,19 +370,24 @@
     for (const unit of combatants) {
       const source = state.combatants?.[unit.id] || Object.values(state.combatants || {}).find((raw) => clean(raw?.id || raw?.combatId) === unit.id) || unit;
       const equippedGrants = new Set(global.LuminousEquipmentEffects?.grantedSkillIds?.(unit) || []);
-      const ids = [...new Set([...skillIdsFor(source), ...equippedGrants])];
-      const actions = ids.map((skillId) => {
+      const actions = [...new Set(skillIdsFor(source))].map((skillId) => {
         if (!state.skills?.[skillId]) return null;
-        const skill = normalizeSkill(skillId, state.skills[skillId]);
-        // Equipment-granted Skills stay outside the offensive 3/2/1 deck.
-        return equippedGrants.has(skillId)
-          ? { ...skill, inDeck: false, availability: { type: "granted" }, deck: { enabled: false } }
-          : skill;
+        return normalizeSkill(skillId, state.skills[skillId]);
       }).filter(Boolean);
       const embedded = Array.isArray(source.actions) ? source.actions.map((row, index) => normalizeSkill(clean(row?.id || `${unit.id}:action:${index}`), row || {})) : [];
+      // Resolve the ordinary kit first: a grant must never suppress embedded attacks.
+      const combined = [...(actions.length ? actions : embedded)];
+      const seen = new Set(combined.map(skill => skill.id));
+      for (const skillId of equippedGrants) {
+        if (seen.has(skillId) || !state.skills?.[skillId]) continue;
+        const skill = normalizeSkill(skillId, state.skills[skillId]);
+        // Only equipment-only Skills stay outside the offensive 3/2/1 deck.
+        combined.push({ ...skill, inDeck: false, availability: { type: "granted" }, deck: { enabled: false } });
+        seen.add(skillId);
+      }
       kits[unit.id] = {
         role: clean(source.buildRole || source.combatRole || source.role || ""),
-        actions: actions.length ? actions : embedded,
+        actions: combined,
         items: activeInventoryItems(source),
         inventorySource: "inventario_activo",
       };

@@ -7,6 +7,8 @@ This standard is **data-driven**. Do not add character-named code paths for Cali
 `js/item-equipment-effects-runtime.js` reads `runtime.equipmentEffects` (or
 `equipmentEffects`) from **currently equipped** armor/weapons/shields/accessories
 and **installed** body augmentations. A broken/disabled item contributes no effects.
+Physical breakage is read through `LuminousItemInventoryRuntime.getConditionState`,
+including items reduced to zero condition by the normal wear-damage API.
 Effects are identified by the equipment instance and effect index to prevent
 duplicate evaluation from main/offhand references.
 
@@ -89,6 +91,8 @@ never invent a Skill in the combat viewer as a fallback.
   include grants from that resolved equipment, without loading the full catalog.
 - The Loot Check runtime applies the equipped bonus at roll computation.
   Analyze reduces the *actual* threshold passed to the check.
+  The live observation ring and its animated Analyse roll also share the
+  equipment-adjusted threshold and skill modifier, without altering base scores.
 - Elemental Sinking SP loss and `CombatEngine`'s status-based SP losses pass
   through the common mitigation function. Gloom damage uses the equipped
   Sin resistance in the elemental fallback path and Skill hit calculation.
@@ -99,6 +103,9 @@ never invent a Skill in the combat viewer as a fallback.
 - Granted Skill IDs are added only from the canonical Skill catalog and
   explicitly marked `inDeck:false`, `availability.type:'granted'` so they
   cannot be drawn as Tier I/II/III cards.
+  The ordinary catalog/embedded-action fallback is resolved before adding
+  equipment grants; a grant never replaces embedded creature attacks or moves
+  an already-owned attack out of its deck.
 - Turn-start healing executes **only in the DM-authoritative combat round**,
   once per item effect per encounter/round. The consumption ledger is included
   in combat checkpoints, and no client-side UI hook heals units. Recovered

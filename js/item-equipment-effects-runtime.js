@@ -29,6 +29,15 @@
       // Augments must actually be installed, not merely present on the unit.
       if (index >= slots.length && (item.installed !== true || item.equipped === false)) continue;
       if (item.broken === true || item.isBroken === true || item.disabled === true) continue;
+      const condition = global.LuminousItemInventoryRuntime?.getConditionState?.(item);
+      if (condition?.id === "broken") continue;
+      // Early viewer hydration can precede the inventory runtime. Honor explicit
+      // zero condition then too; later evaluations use its canonical resolver.
+      if (!condition) {
+        const current = item.condition ?? item.currentCondition ?? item.currentDurability ?? item.durability;
+        const max = item.conditionMax ?? item.maxCondition ?? item.maxDurability;
+        if ((current != null && Number(current) <= 0) || (max != null && Number(max) <= 0)) continue;
+      }
       const id = String(item.instanceId || item.instance_id || item.id || "");
       const key = id || `slot:${index}`;
       if (seen.has(key)) continue;

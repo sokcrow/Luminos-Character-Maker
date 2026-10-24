@@ -84,6 +84,99 @@ const item = (...effects) => ({ instanceId: 'armor', quantity: 1, runtime: { equ
     assert.equal(adapter.state.skills.eye_only, undefined, 'Uninstalled eye no longer grants a Skill');
     delete owner.bodyAugmentations;
   }
+
+  const creature = { id: 'beast', battleActive: true, actions: [{ id: 'bite', name: 'Bite', type: 'attack' }],
+    equipment: { shield: item({ type: 'grant_skill', skillId: 'equipment_only' }) } };
+  adapter.state.combatants = { beast: creature };
+  await loader.ensureSkills();
+  let attacks = adapter.kitsFor(adapter.normalizedCombatants()).beast.actions;
+  assert.deepEqual([...attacks].map(row => row.id), ['bite', 'equipment_only'], 'Equipment adds to embedded attacks');
+  assert.equal(attacks[1].inDeck, false);
+  creature.equipment = {};
+  attacks = adapter.kitsFor(adapter.normalizedCombatants()).beast.actions;
+  assert.deepEqual([...attacks].map(row => row.id), ['bite'], 'Unequipping preserves embedded attacks');
+  creature.skillIds = ['ordinary'];
+  creature.equipment = { shield: item({ type: 'grant_skill', skillId: 'ordinary' }) };
+  await loader.ensureSkills();
+  attacks = adapter.kitsFor(adapter.normalizedCombatants()).beast.actions;
+  assert.deepEqual([...attacks].map(row => row.id), ['ordinary'], 'Normal catalog fallback and deduplication remain intact');
+  assert.notEqual(attacks[0].inDeck, false, 'Equipment cannot remove an already-owned attack from its deck');
+}
+
+// Canonical wear damage disables every effect, without boolean broken flags.
+{
+  const c = context();
+  vm.runInContext(read('js/item-inventory-runtime.js'), c);
+  const inventory = c.LuminousItemInventoryRuntime, effects = c.LuminousEquipmentEffects;
+  const armor = item(
+    { type: 'sp_loss_reduction', value: 3 },
+    { type: 'sin_resistance', sin: 'gloom', multiplier: 0.5 },
+    { type: 'skill_check_bonus', skill: 'perception', value: 2 },
+    { type: 'check_threshold_reduction', check: 'analyze', value: 2 },
+    { type: 'heal_hp_percent', trigger: 'on_turn_start', value: 10 },
+    { type: 'grant_skill', skillId: 'bash' },
+  );
+  const unit = { hp: 50, maxHp: 100, equipment: { armor } };
+  assert.equal(effects.mitigateSpLoss(unit, 8), 5);
+  assert.equal(inventory.damageCondition(armor, 100).state.id, 'broken');
+  assert.equal(armor.broken, undefined);
+  assert.equal(effects.mitigateSpLoss(unit, 8), 8);
+  assert.equal(effects.resolveSinResistance(unit, 'gloom', 1), 1);
+  assert.equal(effects.skillCheckBonus(unit, 'perception'), 0);
+  assert.equal(effects.checkThresholdAdjustment(unit, 'analyze'), 0);
+  assert.deepEqual([...effects.grantedSkillIds(unit)], []);
+  effects.applyTurnStart(unit, { authoritative: true, round: 1 });
+  assert.equal(unit.hp, 50);
+  armor.condition = 100;
+  assert.equal(effects.mitigateSpLoss(unit, 8), 5, 'Repair restores active effects');
+  delete c.LuminousItemInventoryRuntime;
+  armor.condition = 0;
+  assert.equal(effects.mitigateSpLoss(unit, 8), 8, 'Early hydration without inventory runtime still excludes explicitly broken equipment');
+}
+
+// The live observation UI and animated roll share equipment-adjusted math.
+{
+  const c = context(), header = {}, buttons = [];
+  const ring = { innerHTML: '', classList: { add() {} }, setAttribute() {}, appendChild(button) { buttons.push(button); } };
+  Object.assign(header, { classList: { add() {} }, setAttribute() {} });
+  const eye = { ...item({ type: 'skill_check_bonus', skill: 'perception', value: 2 },
+    { type: 'check_threshold_reduction', check: 'analyze', value: 2 }), installed: true };
+  const actor = { id: 'player', augmentations: [eye] };
+  const enemy = { id: 'enemy', name: 'Enemy', faction: 'enemy', observationKnown: [] };
+  const rolls = [];
+  Object.assign(c, {
+    PLAYER_ID: 'player', combatData: { player: actor, enemy }, round: 1, observationUsedTurn: 0, observationRolling: false,
+    PLAYER_SCORES: { perception: { score: 12, mod: 1 }, insight: { score: 10, mod: 0 } },
+    OBSERVATION_META: { hp: { stat: 'perception', label: 'CHECK HP' } }, OBSERVATION_FACTS: ['hp'],
+    CHECK_COIN_COUNT: 5, CHECK_COIN_POWER: 4,
+    document: { createElement() { return {}; } }, requestAnimationFrame() {},
+    $(id) { return id === 'observation-ring' ? ring : id === 'observation-header' ? header : {}; },
+    observationKnown(unit, fact) { return unit.observationKnown.includes(fact); }, observationFactAvailable() { return true; },
+    observationLevel() { return 1; }, observationLevelMarkup() { return ''; }, observationLinkedUnits: unit => [unit],
+    observationRollMarkup: last => last ? `TH${last.threshold}` : '', formatModifier: mod => `+${mod}`,
+    coinHeadsChanceForUnit() { return 50; }, unitHasStatus() { return false; }, setStatus() {},
+    revealObservationFact(unit) { return [unit]; },
+    LuminousCoinEngine: { async runAnimatedRoll(options) { rolls.push(options); return { total: options.base + 4, heads: 1, coins: [] }; } },
+  });
+  for (const name of ['observationDifficulty', 'observationThreshold', 'observationModifier', 'renderObservationRing']) {
+    vm.runInContext(functionSource(name), c);
+  }
+  vm.runInContext(functionSource('performObservation', true), c);
+  c.renderObservationRing('enemy');
+  assert.match(buttons.at(-1).innerHTML, /PERCEPTION \+3 · D1 · TH7/);
+  assert.match(header.innerHTML, /PERCEPTION 12 \/ \+3/);
+  await c.performObservation('enemy', 'hp');
+  assert.equal(rolls[0].base, 3, 'Animated roll receives the equipment bonus');
+  assert.equal(enemy.observationLastCheck.threshold, 7);
+  assert.equal(enemy.observationLastCheck.success, true);
+  assert.match(header.innerHTML, /TH7/);
+  assert.equal(c.PLAYER_SCORES.perception.mod, 1, 'Base scores are not permanently modified');
+  eye.installed = false;
+  c.round = 2;
+  await c.performObservation('enemy', 'hp');
+  assert.equal(rolls[1].base, 1);
+  assert.equal(enemy.observationLastCheck.threshold, 9);
+  assert.equal(enemy.observationLastCheck.success, false);
 }
 
 // Execute the live Sinking and Skill damage functions, not CombatEngine doubles.
