@@ -29,34 +29,34 @@
   });
 
   const DEFINITIONS = Object.freeze({
-    sapphire_spider_prismatic_slash: attack('sapphire_spider_prismatic_slash', 'Prismatic Slash', 1, 6, 3, 3, 'cortante', [
+    sapphire_spider_prismatic_slash: attack('sapphire_spider_prismatic_slash', 'Prismatic Slash', 1, 6, 3, 3, 'Slash', [
       effect('poise', { target: 'self', potency: 1, count: 3, trigger: '[On Use]' })
     ], [
-      coin(0, [effect('poise', { target: 'self', potency: 1 })]),
+      coin(0, [effect('poise', { target: 'self', potency: 1, count: 1 })]),
       coin(1, [effect('poise', { target: 'self', potency: 2, trigger: '[Heads Hit]' })]),
       coin(2, [effect('haste', { target: 'self', count: 2, trigger: '[On Crit]', timing: 'next_turn' })])
     ], 'adult', 'On Coin 3 Hit, gain 2 Poise Count if the target is slower (runtime conditional).'),
-    sapphire_spider_crystal_thread: attack('sapphire_spider_crystal_thread', 'Crystal Thread', 2, 7, 4, 2, 'perforante', [
+    sapphire_spider_crystal_thread: attack('sapphire_spider_crystal_thread', 'Crystal Thread', 2, 7, 4, 2, 'Pierce', [
       effect('haste', { target: 'self', count: 3, trigger: '[Clash Win]', timing: 'next_turn' })
     ], [
       coin(0, [effect('bind', { count: 1, timing: 'next_turn' })]),
       coin(1, [effect('bind', { count: 1, timing: 'next_turn' })])
     ], 'adult', 'On Coin 2 Crit inflict 1 Restrained; +1 if faster; +1 if the target has Bind (runtime conditional).'),
-    sapphire_spider_hunters_sting: attack('sapphire_spider_hunters_sting', "Hunter's Sting", 3, 7, 4, 3, 'perforante', [
-      effect('poise', { target: 'self', potency: 3, trigger: '[On Use]' })
+    sapphire_spider_hunters_sting: attack('sapphire_spider_hunters_sting', "Hunter's Sting", 3, 7, 4, 3, 'Pierce', [
+      effect('poise', { target: 'self', potency: 3, count: 1, trigger: '[On Use]' })
     ], [
       coin(0, [effect('poise', { target: 'self', count: 2 })]),
       coin(1, [effect('bind', { count: 1, timing: 'next_turn' })]),
       coin(2, [effect('poise', { target: 'self', count: 2 })])
     ], 'adult', 'Coins 2/3 apply 2 Fragile next Turn if Restrained; Coin 3 Crit grants 4 Haste if Restrained and +20% Crit Damage.'),
     sapphire_spider_faceted_evasion: evade('sapphire_spider_faceted_evasion', 'Faceted Evasion', 18, 'adult', 3, 3),
-    sapphire_spiderling_shard_claws: attack('sapphire_spiderling_shard_claws', 'Shard Claws', 1, 5, 3, 2, 'cortante', [
+    sapphire_spiderling_shard_claws: attack('sapphire_spiderling_shard_claws', 'Shard Claws', 1, 5, 3, 2, 'Slash', [
       effect('haste', { target: 'self', count: 1, trigger: '[On Use]', timing: 'next_turn' })
     ], [
-      coin(0, [effect('poise', { target: 'self', potency: 1 })]),
+      coin(0, [effect('poise', { target: 'self', potency: 1, count: 1 })]),
       coin(1, [effect('poise', { target: 'self', count: 2, trigger: '[Heads Hit]' })])
     ], 'spiderling', 'Juvenile Poise / Haste starter.'),
-    sapphire_spiderling_silken_snare: attack('sapphire_spiderling_silken_snare', 'Silken Snare', 2, 6, 3, 2, 'perforante', [
+    sapphire_spiderling_silken_snare: attack('sapphire_spiderling_silken_snare', 'Silken Snare', 2, 6, 3, 2, 'Pierce', [
       effect('bind', { count: 1, trigger: '[Clash Win]', timing: 'next_turn' })
     ], [
       coin(0, [effect('bind', { count: 1, timing: 'next_turn' })]),
