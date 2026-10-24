@@ -335,8 +335,14 @@
               totalXp: result.totalXp, participantCount: result.participantCount,
               awardedAt: Date.now() } } };
       }, undefined, false);
-      if (!tx?.committed && tx?.snapshot?.val()?.encounterXpAwards?.[encounterId] == null)
-        throw Error('ENCOUNTER_XP_AWARD_NOT_COMMITTED:' + playerId);
+      const receipt = tx?.snapshot?.val()?.encounterXpAwards?.[encounterId];
+      if (receipt == null) throw Error('ENCOUNTER_XP_AWARD_NOT_COMMITTED:' + playerId);
+      // If a retry sees a different computed payout, do not silently seal a
+      // Victory whose participants received inconsistent reward amounts.
+      if (receipt.xp !== result.xpPerParticipant
+        || receipt.totalXp !== result.totalXp
+        || receipt.participantCount !== result.participantCount)
+        throw Error('ENCOUNTER_XP_RECEIPT_MISMATCH:' + playerId);
       awards.push({ playerId, awarded: Boolean(tx?.committed), xp: result.xpPerParticipant });
     }
     return { encounterId, totalXp: result.totalXp, enemyXp: result.enemyXp,
