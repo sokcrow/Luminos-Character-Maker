@@ -427,6 +427,7 @@
       unit.battleActive,
       unit.statusEffects,
       unit.combatDeck,
+      unit.combatDeckModes,
       unit.proneSpeedRound,
       unit.confusionTurnMode,
       unit.equipment,
