@@ -16,7 +16,7 @@
   const SIZE_PROFILES = Object.freeze(Object.fromEntries(Object.entries({
     tiny: [0.5, 0.55], small: [1, 0.8], medium: [1, 1],
     large: [1, 1.35], huge: [2, 1.85], gargantuan: [3, 2.5],
-  }).map(([size, [spaces, spriteScale]]) => [size, Object.freeze({ size, spaces, spriteScale })])));
+  }).map(([size, [spaces, spriteScale]]) => [size, Object.freeze({ size, spaces, spriteScale, hudScale: ['tiny', 'small', 'medium'].includes(size) ? 0.75 : 1 })])));
 
   function sizeOf(unit = {}) {
     const raw = normalizeId(String(unit.size || unit.unitSize || unit.unit_size || unit.creatureSize ||

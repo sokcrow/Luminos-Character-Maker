@@ -7,6 +7,8 @@ await import('../js/combat-participants.js');
 const d=globalThis.LuminousCombatDeploymentRuntime;
 const unit=(id,size='medium',extra={})=>({id,size,faction:'enemy',hp:10,maxHp:10,battleActive:true,...extra});
 for(const [size,cost] of Object.entries({tiny:.5,small:1,medium:1,large:1,huge:2,gargantuan:3}))assert.equal(d.fieldSpace(unit(size,size)),cost);
+for(const size of ['tiny','small','medium'])assert.equal(d.sizeProfile({size}).hudScale,.75);
+for(const size of ['large','huge','gargantuan'])assert.equal(d.sizeProfile({size}).hudScale,1);
 assert.equal(d.sizeOf({mechanics:{size:'Huge'}}),'huge');
 assert.equal(d.sizeOf({size:'Pequeño'}),'small');
 assert.equal(d.sizeOf({size:'unknown'}),'medium');

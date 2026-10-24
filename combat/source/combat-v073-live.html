@@ -2451,7 +2451,7 @@
 <script src="js/skill-catalog-player-signature.js"></script>
 <script src="js/combat-skill-loadout-074.js"></script>
 <script src="js/combat-participants.js"></script>
-<script src="js/combat-deployment-runtime.js?v=20261024-creature-space-1"></script>
+<script src="js/combat-deployment-runtime.js?v=20261024-creature-hud-2"></script>
 <script src="js/combat-v073-live-adapter.js?v=20261021-encounter-3"></script>
 <script>
 (function (global) {
@@ -4474,6 +4474,7 @@ function beginPlayerTargeting(plan,slotIndex){
   });
   setCameraFocus('full',false);
   setStatus(`TARGETING · ${plan.data?.name||'Action'} · ${rule.toUpperCase()} SLOTS ONLY`);
+  window.LuminousCombatHudMotion073?.refresh();
   if(combatData[PLAYER_ID]?.confusionTurnMode==='indiscriminate'){
     const valid=[...document.querySelectorAll('.action-slot-wrapper.target-valid')];
     const random=valid.length?valid[Math.floor(Math.random()*valid.length)]:null;
@@ -8207,12 +8208,20 @@ window.addEventListener('scroll',()=>{closeStatusPopover();closeStatusOverflow()
 
 document.addEventListener('pointerdown',e=>{
   if(!targetingModeActive)return;
-  const validSlots=Array.from(document.querySelectorAll('.action-slot-wrapper.target-valid')),
-        slot=validSlots.find(node=>{
-          const r=node.getBoundingClientRect(),
-                pad=7;
-          return e.clientX>=r.left-pad&&e.clientX<=r.right+pad&&e.clientY>=r.top-pad&&e.clientY<=r.bottom+pad
-        });
+  // Screen-space target buttons must receive their own click/touch/keyboard action.
+  if(e.target.closest?.('#combat-target-list,button,input,select,textarea,a'))return;
+  const direct=e.target.closest?.('.action-slot-wrapper');
+  if(direct){
+    if(!direct.classList.contains('target-valid'))return;
+    e.preventDefault();e.stopPropagation();choosePlayerTarget(direct);return
+  }
+  // Tiny pairs can have overlapping touch padding. Prefer the nearest slot,
+  // rather than whichever slot happened to be first in DOM order.
+  const slot=Array.from(document.querySelectorAll('.action-slot-wrapper.target-valid')).map(node=>{
+    const r=node.getBoundingClientRect(),pad=e.pointerType==='touch'?12:7;
+    if(!(r.width>0&&r.height>0)||e.clientX<r.left-pad||e.clientX>r.right+pad||e.clientY<r.top-pad||e.clientY>r.bottom+pad)return null;
+    return{node,distance:Math.hypot(e.clientX-(r.left+r.right)/2,e.clientY-(r.top+r.bottom)/2)}
+  }).filter(Boolean).sort((a,b)=>a.distance-b.distance)[0]?.node;
   if(!slot)return;
   e.preventDefault();
   e.stopPropagation();
@@ -8350,6 +8359,13 @@ window.LuminousCombat073=Object.freeze({
   speedForBaseRoll,
   kit:id=>UNIT_KITS[id],
   plans:()=>plannedActions,
+  chooseTarget(ownerId,slotIndex=0){
+    if(!targetingModeActive||!pendingTargetPlan)return false;
+    const slot=unitSlots(ownerId).find(node=>Number(node.dataset.slotIndex)===Number(slotIndex));
+    if(!slot||!targetSlotIsValid(slot,planTargetRule(pendingTargetPlan,combatData[PLAYER_ID])))return false;
+    choosePlayerTarget(slot);
+    return !targetingModeActive
+  },
   restorePlanning(plans,ready){
     plannedActions=plans;planReady=Boolean(ready);
     $('game-container').classList.toggle('ready-plan-visible',planReady);

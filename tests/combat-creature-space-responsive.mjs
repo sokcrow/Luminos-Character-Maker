@@ -36,13 +36,17 @@ try{for(const role of ['player','dm'])for(const [width,height]of [[360,800],[390
       window.LuminousCombatStage073.refresh();
       const img=document.getElementById('sprite-target');await img.decode();
       const box=img.getBoundingClientRect(),panel=document.getElementById('ui-panel-target').getBoundingClientRect();
-      result[size]={height:box.height,control:panel.height,top:panel.bottom,bodyTop:box.top};
+      const token=document.getElementById('token-target'),hud=token.querySelector('.floating-hp-group'),hudBox=hud.getBoundingClientRect(),floor=token.querySelector('.diegetic-floor');
+      result[size]={height:box.height,control:panel.height,top:panel.bottom,bodyTop:box.top,hudScale:parseFloat(getComputedStyle(hud).scale),floorWidth:parseFloat(getComputedStyle(floor).width)};
     }
     return result;
   });
   const scale={tiny:.55,small:.8,medium:1,large:1.35,huge:1.85,gargantuan:2.5};
   for(const [size,factor]of Object.entries(scale)){
     assert.ok(Math.abs(ratios[size].height/ratios.medium.height-factor)<.02,`${width}x${height}: ${size} body ratio`);
+    const expectedHud=['tiny','small','medium'].includes(size)?.75:1;
+    assert.equal(ratios[size].hudScale,expectedHud,`${size}: information HUD scale`);
+    if(expectedHud===.75)assert.equal(ratios[size].floorWidth,165,`${size}: floor HUD is exactly 75%, independent of body size`);
     assert.ok(Math.abs(ratios[size].control-ratios.medium.control)<1,`${size}: controls retain readable geometry`);
     if(['large','huge','gargantuan'].includes(size))assert.ok(ratios[size].top<=ratios[size].bodyTop+2,`${size}: action slots stay above the body`);
   }
@@ -63,6 +67,21 @@ try{for(const role of ['player','dm'])for(const [width,height]of [[360,800],[390
   });
   assert.equal(new Set(tiny.map(p=>p.x+':'+p.y)).size,16);
   await page.screenshot({path:`artifacts/creature-space/${role}-${width}x${height}-tiny.png`,animations:'disabled'});
+  if(role==='player'){
+    const begin=async()=>page.evaluate(()=>{
+      const plan={type:'deck',data:{id:'ci_player_skill',name:'Target selection',basePower:5,coinPower:3,coinAmount:1}};
+      window.LuminousCombat073.plans()[0]=plan;
+      window.beginPlayerTargeting(plan,0);
+    });
+    await begin();
+    const target=page.locator('#combat-target-list button[data-target-owner="t0"][data-target-slot="0"]');
+    await target.click();
+    assert.equal(await page.evaluate(()=>window.LuminousCombat073.plans()[0].targetId),'t0');
+    await begin();
+    const keyboard=page.locator('#combat-target-list button[data-target-owner="t1"][data-target-slot="0"]');
+    await keyboard.focus();await keyboard.press('Enter');
+    assert.equal(await page.evaluate(()=>window.LuminousCombat073.plans()[0].targetId),'t1');
+  }
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'no horizontal document overflow');
   assert.deepEqual(errors,[],`${width}x${height}: real viewer boot has no page errors`);
   console.log(`${role} ${width}x${height}: all six body sizes, independent HUD, mixed side, summon and 16 Tiny passed`);
