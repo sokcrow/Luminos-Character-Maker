@@ -75,6 +75,11 @@ assert.equal(data['campaña/jugadores/a'].level,3);
 const repeated=await xp.awardVictoryXp({db,encounter});
 assert.ok(repeated.awards.every(row=>!row.awarded));
 assert.equal(data['campaña/jugadores/a'].xp,230);
+// A changed reward after a partial payout must never be mistaken for an
+// idempotent success; the encounter cannot seal with inconsistent receipts.
+const inconsistent=copy(encounter);inconsistent.estado.fixedEncounterXp=100;
+await assert.rejects(()=>xp.awardVictoryXp({db,encounter:inconsistent}),/ENCOUNTER_XP_RECEIPT_MISMATCH/);
+assert.equal(data['campaña/jugadores/a'].xp,230);
 const retry=copy(encounter);retry.estado.encounterId='xp-smoke-b';
 failAt=2;
 await assert.rejects(()=>xp.awardVictoryXp({db,encounter:retry}),/SIMULATED_DISCONNECT/);
