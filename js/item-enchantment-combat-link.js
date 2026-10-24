@@ -49,11 +49,11 @@
     const family = normalize(skill.skillFamily || skill.skill_family);
     const source = normalize(skill.sourceType || skill.source_type);
     if (skill.isDefense === true || ["spell", "roll", "save", "check", "guard", "evade", "counter", "defense"].includes(type) || family === "spell" || family === "defense") return false;
-    return skill.isItemSkill === true || skill.is_item_skill === true ||
+    return Boolean(skill.isItemSkill === true || skill.is_item_skill === true ||
       skill.requiresWeapon === true || skill.requires_weapon === true ||
       source === "weapon" || source === "equipment" ||
       (family === "attack" && (skill.requiresEquipment === true || skill.requires_equipment === true)) ||
-      ((type === "attack" || type === "skill") && (skill.weaponDefinitionId || skill.weaponSlot));
+      ((type === "attack" || type === "skill") && (skill.weaponDefinitionId || skill.weaponSlot)));
   }
   function equippedWeapons(unit = {}) {
     const equipment = unit.equipment || {};
