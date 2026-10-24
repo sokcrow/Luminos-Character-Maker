@@ -52,7 +52,7 @@
       '<nav class="dmic-steps" aria-label="Pasos del creador"><button type="button" data-step="0">1. Identidad</button><button type="button" data-step="1">2. Mecánicas</button><button type="button" data-step="2">3. Vista previa</button></nav>'+
       '<div class="dmic-body">'+
       '<section class="dmic-page" data-page="0" aria-label="Identidad del objeto"><h3>Tu objeto</h3>'+
-      '<div class="dmic-field"><label for="dmic-existing">Mis creaciones guardadas</label><div class="dmic-inline"><select id="dmic-existing"><option value="">Crear desde cero</option></select><button id="dmic-load" type="button" class="dmic-secondary">Editar</button></div></div>'+
+      '<div class="dmic-field"><label for="dmic-existing">Mis creaciones guardadas</label><div class="dmic-inline"><select id="dmic-existing"><option value="">Crear desde cero</option></select><button id="dmic-load" type="button" class="dmic-secondary">Editar</button><button id="dmic-new" type="button" class="dmic-secondary">Nuevo</button></div></div>'+
       '<div class="dmic-fields"><div class="dmic-field full"><label for="dmic-name">Nombre del ítem</label><input id="dmic-name" maxlength="90" autocomplete="off" placeholder="Nombre de tu creación"></div>'+
       '<div class="dmic-field"><label for="dmic-category">Categoría</label><select id="dmic-category"></select></div>'+
       '<div class="dmic-field"><label for="dmic-tier">Tier</label><select id="dmic-tier"></select></div>'+
@@ -80,6 +80,7 @@
     byId("save").addEventListener("click",()=>save());
     byId("add-effect").addEventListener("click",()=>addEffect());
     byId("load").addEventListener("click",loadExisting);
+    byId("new").addEventListener("click",()=>{if(state.dirty&&!global.confirm("¿Descartar cambios sin guardar?"))return;reset();byId("name").focus();});
     overlay.querySelectorAll("[data-step]").forEach(b=>b.addEventListener("click",()=>setStep(Number(b.dataset.step))));
     overlay.addEventListener("input",e=>{if(e.target.id!=="dmic-icon-search")state.dirty=true; if(e.target.id==="dmic-icon-search")renderIcons(); renderPreview();});
     overlay.addEventListener("change",e=>{state.dirty=true;if(e.target.id==="dmic-category"){renderCategory();renderIcons();}if(e.target.id==="dmic-icon")renderIconPreview();renderPreview();});
@@ -227,6 +228,7 @@
     state.open=false;byId("overlay").hidden=true;
     doc.body.classList.remove("dmic-is-open");
     state.dirty=false;
+    byId("open")?.focus();
   }
   function resolveDb() {try{return global.firebase?.database?.()||null;}catch(_){return null;}}
   function bindCatalog() {
