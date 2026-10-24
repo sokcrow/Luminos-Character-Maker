@@ -5,6 +5,7 @@ require("../js/anatomy-equipment-engine.js");
 require("../js/item-augmentation-runtime.js");
 require("../js/item-equipment-bridge.js");
 require("../js/item-persistence-runtime.js");
+require("../js/item-realtime-sync.js");
 require("../js/dm-character-gear-core.js");
 // Package uses ESM: require() runs the side effects but does not return module.exports.
 const core=globalThis.LuminousDmCharacterGearCore;
@@ -129,5 +130,23 @@ assert.equal(bridge.equippedSlots(playerHud).augments.length,0);
   assert.deepEqual(received.augmentations,[],"Realtime removal propagates");
   unsubscribe();
   assert.equal(watchers.size,0,"Subscription cleanup includes anatomy listeners");
+
+  // Default player HUD path uses RealtimeSync.bindPeer rather than the fallback.
+  values.set(prefix+"/augmentations",dmInstalled.augmentations);
+  const peer=globalThis.LuminousItemRealtimeSync.bindPeer({
+    db,playerId:"p1",unit:{},watchStashAccess:false,
+  });
+  await Promise.resolve();
+  assert.equal(bridge.equippedSlots(peer.unit).augments.length,1,"Peer receives DM Augment installation");
+  assert.equal(bridge.getSlotItem(peer.unit,"mainHand")?.instanceId,"knife1");
+  values.set(prefix+"/augmentations",[]);
+  values.set(prefix+"/itemEquipmentRefs",{mainHand:null,offHand:null,armor:null,shield:null,accessoryIds:[]});
+  watchers.get(prefix+"/augmentations")(snapshot(prefix+"/augmentations"));
+  watchers.get(prefix+"/itemEquipmentRefs")(snapshot(prefix+"/itemEquipmentRefs"));
+  await Promise.resolve();
+  assert.equal(bridge.equippedSlots(peer.unit).augments.length,0,"Peer receives DM extraction");
+  assert.equal(bridge.getSlotItem(peer.unit,"mainHand"),null,"Peer receives DM unequip");
+  peer.dispose();
+  assert.equal(watchers.size,0);
   console.log("DM_GEAR_SMOKE_PASS");
 })().catch((error)=>{console.error(error);process.exitCode=1;});
