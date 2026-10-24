@@ -1085,7 +1085,11 @@
     payload.quantity = quantity;
     payload.cantidad = quantity;
     payload.currentOwnerId = playerId;
-    delete payload.__dmSource;
+    // Catalog provenance and DM ownership belong to the definition, not to
+    // an ItemInstance delivered to a player.
+    for (const field of ["__dmSource","__firebasePath","__firebaseKey",
+                         "createdByUid","createdAt","updatedAt","revision",
+                         "dmCustomDefinition"]) delete payload[field];
     return payload;
   }
 
