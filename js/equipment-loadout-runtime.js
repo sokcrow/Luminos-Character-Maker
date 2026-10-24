@@ -69,10 +69,33 @@ function slotIds(unit={},player=unit){
  const d=deck(unit,player);if(!d)return [];
  return [d.tier1,d.tier1,d.tier1,d.tier2,d.tier2,d.tier3].map(clean).filter(Boolean);
 }
-function modeOptions(unit={},player=unit){return armedLoadouts(unit,player);}
+function weaponSets(player={}){
+ const available=Object.values(player.inventario_activo||{}).filter(item=>
+   item&&typeof item==="object"&&Number(item.quantity??1)===1&&weaponEquipped(item));
+ const get=id=>available.find(item=>clean(item.definitionId||item.id)===clean(id))||null;
+ return (catalog()?.WEAPON_SETS||[]).map(profile=>{
+   const modes=profile.modes||{},rows=Object.entries(modes);
+   if(!rows.length)return null;
+   // A quick swap is only possible when *all* requested physical items exist.
+   if(!rows.every(([,preset])=>[preset.mainHand,preset.offHand,preset.shield]
+     .filter(Boolean).every(id=>get(id))))return null;
+   const equipped=hydratedEquipment(player,player);
+   const selected=rows.find(([,preset])=>
+     clean(equipped.mainHand?.definitionId)===clean(preset.mainHand) &&
+     clean(equipped.offHand?.definitionId)===clean(preset.offHand) &&
+     clean(equipped.shield?.definitionId)===clean(preset.shield));
+   const modeId=selected?.[0]||clean(profile.defaultMode||rows[0][0]);
+   return {item:{displayName:profile.name},instanceId:clean(profile.id),modeId,
+     options:rows.map(([id,mode])=>({id,name:mode.name||id})),
+     weaponSet:true,definitionId:profile.id};
+ }).filter(Boolean);
+}
+function modeOptions(unit={},player=unit){
+ return [...armedLoadouts(unit,player),...weaponSets(player)];
+}
 function changeMode(player={},instanceId="",requested="",options={}){
  const id=clean(instanceId),mode=clean(requested);
- const found=armedLoadouts(player,player).find(entry=>entry.instanceId===id);
+ const found=modeOptions(player,player).find(entry=>entry.instanceId===id);
  if(!found||!found.options.some(row=>row.id===mode))
    return {ok:false,reason:"not_equipped_or_mode_missing"};
  const current=clean(player.activeEquipmentModes?.[id])||found.modeId;
@@ -87,10 +110,39 @@ function changeMode(player={},instanceId="",requested="",options={}){
  if(ledgerKey&&ledger[ledgerKey])return {ok:false,reason:"free_mode_switch_already_used"};
  const next=clone(player);
  next.activeEquipmentModes={...(next.activeEquipmentModes||{}),[id]:mode};
+ if(found.weaponSet){
+   const profile=(catalog()?.WEAPON_SETS||[]).find(row=>row.id===id);
+   const preset=profile?.modes?.[mode];
+   if(!preset)return {ok:false,reason:"weapon_set_missing"};
+   const inventory=Object.values(next.inventario_activo||{});
+   const get=definitionId=>inventory.find(item=>
+     clean(item?.definitionId||item?.id)===clean(definitionId))||null;
+   const slotItem={mainHand:get(preset.mainHand),offHand:get(preset.offHand),shield:get(preset.shield)};
+   if(!slotItem.mainHand||preset.offHand&&!slotItem.offHand||preset.shield&&!slotItem.shield)
+     return {ok:false,reason:"weapon_set_item_missing"};
+   const previous=hydratedEquipment(player,player);
+   const replacing=[previous.mainHand,previous.offHand,previous.shield]
+     .filter(item=>item&&!Object.values(slotItem).some(nextItem=>idOf(nextItem)===idOf(item)));
+   if(replacing.some(item=>global.LuminousItemMagicRuntime?.isBoundItem?.(item)===true))
+     return {ok:false,reason:"bound_weapon_cannot_switch"};
+   next.itemEquipmentRefs={...(next.itemEquipmentRefs||{}),
+     mainHand:idOf(slotItem.mainHand)||null,
+     offHand:idOf(slotItem.offHand)||null,
+     shield:idOf(slotItem.shield)||null};
+   const selectedIds=new Set(Object.values(slotItem).map(idOf).filter(Boolean));
+   const setDefinitions=new Set(Object.values(profile.modes).flatMap(value=>
+     [value.mainHand,value.offHand,value.shield].filter(Boolean)));
+   for(const item of inventory){
+     if(!setDefinitions.has(clean(item.definitionId||item.id)))continue;
+     item.equipped=selectedIds.has(idOf(item));
+     item.equippedSlot=idOf(item)===idOf(slotItem.mainHand)?"mainHand":
+       idOf(item)===idOf(slotItem.offHand)?"offHand":null;
+   }
+ }
  if(ledgerKey)next.equipmentModeChangeLedger={...ledger,[ledgerKey]:id};
  return {ok:true,changed:true,player:next,modeId:mode};
 }
-const api=Object.freeze({VERSION:1,definition,actualItem,hydratedEquipment,armedLoadouts,active,deck,slotIds,modeOptions,changeMode});
+const api=Object.freeze({VERSION:2,definition,actualItem,hydratedEquipment,armedLoadouts,weaponSets,active,deck,slotIds,modeOptions,changeMode});
 global.LuminousEquipmentLoadouts=api;
 if(typeof module!=="undefined"&&module.exports)module.exports=api;
 })(typeof window!=="undefined"?window:globalThis);
