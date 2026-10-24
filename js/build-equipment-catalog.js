@@ -52,7 +52,7 @@ const entries=[
  runtime:{equipmentEffects:passive({type:"grant_skill",skillId:"jeske_clashable_guard"},
  {type:"grant_skill",skillId:"jeske_shield_bash"})}},
  {id:"jeske_regenerative_armor",name:"Armadura Regenerativa de Jeske",category:"armor",iconFamily:"armor",price:240,
- equipment:{kind:"armor"},runtime:{equipmentEffects:[{type:"heal_hp_percent",trigger:"turn_start",value:5}]}},
+ equipment:{kind:"armor"},runtime:{equipmentEffects:[{type:"heal_hp_percent",trigger:"on_turn_start",value:5}]}},
  {id:"jeske_ocular_augment",name:"Augment Ocular de Jeske",category:"augmentation",iconFamily:"augmentation",price:210,
  runtime:{augmentation:{enabled:true,targetPartTypes:["eye"],requiredPartCount:1,removable:false},
  equipmentEffects:passive({type:"skill_check_bonus",skill:"perception",value:1},
