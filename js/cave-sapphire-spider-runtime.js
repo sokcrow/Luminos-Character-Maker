@@ -35,6 +35,13 @@
     if (id === 'sapphire_spiderling_skittering_evasion') return Math.min(2, Math.floor(count(unit,'poise') / 2));
     return 0;
   }
+  function evadePower(unit, plan) {
+    if (!unitKind(unit)) return null;
+    const id = String(plan?.data?.id || plan?.data?.sourceId || '');
+    if (!['sapphire_spider_faceted_evasion', 'sapphire_spiderling_skittering_evasion'].includes(id)) return null;
+    const dex = Math.max(1, Number(unit?.scores?.dex ?? unit?.stats?.destreza ?? 10) || 10);
+    return { basePower: Math.floor((dex - 10) / 2), coinPower: dex };
+  }
   function criticalDamageBonus(unit, target, skillData) {
     if (unitKind(unit) !== 'adult' || !target) return 0;
     return String(skillData?.id || '') === 'sapphire_spider_hunters_sting' &&
@@ -66,7 +73,7 @@
     return effects;
   }
   const api = Object.freeze({version:'1.0.0',unitKind,count,potency,speed,hasteOnTurnStart,
-    speedDamagePercent,evadeBonus,criticalDamageBonus,applyConditionalSkillEffects});
+    speedDamagePercent,evadeBonus,evadePower,criticalDamageBonus,applyConditionalSkillEffects});
   global.LuminousCaveSapphireSpiderRuntime = api;
   if (typeof module !== 'undefined' && module.exports) module.exports=api;
 })(typeof window !== 'undefined' ? window : globalThis);
