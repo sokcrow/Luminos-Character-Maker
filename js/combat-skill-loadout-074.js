@@ -282,6 +282,10 @@
     const id = clean(skillId);
     if (!id) return false;
     if (grantedSkillIdsFor(source).includes(id)) return true;
+    const equipmentDeck = global.LuminousEquipmentLoadouts?.slotIds?.(source, source) || [];
+    // A mode-specific 3/2/1 deck owns its Skill slots while equipped. The
+    // player's persistent learned/deck fields are deliberately not rewritten.
+    if (equipmentDeck.length) return equipmentDeck.includes(id);
     if (source.equippedSkillIndex && typeof source.equippedSkillIndex === "object") return source.equippedSkillIndex[id] === true;
     return skillIdsFor(source).includes(id);
   }
