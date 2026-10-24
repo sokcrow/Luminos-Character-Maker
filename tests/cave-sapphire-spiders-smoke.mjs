@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 await import('../js/combat-skill-schema.js');
@@ -21,9 +22,12 @@ const spriteFile = path.join(path.dirname(fileURLToPath(import.meta.url)), '..',
 assert.ok(fs.existsSync(spriteFile), 'Unit sprite must be a real file in the repository Units folder');
 const rendered = fs.readFileSync(spriteFile);
 assert.ok(rendered.length > 20000, 'Sprite must be a full-resolution repository asset');
-if (spritePath.endsWith('.png')) assert.equal(rendered.toString('hex', 0, 8), '89504e470d0a1a0a');
-else if (spritePath.endsWith('.jpg')) assert.equal(rendered.toString('hex', 0, 2), 'ffd8');
-else if (spritePath.endsWith('.webp')) assert.equal(rendered.toString('ascii', 0, 4), 'RIFF');
+assert.equal(rendered.toString('hex', 0, 8), '89504e470d0a1a0a', 'Sprite is the original PNG, not WebP');
+assert.ok(rendered.readUInt32BE(16) >= 512 && rendered.readUInt32BE(20) >= 512, 'No downsized sprites');
+assert.equal(createHash('sha256').update(rendered).digest('hex'),
+  '3614af648ed756092f4c9f4f87cf646285cea248081e5573fc67fc9dd1d98a8f',
+  'Sprite binary must match the original image downloaded from Imgur 0c9WpCr');
+assert.ok(!fs.existsSync(path.join(path.dirname(spriteFile), 'sapphire_spider.webp')), 'No unused WebP variant');
 const payload = skills.firebasePayload(schema);
 assert.equal(Object.keys(payload).length, 7);
 
@@ -58,6 +62,11 @@ for(const unit of [spider,spiderling]){
   const instantiated=instantiator.normalizeDefinition(unit.id,units.get(unit.id),{level:30});
   assert.equal(instantiated.runtimeDiagnostics.catalogResolved,true);
   assert.equal(instantiated.runtimeDiagnostics.missingSprite,false);
+  assert.equal(unit.visual.idle_sprite,spritePath,'Idle uses the same canonical sprite');
+  assert.equal(instantiated.combatSprite,spritePath);
+  assert.equal(instantiated.sprite_combate,spritePath);
+  assert.equal(instantiated.tokenImage,spritePath);
+  assert.equal(instantiated.img,spritePath);
   assert.equal(instantiated.maxHp,unit.maxHp);
 }
 
@@ -98,4 +107,9 @@ assert.match(live,/LuminousCaveSapphireSpiderRuntime\?\.speedDamagePercent/);
 assert.match(steps,/currentCoinIndex: coinIndex/);
 assert.match(steps,/caveEvadeBonus/);
 assert.match(sync,/spiders\.firebasePayload\(\)/);
+const assetManager=fs.readFileSync(path.join(root,'../js/dm-combat-asset-manager.js'),'utf8');
+assert.match(assetManager,/LuminousCombatUnitLibrarySync/,'DM asset manager uses the standard universal catalog');
+assert.match(assetManager,/sync\.syncAll\(state\.db\)/,'DM asset manager delegates safely to universal sync');
+assert.doesNotMatch(assetManager,/\[ROOTS\.skills\]:skills/,'DM asset manager must not replace all campaign skills');
+
 console.log('Sapphire Spider + Spiderling catalog, conditional Coins, Speed and mineral Salvage profiles: OK');
