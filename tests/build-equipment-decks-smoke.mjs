@@ -37,6 +37,13 @@ assert.deepEqual(loadouts.slotIds(sword),[
  "jeske_sword_poise_ii","jeske_sword_poise_ii","jeske_sword_poise_iii"]);
 assert.equal(skills.skillIdsFor(sword).includes("jeske_sword_poise_iii"),true);
 assert.equal(skills.ownsSkill(sword,"jeske_sword_poise_ii"),true);
+sword.equippedSkillIndex={old_learned_skill:true};
+sword.characterBuild={learnedSkillIds:["old_learned_skill"],skillDeck:{tier1:"old_learned_skill"}};
+assert.equal(skills.ownsSkill(sword,"jeske_sword_poise_ii"),true,
+  "Active equipment Deck takes precedence over the old persistent index");
+assert.equal(skills.ownsSkill(sword,"old_learned_skill"),false,
+  "Previously learned Skill remains saved but is not executable from the wrong Deck");
+assert.deepEqual(sword.characterBuild.learnedSkillIds,["old_learned_skill"]);
 assert.equal(skills.ownsSkill(sword,"calipsys_burn_ii"),false);
 assert.equal(link.skillAvailability({equipment:loadouts.hydratedEquipment(sword)},skills.skillLibrary()["jeske_sword_poise_i"]).available,true);
 const revolver=playerFor("jeske_poise_revolver");
