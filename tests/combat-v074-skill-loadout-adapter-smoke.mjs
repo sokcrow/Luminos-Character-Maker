@@ -7,6 +7,7 @@ await import('../js/combat-action-schema.js');
 await import('../js/combat-action-adapters.js');
 await import('../js/combat-skill-schema.js');
 await import('../js/combat-skill-loadout-074.js');
+await import('../js/item-enchantment-combat-link.js');
 
 const loadout = globalThis.LuminousCombatSkillLoadout074;
 if (!loadout) throw new Error('LuminousCombatSkillLoadout074 was not initialized.');
