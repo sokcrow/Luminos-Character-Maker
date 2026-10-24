@@ -89,6 +89,30 @@ assert.equal(effects.skillCheckBonus(installed,"perception"),1);
 assert.equal(effects.checkThresholdAdjustment(installed,"analyze"),-2);
 const gloom=inv.createItemInstance(catalog.get("calipsys_gloom_armor"));
 assert.equal(effects.mitigateSpLoss({equipment:{armor:gloom}},8),5);
+// DM GUI operations must equip real ItemInstances, not only show catalog cards.
+await import("../js/item-runtime-engine.js");
+await import("../js/anatomy-equipment-engine.js");
+await import("../js/item-augmentation-runtime.js");
+await import("../js/item-equipment-bridge.js");
+await import("../js/dm-character-gear-core.js");
+const gear=globalThis.LuminousDmCharacterGearCore;
+let character={id:"jeske",inventario_activo:{},inventario_stash:{},itemEquipmentRefs:{}};
+for(const name of ["jeske_poise_blade","jeske_guard_shield","jeske_regenerative_armor","jeske_ocular_augment"])
+ character.inventario_activo[name]=inv.createItemInstance(catalog.get(name),{quantity:1});
+for(const [name,slot] of [["jeske_poise_blade","mainHand"],["jeske_guard_shield","offHand"],["jeske_regenerative_armor","armor"]]){
+ const done=gear.apply(character,{type:"equip",key:name,slot});
+ assert.equal(done.ok,true,done.reason);character=done.unit;
+}
+assert.equal(loadouts.deck(character).tier1,"jeske_sword_poise_i");
+assert.ok(effects.grantedSkillIds({equipment:loadouts.hydratedEquipment(character)}).includes("jeske_shield_bash"));
+const surgery=gear.apply(character,{type:"install",key:"jeske_ocular_augment",source:"active",at:100});
+assert.equal(surgery.ok,true,surgery.reason);character=surgery.unit;
+assert.equal(character.inventario_activo.jeske_ocular_augment,undefined);
+assert.equal(character.augmentations.length,1);
+assert.equal(character.augmentations[0].installed,true);
+assert.equal(effects.skillCheckBonus(character,"perception"),1);
+assert.equal(gear.apply(character,{type:"remove",key:character.augmentations[0].instanceId}).ok,false);
+
 // Real DeckEngine: switching back restores the original hand/discard state.
 globalThis.window=globalThis;
 globalThis.addEventListener=globalThis.addEventListener || (()=>{});
