@@ -204,11 +204,15 @@
     const learned = new Set([...explicitLearnedSkillIds(character), ...earned.skills]);
     const ids = [...new Set([...assignedCount.keys(), ...learned])];
     const library = skillLibrary(options);
+    const weaponLink = global.LuminousEnchantmentCombatLink;
+    const resolvedEquipment = weaponLink?.resolveEquipment?.(character, character, character.inventario_activo || {}) || {};
+    const gearView = { ...character, equipment: resolvedEquipment.equipment || character.equipment || {} };
     const skills = ids.map((id) => ({
       ...definitionFor(id, library),
       assigned: assignedCount.has(id),
       learned: learned.has(id),
       copies: assignedCount.get(id) || 0,
+      weaponAvailable: weaponLink?.skillAvailability?.(gearView, library[id] || {})?.available !== false,
     })).sort((a, b) => {
       if (a.assigned !== b.assigned) return a.assigned ? -1 : 1;
       if (a.tier !== b.tier) return (a.tier || 99) - (b.tier || 99);
@@ -379,6 +383,7 @@
     const badges = [
       skill.assigned ? '<span class="is-assigned">ASSIGNED</span>' : "",
       skill.learned ? '<span class="is-learned">LEARNED</span>' : "",
+      skill.weaponAvailable === false ? '<span class="is-weapon-incompatible" title="Esta técnica requiere un arma compatible. Sigue aprendida.">ARMA INCOMPATIBLE</span>' : "",
     ].join("");
     const tier = skill.tier ? `T${skill.tier}` : "—";
     const power = skill.coinAmount ? `${skill.basePower} + ${skill.coinPower} × ${skill.coinAmount}` : String(skill.basePower || "—");
