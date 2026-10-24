@@ -70,7 +70,16 @@ const ITEMS=Object.freeze(entries.map(row=>Object.freeze({...row,definitionId:ro
  qualityTier:2,conditionMax:100,damageTypes:row.damageType?[row.damageType]:undefined,
  tags:[row.category,"build_equipment"],tier:"II",productionValueAhn:row.price,unitValueAhn:row.price})));
 const byId=Object.fromEntries(ITEMS.map(item=>[item.id,item]));
-global.LuminousBuildWeaponCatalog=Object.freeze({VERSION:1,ITEMS,get(id){return clone(byId[id]||null)},
+const WEAPON_SETS=Object.freeze([Object.freeze({
+ id:"jeske_weapon_set",name:"Arsenal de Jeske",defaultMode:"sword",
+ modes:Object.freeze({
+   sword:Object.freeze({name:"Espada y Escudo",mainHand:"jeske_poise_blade",
+     offHand:"jeske_guard_shield",shield:"jeske_guard_shield"}),
+   revolver:Object.freeze({name:"Revólver",mainHand:"jeske_poise_revolver",
+     offHand:null,shield:null})
+ })
+})]);
+global.LuminousBuildWeaponCatalog=Object.freeze({VERSION:2,ITEMS,WEAPON_SETS,get(id){return clone(byId[id]||null)},
  list(){return ITEMS.map(clone)}});
 global.LuminousBuildSkillCatalog=Object.freeze({DEFINITIONS:Object.freeze(defs),
  list(){return Object.values(defs).map(clone)},get(id){return clone(defs[id]||null)}});
