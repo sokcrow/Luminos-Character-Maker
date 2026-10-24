@@ -227,11 +227,11 @@
       const defender = r.unit(defenderId), state = defender?.reactiveDefense, armed = state?.turn === context().round ? state.evade : null;
       if (!armed?.active) return { evaded: false, active: false };
       if (r.unitReactionBlocked(defender)) { r.disarmEvade(defenderId, { broken: true }); return { evaded: false, active: false, blocked: true }; }
-      const entry = armed.entry, data = entry.plan?.data || {}, base = Math.max(0, (Number(data.basePower) || 0) +
+      const entry = armed.entry, data = entry.plan?.data || {}, scaled = r.caveEvadePower?.(defender, entry.plan), base = Math.max(0, (Number(scaled?.basePower ?? data.basePower) || 0) +
         (Number(entry.plan?._helpFinalPowerBonus) || 0) + r.statusDefensePowerModifier(defender) + r.conditionEvasionPowerModifier(defender) + (r.caveEvadeBonus?.(defender, entry.plan) || 0));
       await show('powerStart', entry, 1, base);
       const coin = toss(entry, coinIndex, { attackCoin: false, paralysis: true }),
-        power = Math.max(0, base + (coin.side === 'head' && !coin.paralyzedHead ? Number(data.coinPower) || 0 : 0)), evaded = Number(attackPower) <= power;
+        power = Math.max(0, base + (coin.side === 'head' && !coin.paralyzedHead ? Number(scaled?.coinPower ?? data.coinPower) || 0 : 0)), evaded = Number(attackPower) <= power;
       mutate('EvadeResolved', entry, { coinIndex, power, evaded }, () => {
         if (evaded) r.applySkillStatusEffects(entry, attackerEntry?.ownerId, '[On Evade]', { coinIndex, side });
         else r.disarmEvade(defenderId, { broken: true });
