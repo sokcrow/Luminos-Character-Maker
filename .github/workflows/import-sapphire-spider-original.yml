@@ -69,11 +69,10 @@ jobs:
           if output is None:
               raise SystemExit('Unable to download actual sprite from Imgur:\n' + '\n'.join(errors))
 
-          import subprocess
-          result = subprocess.run(['identify', '-format', '%w %h', str(output)], capture_output=True, text=True)
-          if result.returncode:
-              raise SystemExit('Unable to identify image dimensions: ' + result.stderr)
-          width, height = map(int, result.stdout.strip().split())
+          # The original Imgur image is PNG; read its IHDR directly instead of
+          # depending on ImageMagick/identify, which is absent on this runner.
+          if actual_ext != 'png' or width is None or height is None:
+              raise SystemExit(f'Expected the original PNG from Imgur, received {actual_ext}')
           print(f'SPRITE_DIMENSIONS={width}x{height}')
           if width < 512 or height < 512:
               raise SystemExit('Downloaded image is a low-resolution thumbnail, not an acceptable original')
