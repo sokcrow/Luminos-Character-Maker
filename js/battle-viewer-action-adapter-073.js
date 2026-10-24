@@ -130,10 +130,10 @@
       const link = global.LuminousEnchantmentCombatLink;
       if (!link?.bindTrustedSkill) return { ok: true, reason: null, skillId, skill: result.skill, legacy: false };
       const binding = link.bindTrustedSkill(actor, result.skill, plan.weaponInstanceId || null);
-      if (link.isWeaponSkill(result.skill) && !binding.bound) {
+      if (link.requiresEquippedWeapon(actor, result.skill) && !binding.bound) {
         return { ok: false, reason: binding.reason || "weapon_not_equipped", skillId, skill: null };
       }
-      if (!link.isWeaponSkill(result.skill) && plan.weaponInstanceId) {
+      if (!link.requiresEquippedWeapon(actor, result.skill) && plan.weaponInstanceId) {
         return { ok: false, reason: "weapon_not_allowed_for_skill", skillId, skill: null };
       }
       return { ok: true, reason: null, skillId, skill: binding.skill, legacy: false };
