@@ -4,8 +4,8 @@
   "source": "combat/source/combat-v073-live.html",
   "bootstrap": "Battle-viewer.html",
   "encoding": "base64+gzip",
-  "sourceSha256": "81e735f75c809e68189fdb4dbf0d69c78f6a96aa9497bd688d1b0f64b2d782cb",
-  "compressedSha256": "26442c9b74ac7b7eb76ce976f2a80b5eb13d8c9028e7af84cc05d98dcc1457fb",
+  "sourceSha256": "a36599f1d21ba6297cfef00b70e94bffaf122e17a3c3869366fa1534bb5c924a",
+  "compressedSha256": "19d43240f7277e88e65c8642ff06520b99831d964292b95aaa9de697eb728abf",
   "parts": [
     {
       "file": "combat/combat-v073-live.bundle.part01",
@@ -57,7 +57,7 @@
     },
     {
       "file": "combat/combat-v073-live.bundle.part11",
-      "encodedChars": 11852
+      "encodedChars": 12088
     }
   ]
 }

@@ -148,3 +148,27 @@ html,body,#game-container.combat-product-hud{overflow:clip!important}
   #c073-dm-setup button{flex:1 1 auto}
   #c073-dm-setup #c073-qty{flex:0 0 56px!important;width:56px!important}
 }
+
+/* Responsive unit Status HUD: the original 4-column strip reserves blank cells
+   when only one to three Status icons are active. On narrow Player formations
+   the first real icon can leave the viewport (e.g. 360x800 at x=10%).
+   Keep the same diegetic Status icons and 4-column layout for 4+ entries;
+   only compact short rows without relocating the unit or changing HUD scale. */
+@media (max-width: 600px) {
+  .sprite-container .status-effect-strip:has(> :only-child) {
+    grid-template-columns: 58px;
+    max-width: 58px;
+  }
+  .sprite-container .status-effect-strip:has(> :nth-child(2):last-child) {
+    grid-template-columns: repeat(2, 58px);
+    max-width: 121px;
+  }
+  .sprite-container .status-effect-strip:has(> :nth-child(3):last-child) {
+    grid-template-columns: repeat(3, 58px);
+    max-width: 184px;
+  }
+}
+
+/* Keep the focused Unit's original Status strip inside the viewport, including
+   the 5x camera close-up. Offsets are measured in its local battlefield space. */
+.sprite-container .status-effect-strip{translate:var(--status-viewport-x,0px) var(--status-viewport-y,0px)}

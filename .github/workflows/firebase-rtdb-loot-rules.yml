@@ -18,6 +18,7 @@ on:
       - tests/loot-shared-belongings.spec.mjs
       - tests/loot-shared-belongings-smoke.mjs
       - tests/loot-authority-emulator.mjs
+      - tests/unit-independent-rules-emulator.mjs
       - .github/workflows/firebase-rtdb-loot-rules.yml
   push:
     branches: [main]
@@ -64,7 +65,7 @@ jobs:
             npx playwright install --with-deps chromium
           fi
       - name: Validate RTDB rules and authenticated player loot
-        run: npx firebase emulators:exec --only auth,database --project demo-combat-results --config combat-results-firebase.json 'node tests/loot-authority-emulator.mjs && npx playwright test tests/loot-shared-belongings.spec.mjs --workers=1 --reporter=line'
+        run: npx firebase emulators:exec --only auth,database --project demo-combat-results --config combat-results-firebase.json 'node tests/loot-authority-emulator.mjs && node tests/unit-independent-rules-emulator.mjs && npx playwright test tests/loot-shared-belongings.spec.mjs --workers=1 --reporter=line'
 
       - name: Save shared corpse mobile and desktop evidence
         if: always()

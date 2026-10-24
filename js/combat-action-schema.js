@@ -172,7 +172,7 @@
     if (!RESOLUTION_TYPES.includes(action.resolution.type)) errors.push("invalid_resolution_type");
     if (!Object.values(ECONOMY_COSTS).includes(action.economy.cost)) errors.push("invalid_economy_cost");
     if (!Object.values(PHASES).includes(action.phase.selectedAt) || !Object.values(PHASES).includes(action.phase.executesAt)) errors.push("invalid_phase");
-    if (action.economy.cost === ECONOMY_COSTS.QUICK_ACTION && ![PHASES.PLANNING_PHASE_PLAYER, PHASES.PLANNING_PHASE_AI].includes(action.phase.executesAt)) {
+    if (action.economy.cost === ECONOMY_COSTS.QUICK_ACTION && ![PHASES.PLANNING_PHASE_PLAYER, PHASES.PLANNING_PHASE_AI, PHASES.COMBAT_PHASE].includes(action.phase.executesAt)) {
       errors.push("quick_action_must_execute_in_planning");
     }
     if (action.economy.cost === ECONOMY_COSTS.REACTION && action.phase.executesAt !== PHASES.COMBAT_PHASE) errors.push("reaction_must_execute_in_combat_phase");

@@ -268,6 +268,7 @@
         statusEffects: clone(raw.statusEffects || {}),
       });
     }
+    for (const unit of result) Object.assign(unit, clone(unit.combatIndependentActionState?.runtimeFields || {}));
     return result;
   }
 

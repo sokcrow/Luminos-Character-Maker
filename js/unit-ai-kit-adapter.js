@@ -435,8 +435,14 @@
       };
     }
 
-    const plan = goap.planTurn({ ...input, actor, sources: kit.sources });
-    return { ...plan, kit };
+    // Quick and Free Actions have their own per-Unit controller; GOAP may see
+    // their utility there but must NEVER reserve an Action Slot for them.
+    const independent = global.LuminousUnitIndependentActions;
+    const slotSources = kit.sources.filter((row) => !["quick_action", "free_action"].includes(independent?.costOf?.(row)));
+    const plan = slotSources.length
+      ? goap.planTurn({ ...input, actor, sources: slotSources })
+      : { planned: true, reason: "independent_actions_only", actorId: kit.actorId, actions: [], sequence: [], slotsRequested: input.slotIds?.length || 0, slotsUsed: 0 };
+    return { ...plan, kit, independentSources: kit.sources.filter(row => ["quick_action", "free_action"].includes(independent?.costOf?.(row))) };
   }
 
   const api = Object.freeze({

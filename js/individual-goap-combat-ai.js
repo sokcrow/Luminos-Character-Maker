@@ -495,6 +495,28 @@
     };
   }
 
+  function rankIndependentActions(actor, entries, input = {}) {
+    const hpRatio = ownHpRatio(actor), timing = input.timing || "before_actions";
+    const context = { goal: hpRatio < .65 ? GOALS.SURVIVE : GOALS.GAIN_ADVANTAGE, hpRatio,
+      intelligenceProfile: planningProfile(abilityScore(actor, "intelligence", "int", 10)),
+      wisdomProfile: wisdomProfile(abilityScore(actor, "wisdom", "wis", 10)), intel: createIntelState(input.intel || {}), targetId: input.targetId };
+    const choices = entries.flatMap(entry => {
+      const definition = entry.definition || {}, mechanics = definition.mechanics || {};
+      const operations = asArray(definition.effects).flatMap(effect => asArray(effect.operations));
+      const heal = Number(mechanics.quickActionHealPercent || mechanics.healPercent || 0);
+      const recovery = heal > 0 || operations.some(operation => operation.type === "heal_hp") || ["recover", "heal"].includes(definition.aiRole);
+      if (recovery && (hpRatio >= .75 || timing !== "after_actions")) return [];
+      if (!recovery && (definition.aiTiming || "before_actions") !== timing) return [];
+      const candidate = normalizeSourceDescriptor({ sourceType: entry.sourceType, definition,
+        role: recovery ? "recover" : definition.aiRole || "setup",
+        estimate: { safety: 3, advantage: Number(mechanics.additionalActions) > 0 ? 12 : 3,
+          recovery: recovery ? Math.min(heal || 15, (1 - hpRatio) * 100) : 0, ...definition.aiEstimate } });
+      const score = candidateScore(candidate, { sequence: [], producedTags: new Set() }, context) + finite(definition.aiPriority, 0);
+      return score > 0 ? [{ ...entry, score }] : [];
+    });
+    return choices.sort((a,b) => b.score - a.score || String(a.definition.id).localeCompare(String(b.definition.id)));
+  }
+
   const api = Object.freeze({
     version: "0.3.0",
     GOALS,
@@ -510,6 +532,7 @@
     planningResourceKey,
     chooseGoal,
     planTurn,
+    rankIndependentActions,
   });
 
   global.LuminousIndividualGoapCombatAI = api;

@@ -154,6 +154,25 @@
     notify(event, unit, input);
     return result;
   }
+  function activate(trait, unit, input = {}) {
+    const engine = global.LuminousTraitEngine;
+    unit.combatTraitState ||= engine.createState();
+    unit.combatTraitState.statuses = clone(unit.statusEffects || {});
+    const units = input.units || [unit], beforeStatuses = units.map(row => clone(row.statusEffects || {}));
+    const beforeVitals = units.map(row => ({ hp: row.hp, sp: row.sp }));
+    units.forEach(row => { row.currentHp = row.hp; row.currentSp = row.sp; });
+    const result = engine.activateTrait(trait, { ...input, context: "combat", character: unit, self: unit, actor: unit }, unit.combatTraitState);
+    if (!result?.available) return result;
+    syncResult(unit, result);
+    for (const [index, target] of units.entries()) {
+      const old = beforeVitals[index];
+      if (target.hp === old.hp && target.currentHp !== old.hp && Number.isFinite(Number(target.currentHp))) target.hp = Math.max(0, Math.min(Number(target.maxHp), Number(target.currentHp)));
+      if (target.sp === old.sp && target.currentSp !== old.sp && Number.isFinite(Number(target.currentSp))) target.sp = Number(target.currentSp);
+      target.currentHp = target.hp; target.currentSp = target.sp;
+    }
+    stampInitialStatuses(units, beforeStatuses, Number(input.round) || 1);
+    return result;
+  }
   function active(unit) { return unit && unit.battleActive !== false && !unit.isBackup && !unit.dead && !unit.defeated && Number(unit.hp ?? unit.currentHp ?? 1) > 0; }
   function stampInitialStatuses(units, before, round) {
     units.forEach((unit, index) => {
@@ -188,7 +207,7 @@
     return { units: drafts, started: fresh.length };
     });
   }
-  const api = Object.freeze({ version: 1, normalizeTrigger, register, prepare, traitsForUnit, equippedItems, dispatch, notify, planEncounterStart });
+  const api = Object.freeze({ version: 1, normalizeTrigger, register, prepare, traitsForUnit, equippedItems, dispatch, activate, notify, planEncounterStart });
   global.LuminousCombatEventRuntime = api;
   global.addEventListener?.("luminous:combat073-hydrated", () => {
     const units = Object.values(global.LuminousCombat073?.combatants?.() || {});

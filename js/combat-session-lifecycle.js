@@ -13,7 +13,7 @@
     if(raw?.estado?.encounterId&&live(raw))return;
     if(raw?.estado&&live(raw)&&Object.keys(raw.combatants||{}).length)
       return {...raw,estado:{...(typeof raw.estado==='object'?raw.estado:{}),encounterId:id,encounterCreatedAt:time,active:true}};
-    return {...(raw||{}),combatants:null,reserves:null,defeated:null,departed:null,participants:null,plannedActions:null,readyPlayers:null,authority:null,playback:null,
+    return {...(raw||{}),combatants:null,reserves:null,defeated:null,departed:null,participants:null,plannedActions:null,readyPlayers:null,independentIntents:null,independentReceipts:null,authority:null,playback:null,
       estado:{encounterId:id,encounterCreatedAt:time,phase:'PRE_COMBAT_PLANNING',active:true,round:1,presentation:'full',createdBy:uid,updatedAt:time},
       planningStartedAt:time,planningDuration:60};
   }
@@ -27,8 +27,8 @@
     return {...raw,plannedActions:null,readyPlayers:null,estado:{...(raw.estado||{}),phase:'ENDED',active:false,result,outcome:result,
       transition:'auto_theatre',endedBy:uid,endedAt:time,updatedAt:time}};
   }
-  async function updateRoot(db,update){
-    const ref=db.ref(ROOT);let listener;
+  async function updatePath(db,path,update){
+    const ref=db.ref(path);let listener;
     try{
       // The entry page observes small child paths. Retain a complete parent
       // subscription while transacting: otherwise the SDK may first invoke the
@@ -43,8 +43,10 @@
       }
     }finally{if(listener)ref.off('value',listener);}
   }
+  const updateRoot=(db,update)=>updatePath(db,ROOT,update);
   function canSeal(raw,payload){
     if(!raw||!['PRE_COMBAT_PLANNING','PLANNING'].includes(String(raw.estado?.phase||raw.estado).toUpperCase())||Number(raw.estado?.round||1)!==payload.round)return false;
+    if(Object.entries(raw.independentIntents||{}).some(([owner,rows])=>Object.entries(rows||{}).some(([id,row])=>Number(row.round)===Number(payload.round)&&(!raw.independentReceipts?.[owner]?.[id]||raw.independentReceipts[owner][id].pendingInventory))))return false;
     const members=global.LuminousCombatParticipants?.players(raw.combatants)||[];
     if(members.length!==Object.keys(payload.plans||{}).length)return false;
     const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>k!=='updatedAt').map(k=>[k,stable(v[k])])):v;
@@ -152,5 +154,5 @@
     if(!response.committed)throw Error('Cambia la presentación entre rondas, antes de elegir acciones.');
     return value;
   }
-  global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,deploy,participantIndex,claimEnd,commitEnd,failEnd,endErrorMessage,updateRoot,canSeal,presentation});
+  global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,deploy,participantIndex,claimEnd,commitEnd,failEnd,endErrorMessage,updatePath,updateRoot,canSeal,presentation});
 })(typeof window!=='undefined'?window:globalThis);

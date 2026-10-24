@@ -119,7 +119,7 @@
   }
   function traitRuntimeContext(source,target,action,phase){
     const actor=playerUnit(),eco=economy();
-    return {context:'combat',character:actor,self:actor,actor,target,combatAction:action,actionEconomy:{canUse(cost){return eco?.availability?.(actor,cost,{phase})?.available!==false}}};
+    return {context:'combat',character:api()?.authoritativeCharacter?.(actor)||actor,self:actor,actor,target,combatAction:action,actionEconomy:{canUse(cost){return eco?.availability?.(actor,cost,{phase})?.available!==false}}};
   }
   function traitState(source){
     const menu=api(),engine=global.LuminousTraitEngine,id=norm(source.id||source.traitId||source.name);
@@ -135,28 +135,7 @@
     global.document?.querySelectorAll?.('.sprite-container.economy-target-candidate')?.forEach(node=>node.classList.remove('economy-target-candidate'));
   }
   function executeTraitQuick(sel,targetId=null){
-    const source=sel?.data||{},actor=playerUnit(),eco=economy(),engine=global.LuminousTraitEngine;
-    if(!actor||!eco||!engine?.canActivateTrait||!engine?.activateTrait){status('QUICK ACTION · TRAIT RUNTIME UNAVAILABLE');return false}
-    const gate=eco.availability?.(actor,ECONOMY.QUICK,{phase:'planning'});if(gate?.available===false){status(`QUICK ACTION · ${gate.reason||'UNAVAILABLE'}`);return false}
-    const target=targetId?combatData()?.[targetId]||null:actor,action=compileTraitAction(sel,targetId),runtime=traitRuntimeContext(source,target,action,'planning'),tState=traitState(source);
-    const check=engine.canActivateTrait(source,runtime,tState);
-    if(!check?.available){status(`QUICK ACTION · ${(check?.reasons||['TRAIT UNAVAILABLE']).join(' · ')}`);return false}
-    const generic=arr(source.effects).length>0||arr(source.rules).length>0;
-    let external=null;
-    if(!generic){
-      const detail={version:VERSION,action,source:clone(source),sourceType:'trait',targetId,handled:false,result:null,preflight:check};
-      try{global.dispatchEvent(new CustomEvent('luminous:combat073-quick-action-request',{detail}))}catch(_){}
-      if(!detail.handled){status(`QUICK ACTION · ${source.name||source.id||'Trait'} · RUNTIME NOT CONNECTED`);return false}
-      external=detail.result;
-    }
-    const activation=engine.activateTrait(source,runtime,tState);
-    if(!activation?.available){status(`QUICK ACTION · ${(activation?.reasons||['TRAIT ACTIVATION FAILED']).join(' · ')}`);return false}
-    if(!eco.consume(actor,ECONOMY.QUICK,{phase:'planning'})){status('QUICK ACTION · SPEND FAILED');return false}
-    if(api()?.state)api().state.quickSpentRound=roundNumber();
-    api()?.syncQuickBadge?.();api()?.syncTabs?.();
-    status(`QUICK ACTION · ${source.name||source.id||'Trait'} · USED`);
-    try{global.dispatchEvent(new CustomEvent('luminous:combat073-quick-action-resolved',{detail:{version:VERSION,action,result:external??activation}}))}catch(_){}
-    closeToRoot();return true;
+    return api()?.useQuickAction?.(sel,targetId);
   }
   function beginTraitQuick(sel){
     const source=sel?.data||{};
@@ -176,7 +155,7 @@
     }
     const confirm=event.target?.closest?.('#economy-action-confirm');if(!confirm)return;
     const sel=lexical('selected',null),source=sel?.data||{};
-    if(sel?.type!=='trait'||canonicalCost(source)!==ECONOMY.QUICK)return;
+    if(sel?.type!=='trait'||![ECONOMY.QUICK,'free','none','free_action'].includes(canonicalCost(source)))return;
     event.preventDefault();event.stopImmediatePropagation();beginTraitQuick(sel);
   }
 
