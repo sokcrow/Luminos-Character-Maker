@@ -58,10 +58,22 @@
       if (type === "equip") {
         item = findItem(unit, "active", key);
         if (!item) return failed("El objeto debe existir en el Inventario Activo");
-        if (Number(item.quantity || item.cantidad || 1) !== 1) return failed("Separa este conjunto en objetos individuales antes de equipar");
+        if (Number(item.quantity ?? item.cantidad ?? 1) !== 1) return failed("Separa este conjunto en objetos individuales antes de equipar");
         const permitted = equipment.compatibleSlots(item);
         if (!Array.isArray(permitted) || !permitted.includes(slot) || slot.startsWith("augment"))
           return failed("Ese objeto no puede ocupar ese espacio");
+        if (slot === "accessory1" && !unit.equipment.accessories?.[0])
+          return failed("Equipa primero el accesorio 1");
+        const kind = equipment.schemaOf?.(item)?.kind || "";
+        const twoHands = kind === "weapon" && Number(item.equipment?.handCost ?? item.handCost ?? 1) >= 2;
+        const occupied = twoHands
+          ? [unit.equipment.mainHand, unit.equipment.offHand]
+          : [equipment.getSlotItem(unit, slot)];
+        const magic = deps.magic || global.LuminousItemMagicRuntime;
+        for (const current of occupied.filter(Boolean)) {
+          if (idOf(current) !== idOf(item) && magic?.isBoundItem?.(current) === true)
+            return failed("No puedes reemplazar un objeto vinculado sin retirar antes su vínculo");
+        }
         result = equipment.equipTo(unit, item, slot);
         if (!result.equipped) return failed(result.reason || "No se pudo equipar por las restricciones corporales");
       } else {
@@ -81,7 +93,10 @@
       const source = command.source === "stash" ? "stash" : "active";
       const item = findItem(unit, source, key);
       if (!item) return failed("El Augment no existe en el inventario indicado");
-      if (Number(item.quantity || item.cantidad || 1) !== 1) return failed("Solo se puede implantar una instancia individual");
+      if (Number(item.quantity ?? item.cantidad ?? 1) !== 1) return failed("Solo se puede implantar una instancia individual");
+      const repeats = [...Object.values(active(unit)), ...Object.values(stash(unit))]
+        .filter(entry => idOf(entry) === idOf(item)).length;
+      if (repeats !== 1) return failed("Esta instancia está duplicada en inventarios; corrígela antes de instalar");
       const result = augmentation.installAugment(unit, item, { installedAt: Number(command.at) || Date.now() });
       if (!result.installed) return failed(result.reason || "No se puede instalar en esa anatomía");
       delete (source === "stash" ? stash(unit) : active(unit))[key];
