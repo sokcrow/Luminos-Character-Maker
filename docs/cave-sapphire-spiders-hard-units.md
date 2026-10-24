@@ -7,7 +7,7 @@ Both are Hard Units, not Bosses. Only Normal rank, Level 30 native, up to Level 
 | Sapphire Spider | Large | 48 | 1.50 | 93 | L+2 | L-2 | 1–8 |
 | Sapphire Spiderling | Medium | 30 | 1.20 | 66 | L-1 | L-1 | 1–7 |
 
-Both load the same **real binary repository image** at Assets/Images/Units/Cave_Crystal/sapphire_spider.webp. The current checked-in file is a 64×64 WebP rendition of the user-supplied artwork. **This is not yet the original 1254×1254 PNG**; the original must replace the low-resolution rendition for full-size battle rendering.
+Both units load the exact same full-resolution original image from the user-supplied Imgur ID 0c9WpCr: Assets/Images/Units/Cave_Crystal/sapphire_spider.png (1254×1254). The original image bytes are stored as a binary file in the repository Units folder, not as a data URL or thumbnail.
 
 ## Skills
 

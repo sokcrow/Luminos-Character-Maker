@@ -16,13 +16,14 @@ const skills = globalThis.LuminousCaveSapphireSpiderSkillCatalog;
 const loot = globalThis.LuminousUnitLootProfileContract;
 const runtime = globalThis.LuminousCaveSapphireSpiderRuntime;
 const instantiator = globalThis.LuminousUnitCombatInstantiator;
-const spritePath = 'Assets/Images/Units/Cave_Crystal/sapphire_spider.webp';
+const spritePath = 'Assets/Images/Units/Cave_Crystal/sapphire_spider.png';
 const spriteFile = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', spritePath);
 assert.ok(fs.existsSync(spriteFile), 'Unit sprite must be a real file in the repository Units folder');
 const rendered = fs.readFileSync(spriteFile);
-assert.equal(rendered.toString('ascii', 0, 4), 'RIFF');
-assert.equal(rendered.toString('ascii', 8, 12), 'WEBP');
-assert.ok(rendered.length > 2000, 'A real binary image asset, not a data URL or placeholder');
+assert.ok(rendered.length > 20000, 'Sprite must be a full-resolution repository asset');
+if (spritePath.endsWith('.png')) assert.equal(rendered.toString('hex', 0, 8), '89504e470d0a1a0a');
+else if (spritePath.endsWith('.jpg')) assert.equal(rendered.toString('hex', 0, 2), 'ffd8');
+else if (spritePath.endsWith('.webp')) assert.equal(rendered.toString('ascii', 0, 4), 'RIFF');
 const payload = skills.firebasePayload(schema);
 assert.equal(Object.keys(payload).length, 7);
 
