@@ -14,6 +14,7 @@ jobs:
       - run: npm install --no-save @playwright/test@1.55.0 firebase@8.10.1 firebase-tools@14.19.1
       - run: npx playwright install --with-deps chromium
       - run: node tests/combat-presentation-transport-smoke.mjs
+      - run: node tests/combat-performance-workload-smoke.mjs
       - name: Fetch actual PR main baseline
         run: git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.sha }}
       - name: Compare current main and candidate with identical browser workload
