@@ -39,6 +39,10 @@ on:
       - "js/unit-catalog-goblin.js"
       - "js/unit-catalog-wolf.js"
       - "js/combat-unit-library-sync.js"
+      - "js/skill-catalog-cave-sapphire-spiders.js"
+      - "js/unit-catalog-cave-sapphire-spiders.js"
+      - "js/cave-sapphire-spider-runtime.js"
+      - "tests/cave-sapphire-spiders-smoke.mjs"
       - "tests/unit-loot-profile-contract-smoke.mjs"
       - "tests/corpse-harvest-runtime-smoke.mjs"
       - "tests/loot-ammo-reconciliation-smoke.mjs"
@@ -95,6 +99,10 @@ on:
       - "js/unit-catalog-goblin.js"
       - "js/unit-catalog-wolf.js"
       - "js/combat-unit-library-sync.js"
+      - "js/skill-catalog-cave-sapphire-spiders.js"
+      - "js/unit-catalog-cave-sapphire-spiders.js"
+      - "js/cave-sapphire-spider-runtime.js"
+      - "tests/cave-sapphire-spiders-smoke.mjs"
       - "tests/unit-loot-profile-contract-smoke.mjs"
       - "tests/corpse-harvest-runtime-smoke.mjs"
       - "tests/loot-ammo-reconciliation-smoke.mjs"
@@ -149,3 +157,5 @@ jobs:
         run: node tests/ranger-class-runtime-smoke.mjs
       - name: Validate Battle Master Analyze bypass
         run: node tests/battle-master-archetype-runtime-smoke.mjs
+      - name: Validate Sapphire Spider variants, rock Salvage and Speed kit
+        run: node tests/cave-sapphire-spiders-smoke.mjs
