@@ -2,7 +2,12 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const link = require("../js/item-enchantment-combat-link.js");
+// package.json has "type":"module": the .js runtime is ESM, not CJS.
+// Import it for its global registration, then exercise the actual runtime API.
+async function run() {
+await import("../js/item-enchantment-combat-link.js");
+const link = globalThis.LuminousEnchantmentCombatLink;
+assert.ok(link && typeof link.physicalType === "function", "Shared weapon resolver must initialize");
 const blade = {instanceId:"sw1",definitionId:"longsword",category:"weapon",damageType:"slash",name:"Espada",quantity:1};
 const mace = {instanceId:"mc1",definitionId:"mace",category:"weapon",damageType:"blunt",name:"Maza",quantity:1};
 const dagger = {instanceId:"dg1",definitionId:"dagger",category:"weapon",damageType:"pierce",quantity:1};
@@ -72,3 +77,6 @@ assert.match(planner,/weaponLink\.compatibleWeapons\(weaponContext\.unit, select
 assert.match(theatre,/weaponLink\?\.skillAvailability\?\./,"Theatre character HUD uses identical validator");
 assert.match(page,/js\/item-enchantment-combat-link\.js/);
 console.log("WEAPON_SKILL_COMPAT_PASS Slash Blunt Pierce dual wield independent spell explicit overrides unified planning/execution/theatre");
+
+}
+run().catch(error => { console.error(error); process.exitCode = 1; });
