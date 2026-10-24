@@ -112,6 +112,7 @@
     const spellIds = allSkills.filter((id) => id.startsWith('spell:')).map((id) => id.slice(6));
     const unit = {
       id: cfg.id, name: cfg.name, species: 'kobold', variant: cfg.variant, creatureType: cfg.creatureType || 'dragon',
+      challengeRating: cfg.challengeRating, // Official CR for each source stat block; independent of runtime level.
       unitType: 'enemy', faction: 'enemy', actorCategory: 'enemy', isPlayer: false, linkedPlayerUID: '',
       ...(cfg.classId ? { classId: cfg.classId } : {}),
       ...(spellIds.length ? { spellIds } : {}),
@@ -139,7 +140,7 @@
         ...(spellIds.length ? { spellIds: spellIds.slice() } : {}),
         staggerThresholds: clone(STAGGER_THRESHOLDS), stagger: '75%,50%,25%', damageTypeDefense: { resist: cfg.resist, weak: cfg.weak }, ...(clone(cfg.mechanics || {})),
       },
-      schemaVersion: 4,
+      schemaVersion: 5,
       metadata: {
         canonicalUnit: true, catalog: 'kobold-batch', rankModel: 'universal_normal_captain_leader',
         hpModel: 'chassis_coefficient', naturalWorldLevelIsReferenceOnly: true, speedModel: 'movement_feet_plus_size', speedPending: false, physicalProfilePending: false,
@@ -151,19 +152,19 @@
   }
 
   const DEFINITIONS = Object.freeze({
-    kobold_dagger: Object.freeze(makeUnit({ id: 'kobold_dagger', name: 'Kobold · Dagger', variant: 'dagger', weaponLoadout: [{ weaponId: 'dagger', skillId: 'kobold_dagger_jab', range: 'melee' }], lootRoles: ['soldier'], sprite: 'https://imgur.com/2BBvM2s.png', canonicalSourceName: 'Kobold Warrior',
+    kobold_dagger: Object.freeze(makeUnit({ id: 'kobold_dagger', name: 'Kobold · Dagger', variant: 'dagger', challengeRating: 0.125, weaponLoadout: [{ weaponId: 'dagger', skillId: 'kobold_dagger_jab', range: 'melee' }], lootRoles: ['soldier'], sprite: 'https://imgur.com/2BBvM2s.png', canonicalSourceName: 'Kobold Warrior',
       naturalWorldLevel: { min: 1, max: 3 }, hpBase: 5, hpCoefficient: 0.19,
       scores: KOBOLD_WARRIOR_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 8 },
       resist: 'perforante', weak: 'contundente', tags: ['tier1'], tier1: ['kobold_dagger_jab', 'kobold_desperate_stab', 'kobold_scurry'] })),
     kobold_sling: Object.freeze(makeUnit({
-      id: 'kobold_sling', name: 'Kobold · Sling', variant: 'sling', weaponLoadout: [{ weaponId: 'sling', skillId: 'kobold_sling_shot', range: 'ranged', ammoType: 'pebbles' }], lootRoles: ['hunter'], sprite: 'https://imgur.com/ndB257N.png', canonicalSourceName: 'Kobold Warrior',
+      id: 'kobold_sling', name: 'Kobold · Sling', variant: 'sling', challengeRating: 0.125, weaponLoadout: [{ weaponId: 'sling', skillId: 'kobold_sling_shot', range: 'ranged', ammoType: 'pebbles' }], lootRoles: ['hunter'], sprite: 'https://imgur.com/ndB257N.png', canonicalSourceName: 'Kobold Warrior',
       naturalWorldLevel: { min: 1, max: 3 }, hpBase: 5, hpCoefficient: 0.19,
       scores: KOBOLD_WARRIOR_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 8 },
       resist: 'perforante', weak: 'contundente', tags: ['tier1', 'ranged'], traits: [AMMO_PEBBLES], tier1: ['kobold_sling_shot', 'kobold_rapid_pebble', 'kobold_duck_away'],
       mechanics: { ammoLoadout: [{ id: 'pebbles', amount: 6 }], ammunition: { pebbles: { type: 'single', icon: 'https://imgur.com/hhYbwsi.png' } } },
     })),
     winged_kobold: Object.freeze(makeUnit({
-      id: 'winged_kobold', name: 'Winged Kobold', variant: 'winged', weaponLoadout: [{ weaponId: 'dagger', skillId: 'winged_kobold_dagger', range: 'melee' }], lootRoles: ['soldier'], sprite: 'https://imgur.com/529fa4E.png',
+      id: 'winged_kobold', name: 'Winged Kobold', variant: 'winged', challengeRating: 0.25, weaponLoadout: [{ weaponId: 'dagger', skillId: 'winged_kobold_dagger', range: 'melee' }], lootRoles: ['soldier'], sprite: 'https://imgur.com/529fa4E.png',
       spriteVariants: { dagger: 'https://imgur.com/evsrs1B.png', holdingRock: 'https://imgur.com/529fa4E.png', withoutRock: 'https://imgur.com/zmA1FPz.png', rockAsset: 'https://imgur.com/P4J48yc.png' },
       canonicalSourceName: 'Winged Kobold', naturalWorldLevel: { min: 2, max: 4 }, hpBase: 7, hpCoefficient: 0.22,
       scores: WINGED_KOBOLD_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30, fly: 30 }, defaultMovementMode: 'fly', startsFlying: true,
@@ -178,14 +179,14 @@
       },
     })),
     dragonheart_kobold: Object.freeze(makeUnit({
-      id: 'dragonheart_kobold', name: 'Dragonheart Kobold', variant: 'dragonheart', weaponLoadout: [{ weaponId: 'spear', skillId: 'dragonheart_spear_thrust', range: 'melee' }], lootRoles: ['soldier', 'commander'], wealthBand: 'backstreets_low', sprite: 'https://imgur.com/4EYu3us.png', canonicalSourceName: 'Kobold Dragonshield', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse',
+      id: 'dragonheart_kobold', name: 'Dragonheart Kobold', variant: 'dragonheart', challengeRating: 1, weaponLoadout: [{ weaponId: 'spear', skillId: 'dragonheart_spear_thrust', range: 'melee' }], lootRoles: ['soldier', 'commander'], wealthBand: 'backstreets_low', sprite: 'https://imgur.com/4EYu3us.png', canonicalSourceName: 'Kobold Dragonshield', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse',
       naturalWorldLevel: { min: 5, max: 9 }, hpBase: 44, hpCoefficient: 0.30,
       scores: DRAGONSHIELD_SCORES, proficiencies: DRAGONSHIELD_PROFICIENCIES, movement: { ground: 20 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 11 },
       defLvlMod: 3, resist: 'cortante', weak: 'contundente', tags: ['tier1', 'tier2', 'tier3', 'commander'],
       traits: [DRAGONHEART, DRAGON_RESISTANCE], allowedRanks: ['captain', 'leader'], tier1: ['dragonheart_spear_thrust'], tier2: ['dragonheart_guarding_skewer'], tier3: ['dragonheart_dragon_spear'],
     })),
     scale_sorcerer_kobold: Object.freeze(makeUnit({
-      id: 'scale_sorcerer_kobold', name: 'Scale Sorcerer Kobold', variant: 'scale_sorcerer', weaponLoadout: [{ weaponId: 'dagger', skillId: 'kobold_dagger_jab', range: 'melee' }], lootRoles: ['commander'], wealthBand: 'backstreets_low', sprite: 'https://imgur.com/TOHr6Dk.png', canonicalSourceName: 'Kobold Scale Sorcerer', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse', creatureType: 'humanoid',
+      id: 'scale_sorcerer_kobold', name: 'Scale Sorcerer Kobold', variant: 'scale_sorcerer', challengeRating: 1, weaponLoadout: [{ weaponId: 'dagger', skillId: 'kobold_dagger_jab', range: 'melee' }], lootRoles: ['commander'], wealthBand: 'backstreets_low', sprite: 'https://imgur.com/TOHr6Dk.png', canonicalSourceName: 'Kobold Scale Sorcerer', canonicalSourceBook: 'Mordenkainen Presents: Monsters of the Multiverse', creatureType: 'humanoid',
       naturalWorldLevel: { min: 5, max: 9 }, hpBase: 27, hpCoefficient: 0.25,
       scores: SCALE_SORCERER_SCORES, proficiencies: SCALE_SORCERER_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 9 },
       defLvlMod: 3, resist: 'perforante', weak: 'cortante', classId: 'sorcerer', tags: ['spellcaster', 'commander'], traits: [SPELL_CASTER_CHARISMA], allowedRanks: ['captain', 'leader'],
