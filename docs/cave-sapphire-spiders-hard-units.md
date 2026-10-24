@@ -1,11 +1,11 @@
-# Sapphire Spider family — Hard Units (Cueva Cristalina)
+# Sapphire Spider family — Hard Unit + normal Unit (Cueva Cristalina)
 
-Both are Hard Units, not Bosses. Only Normal rank, Level 30 native, up to Level 65. HP = floor(HP Base + Coefficient * Level).
+Sapphire Spider is a **Hard Unit**; Sapphire Spiderling is a **normal Unit** (neither is a Boss). Both are rock elementals with crystalline sapphire growths. Both currently allow only the Normal **rank** (which is separate from Unit classification), have native Level 30 and can be spawned up to Level 65. HP = floor(HP Base + Coefficient * Level).
 
-| Unit | Size | HP Base | Coefficient | HP L30 | OFF | DEF | Speed |
-|---|---|---:|---:|---:|---|---|---|
-| Sapphire Spider | Large | 48 | 1.50 | 93 | L+2 | L-2 | 1–8 |
-| Sapphire Spiderling | Medium | 30 | 1.20 | 66 | L-1 | L-1 | 1–7 |
+| Unit | Classification | Size | HP Base | Coefficient | HP L30 | OFF | DEF | Speed |
+|---|---|---|---:|---:|---:|---|---|---|
+| Sapphire Spider | Hard Unit | Large | 48 | 1.50 | 93 | L+2 | L-2 | 1–8 |
+| Sapphire Spiderling | Unit normal | Medium | 30 | 1.20 | 66 | L-1 | L-1 | 1–7 |
 
 Both units load the exact same full-resolution original image from the user-supplied Imgur ID 0c9WpCr: Assets/Images/Units/Cave_Crystal/sapphire_spider.png (1254×1254). The original image bytes are stored as a binary file in the repository Units folder, not as a data URL or thumbnail.
 
