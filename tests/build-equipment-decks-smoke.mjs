@@ -89,4 +89,34 @@ assert.equal(effects.skillCheckBonus(installed,"perception"),1);
 assert.equal(effects.checkThresholdAdjustment(installed,"analyze"),-2);
 const gloom=inv.createItemInstance(catalog.get("calipsys_gloom_armor"));
 assert.equal(effects.mitigateSpLoss({equipment:{armor:gloom}},8),5);
+// Real DeckEngine: switching back restores the original hand/discard state.
+globalThis.window=globalThis;
+globalThis.addEventListener=globalThis.addEventListener || (()=>{});
+await import("../js/deckEngine.js");
+const gauntletItem={...catalog.get("calipsys_fourfold_gauntlets"),instanceId:"deck_gauntlet",condition:100};
+const unit={id:"calipsys_deck_test",controlled:"player",actionSlots:1,
+  inventario_activo:{gauntlet:gauntletItem},
+  itemEquipmentRefs:{mainHand:"deck_gauntlet",offHand:"deck_gauntlet"},
+  equipment:{mainHand:gauntletItem,offHand:gauntletItem},activeEquipmentModes:{}};
+const definitions=globalThis.LuminousBuildSkillCatalog.DEFINITIONS;
+globalThis.LuminousCombatLiveAdapter073={state:{round:1,encounterId:"deck_test"}};
+globalThis.LuminousCombat073={combatants:()=>({[unit.id]:unit}),uiState:()=>({round:1}),
+  kit:()=>({actions:[...new Set(loadouts.slotIds(unit))].map(id=>({...definitions[id],kind:"skill"}))})};
+await import("../js/combat-v073-deck.js");
+const slots=globalThis.LuminousCombatSlotDeck073;
+const first=slots.ensure(unit,1);
+assert.equal(first.definition.cardCount,6);
+first.modeTestMarker="original_hand";
+unit.activeEquipmentModes.deck_gauntlet="chill";
+const other=slots.ensure(unit,1);
+assert.equal(other.definition.cardCount,6);
+assert.notEqual(other.modeKey,first.modeKey);
+other.modeTestMarker="different_hand";
+unit.activeEquipmentModes.deck_gauntlet="bleed";
+const restored=slots.ensure(unit,1);
+assert.equal(restored.modeTestMarker,"original_hand");
+assert.equal(restored,first);
+assert.deepEqual(Object.keys(slots.compactModeDecks(unit.combatDeckModes)).sort(),
+  ["deck_gauntlet:bleed","deck_gauntlet:chill"]);
+
 console.log("BUILD_EQUIPMENT_DECKS_PASS items, canonical 3/2/1, mode switches, grants, armor and Augment effects");
