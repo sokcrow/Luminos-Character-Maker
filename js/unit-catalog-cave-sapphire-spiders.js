@@ -4,7 +4,7 @@
   const skillCatalog = global.LuminousCaveSapphireSpiderSkillCatalog;
   const movement = global.LuminousMovementSpeedRuntime;
   const loot = global.LuminousUnitLootProfileContract;
-  const sharedSprite = global.LuminousCaveSapphireSpiderSprite?.url || null;
+  const sharedSprite = 'Assets/Images/Units/Cave_Crystal/sapphire_spider.webp';
   const mineralProfile = sizeClass => loot?.createProfiles({
     bodyProfile: {
       kind: 'mineral', sizeClass, materials: ['stone', 'crystal'], edible: false,
