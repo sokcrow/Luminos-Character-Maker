@@ -13,7 +13,25 @@ function loadScript(src){return new Promise((resolve,reject)=>{const old=documen
 async function ensureCatalogs(){for(const src of CATALOG_SCRIPTS)await loadScript(src);return Boolean(global.LuminousKoboldUnitCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog&&global.CombatSkillSchema)}
 async function isDm(){const user=global.firebase?.auth?.().currentUser;if(!user)return false;const snap=await state.db.ref(ROOTS.dmUid).once('value');const dm=clean(snap.val())||FALLBACK_DM_UID;return user.uid===dm||user.uid===FALLBACK_DM_UID}
 function mergePayloads(...parts){const out={};for(const p of parts)for(const [id,v] of Object.entries(p||{})){if(Object.prototype.hasOwnProperty.call(out,id))throw new Error(`DUPLICATE_LIBRARY_ID:${id}`);out[id]=v}return out}
-async function syncUnitLibrary(){if(!(await isDm()))throw new Error('DM_ONLY');setMsg('Cargando catálogos canónicos…');if(!(await ensureCatalogs()))throw new Error('CATALOGS_NOT_READY');const schema=global.CombatSkillSchema,k=global.LuminousKoboldUnitCatalog,g=global.LuminousGoblinUnitCatalog,w=global.LuminousWolfUnitCatalog,ks=global.LuminousKoboldTier1SkillCatalog,ws=global.LuminousWolfSkillCatalog;const units=mergePayloads(k.firebasePayload(),g.firebasePayload(),w.firebasePayload());const skills=mergePayloads(k.firebaseSkillPayload(schema),w.firebaseSkillPayload(schema));await state.db.ref().update({[ROOTS.units]:{...(state.units||{}),...units},[ROOTS.skills]:skills});setMsg(`SYNC OK · ${Object.keys(units).length} Units · ${Object.keys(skills).length} Skills`);return{units:Object.keys(units).length,skills:Object.keys(skills).length}}
+async function syncUnitLibrary(){
+  if(!(await isDm()))throw new Error('DM_ONLY');
+  setMsg('Cargando biblioteca universal de Units y Skills…');
+  // Use the same catalog pipeline as the real Combat DM, not a divergent
+  // Kobold/Goblin/Wolf-only seeder that replaces the entire Skills database.
+  if(!global.LuminousCombatUnitLibrarySync)await loadScript('js/combat-unit-library-sync.js');
+  const sync=global.LuminousCombatUnitLibrarySync;
+  if(!sync?.buildPayloads||!sync?.materialize)throw new Error('UNIVERSAL_LIBRARY_SYNC_UNAVAILABLE');
+  const {units,skills}=await sync.buildPayloads();
+  // Per-entry multi-path updates preserve player-authored or unrelated skills.
+  const updates={};
+  for(const [id,unit]of Object.entries(units))updates[`${ROOTS.units}/${id}`]=unit;
+  for(const [id,skill]of Object.entries(skills))updates[`${ROOTS.skills}/${id}`]=skill;
+  await state.db.ref().update(updates);
+  // Match the canonical manifest used when actually deploying Units.
+  await sync.materialize(state.db,{force:true});
+  setMsg(`SYNC OK · ${Object.keys(units).length} Units · ${Object.keys(skills).length} Skills`);
+  return{units:Object.keys(units).length,skills:Object.keys(skills).length};
+}
 function collectionFor(type){return type==='player'?state.players:type==='actor'?state.actors:state.units}
 function canonicalPath(type,id){return type==='player'?`${ROOTS.players}/${id}`:type==='actor'?`${ROOTS.actors}/${id}`:`${ROOTS.units}/${id}`}
 function selected(){return collectionFor(state.selectedType)?.[state.selectedId]||null}
