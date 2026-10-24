@@ -16,6 +16,20 @@
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
   const intOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : fallback;
   const SCHEMA_VERSION = 3;
+  const AUGMENT_FIELDS = Object.freeze(["augmentations", "augments", "bodyAugmentations"]);
+
+  // Installed Augments are character anatomy, not carried inventory. Hydrate
+  // exactly one canonical/legacy collection and clear stale aliases on updates.
+  function syncInstalledAugments(unit, snapshot = {}, options = {}) {
+    if (!unit || typeof unit !== "object") return false;
+    const has = (key) => Object.prototype.hasOwnProperty.call(snapshot, key);
+    if (!AUGMENT_FIELDS.some(has) && options.clearMissing !== true) return false;
+    const key = AUGMENT_FIELDS.find((field) => Array.isArray(snapshot[field])) || "augmentations";
+    const installed = Array.isArray(snapshot[key]) ? clone(snapshot[key]) : [];
+    AUGMENT_FIELDS.forEach((field) => { delete unit[field]; });
+    unit[key] = installed;
+    return true;
+  }
   const LEGACY_HUD_FIELDS = Object.freeze([
     "nombre", "name", "displayName", "tipo_categoria", "category", "itemType", "type",
     "tags", "tag", "keywords", "cantidad", "qty", "stack", "count",
@@ -191,6 +205,9 @@
       enchanterTransactions: clone(snapshot.enchanterTransactions || {}),
       enchanterJobs: clone(snapshot.enchanterJobs || {}),
       migratedFromVersion: intOr(snapshot.schemaVersion, 0),
+      ...Object.fromEntries(AUGMENT_FIELDS
+        .filter((key) => Object.prototype.hasOwnProperty.call(snapshot, key))
+        .map((key) => [key, clone(snapshot[key])])),
     };
   }
 
@@ -204,11 +221,12 @@
     if (!unit.equipment || typeof unit.equipment !== "object" || Array.isArray(unit.equipment)) unit.equipment = {};
     ["mainHand", "offHand", "armor", "shield"].forEach((slot) => {
       const id = refs[slot];
-      if (!id) return;
-      const item = findInstance(state, id);
+      const item = id ? findInstance(state, id) : null;
       if (item) unit.equipment[slot] = item;
+      else delete unit.equipment[slot];
     });
-    if (Array.isArray(refs.accessoryIds)) unit.equipment.accessories = refs.accessoryIds.map((id) => findInstance(state, id)).filter(Boolean);
+    unit.equipment.accessories = Array.isArray(refs.accessoryIds)
+      ? refs.accessoryIds.map((id) => findInstance(state, id)).filter(Boolean) : [];
     return unit.equipment;
   }
 
@@ -223,7 +241,9 @@
     unit.enchantmentCompendium = clone(state.enchantmentCompendium || {});
     unit.enchanterTransactions = clone(state.enchanterTransactions || {});
     unit.enchanterJobs = clone(state.enchanterJobs || {});
+    unit.itemEquipmentRefs = clone(state.equipmentRefs || {});
     restoreEquipmentRefs(unit, state);
+    syncInstalledAugments(unit, state);
     const result = { applied: true, state, activeCount: Object.keys(state.inventario_activo).length, stashCount: Object.keys(state.inventario_stash).length };
     emit("luminous:inventory-state-applied", { unit, ...result });
     return result;
@@ -245,6 +265,9 @@
       enchantmentCompendium: `${base}/enchantmentCompendium`,
       enchanterTransactions: `${base}/enchanterTransactions`,
       enchanterJobs: `${base}/enchanterJobs`,
+      augmentations: `${base}/augmentations`,
+      augments: `${base}/augments`,
+      bodyAugmentations: `${base}/bodyAugmentations`,
     };
   }
 
@@ -256,7 +279,7 @@
     if (!requireDb(db)) return { loaded: false, reason: "firebase_db_unavailable" };
     const paths = playerPaths(playerId, options);
     if (!paths) return { loaded: false, reason: "missing_player_id" };
-    const [activeSnap, stashSnap, versionSnap, equipmentSnap, attunementSnap, magicKnowledgeSnap, compendiumSnap, transactionsSnap, jobsSnap] = await Promise.all([
+    const [activeSnap, stashSnap, versionSnap, equipmentSnap, attunementSnap, magicKnowledgeSnap, compendiumSnap, transactionsSnap, jobsSnap, augmentationsSnap, augmentsSnap, bodyAugmentationsSnap] = await Promise.all([
       db.ref(paths.active).once("value"),
       db.ref(paths.stash).once("value"),
       db.ref(paths.schemaVersion).once("value"),
@@ -266,6 +289,9 @@
       db.ref(paths.enchantmentCompendium).once("value"),
       db.ref(paths.enchanterTransactions).once("value"),
       db.ref(paths.enchanterJobs).once("value"),
+      db.ref(paths.augmentations).once("value"),
+      db.ref(paths.augments).once("value"),
+      db.ref(paths.bodyAugmentations).once("value"),
     ]);
     const raw = {
       schemaVersion: versionSnap?.val?.() || 0,
@@ -277,6 +303,9 @@
       enchantmentCompendium: compendiumSnap?.val?.() || {},
       enchanterTransactions: transactionsSnap?.val?.() || {},
       enchanterJobs: jobsSnap?.val?.() || {},
+      augmentations: augmentationsSnap?.val?.() || null,
+      augments: augmentsSnap?.val?.() || null,
+      bodyAugmentations: bodyAugmentationsSnap?.val?.() || null,
     };
     const state = deserializeInventoryState(raw, options);
     const migrated = intOr(raw.schemaVersion, 0) < SCHEMA_VERSION;
@@ -352,13 +381,16 @@
     let enchantmentCompendium = {};
     let enchanterTransactions = {};
     let enchanterJobs = {};
+    let augmentations = null;
+    let augments = null;
+    let bodyAugmentations = null;
     let scheduled = false;
     const publish = () => {
       if (scheduled) return;
       scheduled = true;
       Promise.resolve().then(() => {
         scheduled = false;
-        callback(deserializeInventoryState({ schemaVersion, inventario_activo: active, inventario_stash: stash, equipmentRefs: equipment, attunedItemInstanceIds: attunement, itemMagicKnowledge: magicKnowledge, enchantmentCompendium, enchanterTransactions, enchanterJobs }, options));
+        callback(deserializeInventoryState({ schemaVersion, inventario_activo: active, inventario_stash: stash, equipmentRefs: equipment, attunedItemInstanceIds: attunement, itemMagicKnowledge: magicKnowledge, enchantmentCompendium, enchanterTransactions, enchanterJobs, augmentations, augments, bodyAugmentations }, options));
       });
     };
     const handlers = [
@@ -371,6 +403,9 @@
       [paths.enchantmentCompendium, (snap) => { enchantmentCompendium = snap?.val?.() || {}; publish(); }],
       [paths.enchanterTransactions, (snap) => { enchanterTransactions = snap?.val?.() || {}; publish(); }],
       [paths.enchanterJobs, (snap) => { enchanterJobs = snap?.val?.() || {}; publish(); }],
+      [paths.augmentations, (snap) => { augmentations = snap?.val?.() || null; publish(); }],
+      [paths.augments, (snap) => { augments = snap?.val?.() || null; publish(); }],
+      [paths.bodyAugmentations, (snap) => { bodyAugmentations = snap?.val?.() || null; publish(); }],
     ];
     handlers.forEach(([path, handler]) => db.ref(path).on("value", handler));
     return () => handlers.forEach(([path, handler]) => db.ref(path).off?.("value", handler));
@@ -434,6 +469,7 @@
     serializeInventoryState,
     deserializeInventoryState,
     restoreEquipmentRefs,
+    syncInstalledAugments,
     applyInventoryState,
     playerPaths,
     loadPlayerInventory,

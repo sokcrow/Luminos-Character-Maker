@@ -1,0 +1,28 @@
+name: DM Character Gear and Augments
+on:
+  pull_request:
+    paths:
+      - "js/dm-character-gear-core.js"
+      - "js/dm-character-gear-manager.js"
+      - "js/item-equipment-bridge.js"
+      - "js/item-augmentation-runtime.js"
+      - "tests/dm-character-gear-smoke.cjs"
+      - "pantalla_dm.html"
+      - ".github/workflows/dm-character-gear.yml"
+  workflow_dispatch:
+jobs:
+  character-gear:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate gear runtime syntax
+        run: |
+          node --check js/dm-character-gear-core.js
+          node --check js/dm-character-gear-manager.js
+          node --check js/item-augmentation-runtime.js
+          node --check js/item-equipment-bridge.js
+      - name: Test actual installed and removable Augments
+        run: node tests/dm-character-gear-smoke.cjs

@@ -1107,6 +1107,9 @@
 
   function hydratePlayerVitals(player = {}) {
     hydrateCombatSprite(player);
+    // The complete player snapshot carries installed Augments outside inventory.
+    // Hydrate even when vitals are unavailable; an empty body list is authoritative.
+    persistence()?.syncInstalledAugments?.(state.unit, player, { clearMissing: true });
     const vitals = global.LuminousPlayerVitalsHud?.resolveVitals?.(player);
     if (!vitals) return false;
     state.unit.playerId = state.playerId;
@@ -1595,7 +1598,12 @@
     let fallbackDisposed = false;
     const inventorySignature = (snapshot) => {
       const raw = persist.serializeInventoryState?.(snapshot) || snapshot || {};
-      return JSON.stringify({ active:raw.inventario_activo || {}, stash:raw.inventario_stash || {} });
+      return JSON.stringify({
+        active: raw.inventario_activo || {},
+        stash: raw.inventario_stash || {},
+        refs: raw.equipmentRefs || raw.itemEquipmentRefs || {},
+        augments: snapshot?.augmentations || snapshot?.augments || snapshot?.bodyAugmentations || [],
+      });
     };
     const applyConfirmedInventory = (snapshot) => {
       if (fallbackDisposed) return;
