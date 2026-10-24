@@ -28,7 +28,7 @@
   }) || null;
   const scoreMap = s => ({ fuerza: s.str, destreza: s.dex, constitucion: s.con,
     inteligencia: s.int, sabiduria: s.wis, carisma: s.cha });
-  function define({id, name, size, scores, hpBase, hpCoefficient, offensiveLevelModifier,
+  function define({id, name, size, classification, scores, hpBase, hpCoefficient, offensiveLevelModifier,
     defensiveLevelModifier, movementFeet, thresholds, traits, skills}) {
     const profile = mineralProfile(size);
     return {
@@ -36,7 +36,7 @@
       creatureType: 'elemental', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       // Homebrew: no D&D CR has been approved. Do not infer CR from L30.
       challengeRating:null,
-      tags: ['cave', 'mineral', 'crystal', 'hard_unit', 'pride', 'sapphire_spider'],
+      tags: ['cave', 'mineral', 'crystal', ...(classification === 'hard' ? ['hard_unit'] : []), 'pride', 'sapphire_spider'],
       naturalWorldLevel: {min: 30, max: 30}, baseLevel: {min: 30, max: 30},
       scores, stats: scoreMap(scores), proficiencies: {savingThrows:{}, skills:{}},
       size, movement: {ground:movementFeet,climb:movementFeet},
@@ -61,7 +61,7 @@
         skills:[...skills],staggerThresholds:[...thresholds],movementFeet:{ground:movementFeet,climb:movementFeet},
         preferredMovementMode:'ground',build:['Poise','Speed','Bind',...(size==='large'?['Restrained']:[])],
         offensiveLevelModifier,defensiveLevelModifier},
-      metadata:{canonicalUnit:true,catalog:'cave-sapphire-spider',homebrew:true,classification:'hard',crPending:true,
+      metadata:{canonicalUnit:true,catalog:'cave-sapphire-spider',homebrew:true,classification,crPending:true,
         spritePending:!sharedSprite,speedModel:'movement_feet_plus_size',levelCapContext:65,
         naturalWorldLevelIsReferenceOnly:true,physicalProfilePending:false},schemaVersion:4
     };
@@ -70,7 +70,7 @@
   const JUVENILE_SCORES={str:10,dex:16,con:10,int:2,wis:10,cha:4};
   const DEFINITIONS=Object.freeze({
     sapphire_spider:define({
-      id:'sapphire_spider',name:'Sapphire Spider',size:'large',scores:ADULT_SCORES,
+      id:'sapphire_spider',name:'Sapphire Spider',size:'large',classification:'hard',scores:ADULT_SCORES,
       hpBase:48,hpCoefficient:1.5,offensiveLevelModifier:2,defensiveLevelModifier:-2,
       movementFeet:45,thresholds:[70,40,15],
       traits:[{id:'swift_predator',name:'Swift Predator',type:'passive',
@@ -78,7 +78,7 @@
       skills:skillCatalog.loadout('sapphire_spider')
     }),
     sapphire_spiderling:define({
-      id:'sapphire_spiderling',name:'Sapphire Spiderling',size:'medium',scores:JUVENILE_SCORES,
+      id:'sapphire_spiderling',name:'Sapphire Spiderling',size:'medium',classification:'normal',scores:JUVENILE_SCORES,
       hpBase:30,hpCoefficient:1.2,offensiveLevelModifier:-1,defensiveLevelModifier:-1,
       movementFeet:35,thresholds:[65,30],
       traits:[{id:'brood_instinct',name:'Brood Instinct',type:'passive',
@@ -92,7 +92,7 @@
     const unit = get(id);
     if (!unit) throw Error('UNKNOWN_SAPPHIRE_SPIDER_UNIT:' + id);
     const rank = options.rank || 'normal';
-    if (rank !== 'normal') throw Error('SAPPHIRE_SPIDER_HARD_ONLY:' + rank);
+    if (rank !== 'normal') throw Error('SAPPHIRE_SPIDER_NORMAL_RANK_ONLY:' + rank);
     const level = Math.floor(Number(options.level ?? options.baseLevel ?? 30));
     if (level < 1 || level > 65) throw Error('SAPPHIRE_SPIDER_LEVEL_OUT_OF_RANGE:' + level);
     const hp = Math.floor(unit.hpBase + unit.hpCoefficient * level);
