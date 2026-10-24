@@ -16,6 +16,19 @@
     const match = text.match(/Inventario\s+de:\s*(.+)$/i);
     return match ? clean(match[1]) : "";
   }
+  function friendly(reason) {
+    const messages = {
+      required_body_part_unavailable: "La parte corporal necesaria no está disponible.",
+      required_body_part_type_unavailable: "El personaje no tiene suficientes partes corporales compatibles.",
+      body_part_substrate_incompatible: "El material o tejido corporal no admite este Augment.",
+      augmentation_already_installed: "Este Augment ya está instalado.",
+      augmentation_not_removable: "Este Augment es permanente y no se puede extraer.",
+      equipment_assignment_failed: "La anatomía o el equipo actual impiden equipar ese objeto.",
+      bound_item_unequip_locked: "Este objeto está vinculado y no puede desequiparse.",
+      incompatible_equipment_slot: "El espacio elegido no es compatible con este objeto."
+    };
+    return messages[reason] || reason;
+  }
   function say(message, error) {
     const node = byId("dm-gear-feedback");
     if (!node) return;
@@ -157,7 +170,9 @@
 
   function render() {
     const name = byId("dm-gear-player");
-    if (name) name.textContent = state.playerId ? "Equipamiento de " + state.playerId : "Elige un personaje";
+    if (name) name.textContent = state.playerId
+      ? "Equipamiento de " + clean(state.player?.characterName || state.player?.nombre || state.player?.name || state.playerId)
+      : "Elige un personaje";
     inventoryOptions();renderSlots();renderAugments();
     const busy = state.busy || !state.player;
     for (const id of ["dm-gear-item","dm-gear-slot","dm-gear-augment-item"])
@@ -197,10 +212,10 @@
         });
         return last.ok ? last.unit : undefined;
       }, undefined, false);
-      if (!tx.committed) throw new Error(last?.reason || "No se pudo confirmar el cambio");
+      if (!tx.committed) throw new Error(friendly(last?.reason || "No se pudo confirmar el cambio"));
       if (id === state.playerId) say(last?.label || "Cambios guardados en el personaje");
     } catch (error) {
-      if (id === state.playerId) say(error.message || "No se pudo guardar el equipamiento", true);
+      if (id === state.playerId) say(friendly(error.message || "No se pudo guardar el equipamiento"), true);
     } finally {
       state.busy = false;render();
     }
@@ -238,6 +253,7 @@
     byId("dm-gear-install").addEventListener("click", () => {
       const [source, ...key] = byId("dm-gear-augment-item").value.split("|");
       if (!source || !key.length) return;
+      if (global.confirm && !global.confirm("Este Augment dejará de estar en la mochila y quedará instalado en el cuerpo del personaje. ¿Confirmar instalación?")) return;
       apply({ type: "install", source, key: key.join("|") });
     });
     section.addEventListener("click", event => {
