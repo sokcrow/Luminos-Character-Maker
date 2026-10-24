@@ -34,6 +34,7 @@
     'js/unit-catalog-kobold-tier1.js',
     'js/unit-catalog-goblin.js',
     'js/unit-catalog-wolf.js',
+    'js/sapphire-spider-art.js',
     'js/unit-catalog-cave-sapphire-spiders.js'
   ]);
   const DEPLOYMENT_SCRIPTS=Object.freeze(['js/item-inventory-runtime.js','js/item-catalog-hp-healing.js','js/item-catalog-culinary-staples.js','js/npc-belongings-runtime.js','js/unit-combat-instantiator.js','js/combat-v073-unit-deploy-bridge.js?v=20261021-encounter-3']);
@@ -67,6 +68,7 @@
       'js/unit-catalog-kobold-tier1.js':()=>Boolean(global.LuminousKoboldUnitCatalog),
       'js/unit-catalog-goblin.js':()=>Boolean(global.LuminousGoblinUnitCatalog),
       'js/unit-catalog-wolf.js':()=>Boolean(global.LuminousWolfUnitCatalog),
+      'js/sapphire-spider-art.js':()=>Boolean(global.LuminousCaveSapphireSpiderSprite?.url),
       'js/unit-catalog-cave-sapphire-spiders.js':()=>Boolean(global.LuminousCaveSapphireSpiderUnitCatalog),
       'js/item-inventory-runtime.js':()=>Boolean(global.LuminousItemInventoryRuntime),
       'js/item-catalog-hp-healing.js':()=>Boolean(global.LuminousHpHealingCatalog),
@@ -93,7 +95,7 @@
       if(!existing){script.src=src + (src === 'js/unit-combat-instantiator.js' ? '?v=20261021-belongings-1' : '');script.async=false;global.document.head.appendChild(script);}else if(readyForScript(src)||existing.dataset?.loaded==='1'||existing.readyState==='complete')finish();
     });
   }
-  function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousProficiencyRuntime&&global.LuminousMovementSpeedRuntime&&global.LuminousBeastCr0SkillCatalog&&global.LuminousBeastCr0UnitCatalog&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog&&global.LuminousCaveSapphireSpiderUnitCatalog&&global.LuminousCaveSapphireSpiderSkillCatalog&&global.LuminousCaveSapphireSpiderRuntime);}
+  function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousProficiencyRuntime&&global.LuminousMovementSpeedRuntime&&global.LuminousBeastCr0SkillCatalog&&global.LuminousBeastCr0UnitCatalog&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog&&global.LuminousCaveSapphireSpiderUnitCatalog&&global.LuminousCaveSapphireSpiderSkillCatalog&&global.LuminousCaveSapphireSpiderRuntime&&global.LuminousCaveSapphireSpiderSprite?.url);}
   async function ensureCatalogs(){
     if(catalogsReady())return true;
     if(state.loading)return state.loading;
