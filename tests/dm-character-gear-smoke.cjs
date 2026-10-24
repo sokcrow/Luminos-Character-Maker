@@ -43,6 +43,19 @@ assert.equal(bonded.augmentations.length,1);
 let invalid=base();invalid.inventario_activo.eye.runtime.augmentation.targetPartTypes=["made_up_organ"];
 assert.equal(core.apply(invalid,{type:"install",key:"eye"}).ok,false);
 assert.ok(invalid.inventario_activo.eye);
+let boundGear=core.apply(base(),{type:"equip",key:"knife",slot:"mainHand"}).unit;
+const blocked=core.apply(boundGear,{type:"equip",key:"great",slot:"mainHand"},{
+  magic:{isBoundItem:item=>item.instanceId==="knife1"}
+});
+assert.equal(blocked.ok,false,"Two-handed replacement cannot bypass a bound weapon");
+assert.equal(boundGear.itemEquipmentRefs.mainHand,"knife1");
+let accessory=base();
+accessory.inventario_activo.ring={instanceId:"ring1",category:"accessory",quantity:1};
+assert.equal(core.apply(accessory,{type:"equip",key:"ring",slot:"accessory1"}).ok,false,
+  "Cannot leave a sparse accessory slot that RTDB refs cannot represent");
+accessory.inventario_activo.ring.quantity=0;
+assert.equal(core.apply(accessory,{type:"equip",key:"ring",slot:"accessory0"}).ok,false,
+  "Empty stacks cannot be equipped");
 let stashed=base();stashed.inventario_stash.eye=stashed.inventario_activo.eye;delete stashed.inventario_activo.eye;
 result=core.apply(stashed,{type:"install",key:"eye",source:"stash"});
 assert.equal(result.ok,true,result.reason);
