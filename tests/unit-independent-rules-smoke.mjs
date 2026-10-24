@@ -17,6 +17,18 @@ assert.equal(evaluate(scoped.independentReceipts['.write'],'host'),true);
 assert.equal(evaluate(scoped.independentReceipts['.write'],'player'),false);
 assert.equal(evaluate(rule['.write'],'player',payload,payload),false,'Intents remain immutable');
 assert.equal(evaluate(rule['.validate'],'player',{...payload,encounterId:'wrong-global-encounter'}),false);
+// A full DM root transaction revalidates descendants belonging to another UID.
+assert.equal(evaluate(rule['.validate'],'host',{...payload},{...payload}),true,'Host can retain a player-authored intent in a root transaction');
+const globalRule=rules.campaña.combate.independentIntents.$playerId.$intentId;
+const globalPayload={...payload,encounterId:'wrong-global-encounter'};
+assert.equal(evaluate(globalRule['.validate'],'global-dm',{...globalPayload},{...globalPayload}),true,'Campaign DM can retain another UID intent');
+for(const key of Object.keys(payload)){
+  const value=typeof payload[key]==='number'?payload[key]+1:`${payload[key]}-changed`;
+  assert.equal(evaluate(rule['.validate'],'host',{...payload,[key]:value},{...payload}),false,`Root transaction cannot rewrite ${key}`);
+  assert.equal(evaluate(globalRule['.validate'],'global-dm',{...globalPayload,[key]:value},{...globalPayload}),false,`Campaign root transaction cannot rewrite ${key}`);
+}
+for(const uid of ['player','global-dm','outsider'])assert.equal(evaluate(rule['.validate'],uid,{...payload},{...payload}),false,'Only this encounter authority retains intents at the parent');
+assert.equal(evaluate(rule['.validate'],'host',{...payload},null),false,'Retention does not authorize creating an intent for another player');
 function expressions(row){return Object.values(row).flatMap(value=>typeof value==='string'?[value]:typeof value==='object'?expressions(value):[]);}
 assert.ok(expressions({intents:scoped.independentIntents,receipts:scoped.independentReceipts}).every(value=>!value.includes("root.child('campaña')")),'No campaign-global dependency can return in isolated rules');
-console.log('Independent isolated rules: scoped ownership/encounter, membership, host receipts, global-DM denial, immutable intents and foreign-encounter denial passed.');
+console.log('Independent rules: scoped ownership, membership, unchanged player-intent retention by DM root writes, rejection of every identity-field rewrite, and global-DM isolation passed.');
