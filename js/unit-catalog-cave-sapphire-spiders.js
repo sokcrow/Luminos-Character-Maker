@@ -63,7 +63,7 @@
         offensiveLevelModifier,defensiveLevelModifier},
       metadata:{canonicalUnit:true,catalog:'cave-sapphire-spider',homebrew:true,classification:'hard',crPending:true,
         spritePending:!sharedSprite,speedModel:'movement_feet_plus_size',levelCapContext:65,
-        naturalWorldLevelIsReferenceOnly:true,physicalProfilePending:false},schemaVersion:3
+        naturalWorldLevelIsReferenceOnly:true,physicalProfilePending:false},schemaVersion:4
     };
   }
   const ADULT_SCORES={str:13,dex:18,con:12,int:3,wis:12,cha:5};
