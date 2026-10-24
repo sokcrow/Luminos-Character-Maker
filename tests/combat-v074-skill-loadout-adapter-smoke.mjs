@@ -121,6 +121,25 @@ assert.equal(compiled.action.metadata.sourceDefinition.coinAmount, 2);
 assert.equal(compiled.action.metadata.sourceDefinition.name, 'Canonical A');
 assert.notEqual(compiled.action.metadata.sourceDefinition.basePower, 999);
 
+// The trusted canonical Slash Skill cannot use a Blunt-only weapon,
+// even when the client forges the Skill's visible properties.
+const actor = globalThis.combatData['player:player_a'];
+actor.equipment = { mainHand: {
+  instanceId: 'mace_1', definitionId: 'mace', category: 'weapon',
+  damageType: 'blunt', quantity: 1
+} };
+const incompatible = adapter.compilePlan('player:player_a_slot_0', 'enemy_1_slot_0', forgedPlan);
+assert.equal(incompatible.action, null, 'Trusted compiler must reject weapon damage mismatches');
+assert.equal(incompatible.reason, 'weapon_damage_type_incompatible');
+actor.equipment.mainHand = {
+  instanceId: 'sword_1', definitionId: 'longsword', category: 'weapon',
+  damageType: 'slash', quantity: 1
+};
+const compatible = adapter.compilePlan('player:player_a_slot_0', 'enemy_1_slot_0', forgedPlan);
+assert.ok(compatible.action, compatible.reason || 'Correct weapon permits learned Skill');
+assert.equal(compatible.action.metadata.sourceDefinition.weaponInstanceId, 'sword_1');
+delete actor.equipment;
+
 const unequipped = adapter.compilePlan('player:player_a_slot_0', 'enemy_1_slot_0', {
   type: 'skill',
   kind: 'skill',
