@@ -128,7 +128,9 @@
       const result = runtime.resolveSkillForCombatant(actor, skillId);
       if (!result.ok) return { ok: false, reason: String(result.reason || "skill_unavailable").toLowerCase(), skillId, skill: null };
       const link = global.LuminousEnchantmentCombatLink;
-      if (!link?.bindTrustedSkill) return { ok: true, reason: null, skillId, skill: result.skill, legacy: false };
+      if (!link?.bindTrustedSkill) return actor.isPlayer === true || plan.__ownerPlayerId
+        ? { ok: false, reason: "weapon_validator_unavailable", skillId, skill: null }
+        : { ok: true, reason: null, skillId, skill: result.skill, legacy: false };
       const binding = link.bindTrustedSkill(actor, result.skill, plan.weaponInstanceId || null);
       if (link.requiresEquippedWeapon(actor, result.skill) && !binding.bound) {
         return { ok: false, reason: binding.reason || "weapon_not_equipped", skillId, skill: null };
