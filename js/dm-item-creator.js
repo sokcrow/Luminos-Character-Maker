@@ -61,7 +61,7 @@
       '<div class="dmic-field full"><label for="dmic-description">Descripción</label><textarea id="dmic-description" rows="3" maxlength="2000" placeholder="Historia y uso del objeto"></textarea></div>'+
       '<div class="dmic-field full"><label for="dmic-icon-search">Icono oficial</label><input id="dmic-icon-search" type="search" placeholder="Buscar entre los iconos del juego"><div class="dmic-icon-line"><img id="dmic-icon-preview" alt="" src="Assets/Icons/items/fallback/generic_item.png"><select id="dmic-icon" aria-label="Icono del ítem"></select></div></div></div></section>'+
       '<section class="dmic-page" data-page="1" aria-label="Mecánicas del objeto" hidden><h3>Propiedades de juego</h3>'+
-      '<p class="dmic-hint">Solo se guardan mecánicas que reconoce el motor real.</p>'+
+      '<p class="dmic-hint">Solo se guardan mecánicas que reconoce el motor real.</p><div class="dmic-field"><label for="dmic-condition">Resistencia máxima</label><input id="dmic-condition" type="number" min="1" max="100000" step="1" value="100"></div>'+
       '<div class="dmic-category-fields" data-category-field="weapon"><div class="dmic-field"><label for="dmic-hands">Uso del arma</label><select id="dmic-hands"><option value="1">Una mano</option><option value="2">Dos manos</option></select></div></div>'+
       '<div class="dmic-category-fields" data-category-field="accessory"><div class="dmic-field"><label for="dmic-accessory">Ubicación</label><select id="dmic-accessory"><option value="finger">Dedo</option><option value="head">Cabeza</option><option value="arm">Brazo</option><option value="hand">Mano</option><option value="foot">Pie</option><option value="legacy_accessory">Accesorio general</option></select></div></div>'+
       '<div class="dmic-category-fields" data-category-field="consumable"><div class="dmic-fields"><div class="dmic-field"><label for="dmic-action">Tiempo de uso</label><select id="dmic-action"><option value="action">Acción</option><option value="quick_action">Acción rápida</option><option value="off_combat">Fuera de combate</option></select></div><div class="dmic-field"><label for="dmic-hp">Recupera HP</label><input id="dmic-hp" type="number" min="0" max="100000" value="0"></div><div class="dmic-field"><label for="dmic-sp">Recupera SP</label><input id="dmic-sp" type="number" min="0" max="100000" value="0"></div></div></div>'+
@@ -122,6 +122,8 @@
     row.innerHTML='<div class="dmic-effect-line"><label>Tipo de efecto<select data-effect="type"></select></label><button type="button" data-remove-effect aria-label="Eliminar efecto" class="dmic-secondary">Quitar</button></div>'+
      '<div class="dmic-effect-line"><label data-target-box>Objetivo<select data-effect="target"></select></label><label data-skill-id-box hidden>Habilidad registrada<select data-effect="skillId"></select></label><label data-value-box>Valor<input data-effect="value" type="number" step="0.1" value="1"></label></div>';
     options(row.querySelector('[data-effect="type"]'),Object.entries(types),raw.type||"skill_check_bonus");
+    const grantOption=[...row.querySelector('[data-effect="type"]').options].find(x=>x.value==="grant_skill");
+    if(grantOption && !runtimeSkillOptions().length && raw.type!=="grant_skill")grantOption.disabled=true;
     row.querySelector('[data-effect="type"]').addEventListener("change",()=>renderEffectRow(row));
     row.querySelectorAll("input,select").forEach(e=>e.addEventListener("change",()=>{state.dirty=true;renderPreview()}));
     list.appendChild(row);
@@ -155,7 +157,7 @@
   }
   function gather() {
     return {name:field("name"),category:field("category"),tier:field("tier"),description:field("description"),
-      tags:field("tags"),priceAhn:field("price"),iconFamily:field("icon"),stackable:check("stackable"),
+      tags:field("tags"),priceAhn:field("price"),iconFamily:field("icon"),conditionMax:field("condition"),stackable:check("stackable"),
       handCost:field("hands"),accessoryType:field("accessory"),actionCost:field("action"),
       hpRestore:field("hp"),spRestore:field("sp"),augmentPartType:field("body-part"),removable:check("removable"),
       equipmentEffects:["weapon","armor","shield","accessory","augmentation"].includes(field("category"))?gatherEffects():[]};
@@ -204,12 +206,13 @@
   function reset() {
     state.existing=null;state.dirty=false;
     val("name","");val("category","weapon");val("tier","I");val("price","100");val("tags","");val("description","");
-    val("hands","1");val("accessory","finger");val("action","action");val("hp","0");val("sp","0");val("body-part","eye");
+    val("condition","100");val("hands","1");val("accessory","finger");val("action","action");val("hp","0");val("sp","0");val("body-part","eye");
     byId("stackable").checked=true;byId("removable").checked=true;
     byId("effects").replaceChildren();
     val("icon-search","");
     renderCategory();renderIcons("weapon_melee");setStep(0);
     byId("title").textContent="Nuevo ítem";
+    byId("category").disabled=false;
   }
   function open() {
     mount();if(!byId("overlay"))return;
@@ -256,9 +259,10 @@
     if(!item) return notice("Selecciona una creación guardada.","error");
     if(state.dirty && !global.confirm("¿Descartar los cambios actuales para editar este ítem?"))return;
     state.existing={path,revision:Number(item.revision||1)};
+    byId("category").disabled=true;
     val("name",item.nombre||item.name);val("category",item.category);val("tier",item.tier);val("price",item.priceAhn||item.price);
     val("description",item.description);val("tags",(item.tags||[]).filter(t=>t!==item.category).join(", "));
-    val("hands",item.equipment?.handCost||1);val("accessory",item.equipment?.accessoryType||"finger");
+    val("condition",item.conditionMax||100);val("hands",item.equipment?.handCost||1);val("accessory",item.equipment?.accessoryType||"finger");
     val("action",item.runtime?.actionCost||"action");
     val("hp",item.runtime?.effects?.hpRestore||0);val("sp",item.runtime?.effects?.spRestore||0);
     val("body-part",item.runtime?.augmentation?.targetPartTypes?.[0]||"eye");
@@ -311,6 +315,7 @@
       },null,false);
       if(!outcome?.committed)throw Error("La definición cambió o ya existe. Vuelve a cargarla antes de guardar.");
       state.existing={path,revision:proposed.revision};
+      byId("category").disabled=true;
       state.dirty=false;
       byId("title").textContent="Editar ítem";
       state.collections.set(path,proposed);refreshExisting();
