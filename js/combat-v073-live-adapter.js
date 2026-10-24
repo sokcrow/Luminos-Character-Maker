@@ -237,7 +237,7 @@
         } : {}),
         inventario_activo: clone(liveActiveInventory),
         equipment: linkedEquipment ? clone(linkedEquipment.equipment) : clone(raw.equipment || {}),
-        augmentations: clone(raw.augmentations || raw.augments || authoritativePlayer?.augmentations || authoritativePlayer?.augments || []),
+        augmentations: clone(raw.augmentations || raw.augments || raw.bodyAugmentations || authoritativePlayer?.augmentations || authoritativePlayer?.augments || authoritativePlayer?.bodyAugmentations || []),
         attunedItemInstanceIds: linkedEquipment
           ? clone(linkedEquipment.attunedItemInstanceIds)
           : clone(raw.attunedItemInstanceIds || []),

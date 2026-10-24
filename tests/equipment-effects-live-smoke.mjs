@@ -59,6 +59,31 @@ const item = (...effects) => ({ instanceId: 'armor', quantity: 1, runtime: { equ
   await loader.ensureSkills();
   assert.equal(adapter.state.skills.equipment_only, undefined, 'Broken equipment revokes sparse grants');
   assert.equal(adapter.kitsFor(adapter.normalizedCombatants()).p1.actions.some(row => row.id === 'equipment_only'), false);
+
+  // Legacy bodyAugmentations must survive both supported live data sources.
+  for (const owner of [adapter.state.combatants.p1, adapter.state.players.p1]) {
+    const eye = { ...item(
+      { type: 'skill_check_bonus', skill: 'perception', value: 2 },
+      { type: 'grant_skill', skillId: 'eye_only' },
+    ), instanceId: 'eye', installed: true };
+    owner.bodyAugmentations = [eye];
+    const before = c.LuminousEquipmentEffects.skillCheckBonus(owner, 'perception');
+    assert.equal(before, 2);
+    const units = adapter.normalizedCombatants();
+    assert.equal(c.LuminousEquipmentEffects.skillCheckBonus(units[0], 'perception'), before, 'bodyAugmentations bonuses survive normalization');
+    assert.deepEqual([...c.LuminousEquipmentEffects.grantedSkillIds(units[0])], ['eye_only']);
+    assert.deepEqual([...loader.requiredIds()], ['eye_only', 'ordinary'], 'Sparse loading includes the installed eye grant');
+    await loader.ensureSkills();
+    assert.ok(adapter.state.skills.eye_only, 'Canonical eye Skill is fetched');
+    const eyeSkill = adapter.kitsFor(units).p1.actions.find(row => row.id === 'eye_only');
+    assert.equal(eyeSkill.inDeck, false);
+    assert.equal(eyeSkill.availability.type, 'granted');
+    eye.installed = false;
+    assert.equal(c.LuminousEquipmentEffects.skillCheckBonus(adapter.normalizedCombatants()[0], 'perception'), 0);
+    await loader.ensureSkills();
+    assert.equal(adapter.state.skills.eye_only, undefined, 'Uninstalled eye no longer grants a Skill');
+    delete owner.bodyAugmentations;
+  }
 }
 
 // Execute the live Sinking and Skill damage functions, not CombatEngine doubles.
