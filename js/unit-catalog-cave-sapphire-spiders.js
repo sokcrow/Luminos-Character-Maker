@@ -48,7 +48,12 @@
       primarySin: 'pride',
       actionSlots:1, activeSlots:1, action_slots:skills, traitIds:traits.map(x=>x.id),
       traits, bodyProfile:profile?.bodyProfile, lootProfile:profile?.lootProfile,
-      visual:{spriteUrl:sharedSprite,spritePending:!sharedSprite,scale:size === 'medium' ? 0.72 : 1},
+      // Canonical visual contract shared by Kobold, Beast and Sapphire Units.
+      // Both variants use ONE original repository PNG; only scale differs.
+      visual:{spriteUrl:sharedSprite,idle_sprite:sharedSprite,moving_sprite:'',
+        guard_sprite:'',evade_sprite:'',hurt_sprite:'',dead_sprite:'',
+        spriteX:0,spriteY:0,uiX:0,uiY:0,spritePending:false,
+        scale:size === 'medium' ? 0.72 : 1},
       icono:sharedSprite,
       mechanics:{hpBase,hpCoefficient,hpModel:'chassis_coefficient',sp:0,actionSlots:1,maxSlotsLimit:1,
         skills:[...skills],staggerThresholds:[...thresholds],movementFeet:{ground:movementFeet,climb:movementFeet},
