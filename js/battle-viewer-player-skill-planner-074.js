@@ -531,7 +531,9 @@
   function applyPlayers(value) { state.players = value && typeof value === "object" ? value : {}; return state.players; }
   function applyCombatants(value) { state.combatants = value && typeof value === "object" ? value : {}; return state.combatants; }
   function applyPlans(value) { state.plans = value && typeof value === "object" ? value : {}; return state.plans; }
-  function applyCombatState(value) { state.combatState = value == null ? null : String(value); return state.combatState; }
+  function applyCombatState(value) { state.combatState = value == null ? null :
+    typeof value === "object" ? String(value.phase || value.state || value.status || "") : String(value);
+    return state.combatState; }
 
   function init(options = {}) {
     if (state.started) {
