@@ -507,7 +507,7 @@
 
     if(!alreadyEnded)await session.commitEnd({db:state.db,uid:currentUid(),result:normalized,token:claimed.estado.ending.token,xpAward});
 
-    global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now() });
+    global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now(), xpAward });
     appendLog(`${label} · RESULT SEAL`, { result: normalized });
 
     const displayMs = options.displayMs == null ? (normalized === "cancelled" ? 900 : 1800) : options.displayMs;
