@@ -219,9 +219,12 @@
       const raw=Number(defender.physRes ?? 1);
       if(Number.isFinite(raw)) set("physRes",Math.max(0.30,raw-strongest.physical));
     }
-    if(strongest.sin>0) {
-      const raw=Number(defender.sinRes ?? 1);
-      if(Number.isFinite(raw)) set("sinRes",Math.max(0,raw-strongest.sin));
+    const sin=String(skill?.sinAffinity || skill?.sin || "").trim().toLowerCase();
+    const rawSin=Number(defender.sinResistances?.[sin] ?? defender.sin_resistances?.[sin] ?? defender.sinRes ?? 1);
+    if (Number.isFinite(rawSin)) {
+      const enchanted=Math.max(0,rawSin-strongest.sin);
+      const equipped=global.LuminousEquipmentEffects?.resolveSinResistance?.(defender,sin,enchanted) ?? enchanted;
+      if(strongest.sin>0 || equipped<rawSin) set("sinRes",equipped);
     }
     try { return calculate(); }
     finally {

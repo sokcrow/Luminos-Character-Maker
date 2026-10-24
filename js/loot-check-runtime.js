@@ -169,6 +169,7 @@
     const proficiencyState = skillProficiencyState(actor, id);
     const proficiencyValue = proficiencyContribution(actor, proficiencyState);
     const computedBase = modifier + proficiencyValue;
+    const equipmentBonus = Number(global.LuminousEquipmentEffects?.skillCheckBonus?.(actor, id) || 0);
     const hasExplicit = Number.isFinite(Number(explicit));
     return Object.freeze({
       skill: id,
@@ -181,7 +182,8 @@
       computedBase,
       explicitValue: hasExplicit ? Number(explicit) : null,
       source: hasExplicit ? "dndSkills.value" : "ability_plus_proficiency",
-      base: hasExplicit ? Number(explicit) : computedBase,
+      equipmentBonus,
+      base: (hasExplicit ? Number(explicit) : computedBase) + equipmentBonus,
     });
   }
 

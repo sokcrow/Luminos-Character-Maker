@@ -122,7 +122,7 @@
       ...(traitState?{combatTraitState:traitState}:{}),
       ...Object.fromEntries(['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion',
         'combatEventState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
-        'deployedRound','deploymentState','replacementClaimed'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
+        'deployedRound','deploymentState','replacementClaimed','equipmentEffectTurnLedger'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
       ...(unit.combatDeck?{combatDeck:global.LuminousCombatSlotDeck073?.compact(unit.combatDeck)||clone(unit.combatDeck)}:{}),
       hp:Math.max(0,finite(unit.hp,0)),maxHp:Math.max(1,finite(unit.maxHp,1)),sp:finite(unit.sp,0),
       speed:finite(unit.speed,0),speedBaseRoll:finite(unit.speedBaseRoll,0),speedTie:finite(unit.speedTie,0),speedRollTurn:Math.max(0,Math.trunc(finite(unit.speedRollTurn,0))),

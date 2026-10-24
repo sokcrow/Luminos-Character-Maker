@@ -3196,12 +3196,14 @@ function statusLevelDamageMultiplier(attacker,defender,skillData=null){
   const off=statusOffenseLevel(attacker),def=statusDefenseLevel(defender),diff=off-def;
   return Math.max(0,1+(diff/(Math.abs(diff)+25)))
 }
-function damageCombatantSP(id,amount){
+function damageCombatantSP(id,amount,{voluntary=false,isCost=false}={}){
   const unit=combatData[id],orb=$(`token-${id}`)?.querySelector('.floating-sp-group');
   if(!unit||!Number.isFinite(Number(unit.sp)))return false;
   const min=Number.isFinite(Number(unit.minSp))?Number(unit.minSp):-45,
         multiplier=unitHasStatus(unit,'sleep')?3:1,
-        value=Math.max(min,(Number(unit.sp)||0)-(Math.max(0,Number(amount)||0)*multiplier));
+        incoming=Math.max(0,Number(amount)||0)*multiplier,
+        loss=window.LuminousEquipmentEffects?.mitigateSpLoss?.(unit,incoming,{voluntary,isCost})??incoming,
+        value=Math.max(min,(Number(unit.sp)||0)-loss);
   unit.sp=value;if(orb)orb.textContent=Math.round(value);if(unit.faction==='enemy')syncUnitVisibility(id);return true
 }
 function triggerBleedOnCoinFlip(id){
@@ -3645,7 +3647,13 @@ function observationDifficulty(unit,fact){
   return Number.isFinite(value)?Math.max(0,Math.round(value)):1
 }
 function observationThreshold(unit,fact){
-  return 8+observationDifficulty(unit,fact)
+  const adjustment=Number(window.LuminousEquipmentEffects?.checkThresholdAdjustment?.(combatData[PLAYER_ID],'analyze'))||0;
+  return 8+observationDifficulty(unit,fact)+adjustment
+}
+function observationModifier(statKey){
+  const stat=PLAYER_SCORES[statKey]||PLAYER_SCORES.perception,
+        bonus=Number(window.LuminousEquipmentEffects?.skillCheckBonus?.(combatData[PLAYER_ID],statKey))||0;
+  return (Number(stat.mod)||0)+bonus
 }
 function observationStat(fact){
   return OBSERVATION_META[fact]?.stat||'perception'
@@ -3797,7 +3805,6 @@ function renderObservationRing(enemyId){
   OBSERVATION_FACTS.forEach(fact=>{
     const known=observationKnown(unit,fact),
           meta=OBSERVATION_META[fact],
-          stat=PLAYER_SCORES[meta.stat],
           difficulty=observationDifficulty(unit,fact),
           threshold=observationThreshold(unit,fact),
           available=observationFactAvailable(unit,fact),
@@ -3805,7 +3812,7 @@ function renderObservationRing(enemyId){
     btn.className=`observe-command ${meta.stat} ${known?'known':''} ${((used&&!known)||!available||rolling)?'used':''}`;
     btn.disabled=known||used||!available||rolling;
     const main=known?observationFactValue(unit,fact):meta.label,
-          detail=known?'KNOWN':!available?'NO PLAN':used?'USED THIS TURN':`${meta.stat.toUpperCase()} ${formatModifier(stat.mod)} · D${difficulty} · TH${threshold}`;
+          detail=known?'KNOWN':!available?'NO PLAN':used?'USED THIS TURN':`${meta.stat.toUpperCase()} ${formatModifier(observationModifier(meta.stat))} · D${difficulty} · TH${threshold}`;
     btn.innerHTML=`${main}<small>${detail}</small>`;
     btn.onclick=()=>performObservation(enemyId,fact);
     ring.appendChild(btn)
@@ -3816,7 +3823,7 @@ function renderObservationRing(enemyId){
         linked=observationLinkedUnits(unit),
         copyHint=linked.length>1?`<div class="obs-copy-hint">COPY GROUP · REVEALS SHARED WITH ${linked.filter(target=>target.id!==unit.id).map(target=>target.name).join(' · ')}</div>`:'',
         last=unit.observationLastCheck?.turn===round?unit.observationLastCheck:null;
-  header.innerHTML=`<div class="obs-kicker">ANALYSE // OBSERVATION</div><div class="obs-title-row"><span class="obs-enemy-name">${unit.name}</span><span class="obs-lv">LV ${lv}</span></div>${observationLevelMarkup(lv)}${copyHint}<div class="obs-stat-line"><span class="obs-stat-chip perception">PERCEPTION ${p.score} / ${formatModifier(p.mod)}</span><span class="obs-stat-chip insight">INSIGHT ${i.score} / ${formatModifier(i.mod)}</span><span class="obs-stat-chip">HEADS ${coinHeadsChanceForUnit(PLAYER_ID)}%</span><span class="obs-stat-chip">FREE · 1/TURN</span></div>${observationRollMarkup(last)}`;
+  header.innerHTML=`<div class="obs-kicker">ANALYSE // OBSERVATION</div><div class="obs-title-row"><span class="obs-enemy-name">${unit.name}</span><span class="obs-lv">LV ${lv}</span></div>${observationLevelMarkup(lv)}${copyHint}<div class="obs-stat-line"><span class="obs-stat-chip perception">PERCEPTION ${p.score} / ${formatModifier(observationModifier('perception'))}</span><span class="obs-stat-chip insight">INSIGHT ${i.score} / ${formatModifier(observationModifier('insight'))}</span><span class="obs-stat-chip">HEADS ${coinHeadsChanceForUnit(PLAYER_ID)}%</span><span class="obs-stat-chip">FREE · 1/TURN</span></div>${observationRollMarkup(last)}`;
   ring.classList.add('open');
   ring.setAttribute('aria-hidden','false');
   header.classList.add('open');
@@ -3831,8 +3838,8 @@ async function performObservation(enemyId,fact){
   const meta=OBSERVATION_META[fact],
         stat=PLAYER_SCORES[meta.stat]||PLAYER_SCORES.perception,
         difficulty=observationDifficulty(unit,fact),
-        threshold=8+difficulty,
-        modifier=Number(stat.mod)||0,
+        threshold=observationThreshold(unit,fact),
+        modifier=observationModifier(meta.stat),
         headsChance=coinHeadsChanceForUnit(PLAYER_ID);
 
   observationUsedTurn=round;
@@ -5000,15 +5007,28 @@ function staggerFatalMultiplierFor(unit,turnNumber=round){
   const stage=Math.max(0,Math.min(3,Number(unit.staggerStage)||0));
   return STAGGER_FATAL_MULTIPLIERS[stage]||1
 }
-function effectiveResistanceFor(unit,damageType,{ignoreResistance=false,ignoreStagger=false,turnNumber=round}={}){
+function sinResistanceForDamage(unit,damageType,skillData=null,base=1){
+  const type=normalizeDamageType(damageType).toLowerCase(),
+        isSin=['wrath','lust','sloth','gluttony','gloom','pride','envy'].includes(type),
+        sin=isSin?type:String(skillData?.sinAffinity||skillData?.sin||'').trim().toLowerCase();
+  if(!sin||sin==='sinless')return isSin?base:1;
+  const table=unit?.sinResistances||unit?.sin_resistances||unit?.sinResistance||unit?.sin_resistance,
+        authored=table?.[sin]??table?.[sin.toUpperCase()]??unit?.sinRes,
+        original=authored!=null&&authored!==''&&Number.isFinite(Number(authored))?Math.max(0,Number(authored)):(isSin?base:1);
+  return window.LuminousEquipmentEffects?.resolveSinResistance?.(unit,sin,original)??original
+}
+function effectiveResistanceFor(unit,damageType,{ignoreResistance=false,ignoreStagger=false,turnNumber=round,skillData=null}={}){
   const baseState=ignoreResistance?'NORMAL':resistanceStateFor(unit,damageType),
-        baseMultiplier=ignoreResistance?1:resistanceMultiplierFor(unit,damageType),
+        physicalBase=ignoreResistance?1:resistanceMultiplierFor(unit,damageType),
+        isSin=['WRATH','LUST','SLOTH','GLUTTONY','GLOOM','PRIDE','ENVY'].includes(normalizeDamageType(damageType)),
+        sinMultiplier=ignoreResistance?1:sinResistanceForDamage(unit,damageType,skillData,isSin?physicalBase:1),
+        baseMultiplier=ignoreResistance?1:(isSin?sinMultiplier:physicalBase*sinMultiplier),
         fatalActive=!ignoreStagger&&isStaggerEffectActive(unit,turnNumber),
         fatalMultiplier=fatalActive?staggerFatalMultiplierFor(unit,turnNumber):1;
   if(fatalActive){
     return{
       state:'FATAL',
-      multiplier:fatalMultiplier,
+      multiplier:fatalMultiplier*sinMultiplier,
       baseState,
       baseMultiplier,
       staggerStage:Math.max(0,Math.min(3,Number(unit?.staggerStage)||0))
@@ -5485,7 +5505,7 @@ function damageCombatant(id,amount,{damageType='NORMAL',ignoreResistance=false,i
   if(sourceStatus==='poison'&&unitHasStatus(d,'petrified'))return{finalDamage:0,hpDamage:0,absorbed:0,critical:false};
 
   const raw=Math.max(0,Number(amount)||0),
-        effective=fixed?{state:'FIXED',multiplier:1,baseState:'FIXED',baseMultiplier:1}:effectiveResistanceFor(d,damageType,{ignoreResistance,ignoreStagger,turnNumber:round}),
+        effective=fixed?{state:'FIXED',multiplier:1,baseState:'FIXED',baseMultiplier:1}:effectiveResistanceFor(d,damageType,{ignoreResistance,ignoreStagger,turnNumber:round,skillData}),
         attacker=attackerId?combatData[attackerId]:null,
         damagePercent=fixed?0:statusDamagePercent(attacker,d,skillData),
         dealtMultiplier=fixed?1:statusDamageMultiplier(attacker,d,skillData),
@@ -5495,7 +5515,7 @@ function damageCombatant(id,amount,{damageType='NORMAL',ignoreResistance=false,i
         critical=!fixed&&(poiseAutoCrit||(critChance>0&&Math.random()*100<critChance)),
         critMultiplier=critical?1.2:1,
         calculated=raw*effective.multiplier*dealtMultiplier*levelMultiplier*critMultiplier,
-        finalDamage=Math.max(1,Math.floor(calculated)),
+        finalDamage=calculated>0?Math.max(1,Math.floor(calculated)):0,
         hpBefore=Math.max(0,Number(d.hp)||0),
         radianceShield=unitHasStatus(d,'radiance'),
         frozenWeak=unitHasStatus(d,'frozen')&&(String(skillData?.sinAffinity||'').toLowerCase()==='wrath'||sourceStatus==='burn'),
@@ -6568,9 +6588,10 @@ function clashForecastPowerRange(unit,plan,opponent){
   return{min:Number.isFinite(min)?min:base,max:Number.isFinite(max)?max:base}
 }
 function forecastSingleHitDamage(raw,attacker,defender,damageType,skillData=null){
-  const effective=effectiveResistanceFor(defender,damageType,{ignoreResistance:false,ignoreStagger:false,turnNumber:round}),
+  const effective=effectiveResistanceFor(defender,damageType,{ignoreResistance:false,ignoreStagger:false,turnNumber:round,skillData}),
         multiplier=effective.multiplier*statusDamageMultiplier(attacker,defender,skillData)*statusLevelDamageMultiplier(attacker,defender);
-  return Math.max(1,Math.floor(Math.max(0,Number(raw)||0)*multiplier))
+  const calculated=Math.max(0,Number(raw)||0)*multiplier;
+  return calculated>0?Math.max(1,Math.floor(calculated)):0
 }
 function clashForecastDamageRange(unit,plan,opponent){
   const data=clashData(plan),base=Math.max(0,data.basePower+data.finalPowerBonus+statusAttackPowerModifier(unit)+targetFinalPowerVulnerabilityBonus(opponent)),startParalysis=statusModifier(unit,'paralysis');
@@ -6596,7 +6617,7 @@ function clashForecastDamageRange(unit,plan,opponent){
   return{min:Number.isFinite(min)?min:0,max:Number.isFinite(max)?max:0}
 }
 function clashForecastDamagePercent(attacker,defender,plan){
-  const data=clashData(plan),effective=effectiveResistanceFor(defender,data.damageType,{ignoreResistance:false,ignoreStagger:false,turnNumber:round}),
+  const data=clashData(plan),effective=effectiveResistanceFor(defender,data.damageType,{ignoreResistance:false,ignoreStagger:false,turnNumber:round,skillData:plan?.data||null}),
         multiplier=effective.multiplier*statusDamageMultiplier(attacker,defender,plan?.data||null)*statusLevelDamageMultiplier(attacker,defender);
   return Math.round((multiplier-1)*100)
 }
@@ -7745,6 +7766,17 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
   setExecutingSlot(slot,false);
   await wait(COMBAT_PACE.actionGap)
 }
+function applyEquipmentTurnStart(turnNumber=round){
+  const authority=window.LuminousCombatAuthority073;
+  if(!authority?.isDm?.()||!window.LuminousEquipmentEffects?.applyTurnStart)return false;
+  const encounterId=String(window.LuminousCombatLiveAdapter073?.state?.encounterId||authority.state?.current?.encounterId||authority.state?.current?.id||'active');
+  for(const unit of Object.values(combatData)){
+    if(unit?.isBackup===true)continue;
+    const result=window.LuminousEquipmentEffects.applyTurnStart(unit,{authoritative:true,round:turnNumber,encounterId});
+    if(result.healed>0)setCombatantHP(unit.id,unit.hp,{triggerStagger:false});
+  }
+  return true
+}
 async function startRound(){
   if(roundRunning)return;
   hideClashForecast();
@@ -7779,6 +7811,8 @@ async function startRound(){
     window.LuminousCombatStepRuntime.restoreExecution(queue,resolvedKeys,recovered);
     if(!recovered.queue?.length)armReactiveDefenses(queue)
   }else armReactiveDefenses(queue);
+  // Recovery restores HP and the persisted ledger before any turn-start effect.
+  applyEquipmentTurnStart(round);
   try{
     await executeCombatTimeline(queue,resolvedKeys)
   }finally{
@@ -8292,7 +8326,11 @@ window.LuminousCombatStepRuntime=Object.freeze({
       }
       return value
     };
-    for(const [id,unit]of Object.entries(saved.units||{}))if(combatData[id])Object.assign(combatData[id],attach(unit));
+    for(const [id,unit]of Object.entries(saved.units||{}))if(combatData[id]){
+      Object.assign(combatData[id],attach(unit));
+      // A pre-effect snapshot must also clear a newer in-memory ledger.
+      combatData[id].equipmentEffectTurnLedger=attach(unit.equipmentEffectTurnLedger||{});
+    }
     if(saved.queue?.length)queue.splice(0,queue.length,...attach(saved.queue));
     for(const key of saved.resolvedKeys||[])resolvedKeys.add(key);
     activeGrapples=attach(saved.activeGrapples||[]);grappleSerial=Number(saved.grappleSerial)||0
