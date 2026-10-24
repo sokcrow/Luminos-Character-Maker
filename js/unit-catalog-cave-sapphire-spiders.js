@@ -34,6 +34,8 @@
     return {
       id, name, species: 'sapphire_spider', family: 'cave_sapphire_spiders',
       creatureType: 'elemental', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
+      // Homebrew: no D&D CR has been approved. Do not infer CR from L30.
+      challengeRating:null,
       tags: ['cave', 'mineral', 'crystal', 'hard_unit', 'pride', 'sapphire_spider'],
       naturalWorldLevel: {min: 30, max: 30}, baseLevel: {min: 30, max: 30},
       scores, stats: scoreMap(scores), proficiencies: {savingThrows:{}, skills:{}},
@@ -59,7 +61,7 @@
         skills:[...skills],staggerThresholds:[...thresholds],movementFeet:{ground:movementFeet,climb:movementFeet},
         preferredMovementMode:'ground',build:['Poise','Speed','Bind',...(size==='large'?['Restrained']:[])],
         offensiveLevelModifier,defensiveLevelModifier},
-      metadata:{canonicalUnit:true,catalog:'cave-sapphire-spider',homebrew:true,classification:'hard',
+      metadata:{canonicalUnit:true,catalog:'cave-sapphire-spider',homebrew:true,classification:'hard',crPending:true,
         spritePending:!sharedSprite,speedModel:'movement_feet_plus_size',levelCapContext:65,
         naturalWorldLevelIsReferenceOnly:true,physicalProfilePending:false},schemaVersion:3
     };
