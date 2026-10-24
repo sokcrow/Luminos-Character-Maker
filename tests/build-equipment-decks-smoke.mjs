@@ -113,6 +113,31 @@ assert.equal(character.augmentations[0].installed,true);
 assert.equal(effects.skillCheckBonus(character,"perception"),1);
 assert.equal(gear.apply(character,{type:"remove",key:character.augmentations[0].instanceId}).ok,false);
 
+// Jeske physically swaps an actual sword/shield pair for an owned revolver.
+character.inventario_activo.jeske_poise_revolver=inv.createItemInstance(
+  catalog.get("jeske_poise_revolver"),{quantity:1});
+assert.ok(loadouts.modeOptions(character).some(x=>x.instanceId==="jeske_weapon_set"));
+const armedBefore=loadouts.hydratedEquipment(character);
+assert.equal(armedBefore.offHand.definitionId,"jeske_guard_shield");
+const revolverMode=loadouts.changeMode(character,"jeske_weapon_set","revolver",
+  {phase:"planning",combat:true,encounterId:"jeske_test",round:1});
+assert.equal(revolverMode.ok,true,revolverMode.reason);
+const armedAfter=loadouts.hydratedEquipment(revolverMode.player);
+assert.equal(armedAfter.mainHand.definitionId,"jeske_poise_revolver");
+assert.equal(armedAfter.offHand,null);
+assert.equal(armedAfter.shield,null);
+assert.equal(loadouts.deck(revolverMode.player).tier1,"jeske_revolver_poise_i");
+assert.equal(revolverMode.player.inventario_activo.jeske_guard_shield.equipped,false);
+assert.ok(!effects.grantedSkillIds({equipment:armedAfter}).includes("jeske_shield_bash"));
+assert.equal(loadouts.changeMode(revolverMode.player,"jeske_weapon_set","sword",
+  {phase:"planning",combat:true,encounterId:"jeske_test",round:1}).ok,false);
+const swordAgain=loadouts.changeMode(revolverMode.player,"jeske_weapon_set","sword",
+  {phase:"planning",combat:true,encounterId:"jeske_test",round:2});
+assert.equal(swordAgain.ok,true,swordAgain.reason);
+assert.equal(loadouts.deck(swordAgain.player).tier1,"jeske_sword_poise_i");
+assert.ok(effects.grantedSkillIds({equipment:loadouts.hydratedEquipment(swordAgain.player)})
+ .includes("jeske_shield_bash"));
+
 // Real DeckEngine: switching back restores the original hand/discard state.
 globalThis.window=globalThis;
 globalThis.addEventListener=globalThis.addEventListener || (()=>{});
