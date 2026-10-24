@@ -10,6 +10,7 @@ await import('../js/skill-catalog-cave-sapphire-spiders.js');
 await import('../js/unit-catalog-cave-sapphire-spiders.js');
 await import('../js/unit-combat-instantiator.js');
 await import('../js/cave-sapphire-spider-runtime.js');
+await import('../js/combat-xp-runtime.js');
 
 const schema = globalThis.CombatSkillSchema;
 const units = globalThis.LuminousCaveSapphireSpiderUnitCatalog;
@@ -17,6 +18,7 @@ const skills = globalThis.LuminousCaveSapphireSpiderSkillCatalog;
 const loot = globalThis.LuminousUnitLootProfileContract;
 const runtime = globalThis.LuminousCaveSapphireSpiderRuntime;
 const instantiator = globalThis.LuminousUnitCombatInstantiator;
+const xp = globalThis.LuminousCombatXpRuntime;
 const spritePath = 'Assets/Images/Units/Cave_Crystal/sapphire_spider.png';
 const spriteFile = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', spritePath);
 assert.ok(fs.existsSync(spriteFile), 'Unit sprite must be a real file in the repository Units folder');
@@ -40,13 +42,19 @@ assert.ok(spider.tags.includes('hard_unit'));
 assert.ok(!spiderling.tags.includes('hard_unit'));
 assert.equal(spider.creatureType,'elemental');
 assert.equal(spiderling.creatureType,'elemental');
-assert.equal(spider.challengeRating,null,'Homebrew CR must not be fabricated from Level 30');
-assert.equal(spiderling.challengeRating,null);
-assert.equal(spider.metadata.crPending,true);
-assert.equal(spiderling.metadata.crPending,true);
+assert.equal(spider.challengeRating,3,'Adult Hard Unit approved CR');
+assert.equal(spiderling.challengeRating,1,'Spiderling normal Unit approved CR');
+assert.equal(spider.metadata.crPending,false);
+assert.equal(spiderling.metadata.crPending,false);
+assert.equal(xp.normalizeUnitXp(spider).xpValue,700,'Adult CR 3 pays 700 XP');
+assert.equal(xp.normalizeUnitXp(spiderling).xpValue,200,'Spiderling CR 1 pays 200 XP');
+assert.equal(spider.hpBase,48);
+assert.equal(spiderling.hpBase,15,'Spiderling HP Base was halved without changing coefficient');
+assert.equal(spiderling.hpCoefficient,1.2);
+assert.equal(spiderling.mechanics.hpBase,15);
 assert.equal(spiderling.size,'medium');
 assert.equal(spider.maxHp,93);
-assert.equal(spiderling.maxHp,66);
+assert.equal(spiderling.maxHp,51);
 assert.deepEqual(spider.speedRange,[1,8]);
 assert.deepEqual(spiderling.speedRange,[1,7]);
 assert.deepEqual([spider.offensiveLevel,spider.defensiveLevel],[32,28]);
@@ -78,6 +86,9 @@ for(const unit of [spider,spiderling]){
   assert.equal(instantiated.tokenImage,spritePath);
   assert.equal(instantiated.img,spritePath);
   assert.equal(instantiated.maxHp,unit.maxHp);
+  assert.equal(instantiated.challengeRating,unit.challengeRating);
+  assert.equal(xp.normalizeUnitXp(instantiated).xpValue,xp.normalizeUnitXp(unit).xpValue);
+  assert.equal(instantiated.metadata.classification,unit.metadata.classification);
 }
 
 const attacker={id:'actor',libraryUnitId:'sapphire_spider',speed:8,statusEffects:{poise:{potency:7,count:6}}};
@@ -107,6 +118,10 @@ assert.equal(effects.length,1);
 assert.equal(effects[0][1],'restrained');
 assert.equal(effects[0][2].count,3);
 
+assert.deepEqual(units.list().map(u=>[u.id,u.metadata.classification,u.challengeRating]),[
+  ['sapphire_spider','hard',3],
+  ['sapphire_spiderling','normal',1]
+]);
 const root=path.dirname(fileURLToPath(import.meta.url));
 const live=fs.readFileSync(path.join(root,'../combat/source/combat-v073-live.html'),'utf8');
 const steps=fs.readFileSync(path.join(root,'../js/combat-v073-steps.js'),'utf8');
