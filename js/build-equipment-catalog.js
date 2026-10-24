@@ -4,7 +4,7 @@
 if(global.LuminousBuildWeaponCatalog&&global.LuminousBuildSkillCatalog)return;
 const clone=x=>x==null?x:JSON.parse(JSON.stringify(x));
 const coin=(index,effects=[])=>({index,type:"normal",status:"active",effects});
-const hit=(status,potency,count)=>({trigger:"[On Hit]",target:"target",type:"status",status,potency,count});
+const hit=(status,potency,count)=>({trigger:"[On Hit]",target:status==="poise"?"self":"target",type:"status",status,potency,count});
 const defs={};
 function skill(id,name,tier,damageType,status,sin,power,increment,count,opts={}){
  const coins=Array.from({length:count},(_,i)=>coin(i,i===count-1&&status?[hit(status,opts.potency??1,opts.count??1)]:[]));
