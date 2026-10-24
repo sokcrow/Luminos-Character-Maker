@@ -62,7 +62,7 @@
       const id = itemInstanceId(item);
       if (!id || seen.has(id)) return false;
       seen.add(id);
-      return normalize(item.itemType || item.category || item.type) === "weapon";
+      return normalize(item.itemType || item.category || item.type || item.equipment?.kind || item.runtime?.equipment?.kind) === "weapon";
     });
   }
   // One compatibility rule for Combat Master, Theatre's skill HUD and any
@@ -74,7 +74,8 @@
     pierce: "pierce", piercing: "pierce", perforante: "pierce", perforacion: "pierce"
   });
   const physicalType = value => DAMAGE_ALIASES[normalize(value)] || null;
-  const list = value => value == null ? [] : Array.isArray(value) ? value : [value];
+  const list = value => value == null ? [] : Array.isArray(value) ? value.flatMap(list)
+    : typeof value === "string" ? value.split(/[,|;]/).map(part => part.trim()).filter(Boolean) : [value];
   function independentSkill(skill = {}) {
     const usage = normalize(skill.weaponUsage || skill.weapon_usage || skill.attackSource || skill.attack_source);
     const kind = normalize(skill.kind || skill.type || skill.skillType);
@@ -103,7 +104,8 @@
       ...list(weapon.damageTypes || weapon.damage_types),
       ...list(weapon.runtime?.weapon?.damageTypes),
       ...list(weapon.equipment?.damageTypes),
-      weapon.damageType, weapon.damage_type, weapon.physicalType
+      weapon.damageType, weapon.damage_type, weapon.physicalType,
+      weapon.runtime?.weapon?.damageType, weapon.equipment?.damageType
     ];
     return [...new Set(explicit.map(physicalType).filter(Boolean))];
   }
