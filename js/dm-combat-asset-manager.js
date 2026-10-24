@@ -13,21 +13,14 @@ async function isDm(){const user=global.firebase?.auth?.().currentUser;if(!user)
 async function syncUnitLibrary(){
   if(!(await isDm()))throw new Error('DM_ONLY');
   setMsg('Cargando biblioteca universal de Units y Skills…');
-  // Use the same catalog pipeline as the real Combat DM, not a divergent
-  // Kobold/Goblin/Wolf-only seeder that replaces the entire Skills database.
+  // The canonical Combat DM pipeline handles manifests and preserves
+  // customized unit sprites. No duplicate catalog seeder or whole-table writes.
   if(!global.LuminousCombatUnitLibrarySync)await loadScript('js/combat-unit-library-sync.js');
   const sync=global.LuminousCombatUnitLibrarySync;
-  if(!sync?.buildPayloads||!sync?.materialize)throw new Error('UNIVERSAL_LIBRARY_SYNC_UNAVAILABLE');
-  const {units,skills}=await sync.buildPayloads();
-  // Per-entry multi-path updates preserve player-authored or unrelated skills.
-  const updates={};
-  for(const [id,unit]of Object.entries(units))updates[`${ROOTS.units}/${id}`]=unit;
-  for(const [id,skill]of Object.entries(skills))updates[`${ROOTS.skills}/${id}`]=skill;
-  await state.db.ref().update(updates);
-  // Match the canonical manifest used when actually deploying Units.
-  await sync.materialize(state.db,{force:true});
-  setMsg(`SYNC OK · ${Object.keys(units).length} Units · ${Object.keys(skills).length} Skills`);
-  return{units:Object.keys(units).length,skills:Object.keys(skills).length};
+  if(!sync?.syncAll)throw new Error('UNIVERSAL_LIBRARY_SYNC_UNAVAILABLE');
+  const result=await sync.syncAll(state.db);
+  setMsg(`SYNC OK · ${result.unitCount} Units · ${result.skillCount} Skills`);
+  return{units:result.unitCount,skills:result.skillCount};
 }
 function collectionFor(type){return type==='player'?state.players:type==='actor'?state.actors:state.units}
 function canonicalPath(type,id){return type==='player'?`${ROOTS.players}/${id}`:type==='actor'?`${ROOTS.actors}/${id}`:`${ROOTS.units}/${id}`}
