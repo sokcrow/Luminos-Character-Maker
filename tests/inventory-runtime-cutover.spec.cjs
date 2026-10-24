@@ -338,6 +338,36 @@ test("Active inventory and equipment remain square with centered item icons", as
   }
 });
 
+test("Active icons and names stay inside their tiles with the complete sheet styles", async ({ page }) => {
+  await bootHarness(page);
+  // The complete legacy sheet includes item-slot flex rules missing from the minimal harness.
+  await page.addStyleTag({ content: fs.readFileSync(SHEET_CSS, "utf8").replace(/@import[^;]+;/g, "") });
+  await page.addStyleTag({ path: CSS });
+  await page.addStyleTag({ path: GOTHIC_CSS });
+  for (const viewport of [{ width: 1239, height: 694 }, { width: 1920, height: 1080 }, { width: 390, height: 800 }]) {
+    await page.setViewportSize(viewport);
+    const card = page.locator('#inv-active-grid [data-key="blade_1"]');
+    await card.scrollIntoViewIfNeeded();
+    const geometry = await card.evaluate(tile => {
+      const outer = tile.getBoundingClientRect();
+      return [".item-icon", ".item-name"].map(selector => {
+        const element = tile.querySelector(selector);
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return { selector, width: rect.width, height: rect.height,
+          inside: rect.left >= outer.left && rect.right <= outer.right && rect.top >= outer.top && rect.bottom <= outer.bottom,
+          visible: element === hit || element.contains(hit) };
+      });
+    });
+    for (const element of geometry) {
+      expect(element.inside, JSON.stringify({ viewport, element })).toBe(true);
+      expect(element.visible, JSON.stringify({ viewport, element })).toBe(true);
+      expect(element.width).toBeGreaterThan(20);
+      expect(element.height).toBeGreaterThan(8);
+    }
+  }
+});
+
 test("Phone equipment keeps fourth row and vitals reachable within its square", async ({ page }) => {
   await bootHarness(page);
   for (const width of [320, 375, 390, 430, 475]) {
