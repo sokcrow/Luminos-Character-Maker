@@ -36,6 +36,7 @@
     "limite_activo", "limite_alijo", "precio", "price", "cost", "valorBase", "costo",
     "tier", "tierRoman", "iconFamily", "icon_family", "icon", "icono", "imagen", "image", "description", "descripcion", "desc",
     "weapon_details", "armor_details", "shield_details", "accessory_details", "consumable_details",
+    "equipment", "equipmentSchema", "equipmentEffects", "augmentationProfile", "dmCustomDefinition",
     "upgrade_details", "runtime", "function", "functions", "carga_actual", "carga_max", "carga_maxima",
     "vinculo_item", "vinculo_cantidad", "vinculo_stacks_max",
     "stackable", "stackPolicy", "family", "group", "itemType", "quality",
