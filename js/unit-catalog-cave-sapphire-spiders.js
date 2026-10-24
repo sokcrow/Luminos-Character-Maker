@@ -48,7 +48,7 @@
       primarySin: 'pride',
       actionSlots:1, activeSlots:1, action_slots:skills, traitIds:traits.map(x=>x.id),
       traits, bodyProfile:profile?.bodyProfile, lootProfile:profile?.lootProfile,
-      visual:{spriteUrl:sharedSprite,spritePending:!sharedSprite,scale:size==='medium'?.72:1},
+      visual:{spriteUrl:sharedSprite,spritePending:!sharedSprite,scale:size === 'medium' ? 0.72 : 1},
       icono:sharedSprite,
       mechanics:{hpBase,hpCoefficient,hpModel:'chassis_coefficient',sp:0,actionSlots:1,maxSlotsLimit:1,
         skills:[...skills],staggerThresholds:[...thresholds],movementFeet:{ground:movementFeet,climb:movementFeet},
