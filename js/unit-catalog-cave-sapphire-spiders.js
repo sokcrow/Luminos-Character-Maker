@@ -25,7 +25,7 @@
       harvest: { source: 'body_profile' }, impossibleCategories: [],
       notes: 'Mineral body materials use Salvage (Arcana); no anatomical extraction with Medicine.'
     }
-  }) : null;
+  }) || null;
   const scoreMap = s => ({ fuerza: s.str, destreza: s.dex, constitucion: s.con,
     inteligencia: s.int, sabiduria: s.wis, carisma: s.cha });
   function define({id, name, size, scores, hpBase, hpCoefficient, offensiveLevelModifier,
