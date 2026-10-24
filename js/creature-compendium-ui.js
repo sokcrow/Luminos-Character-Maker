@@ -9,7 +9,33 @@
   const unitId = unit => live().canonicalUnitId(unit);
   const factsFor = id => Object.values(state.player.compendium?.units?.[id]?.facts || {});
   const descriptionFor = id => factsFor(id).find(fact => fact.id === "lore.basic_description")?.value;
-  const isRunning = () => global.LuminousCombat073?.uiState?.().running === true;
+  function combatWindow() {
+    if (global.LuminousCombat073) return global;
+    for (const id of ["mirror-view", "combat-entry-view"]) {
+      try {
+        const viewer = global.document?.getElementById(id)?.contentWindow;
+        if (viewer?.LuminousCombat073 || viewer?.LuminousCombatLiveAdapter073?.state) return viewer;
+      } catch (_) { /* An unavailable or foreign frame cannot supply encounter context. */ }
+    }
+    return global;
+  }
+  function resolveContext(options = {}) {
+    const viewer = combatWindow(), adapter = viewer.LuminousCombatLiveAdapter073?.state;
+    const loot = global.LuminousPlayerPostCombatLoot?.state;
+    const scope = options.db ? [adapter, loot].find(source => source?.db === options.db)
+      : adapter?.db ? adapter : loot?.db ? loot : null;
+    const own = scope === adapter && adapter?.uid ? Object.entries(adapter.players || {}).find(([,player]) =>
+      [player.uid, player.vinculado_a, player.vinculo_jugador].includes(adapter.uid))?.[0] : "";
+    const fallbackPlayer = !scope && !options.db
+      ? global.localStorage?.getItem("playerId") || global.datosJugador?.playerId || global.datosJugador?.id : "";
+    return {
+      db: options.db || scope?.db || global.firebase?.database?.(),
+      playerId: clean(options.playerId || scope?.playerId || own || fallbackPlayer),
+      user: adapter?.user || viewer.firebase?.auth?.().currentUser || global.firebase?.auth?.().currentUser,
+      runtime: viewer.LuminousCombat073 || null,
+    };
+  }
+  const isRunning = () => combatWindow().LuminousCombat073?.uiState?.().running === true;
   let returnFocus = null;
 
   function ensureModal() {
@@ -126,9 +152,10 @@
     message("Cargando Compendio…");
     try {
       await live().ensureDependencies();
-      state.db = options.db || global.firebase?.database?.();
-      state.playerId = clean(options.playerId || global.LuminousCombatLiveAdapter073?.state?.playerId || global.LuminousPlayerPostCombatLoot?.state?.playerId || global.localStorage?.getItem("playerId") || global.datosJugador?.playerId || global.datosJugador?.id);
-      if (!state.db || !state.playerId || !global.firebase?.auth?.().currentUser) throw Error("Entra con tu personaje para abrir el Compendio.");
+      const context = resolveContext(options);
+      state.db = context.db;
+      state.playerId = context.playerId;
+      if (!state.db || !state.playerId || !context.user) throw Error("Entra con tu personaje para abrir el Compendio.");
       const [player, combat, encounters] = await Promise.all([
         state.db.ref(`campaña/jugadores/${state.playerId}`).once("value"),
         state.db.ref("campaña/combate/estado").once("value"),
@@ -144,7 +171,7 @@
         if (row.meta?.participants?.[state.playerId] !== true) continue;
         for (const corpse of Object.values(row.corpses || {})) add({libraryUnitId:corpse.sourceUnitId,name:corpse.name});
       }
-      const combatants = global.LuminousCombat073?.combatants?.() || {};
+      const combatants = context.runtime?.combatants?.() || {};
       for (const unit of Object.values(combatants)) {
         if (unit.faction === "enemy" && unit.battleActive !== false && !unit.isBackup && !unit.escaped) add(unit);
       }
@@ -167,7 +194,7 @@
     const button = global.document.createElement("button");button.id="btn-creature-compendium";button.type="button";button.className="hud-menu-item";button.textContent="Compendio";
     button.style.minHeight="44px";button.onclick=()=>open();parent.appendChild(button);return true;
   }
-  global.LuminousCreatureCompendium = Object.freeze({state,open,close,install,recall});
+  global.LuminousCreatureCompendium = Object.freeze({state,open,close,install,recall,resolveContext,isRunning});
   if (global.document) {
     if (!install()) {let tries=0;const timer=global.setInterval(()=>{if(install()||++tries>120)global.clearInterval(timer);},250);}
   }

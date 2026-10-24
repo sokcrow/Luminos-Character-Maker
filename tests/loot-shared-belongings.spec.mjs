@@ -224,6 +224,7 @@ test('anatomy variants and History Compendium work across phone, tablet and desk
     ];
     await director.page.evaluate(async variants=>{
       const db=firebase.database(), index={};
+      await LuminousLootLivePostCombatRuntime.installAuthority({db,uid:firebase.auth().currentUser.uid});
       for (const row of variants) {
         const unit={id:row.id,name:row.name,creatureType:row.type,basicDescription:`Descripción pública de ${row.name}.`,
           bodyProfile:{kind:row.kind,materials:[row.material],sizeClass:'medium',resources:[]},secret:'SECRET_DO_NOT_REVEAL'};
@@ -299,4 +300,69 @@ test('anatomy variants and History Compendium work across phone, tablet and desk
     await expect(player.page.locator('[data-creature-history]')).toBeDisabled();
     expect(errors).toEqual([]);
   } finally {await player.context.close();await director.context.close();}
+});
+
+test('outer Compendium uses the active iframe namespace, first roster and execution gate', async ({browser}) => {
+  test.setTimeout(60000);
+  const [dm,user]=await Promise.all(['scoped-compendium-dm','scoped-compendium-player'].map(account));
+  const actor={uid:user.uid,scores:{int:30},proficiencyBonus:6,skillProficiency:{history:'proficient'}};
+  await admin('campaña','PUT',{config:{dm_uid:dm.uid},jugadores:{storyHero:actor},
+    encuentros:{'compendium-room':{hostUid:dm.uid,members:{[dm.uid]:true,[user.uid]:true},state:{campaña:{
+      config:{dm_uid:dm.uid},jugadores:{isolatedHero:actor},
+      combate:{estado:{phase:'PRE_COMBAT_PLANNING',encounterId:'isolated-compendium'}},
+      base_datos_unidades:{first:{id:'first',name:'Primera criatura',basicDescription:'Descripción del encuentro aislado.'},
+        second:{id:'second',name:'Segunda criatura',basicDescription:'Otra descripción aislada.'}},
+    }}}}});
+  const player=await client(browser,user,'storyHero');
+  try {
+    await player.page.addScriptTag({url:base+'/js/creature-compendium-ui.js'});
+    await player.page.evaluate(base=>{
+      const iframe=document.createElement('iframe');iframe.id='mirror-view';iframe.src=base+'/loot-test?encounter=compendium-room';
+      iframe.style.display='none';document.body.appendChild(iframe);
+    },base);
+    await player.page.waitForFunction(()=>{
+      const sdk=document.getElementById('mirror-view')?.contentWindow?.firebase;
+      return sdk?.auth && sdk?.database;
+    });
+    const viewer=player.page.frames().find(frame=>frame.url().includes('encounter=compendium-room'));
+    await viewer.evaluate(async ({user,project,ns})=>{
+      firebase.initializeApp({apiKey:'fake',projectId:project,databaseURL:`http://127.0.0.1:9100/?ns=${ns}`});
+      firebase.auth().useEmulator('http://127.0.0.1:9199',{disableWarnings:true});firebase.database().useEmulator('127.0.0.1',9100);
+      await firebase.auth().signInWithEmailAndPassword(user.email,user.password);
+    },{user,project,ns});
+    await viewer.addScriptTag({url:base+'/js/combat-context.js'});
+    await viewer.evaluate(()=>{
+      window.__running=false;
+      window.LuminousCombatLiveAdapter073={state:{db:firebase.database(),playerId:'isolatedHero',uid:firebase.auth().currentUser.uid,user:firebase.auth().currentUser}};
+      window.LuminousCombat073={uiState:()=>({running:window.__running}),combatants:()=>({
+        first:{libraryUnitId:'first',faction:'enemy',name:'Primera criatura'},second:{libraryUnitId:'second',faction:'enemy',name:'Segunda criatura'},
+      })};
+    });
+    await player.page.locator('#btn-creature-compendium').click();
+    await expect(player.page.locator('#creature-book-select option')).toHaveCount(2);
+    expect(await player.page.evaluate(()=>LuminousCreatureCompendium.state.playerId)).toBe('isolatedHero');
+    expect(await player.page.evaluate(()=>LuminousCreatureCompendium.state.db===document.getElementById('mirror-view').contentWindow.LuminousCombatLiveAdapter073.state.db)).toBe(true);
+    await player.page.locator('#creature-book-select').selectOption('first');
+    await player.page.locator('[data-creature-history]').click();
+    await expect(player.page.locator('.creature-description')).toContainText('Descripción del encuentro aislado.');
+    const saved=await admin('campaña/encuentros/compendium-room/state/campaña/jugadores/isolatedHero/compendium');
+    expect(Object.values(saved.units.first.facts).some(fact=>fact.id==='lore.basic_description')).toBe(true);
+    expect(await admin('campaña/jugadores/storyHero/compendium')).toBe(null);
+    expect(await admin('campaña/jugadores/isolatedHero')).toBe(null);
+    await player.page.locator('#creature-book-select').selectOption('second');
+    for(const frameId of ['mirror-view','combat-entry-view']) {
+      await player.page.evaluate(frameId=>{(document.getElementById('mirror-view')||document.getElementById('combat-entry-view')).id=frameId;},frameId);
+      await viewer.evaluate(()=>{window.__running=true;});
+      // A button rendered during Planning must also be guarded at click time.
+      await player.page.evaluate(()=>LuminousCreatureCompendium.recall());
+      expect(await admin('campaña/encuentros/compendium-room/state/campaña/jugadores/isolatedHero/compendium')).toEqual(saved);
+      await player.page.evaluate(()=>LuminousCreatureCompendium.close());
+      await player.page.locator('#btn-creature-compendium').click();
+      await expect(player.page.locator('[data-creature-history]')).toBeDisabled();
+      await viewer.evaluate(()=>{window.__running=false;});
+      await player.page.evaluate(()=>LuminousCreatureCompendium.close());
+      await player.page.locator('#btn-creature-compendium').click();
+      await expect(player.page.locator('[data-creature-history]')).toBeEnabled();
+    }
+  } finally {await player.context.close();}
 });
