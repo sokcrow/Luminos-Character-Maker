@@ -1,0 +1,35 @@
+name: Unified Weapon Skill Compatibility
+on:
+  pull_request:
+    paths:
+      - "js/item-enchantment-combat-link.js"
+      - "js/battle-viewer-action-adapter-073.js"
+      - "js/battle-viewer-player-skill-planner-074.js"
+      - "js/player-skills-hud.js"
+      - "hoja_personaje.html"
+      - "css/player-skills-hud.css"
+      - "tests/weapon-skill-compatibility-smoke.cjs"
+      - "tests/combat-v074-player-skill-planner-smoke.mjs"
+      - "tests/combat-v074-skill-loadout-adapter-smoke.mjs"
+      - ".github/workflows/unified-weapon-skill-compatibility.yml"
+  workflow_dispatch:
+jobs:
+  weapon-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check shared rules and client/server adapters
+        run: |
+          node --check js/item-enchantment-combat-link.js
+          node --check js/battle-viewer-action-adapter-073.js
+          node --check js/battle-viewer-player-skill-planner-074.js
+          node --check js/player-skills-hud.js
+      - name: Verify physical attacks and independent class/spell Skills
+        run: node tests/weapon-skill-compatibility-smoke.cjs
+      - name: Verify player planning and authoritative compilation
+        run: |
+          node tests/combat-v074-player-skill-planner-smoke.mjs
+          node tests/combat-v074-skill-loadout-adapter-smoke.mjs
