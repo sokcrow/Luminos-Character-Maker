@@ -249,21 +249,37 @@
     return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatDeploymentRuntime&&global.LuminousCombatDeploymentBridge073&&global.LuminousUnitRankRuntime&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);
   }
   let independentIntentCounter=0,independentDeliveryFailed=false;
+  const independentOutbox=new Map();
+  function independentKey(s){return `luminous:combat-independent:${s.uid}:${s.playerId}:${s.encounterId}`;}
+  function independentFingerprint(payload){return JSON.stringify(['encounterId','unitId','round','sourceId','sourceType','cost','targetId'].map(key=>payload[key]??null));}
+  function independentPending(s){
+    const key=independentKey(s);
+    try{const saved=JSON.parse(global.localStorage?.getItem(key)||'null');if(saved&&typeof saved==='object')return saved;}catch(_){}
+    return independentOutbox.get(key)||{};
+  }
+  function rememberIndependent(s,fingerprint,value){
+    const key=independentKey(s),rows=independentPending(s);
+    if(value)rows[fingerprint]=value;else delete rows[fingerprint];
+    independentOutbox.set(key,rows);
+    try{if(Object.keys(rows).length)global.localStorage?.setItem(key,JSON.stringify(rows));else global.localStorage?.removeItem(key);}catch(_){}
+  }
   async function requestIndependentAction(detail){
     const s=state(),own=ownCombatant(s);
     if(s?.role!=='player'||!s?.db||!own||!s.encounterId||!planning(s)||Number(detail.round)!==Number(s.round)||clean(own[0])!==clean(detail.unitId))return {used:false,reason:'player_not_available'};
-    const id=(global.crypto?.randomUUID?.()||`${Date.now()}-${++independentIntentCounter}`).replace(/[.#$\[\]\/]/g,'_');
     const payload={schemaVersion:1,encounterId:s.encounterId,playerId:s.playerId,schedulerUid:s.uid,unitId:detail.unitId,
       round:Number(s.round),sourceId:clean(detail.sourceId),sourceType:clean(detail.sourceType),
       cost:clean(detail.cost),targetId:clean(detail.targetId)||null,createdAt:Date.now()};
+    const fingerprint=independentFingerprint(payload);
     const execute=async()=>{
       const intents=(await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}`).once('value')).val()||{};
       const receipts=(await s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}`).once('value')).val()||{};
-      // Retrying a timed-out selection reuses its immutable request, including
-      // across a reload; it cannot spend an unlimited Free Action twice.
+      // Keep the unacknowledged identity even if its server receipt arrived
+      // after timeout. A matching receipt is recovery, not a new activation.
       const previous=Object.entries(intents).find(([key,row])=>!receipts[key]&&['encounterId','unitId','round','sourceId','sourceType','targetId','cost'].every(key=>row[key]===payload[key]));
-      const requestId=previous?.[0]||id;
-      if(!previous)await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(requestId)}`).set(payload);
+      const remembered=independentPending(s)[fingerprint];
+      const requestId=remembered?.id||previous?.[0]||(global.crypto?.randomUUID?.()||`${Date.now()}-${++independentIntentCounter}`).replace(/[.#$\[\]\/]/g,'_');
+      rememberIndependent(s,fingerprint,{id:requestId,round:payload.round});
+      if(!intents[requestId])await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(requestId)}`).set(payload);
       independentDeliveryFailed=false;
       const receiptRef=s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}/${safe(requestId)}`);
       const receipt=await new Promise((resolve,reject)=>{
@@ -276,6 +292,7 @@
         const canonical=(await s.db.ref(`${ROOT}/combatants`).once('value')).val()||{};
         global.LuminousCombatAuthority073?.applySnapshot(canonical);
       }
+      rememberIndependent(s,fingerprint,null);
       return receipt.result||{used:receipt.applied===true,sourceId:payload.sourceId,cost:payload.cost,reason:receipt.reason};
     };
     const result=independentChain.then(execute,execute);

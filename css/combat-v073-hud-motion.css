@@ -168,3 +168,7 @@ html,body,#game-container.combat-product-hud{overflow:clip!important}
     max-width: 184px;
   }
 }
+
+/* Keep the focused Unit's original Status strip inside the viewport, including
+   the 5x camera close-up. Offsets are measured in its local battlefield space. */
+.sprite-container .status-effect-strip{translate:var(--status-viewport-x,0px) var(--status-viewport-y,0px)}

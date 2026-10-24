@@ -9,10 +9,12 @@ const db={ref(path=''){return {once:async()=>({val:()=>get(path)??null}),on(_eve
 const unit={...root.campaña.combate.combatants['player:p1'],canonicalPlayerKey:'p1',canonicalOwnerUid:'owner'};
 const s={role:'player',playerId:'p1',uid:'owner',encounterId:'encounter',round:1,combatState:'PRE_COMBAT_PLANNING',db,combatants:{'player:p1':unit}};
 let applied=0;
-const c=vm.createContext({Promise,JSON,Date,Math,Map,Set,console,addEventListener(){},crypto:{randomUUID:()=>`request-${++uuid}`},setTimeout(callback,delay){timers.set(++serial,{callback,delay});return serial},clearTimeout(id){timers.delete(id)},
+const storage=new Map(),localStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
+function boot(){const c=vm.createContext({Promise,JSON,Date,Math,Map,Set,console,localStorage,addEventListener(){},crypto:{randomUUID:()=>`request-${++uuid}`},setTimeout(callback,delay){timers.set(++serial,{callback,delay});return serial},clearTimeout(id){timers.delete(id)},
   LuminousCombatLiveAdapter073:{state:s},LuminousCombatAuthority073:{applySnapshot(snapshot){Object.assign(unit,snapshot[unit.id]);applied++}}});c.window=c;
 vm.runInContext(fs.readFileSync('js/combat-v073-plan-sync.js','utf8'),c);
-const api=c.LuminousCombatPlanSync073;
+return c.LuminousCombatPlanSync073;}
+const api=boot();
 const detail={unitId:unit.id,sourceId:'second_wind',sourceType:'trait',cost:'quick_action',targetId:unit.id,round:1};
 const flush=async predicate=>{for(let i=0;i<50&&!predicate();i++)await Promise.resolve();assert.ok(predicate(),'Expected protocol operation to run')};
 const acknowledge=(id,receipt)=>{const path=`campaña/combate/independentReceipts/p1/${id}`;set(path,receipt);listeners.get(path)?.({val:()=>receipt});};
@@ -25,7 +27,8 @@ acknowledge(firstId,{applied:true,result:{used:true,cost:'quick_action'}});
 assert.equal((await first).used,true);assert.equal(applied,1);assert.equal(unit.hp,65);assert.equal(unit.quickActionRemaining,0,'Only the acknowledged canonical result updates the client');
 const pending=api.requestIndependentAction({...detail,sourceId:'action_surge',cost:'free_action'});
 await flush(()=>writes.length===2&&[...timers.values()].some(timer=>timer.delay===12000));
-[...timers.values()].find(timer=>timer.delay===12000).callback();
+const expire=()=>{const [id,timer]=[...timers].find(([,timer])=>timer.delay===12000);timers.delete(id);timer.callback();};
+expire();
 await assert.rejects(pending,/confirmation_pending/);
 await assert.rejects(api.syncReady({ready:true,round:1}),/confirme la habilidad pendiente/,'READY must not race an unresolved authority choice');
 const retry=api.requestIndependentAction({...detail,sourceId:'action_surge',cost:'free_action'});
@@ -34,5 +37,19 @@ await flush(()=>listeners.has(`campaña/combate/independentReceipts/p1/${secondI
 assert.equal(writes.length,2,'A timeout/reload retry reuses the same immutable request');
 acknowledge(secondId,{applied:false,result:{used:false,reason:'no_uses_remaining'}});
 assert.equal((await retry).used,false);assert.equal(applied,1,'Rejected choices never apply speculative local effects');
+const freeDetail={...detail,sourceId:'unlimited_free',cost:'free_action'};
+const late=api.requestIndependentAction(freeDetail);
+await flush(()=>writes.length===3&&[...timers.values()].some(timer=>timer.delay===12000));
+const lateId=writes[2].path.split('/').at(-1);expire();await assert.rejects(late,/confirmation_pending/);
+acknowledge(lateId,{applied:true,result:{used:true,cost:'free_action'}});
+assert.equal((await api.requestIndependentAction(freeDetail)).used,true);
+assert.equal(writes.length,3,'A late receipt before retry recovers the original Free activation');
+const again=api.requestIndependentAction(freeDetail);
+await flush(()=>writes.length===4&&[...timers.values()].some(timer=>timer.delay===12000));
+assert.notEqual(writes[3].path,writes[2].path,'A new activation after acknowledged success gets a fresh identifier');
+const reloadedId=writes[3].path.split('/').at(-1);expire();await assert.rejects(again,/confirmation_pending/);
+acknowledge(reloadedId,{applied:true,result:{used:true,cost:'free_action'}});
+const reloaded=boot();assert.equal((await reloaded.requestIndependentAction(freeDetail)).used,true);
+assert.equal(writes.length,4,'Reload keeps the timed-out identity even when its receipt already exists');
 s.round=2;assert.equal((await api.requestIndependentAction(detail)).used,false,'Stale UI cannot submit an action into the next round');
 console.log('Independent client protocol: request before mutation, canonical acknowledgement, timeout, READY guard, same-id retry, rejection and stale-round refusal passed.');

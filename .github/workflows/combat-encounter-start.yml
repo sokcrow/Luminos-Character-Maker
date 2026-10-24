@@ -36,6 +36,8 @@ jobs:
           node tests/unit-independent-intents-smoke.mjs
           node tests/unit-independent-regressions-smoke.mjs
           node tests/unit-independent-client-smoke.mjs
+          node tests/unit-independent-rules-smoke.mjs
+          node tests/combat-status-viewport-smoke.mjs
           node tests/combat-v073-economy-menu-smoke.mjs
           node tests/combat-v073-class-trait-quick-actions-smoke.mjs
           node tests/combat-playback-catchup-smoke.mjs

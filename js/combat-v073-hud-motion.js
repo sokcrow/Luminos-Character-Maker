@@ -2,7 +2,7 @@
 (function(global){
   'use strict';
   if(global.LuminousCombatHudMotion073)return;
-  const state={mounted:false,animations:new Map(),generation:null,lastSequence:0,savedPresentation:null};
+  const state={mounted:false,animations:new Map(),generation:null,lastSequence:0,savedPresentation:null,statusFrame:null};
   const doc=global.document, byId=id=>doc?.getElementById(id), runtime=()=>global.LuminousCombat073;
   const units=()=>runtime()?.combatants?.()||{};
   const ui=()=>runtime()?.uiState?.()||{};
@@ -80,6 +80,41 @@
     doc.querySelectorAll('.clash-float-hud[data-owner-id]').forEach(hud=>placeClashHud({ownerId:hud.dataset.ownerId},hud));
     layoutClashForecast();
   }
+  function statusViewportOffset(rect,viewport,padding=8){
+    const left=viewport.left+padding,top=viewport.top+padding,right=viewport.right-padding,bottom=viewport.bottom-padding;
+    const x=rect.left<left?left-rect.left:rect.right>right?right-rect.right:0;
+    const y=rect.top<top?top-rect.top:rect.bottom>bottom?bottom-rect.bottom:0;
+    return {x,y};
+  }
+  function layoutStatusHud(){
+    const id=runtime()?.playerId?.(),node=byId(`statuses-${id}`),viewport=byId('game-container');
+    if(!node?.children?.length||!viewport||!canRead(id))return;
+    const box=node.getBoundingClientRect(),bounds=viewport.getBoundingClientRect();
+    if(!(box.width>0&&box.height>0&&node.offsetWidth>0&&node.offsetHeight>0))return;
+    const scaleX=box.width/node.offsetWidth,scaleY=box.height/node.offsetHeight;
+    // Status lives in the scaled battlefield. Convert screen corrections back
+    // to that same local space without moving the sprite, camera or Unit.
+    const oldX=parseFloat(node.style.getPropertyValue('--status-viewport-x'))||0,oldY=parseFloat(node.style.getPropertyValue('--status-viewport-y'))||0;
+    const natural={left:box.left-oldX*scaleX,right:box.right-oldX*scaleX,top:box.top-oldY*scaleY,bottom:box.bottom-oldY*scaleY};
+    const columns=Math.max(1,Math.min(4,node.children.length,Math.floor(((bounds.right-bounds.left-16)/scaleX+5)/63)));
+    const grid=`repeat(${columns}, 58px)`;
+    const resized=node.style.gridTemplateColumns!==grid||node.style.maxHeight!=='none';
+    if(node.style.gridTemplateColumns!==grid)node.style.gridTemplateColumns=grid;
+    if(node.style.maxHeight!=='none')node.style.maxHeight='none';
+    const offset=statusViewportOffset(natural,bounds);
+    for(const [key,value]of [['--status-viewport-x',offset.x/scaleX],['--status-viewport-y',offset.y/scaleY]]){
+      const next=`${Math.round(value*1000)/1000}px`;if(node.style.getPropertyValue(key)!==next)node.style.setProperty(key,next);
+    }
+    return resized;
+  }
+  function scheduleStatusLayout(){
+    if(state.statusFrame!==null||typeof global.requestAnimationFrame!=='function')return;
+    state.statusFrame=global.requestAnimationFrame(()=>{
+      state.statusFrame=null;const resized=layoutStatusHud();
+      const moving=byId('battlefield')?.getAnimations?.().some(animation=>animation.playState==='running'&&animation.transitionProperty==='transform');
+      if(moving||resized)scheduleStatusLayout();
+    });
+  }
   function refresh(){
     if(!state.mounted)return;
     const host=byId('game-container'),value=ui(),role=global.LuminousCombatLiveAdapter073?.state?.role;
@@ -122,7 +157,7 @@
       }
     }
     text('combat-phase-label',phase);
-    layoutClashHuds();
+    layoutClashHuds();scheduleStatusLayout();
   }
   function layoutCommands(){refresh();return false;}
   function layoutCategory({surface,body,back,accent}){
@@ -151,6 +186,6 @@
     if(global.MutationObserver&&byId('status'))new global.MutationObserver(refresh).observe(byId('status'),{childList:true,characterData:true,subtree:true});
     refresh();
   }
-  global.LuminousCombatHudMotion073=Object.freeze({state,compact,reduced,entryPose,canRead,event,cue,refresh,layoutCommands,layoutCategory,placeClashHud,layoutClashForecast,clearMotion,applyPreference,mount});
+  global.LuminousCombatHudMotion073=Object.freeze({state,compact,reduced,entryPose,canRead,event,cue,refresh,layoutCommands,layoutCategory,placeClashHud,layoutClashForecast,statusViewportOffset,layoutStatusHud,scheduleStatusLayout,clearMotion,applyPreference,mount});
   mount();
 })(window);

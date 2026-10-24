@@ -36,8 +36,12 @@ try{for(const [width,height]of sizes){
   await badge.waitFor({state:'visible',timeout:10000});
   assert.equal(await badge.locator('.status-count').innerText(),'0');
   assert.match(await badge.locator('img').getAttribute('src'),/Assets\/Icons\/status\/superiority\.png$/);
+  await page.waitForFunction(()=>{
+    const node=document.querySelector('[data-status-id="superiority"]'),box=node?.getBoundingClientRect();
+    return box&&box.x>=0&&box.y>=0&&box.right<=innerWidth+1&&box.bottom<=innerHeight+1;
+  },null,{timeout:5000});
   const box=await badge.boundingBox();
-  assert.ok(box&&box.width>0&&box.height>0&&box.x>=0&&box.y>=0&&box.x+box.width<=width+1&&box.y+box.height<=height+1,`${width}x${height}: badge stays in view`);
+  assert.ok(box&&box.width>0&&box.height>0&&box.x>=0&&box.y>=0&&box.x+box.width<=width+1&&box.y+box.height<=height+1,`${width}x${height}: badge stays in view ${JSON.stringify(box)}`);
   await badge.focus();assert.equal(await badge.evaluate(node=>node===document.activeElement),true);
   await page.screenshot({path:`artifacts/encounter-start/${width}x${height}.png`,animations:'disabled'});
   await page.evaluate(()=>{

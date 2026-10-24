@@ -2865,7 +2865,8 @@ function renderStatusEffects(id){
   if(!unit||!host)return;
   const rows=combatStatusHudRows(unit),overflow=rows.length>8,visible=overflow?rows.slice(0,7):rows.slice(0,8);
   host.innerHTML=visible.map(statusHudRowMarkup).join('')+(overflow?`<button type="button" class="status-overflow-button" data-status-overflow-unit="${htmlEscape(id)}" aria-label="Show ${rows.length-7} more Status Effects">...</button>`:'');
-  if(activeStatusOverflowUnitId===id&&$('status-overflow-popover')?.classList.contains('open'))refreshStatusOverflowPopover(id)
+  if(activeStatusOverflowUnitId===id&&$('status-overflow-popover')?.classList.contains('open'))refreshStatusOverflowPopover(id);
+  window.LuminousCombatHudMotion073?.scheduleStatusLayout?.()
 }
 function pulseStatusIcon(id,statusId){
   const node=$(`statuses-${id}`)?.querySelector(`[data-status-id="${normalizeStatusId(statusId)}"]`);
@@ -3345,7 +3346,8 @@ function setCameraTransform(field,mode,scale,rawX,rawY){
     backgroundLayer.dataset.cameraMode=mode;
   }
   window.LuminousCombatStage073?.camera({x:clamped.x,y:clamped.y,scale});
-  field.classList.toggle('camera-focus',scale!==1||clamped.x!==0||clamped.y!==0)
+  field.classList.toggle('camera-focus',scale!==1||clamped.x!==0||clamped.y!==0);
+  window.LuminousCombatHudMotion073?.scheduleStatusLayout?.()
 }
 function combatantVisualScale(id){
   const combatant=$(`token-${id}`)?.querySelector('.combatant');
