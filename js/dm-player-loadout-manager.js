@@ -27,6 +27,7 @@
     selectionEventBound: false,
     subscriptions: [],
     retryTimer: null,
+    appliedEquipmentPreset: false,
   };
 
   const clean = (value) => String(value ?? "").trim();
@@ -79,6 +80,8 @@
     await ensureScript("content-registry-bootstrap-script", "js/content-registry-bootstrap.js", () => global.LuminousContentRegistryBootstrap);
     await ensureScript("combat-skill-schema-script", "js/combat-skill-schema.js", () => global.CombatSkillSchema);
     await ensureScript("player-signature-skill-catalog-script", "js/skill-catalog-player-signature.js", () => global.LuminousPlayerSignatureSkillCatalog);
+    await ensureScript("build-equipment-catalog-script", "js/build-equipment-catalog.js?v=20261024-presets-1",
+      () => global.LuminousBuildWeaponCatalog && global.LuminousBuildSkillCatalog);
     await ensureScript("combat-skill-loadout-074-script", "js/combat-skill-loadout-074.js", () => global.LuminousCombatSkillLoadout074);
     await ensureScript("role-spell-catalog-core-script", "js/role-spell-catalog-core.js", () => global.LuminousRoleSpellCatalog);
     await ensureScript("spell-catalog-core-script", "js/spell-catalog-core.js", () => global.LuminousSpellCatalog);
@@ -128,7 +131,15 @@
 
   function skillLibrary() {
     const signature = global.LuminousPlayerSignatureSkillCatalog?.DEFINITIONS || {};
-    return core()?.normalizedSkillLibrary?.({ ...(state.skills || {}), ...signature }) || {};
+    const equipment = global.LuminousBuildSkillCatalog?.DEFINITIONS || {};
+    return core()?.normalizedSkillLibrary?.({ ...(state.skills || {}), ...signature, ...equipment }) || {};
+  }
+
+  function presetEntries() {
+    const signature = core()?.signaturePresets?.(global.LuminousPlayerSignatureSkillCatalog) || [];
+    const equipment = core()?.equipmentDeckPresets?.(global.LuminousBuildWeaponCatalog,
+      global.LuminousBuildSkillCatalog) || [];
+    return [...signature, ...equipment];
   }
 
   function skillEntries(tier) {
@@ -158,6 +169,7 @@
     if (state.playerRef && state.playerListener) state.playerRef.off("value", state.playerListener);
     state.playerId = nextId;
     state.player = null;
+    state.appliedEquipmentPreset = false;
     state.playerRef = null;
     state.playerListener = null;
 
@@ -197,17 +209,23 @@
   }
 
   function presetMarkup() {
-    const presets = core()?.signaturePresets?.(global.LuminousPlayerSignatureSkillCatalog) || [];
+    const presets = presetEntries();
+    const signatures = presets.filter(entry => entry.source !== "equipment");
+    const equipment = presets.filter(entry => entry.source === "equipment");
+    const options = rows => rows.map(entry =>
+      `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.label)}</option>`).join("");
     return `
       <div class="dm-loadout-preset">
         <label>
           <span>DECK PRESET</span>
           <select id="dm-loadout-preset-select">
             <option value="">— Ninguno / Manual —</option>
-            ${presets.map((preset) => `<option value="${escapeHtml(preset.id)}">${escapeHtml(preset.label)}</option>`).join("")}
+            ${signatures.length ? `<optgroup label="Personajes">${options(signatures)}</optgroup>` : ""}
+            ${equipment.length ? `<optgroup label="Armas y modos de combate">${options(equipment)}</optgroup>` : ""}
           </select>
         </label>
         <button id="dm-loadout-apply-preset" type="button" ${presets.length ? "" : "disabled"}>APLICAR PRESET</button>
+        <small>Los Decks de armas se habilitan al equipar el arma y elegir su modo. Guardar aquí copia el preset al Deck base, no cambia el arma.</small>
       </div>`;
   }
 
@@ -359,9 +377,13 @@
         if (feedback) feedback.textContent = "DECK GUARDADO · NO SE PUDO ACTUALIZAR EL COMBATE";
         return false;
       }
-      if (feedback) feedback.textContent = activeSync.synced
-        ? "SKILLS ACTUALIZADAS EN EL COMBATE"
-        : (unitSync.synced ? "SKILLS GUARDADAS · LISTAS PARA EL PRÓXIMO COMBATE" : "SKILLS GUARDADAS EN EL JUGADOR · SIN UNIT VINCULADA");
+      if (feedback) {
+        const status = activeSync.synced
+          ? "SKILLS ACTUALIZADAS EN EL COMBATE"
+          : (unitSync.synced ? "SKILLS GUARDADAS · LISTAS PARA EL PRÓXIMO COMBATE" : "SKILLS GUARDADAS EN EL JUGADOR · SIN UNIT VINCULADA");
+        feedback.textContent = status + (state.appliedEquipmentPreset
+          ? " · PRESET GUARDADO COMO DECK BASE; EN COMBATE MANDA EL ARMA EQUIPADA" : "");
+      }
       return true;
     } catch (error) {
       console.error("No se pudo guardar el Skill Deck:", error);
@@ -409,14 +431,17 @@
 
   function applyPreset() {
     const presetId = normalizeId(doc.getElementById("dm-loadout-preset-select")?.value);
-    const preset = (core()?.signaturePresets?.(global.LuminousPlayerSignatureSkillCatalog) || []).find((entry) => entry.id === presetId);
+    const preset = presetEntries().find((entry) => entry.id === presetId);
     if (!preset) return;
     [1, 2, 3].forEach((tier) => {
       const select = doc.getElementById(`dm-loadout-tier-${tier}`);
       if (select) select.value = preset.deck[`tier${tier}`] || "";
     });
     const feedback = doc.getElementById("dm-loadout-deck-feedback");
-    if (feedback) feedback.textContent = "PRESET CARGADO EN BORRADOR · REVISA Y GUARDA";
+    state.appliedEquipmentPreset = preset.source === "equipment";
+    if (feedback) feedback.textContent = state.appliedEquipmentPreset
+      ? "PRESET DE ARMA CARGADO · REVISA Y GUARDA EL DECK BASE. EN COMBATE SE ACTIVA CON EL ARMA Y SU MODO."
+      : "PRESET CARGADO EN BORRADOR · REVISA Y GUARDA";
   }
 
   function bindSpellCards(host) {
@@ -561,6 +586,8 @@
     render,
     saveDeck,
     saveSpells,
+    presetEntries,
+    applyPreset,
     readinessData,
     playerUnitResolution,
   });
