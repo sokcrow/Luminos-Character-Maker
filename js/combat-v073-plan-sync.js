@@ -59,7 +59,7 @@
     if(!plan)return null;const d=plan.data||{},targetId=clean(plan.targetId),additionalTargets=Array.isArray(plan.additionalTargets)?plan.additionalTargets.map(t=>({targetId:clean(t?.targetId),targetSlotIndex:Number.isInteger(Number(t?.targetSlotIndex))?Number(t.targetSlotIndex):0})).filter(t=>t.targetId):[];
     if(!targetId&&!additionalTargets.length)return null;
     const out={unitId,scheduledBy:s.playerId,round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:targetId||null,targetSlotIndex:plan.targetSlotIndex==null?null:Math.max(0,Number(plan.targetSlotIndex)||0)};
-    const targetSide=clean(d.targetSide||d.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(additionalTargets.length)out.additionalTargets=additionalTargets;return out;
+    const targetSide=clean(d.targetSide||d.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(additionalTargets.length)out.additionalTargets=additionalTargets;Object.assign(out,{kind:kindOf(plan),planType:plan.type,actionData:clone(plan.data||{}),...(plan.drawId?{drawId:plan.drawId}:{})});if(out.kind==='global')out.actionKey=idOf(plan,'global');return out;
   }
   function spellSelectionKeyFor(id,data,s){
     const selections=s?.players?.[s.playerId]?.characterBuild?.spellSelections||{};
@@ -251,7 +251,7 @@
   let independentIntentCounter=0,independentDeliveryFailed=false;
   const independentOutbox=new Map();
   function independentKey(s){return `luminous:combat-independent:${s.uid}:${s.playerId}:${s.encounterId}`;}
-  function independentFingerprint(payload){return JSON.stringify(['encounterId','unitId','round','sourceId','sourceType','cost','targetId'].map(key=>payload[key]??null));}
+  function independentFingerprint(payload){return JSON.stringify(['encounterId','unitId','round','sourceId','sourceType','cost','targetId','targetSlotIndex','choice','variant'].map(key=>payload[key]??null));}
   function independentPending(s){
     const key=independentKey(s);
     try{const saved=JSON.parse(global.localStorage?.getItem(key)||'null');if(saved&&typeof saved==='object')return saved;}catch(_){}
@@ -268,14 +268,14 @@
     if(s?.role!=='player'||!s?.db||!own||!s.encounterId||!planning(s)||Number(detail.round)!==Number(s.round)||clean(own[0])!==clean(detail.unitId))return {used:false,reason:'player_not_available'};
     const payload={schemaVersion:1,encounterId:s.encounterId,playerId:s.playerId,schedulerUid:s.uid,unitId:detail.unitId,
       round:Number(s.round),sourceId:clean(detail.sourceId),sourceType:clean(detail.sourceType),
-      cost:clean(detail.cost),targetId:clean(detail.targetId)||null,createdAt:Date.now()};
+      cost:clean(detail.cost),targetId:clean(detail.targetId)||null,...(detail.sourceType==='universal'?{targetSlotIndex:detail.targetSlotIndex??null,choice:detail.choice??null,variant:detail.variant??null}:{}),createdAt:Date.now()};
     const fingerprint=independentFingerprint(payload);
     const execute=async()=>{
       const intents=(await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}`).once('value')).val()||{};
       const receipts=(await s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}`).once('value')).val()||{};
       // Keep the unacknowledged identity even if its server receipt arrived
       // after timeout. A matching receipt is recovery, not a new activation.
-      const previous=Object.entries(intents).find(([key,row])=>(!receipts[key]||receipts[key].pendingInventory)&&['encounterId','unitId','round','sourceId','sourceType','targetId','cost'].every(key=>row[key]===payload[key]));
+      const previous=Object.entries(intents).find(([key,row])=>(!receipts[key]||receipts[key].pendingInventory)&&['encounterId','unitId','round','sourceId','sourceType','targetId','cost','targetSlotIndex','choice','variant'].every(key=>(row[key]??null)===(payload[key]??null)));
       const remembered=independentPending(s)[fingerprint];
       const requestId=remembered?.id||previous?.[0]||(global.crypto?.randomUUID?.()||`${Date.now()}-${++independentIntentCounter}`).replace(/[.#$\[\]\/]/g,'_');
       rememberIndependent(s,fingerprint,{id:requestId,round:payload.round});

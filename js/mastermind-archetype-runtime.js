@@ -121,6 +121,8 @@
   function sameEntity(a, b) {
     if (!a || !b) return false;
     if (a === b) return true;
+    const unitA=a.combatId||a.combat_id||a.unitId||a.unit_id||a.id,unitB=b.combatId||b.combat_id||b.unitId||b.unit_id||b.id;
+    if(unitA&&unitB)return String(unitA)===String(unitB);
     const ids = new Set(identityValues(a));
     if (identityValues(b).some((id) => ids.has(id))) return true;
     return normalizeId(entityName(a)) === normalizeId(entityName(b));
@@ -229,7 +231,7 @@
     const action = clone(actionInput || {});
     if (!hasMastermindLevel(mastermind, 15) || !isHelpAction(action)) return action;
     if (!action.economy || typeof action.economy !== "object") action.economy = {};
-    action.economy.cost = "quick_action";
+    action.economy.cost = action.metadata?.universalVariant==='mastermind_quick'||action.economy.cost==='quick_action'?'quick_action':'action';
     const { ally } = helpTarget(action, context);
     const additional = ally ? helpAdditionalBonus(mastermind, ally, context) : 1;
     action.effects = asArray(action.effects).map((effect) => {

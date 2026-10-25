@@ -92,6 +92,8 @@ function incrementalContext() {
   evaluate('js/death-save-runtime.js', c);
   evaluate('js/combat-deployment-runtime.js', c);
   evaluate('js/combat-v073-steps.js', c);
+  evaluate('js/unit-universal-action-policy.js', c);
+  evaluate('js/unit-universal-action-runtime.js', c);
   for (const name of ['clearHpAnimation', 'setCombatantHP', 'damageCombatant', 'healCombatant', 'isUnitTargetable',
     'validTargetUnits', 'unitActionBlocked', 'backupReserveForFaction', 'vacantBattleUnits', 'prepareBackupDeployment',
     'processDeathSavesRoundEnd', 'processTurnEndExitActions', 'processBackupRecovery']) vm.runInContext(sourceFunction(name), c);
@@ -195,6 +197,8 @@ for (const rank of ['captain', 'leader']) {
     assert.equal(c.isUnitTargetable(c.combatData.reserve), true);
     assert.equal(c.combatData.b.isBackup, true);
     c.processBackupRecovery();c.processBackupRecovery();
+    assert.equal(c.combatData.b.hp, 10, "Recovery runs once per round");
+    c.round++;c.processBackupRecovery();
     assert.equal(c.combatData.b.hp, 15, 'two reserve recovery ticks grant 10 HP');
     assert.equal(c.combatData.b.sp, 14, 'SP changes in reserve are current state too');
     assert.equal(c.combatData.b.retreatSnapshot.hp, 5, 'retreat snapshot remains historical');
