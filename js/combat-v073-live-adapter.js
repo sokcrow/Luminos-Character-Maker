@@ -241,7 +241,13 @@
           authoritativePlayer || raw
         ) || (linkedEquipment ? clone(linkedEquipment.equipment) : clone(raw.equipment || {})),
         activeEquipmentModes: clone(authoritativePlayer?.activeEquipmentModes || raw.activeEquipmentModes || {}),
-        augmentations: clone(raw.augmentations || raw.augments || raw.bodyAugmentations || authoritativePlayer?.augmentations || authoritativePlayer?.augments || authoritativePlayer?.bodyAugmentations || []),
+        // Prefer the authoritative Player anatomy (including an explicit empty
+        // list after DM extraction); stale Combat copies must not revive implants.
+        augmentations: clone(
+          authoritativePlayer?.augmentations ?? authoritativePlayer?.augments ??
+          authoritativePlayer?.bodyAugmentations ??
+          raw.augmentations ?? raw.augments ?? raw.bodyAugmentations ?? []
+        ),
         attunedItemInstanceIds: linkedEquipment
           ? clone(linkedEquipment.attunedItemInstanceIds)
           : clone(raw.attunedItemInstanceIds || []),
