@@ -17,7 +17,7 @@
   const state={
     started:false,current:{},seed:0,cursor:0,rngState:0,
     readyRows:{},readyLoaded:false,listenCleanup:[],lastStartError:'',planningRepair:null,
-    authorityRef:null,authorityHandler:null,readyRef:null,readyHandler:null,retryTimer:null,autoStartTimer:null,
+    authorityRef:null,authorityHandler:null,readyRef:null,readyHandler:null,plansRef:null,plansHandler:null,retryTimer:null,autoStartTimer:null,
     presentationTimer:null,writeFailure:null,lastCheckpointSeq:0,writeChain:Promise.resolve(),executionChain:Promise.resolve(),hooks:new Map(),localActionSeq:0,localDigests:new Map(),pendingRemoteCheckpoints:new Map(),inFlightActions:0,
     originalStartRound:null,originalBuildQueue:null,originalCoinEngine:null,runningLocal:false,preparingRound:false,remoteStart:false,autoStartedRound:0,pendingFinalSnapshot:null,resumeRuntime:null,lastExecutionJson:null,executingGeneration:null
   };
@@ -534,11 +534,34 @@
     }
     if(isPlayer()&&norm(data.phase)==='complete'&&data.checkpoint?.combatants){if(state.runningLocal)state.pendingFinalSnapshot=clone(data.checkpoint);else{applySnapshot(data.checkpoint.combatants);if(Number.isFinite(Number(data.checkpoint.rngCursor))&&data.seed)resetRandom(data.seed,Number(data.checkpoint.rngCursor));}}
   }
-  function bind(){const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.authorityRef)return true;playback()?.start(global.LuminousCombatAuthority073);state.authorityRef=s.db.ref(ROOT.current);state.authorityHandler=onAuthority;listen(state.authorityRef,state.authorityHandler,'[Combat073 Authority]');state.readyLoaded=false;state.readyRef=s.db.ref(ROOT.ready);state.readyHandler=snapshot=>{state.readyRows=snapshot.val()||{};state.readyLoaded=true;global.LuminousCombatHudMotion073?.refresh?.();maybeAutoStart(state.readyRows);};listen(state.readyRef,state.readyHandler,'[Combat073 Authority ready]');void preparePlanningState().catch(error=>console.error('[Combat073 planning recovery]',error));return true;}
+  function bindPlanningUpdates(){
+    const s=adapterState();
+    if(!isDm()||state.plansRef||!s?.db?.ref||!s.user)return;
+    state.plansRef=s.db.ref(ROOT.plans);
+    state.plansHandler=()=>{if(state.readyLoaded)maybeAutoStart(state.readyRows);};
+    listen(state.plansRef,state.plansHandler,'[Combat073 Authority plans]');
+  }
+  function bind(){
+    const s=adapterState();if(!s?.db?.ref||!s.user)return false;if(state.authorityRef)return true;
+    playback()?.start(global.LuminousCombatAuthority073);
+    state.authorityRef=s.db.ref(ROOT.current);state.authorityHandler=onAuthority;
+    listen(state.authorityRef,state.authorityHandler,'[Combat073 Authority]');
+    state.readyLoaded=false;state.readyRef=s.db.ref(ROOT.ready);
+    state.readyHandler=snapshot=>{
+      state.readyRows=snapshot.val()||{};state.readyLoaded=true;
+      global.LuminousCombatHudMotion073?.refresh?.();maybeAutoStart(state.readyRows);
+    };
+    listen(state.readyRef,state.readyHandler,'[Combat073 Authority ready]');
+    // A late plan does not change READY or the adapter hydration signature.
+    // Wake the same debounced, snapshot-validated start path on its arrival.
+    // Only the DM needs this subscription; Players already receive shared plans.
+    bindPlanningUpdates();
+    void preparePlanningState().catch(error=>console.error('[Combat073 planning recovery]',error));return true;
+  }
   function start(){if(state.started)return true;state.started=true;installHooks();const attempt=()=>{installHooks();if(bind())return true;state.retryTimer=global.setTimeout(attempt,200);return false;};attempt();return true;}
-  function stop(){if(state.presentationTimer!==null){global.clearTimeout(state.presentationTimer);state.presentationTimer=null;}state.listenCleanup.splice(0).forEach(off=>off());state.readyLoaded=false;if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.autoStartTimer)global.clearTimeout(state.autoStartTimer);if(state.authorityRef&&state.authorityHandler)state.authorityRef.off('value',state.authorityHandler);if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);playback()?.stop();state.authorityRef=state.authorityHandler=state.readyRef=state.readyHandler=null;state.started=false;}
+  function stop(){if(state.presentationTimer!==null){global.clearTimeout(state.presentationTimer);state.presentationTimer=null;}state.listenCleanup.splice(0).forEach(off=>off());state.readyLoaded=false;if(state.retryTimer)global.clearTimeout(state.retryTimer);if(state.autoStartTimer)global.clearTimeout(state.autoStartTimer);state.retryTimer=state.autoStartTimer=null;if(state.authorityRef&&state.authorityHandler)state.authorityRef.off('value',state.authorityHandler);if(state.readyRef&&state.readyHandler)state.readyRef.off('value',state.readyHandler);playback()?.stop();state.authorityRef=state.authorityHandler=state.readyRef=state.readyHandler=state.plansRef=state.plansHandler=null;state.started=false;}
 
-  global.addEventListener('luminous:combat073-runtime-ready',()=>{installHooks();applyAuthority();});global.addEventListener('luminous:combat073-hydrated',()=>{installHooks();applyAuthority();void preparePlanningState().catch(error=>console.error('[Combat073 planning recovery]',error));if(state.readyLoaded)maybeAutoStart(state.readyRows);});global.addEventListener('beforeunload',stop,{once:true});
+  global.addEventListener('luminous:combat073-runtime-ready',()=>{installHooks();applyAuthority();});global.addEventListener('luminous:combat073-hydrated',()=>{installHooks();applyAuthority();if(state.started)bindPlanningUpdates();void preparePlanningState().catch(error=>console.error('[Combat073 planning recovery]',error));if(state.readyLoaded)maybeAutoStart(state.readyRows);});global.addEventListener('beforeunload',stop,{once:true});
   global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.9-step-rng',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,compactUnit,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,publishPresentation,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,preparePlanningState,readyComplete,allReadySnapshot,maybeAutoStart});
   start();
 })(window);
