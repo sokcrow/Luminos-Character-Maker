@@ -37,7 +37,7 @@ const parts=[
  ...["r1","r2","r3"].map(n=>"combat/repair/combat-v073-live.bundle.part07."+n),
  ...["08","09","10","11"].map(n=>"combat/combat-v073-live.bundle.part"+n),
 ];
-const original=gunzipSync(Buffer.from(parts.map(read).join("").replace(/\\s+/g,""),"base64")).toString("utf8");
+const original=gunzipSync(Buffer.from(parts.map(read).join("").replace(/\s+/g,""),"base64")).toString("utf8");
 assert.ok(original.includes("window.LuminousCombatLiveMode=true"));
 let written="";
 let complete;
@@ -48,7 +48,7 @@ const document={
  getElementById(){return {set textContent(value){throw Error(String(value))}}},
  open(){},write(value){written=value;complete()},close(){}
 };
-const wrapperScript=html.match(/<script>([\\s\\S]*?)<\\/script>/)?.[1];
+const wrapperScript=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(wrapperScript);
 runInNewContext(wrapperScript,{
  window:browserWindow,document,Blob,Response,DecompressionStream,Uint8Array,atob,
@@ -57,10 +57,10 @@ runInNewContext(wrapperScript,{
 });
 await writtenPromise;
 assert.ok(written.length>200000);
-assert.match(written,/src="js\\/combat-v073-spell-bootstrap\\.js/);
-assert.match(written,/href="css\\/combat-v073-spell-availability\\.css/);
-assert.match(written,/src="js\\/combat-v073-plan-sync\\.js/);
+assert.match(written,/src="js\/combat-v073-spell-bootstrap\.js/);
+assert.match(written,/href="css\/combat-v073-spell-availability\.css/);
+assert.match(written,/src="js\/combat-v073-plan-sync\.js/);
 // A dependency preflight can complete without introducing a second Viewer role runtime.
-assert.doesNotMatch(written,/src="js\\/battle-viewer-runtime-074\\.js/);
+assert.doesNotMatch(written,/src="js\/battle-viewer-runtime-074\.js/);
 
 console.log("Combat SP-01: real packed Viewer injection + canonical Spell bridge contract OK");
