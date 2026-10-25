@@ -11,3 +11,15 @@
   #game-container .skill-option .spell-unavailable-reason {font-size:12px;padding-bottom:8px}
   #game-container .skill-stack {max-width:100%;min-width:0;overflow-x:hidden}
 }
+
+/* Explicit casting class choice, usable on touch and desktop without overflow. */
+#game-container .spell-class-choice {min-width:0;max-width:100%;padding:9px;border:1px solid rgba(240,191,114,.35);background:rgba(12,9,6,.85);overflow-wrap:anywhere}
+#game-container .spell-class-choice-title {font:800 12px/1.4 Arial,sans-serif;color:#f0e5d4;margin-bottom:9px}
+#game-container .spell-class-options {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:8px;min-width:0}
+#game-container .spell-class-option {box-sizing:border-box;width:100%;min-width:0;max-width:100%;height:auto;min-height:48px;white-space:normal;text-align:left}
+#game-container .spell-class-option-name {display:block;padding:5px 8px;font:800 12px/1.4 Arial,sans-serif;color:#ffe877;overflow-wrap:anywhere}
+@media(max-width:900px){
+  #game-container .spell-class-choice {width:100%;box-sizing:border-box}
+  #game-container .spell-class-options {grid-template-columns:minmax(0,1fr)}
+  #game-container .spell-class-option {min-height:48px}
+}
