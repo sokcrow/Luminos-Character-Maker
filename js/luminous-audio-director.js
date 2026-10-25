@@ -208,9 +208,23 @@
     try {
       await audioRef.child(channel).set(data);
       setHint("Se envió el cambio a la campaña.");
+      return true;
     } catch (_) {
       setHint("No se pudo enviar el audio. Revisa la conexión y permisos del DM.");
+      // A click can start local playback before RTDB confirms the write.
+      // Always restore the last confirmed session when that write fails.
+      if (channel === "music") { previousMusicKey = null; receiveLoop("music", musicState); }
+      if (channel === "ambience") { previousAmbienceKey = null; receiveLoop("ambience", ambienceState); }
+      return false;
     }
+  }
+  function previewLoopOnGesture(kind, entry) {
+    // Direct user interaction unlocks audio in browsers that block remote
+    // Firebase events from calling play() without a click.
+    const element = kind === "music" ? music : ambience;
+    const url = new URL(entry.url, global.location.href).href;
+    if (element.src !== url) element.src = url;
+    playSafely(element);
   }
   function command(type) {
     if (!isDirector || !audioRef) return;
@@ -218,12 +232,20 @@
     const selects = (kind) => panel.querySelector('[data-audio-select="' + kind + '"]');
     if (type === "play-music") {
       const trackId = selects("music").value;
-      if (byId("music", trackId)) directorWrite("music", { trackId, active: true, startedAt: stamp });
+      const entry = byId("music", trackId);
+      if (entry) {
+        previewLoopOnGesture("music", entry);
+        directorWrite("music", { trackId, active: true, startedAt: stamp });
+      }
     } else if (type === "stop-music") {
       directorWrite("music", { active: false, trackId: "", startedAt: 0 });
     } else if (type === "play-ambience") {
       const trackId = selects("ambience").value;
-      if (byId("ambience", trackId)) directorWrite("ambience", { trackId, active: true, startedAt: stamp });
+      const entry = byId("ambience", trackId);
+      if (entry) {
+        previewLoopOnGesture("ambience", entry);
+        directorWrite("ambience", { trackId, active: true, startedAt: stamp });
+      }
     } else if (type === "stop-ambience") {
       directorWrite("ambience", { active: false, trackId: "", startedAt: 0 });
     } else if (type === "cue") {
@@ -266,7 +288,7 @@
         '<p class="luminous-audio-info">Tu volumen es privado y se guarda en este dispositivo.</p>' +
         '<section class="luminous-audio-section"><h3>♫ Música</h3><label for="luminous-music-range">Volumen de música</label>' +
         '<div class="luminous-audio-slider"><input id="luminous-music-range" data-audio-range="music" type="range" min="0" max="100" step="1" aria-label="Volumen de música"><output data-audio-value="music"></output></div></section>' +
-        '<section class="luminous-audio-section"><h3>◖)) Efectos de sonido</h3><label for="luminous-sfx-range">Volumen de efectos</label>' +
+        '<section class="luminous-audio-section"><h3>Efectos de sonido</h3><label for="luminous-sfx-range">Volumen de efectos</label>' +
         '<div class="luminous-audio-slider"><input id="luminous-sfx-range" data-audio-range="sfx" type="range" min="0" max="100" step="1" aria-label="Volumen de efectos"><output data-audio-value="sfx"></output></div></section>' +
         '<button type="button" data-audio-activate class="luminous-audio-activate">Activar audio</button>' +
         '<p class="luminous-audio-status" data-audio-status aria-live="polite"></p>' +
