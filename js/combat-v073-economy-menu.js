@@ -376,28 +376,37 @@
     return normalizeId(row.spellId || row.id || row.key || row.definitionId || row.name);
   }
 
-  function spellRowsForPlayer() {
-    const unit = playerUnit() || {};
-    if (!isSpellcaster(unit)) return [];
+  function spellUnavailableLabel(reason){
+    return ({
+      SPELLCASTING_ABILITY_REQUIRED:"Necesita una fuente de magia válida.",
+      SPELL_NOT_SELECTED:"Este hechizo no está asignado.",
+      SPELL_DEFINITION_NOT_FOUND:"El hechizo no está disponible en la Biblioteca.",
+      CONTENT_REGISTRY_REQUIRED:"La Biblioteca de hechizos no está disponible.",
+      SPELL_CASTING_CLASS_NOT_FOUND:"No hay una clase de lanzamiento válida.",
+      SPELL_CLASS_NOT_AVAILABLE:"Tu clase no permite este lanzamiento.",
+      SPELL_CLASS_AMBIGUOUS:"Selecciona una clase de lanzamiento.",
+      SPELL_RUNTIME_NOT_READY:"Los hechizos aún se están preparando."
+    })[reason]||"Este hechizo no puede lanzarse ahora.";
+  }
 
-    const loadout = spellLoadoutRuntime();
-    if (loadout?.spellIdsFor && loadout?.resolveSpellDefinition) {
-      const ids = loadout.spellIdsFor(unit);
-      const resolved = ids.map((id) => {
-        const definition = loadout.resolveSpellDefinition(id);
-        return definition?.ok && definition.spell ? normalizeSpellForMenu(definition.spell, id) : null;
-      }).filter(Boolean);
-      if (resolved.length) return resolved;
+  // Explicit canonical selection takes priority over any legacy/demo Unit kit.
+  function spellRowsForPlayer(){
+    const unit=playerUnit()||{},canonical=global.LuminousSpellLoadout,loadout=spellLoadoutRuntime();
+    const explicit=Boolean(canonical?.hasSelection(unit))||
+      ["spellLoadout","spellIds","spellSelections","spellSelectionIndex"].some(key=>
+        unit[key]!=null||unit.characterBuild?.[key]!=null);
+    if(explicit){
+      const ids=canonical?.selectedIds(unit)||[...selectedSpellIds(unit)];
+      return [...new Set(ids.map(normalizeId).filter(Boolean))].map(id=>{
+        const result=loadout?.resolveSpellForCombatant?.(unit,id)||
+          {ok:false,reason:"SPELL_RUNTIME_NOT_READY"};
+        const definition=loadout?.resolveSpellDefinition?.(id);
+        const row=normalizeSpellForMenu(result.spell||definition?.spell||{id,name:id},id);
+        return result.ok?row:{...row,__spellUnavailableReason:spellUnavailableLabel(result.reason)};
+      });
     }
-
-    const live = liveActions("spell").map((row) => normalizeSpellForMenu(row, row?.id));
-    if (live.length) return live;
-
-    const selected = selectedSpellIds(unit);
-    if (!selected.size) return [];
-    return asArray(permanent()?.spells)
-      .filter((row) => selected.has(spellIdOf(row)))
-      .map((row) => normalizeSpellForMenu(row, row?.id));
+    if(!isSpellcaster(unit))return [];
+    return liveActions("spell").map(row=>normalizeSpellForMenu(row,row?.id));
   }
 
   function inventoryEntries(container) {
@@ -590,7 +599,9 @@
   }
 
   function syncSpellMenuVisibility() {
-    const caster = isSpellcaster(playerUnit() || {});
+    const unit=playerUnit()||{};
+    const caster=isSpellcaster(unit)||Boolean(global.LuminousSpellLoadout?.selectedIds(unit)?.length)||
+      selectedSpellIds(unit).size>0;
     spellMenuNodes().forEach((node) => {
       node.hidden = !caster;
       if (node.style) node.style.display = caster ? "" : "none";
@@ -788,6 +799,16 @@
     button.style.setProperty("--sin", sin?.color || "#ff4a22");
     button.innerHTML = markup(row);
     if(row.__deckCard)button.dataset.deckDrawId=row.__deckCard.drawId;
+    if(row.__spellUnavailableReason){
+      button.disabled=true;
+      button.classList.add("spell-unavailable");
+      button.title=row.__spellUnavailableReason;
+      button.setAttribute("aria-label",clean(row.name||row.id)+": "+row.__spellUnavailableReason);
+      const reason=global.document.createElement("small");
+      reason.className="spell-unavailable-reason";
+      reason.textContent=row.__spellUnavailableReason;
+      button.appendChild(reason);
+    }
     button.onclick = () => api.selectAction({ type:row.__deckCard?"deck":type, slotIndex:selectedSlotIndex(), ...(row.__deckCard?{drawId:row.__deckCard.drawId}:{}), data:row });
     return button;
   }
@@ -1615,6 +1636,10 @@
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
   global.LuminousCombatEconomyMenu073 = Object.freeze(api);
+  global.addEventListener?.("luminous:combat073-spells-ready",()=>{
+    syncSpellMenuVisibility();
+    if(activeMenu()==="spells")renderSpells();
+  });
   global.addEventListener?.("luminous:combat073-hydrated", () => { ensureTraitLibrarySubscriptions(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
   global.addEventListener?.("luminous:combat073-runtime-ready", () => global.setTimeout(boot, 0));
   global.addEventListener?.("luminous:class-runtime-bootstrap-ready", refreshTraitActionMenu);

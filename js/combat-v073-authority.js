@@ -78,7 +78,14 @@
         const kind=norm(raw.kind||raw.actionData?.kind||raw.type);
         if(kind!=='spell'&&kind!=='spells')continue;
         const unit=raw.unitId&&units[raw.unitId]?units[raw.unitId]:Object.values(units).find(row=>canonicalPlayerId(row)===clean(raw.scheduledBy));
-        if(unit?.isPlayer===true&&!isSpellcaster(unit))throw new Error(`SPELL_PLAN_REJECTED_NON_CASTER:${canonicalPlayerId(unit)||unit.id||raw.unitId||'player'}`);
+        if(unit?.isPlayer===true){
+          if(!isSpellcaster(unit))throw new Error(`SPELL_PLAN_REJECTED_NON_CASTER:${canonicalPlayerId(unit)||unit.id||raw.unitId||'player'}`);
+          const spellId=clean(raw.spellId||raw.actionData?.spellId||raw.actionData?.id||raw.data?.spellId||raw.data?.id);
+          const resolver=global.LuminousCombatSpellLoadout074;
+          if(!resolver?.resolveSpellForCombatant)throw new Error('SPELL_RUNTIME_NOT_READY');
+          const result=resolver.resolveSpellForCombatant(unit,spellId,{classId:raw.classId||raw.actionData?.classId||null});
+          if(!result.ok)throw new Error(`SPELL_PLAN_REJECTED:${result.reason||'SPELL_UNAVAILABLE'}`);
+        }
       }
     }
     return true;
