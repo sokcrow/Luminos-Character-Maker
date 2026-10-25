@@ -61,6 +61,7 @@ test("inventory keeps character left, real icons and item popups across desktop 
       window.LuminousItemIconRegistry = { resolveIcon: () => src };
     }, iconData);
     await page.addScriptTag({ path: asset("js/inventory-hud-v2.js") });
+    await page.evaluate(() => document.getElementById("btn-global-inventory").click());
     await page.evaluate(() => {
       const hud = window.LuminousInventoryHudV2;
       hud.state.unit = {
@@ -68,7 +69,7 @@ test("inventory keeps character left, real icons and item popups across desktop 
         inventario_activo: {
           "healing-1": {
             id: "healing-1", displayName: "Poción de curación", category: "consumable",
-            iconFamily: "medicine_vial", quantity: 3, value: 120,
+            iconFamily: "medicine_vial", quantity: 3, priceAhn: 120,
             description: "Restaura una pequeña cantidad de puntos de golpe."
           }
         },
