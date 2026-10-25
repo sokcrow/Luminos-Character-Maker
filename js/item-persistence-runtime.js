@@ -141,6 +141,29 @@
     };
   }
 
+  function installedAugmentsFrom(snapshot = {}) {
+    if (!snapshot || typeof snapshot !== "object") return null;
+    for (const key of ["augmentations", "augments", "bodyAugmentations"]) {
+      if (!Object.prototype.hasOwnProperty.call(snapshot, key)) continue;
+      const raw = snapshot[key];
+      if (Array.isArray(raw)) return { key, value: clone(raw.filter(Boolean)) };
+      if (raw && typeof raw === "object") return { key, value: clone(Object.values(raw).filter(Boolean)) };
+      return { key, value: [] };
+    }
+    return null;
+  }
+
+  function syncInstalledAugments(unit, snapshot = {}, options = {}) {
+    if (!unit || typeof unit !== "object") return { synced: false, reason: "missing_unit" };
+    const selected = installedAugmentsFrom(snapshot);
+    if (!selected && options.clearMissing !== true) return { synced: false, reason: "not_provided" };
+    // An installed Augment has exactly one canonical anatomical location.
+    // Remove stale aliases first: the anatomy bridge reads the first present array.
+    ["augmentations", "augments", "bodyAugmentations"].forEach(key => delete unit[key]);
+    if (selected) unit[selected.key] = clone(selected.value);
+    return { synced: true, count: selected?.value.length || 0 };
+  }
+
   function serializeInventoryState(unit = {}) {
     const runtime = inventory();
     const active = runtime?.activeContainer?.(unit)?.value || unit.inventario_activo || {};
@@ -150,6 +173,9 @@
       inventario_activo: serializeContainer(active),
       inventario_stash: serializeContainer(stash),
       equipmentRefs: equipmentRefs(unit),
+      ...(installedAugmentsFrom(unit) ? {
+        augmentations: installedAugmentsFrom(unit).value
+      } : {}),
       attunedItemInstanceIds: [...new Set((unit.attunedItemInstanceIds || []).map(String).filter(Boolean))],
       itemMagicKnowledge: clone(unit.itemMagicKnowledge || {}),
       enchantmentCompendium: clone(unit.enchantmentCompendium || {}),
@@ -185,6 +211,7 @@
       inventario_activo: deserializeContainer(snapshot.inventario_activo || snapshot.activeInventory || snapshot.inventory || {}, options),
       inventario_stash: deserializeContainer(snapshot.inventario_stash || snapshot.stashInventory || snapshot.stash || {}, options),
       equipmentRefs: clone(snapshot.equipmentRefs || snapshot.itemEquipmentRefs || {}),
+      ...(installedAugmentsFrom(snapshot) ? { augmentations: installedAugmentsFrom(snapshot).value } : {}),
       attunedItemInstanceIds: [...new Set((snapshot.attunedItemInstanceIds || snapshot.attunedItems || []).map(String).filter(Boolean))],
       itemMagicKnowledge: clone(snapshot.itemMagicKnowledge || snapshot.magicItemKnowledge || {}),
       enchantmentCompendium: clone(snapshot.enchantmentCompendium || {}),
@@ -204,11 +231,12 @@
     if (!unit.equipment || typeof unit.equipment !== "object" || Array.isArray(unit.equipment)) unit.equipment = {};
     ["mainHand", "offHand", "armor", "shield"].forEach((slot) => {
       const id = refs[slot];
-      if (!id) return;
-      const item = findInstance(state, id);
-      if (item) unit.equipment[slot] = item;
+      // An empty/removed ref must clear an old item from the live HUD.
+      unit.equipment[slot] = id ? findInstance(state, id) : null;
     });
-    if (Array.isArray(refs.accessoryIds)) unit.equipment.accessories = refs.accessoryIds.map((id) => findInstance(state, id)).filter(Boolean);
+    unit.equipment.accessories = Array.isArray(refs.accessoryIds)
+      ? refs.accessoryIds.map((id) => findInstance(state, id)).filter(Boolean) : [];
+    unit.itemEquipmentRefs = clone(refs);
     return unit.equipment;
   }
 
@@ -224,6 +252,9 @@
     unit.enchanterTransactions = clone(state.enchanterTransactions || {});
     unit.enchanterJobs = clone(state.enchanterJobs || {});
     restoreEquipmentRefs(unit, state);
+    // A missing anatomy field on older inventory-only snapshots must not
+    // delete existing implants; an explicitly empty list means extraction.
+    syncInstalledAugments(unit, state);
     const result = { applied: true, state, activeCount: Object.keys(state.inventario_activo).length, stashCount: Object.keys(state.inventario_stash).length };
     emit("luminous:inventory-state-applied", { unit, ...result });
     return result;
@@ -240,6 +271,7 @@
       stash: `${base}/inventario_stash`,
       schemaVersion: `${base}/itemInventorySchemaVersion`,
       equipmentRefs: `${base}/itemEquipmentRefs`,
+      augmentations: `${base}/augmentations`,
       attunement: `${base}/attunedItemInstanceIds`,
       magicKnowledge: `${base}/itemMagicKnowledge`,
       enchantmentCompendium: `${base}/enchantmentCompendium`,
@@ -256,11 +288,12 @@
     if (!requireDb(db)) return { loaded: false, reason: "firebase_db_unavailable" };
     const paths = playerPaths(playerId, options);
     if (!paths) return { loaded: false, reason: "missing_player_id" };
-    const [activeSnap, stashSnap, versionSnap, equipmentSnap, attunementSnap, magicKnowledgeSnap, compendiumSnap, transactionsSnap, jobsSnap] = await Promise.all([
+    const [activeSnap, stashSnap, versionSnap, equipmentSnap, augmentationsSnap, attunementSnap, magicKnowledgeSnap, compendiumSnap, transactionsSnap, jobsSnap] = await Promise.all([
       db.ref(paths.active).once("value"),
       db.ref(paths.stash).once("value"),
       db.ref(paths.schemaVersion).once("value"),
       db.ref(paths.equipmentRefs).once("value"),
+      db.ref(paths.augmentations).once("value"),
       db.ref(paths.attunement).once("value"),
       db.ref(paths.magicKnowledge).once("value"),
       db.ref(paths.enchantmentCompendium).once("value"),
@@ -272,6 +305,7 @@
       inventario_activo: activeSnap?.val?.() || {},
       inventario_stash: stashSnap?.val?.() || {},
       equipmentRefs: equipmentSnap?.val?.() || {},
+      augmentations: augmentationsSnap?.val?.() || [],
       attunedItemInstanceIds: attunementSnap?.val?.() || [],
       itemMagicKnowledge: magicKnowledgeSnap?.val?.() || {},
       enchantmentCompendium: compendiumSnap?.val?.() || {},
@@ -294,6 +328,9 @@
       inventario_activo: serializeContainer(unitOrState.inventario_activo || {}),
       inventario_stash: serializeContainer(unitOrState.inventario_stash || {}),
       equipmentRefs: clone(unitOrState.equipmentRefs || {}),
+      ...(installedAugmentsFrom(unitOrState) ? {
+        augmentations: installedAugmentsFrom(unitOrState).value
+      } : {}),
       attunedItemInstanceIds: clone(unitOrState.attunedItemInstanceIds || []),
       itemMagicKnowledge: clone(unitOrState.itemMagicKnowledge || {}),
       enchantmentCompendium: clone(unitOrState.enchantmentCompendium || {}),
@@ -319,6 +356,8 @@
       updates.inventario_stash=serializeContainer(state.inventario_stash);
     if(has("equipment","itemEquipmentRefs","equipmentRefs"))
       updates.itemEquipmentRefs=clone(state.equipmentRefs || {});
+    if(has("augmentations","augments","bodyAugmentations"))
+      updates.augmentations=clone(state.augmentations || []);
     if(has("attunedItemInstanceIds","attunedItems"))
       updates.attunedItemInstanceIds=clone(state.attunedItemInstanceIds || []);
     // Combat and other narrow callers save a partially hydrated Player. Do
@@ -347,6 +386,7 @@
     let stash = {};
     let schemaVersion = 0;
     let equipment = {};
+    let augmentations = [];
     let attunement = [];
     let magicKnowledge = {};
     let enchantmentCompendium = {};
@@ -358,7 +398,7 @@
       scheduled = true;
       Promise.resolve().then(() => {
         scheduled = false;
-        callback(deserializeInventoryState({ schemaVersion, inventario_activo: active, inventario_stash: stash, equipmentRefs: equipment, attunedItemInstanceIds: attunement, itemMagicKnowledge: magicKnowledge, enchantmentCompendium, enchanterTransactions, enchanterJobs }, options));
+        callback(deserializeInventoryState({ schemaVersion, inventario_activo: active, inventario_stash: stash, equipmentRefs: equipment, augmentations, attunedItemInstanceIds: attunement, itemMagicKnowledge: magicKnowledge, enchantmentCompendium, enchanterTransactions, enchanterJobs }, options));
       });
     };
     const handlers = [
@@ -366,6 +406,7 @@
       [paths.stash, (snap) => { stash = snap?.val?.() || {}; publish(); }],
       [paths.schemaVersion, (snap) => { schemaVersion = snap?.val?.() || 0; publish(); }],
       [paths.equipmentRefs, (snap) => { equipment = snap?.val?.() || {}; publish(); }],
+      [paths.augmentations, (snap) => { augmentations = snap?.val?.() || []; publish(); }],
       [paths.attunement, (snap) => { attunement = snap?.val?.() || []; publish(); }],
       [paths.magicKnowledge, (snap) => { magicKnowledge = snap?.val?.() || {}; publish(); }],
       [paths.enchantmentCompendium, (snap) => { enchantmentCompendium = snap?.val?.() || {}; publish(); }],
@@ -434,6 +475,7 @@
     serializeInventoryState,
     deserializeInventoryState,
     restoreEquipmentRefs,
+    syncInstalledAugments,
     applyInventoryState,
     playerPaths,
     loadPlayerInventory,

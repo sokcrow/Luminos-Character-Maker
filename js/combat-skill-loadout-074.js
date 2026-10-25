@@ -42,7 +42,7 @@
   function mergedSkillLibrary(skills = state.skills) {
     const catalog = signatureSkillCatalog();
     const signature = catalog?.DEFINITIONS && typeof catalog.DEFINITIONS === "object" ? catalog.DEFINITIONS : {};
-    return { ...(skills || {}), ...signature };
+    return { ...(skills || {}), ...signature, ...(global.LuminousBuildSkillCatalog?.DEFINITIONS || {}) };
   }
 
   function skillDeckSlots(value = {}) {
@@ -61,6 +61,8 @@
   }
 
   function firstLoadoutSource(source = {}) {
+    const equipmentDeck = global.LuminousEquipmentLoadouts?.slotIds?.(source, source);
+    if (Array.isArray(equipmentDeck) && equipmentDeck.length) return equipmentDeck;
     const canonicalDeck = skillDeckSlots(source.characterBuild?.skillDeck || source.skillDeck || {});
     if (canonicalDeck.length) return canonicalDeck;
     if (source.characterBuild?.skillSlotIds != null) return source.characterBuild.skillSlotIds;
@@ -106,7 +108,8 @@
   function grantedSkillIdsFor(source = {}) {
     const raw = source.characterBuild?.grantedSkillIds || source.grantedSkillIds || [];
     const values = Array.isArray(raw) ? raw : Object.values(raw || {});
-    return [...new Set(values.map(row => clean(row?.skillId || row?.id || row)).filter(Boolean))];
+    const equipmentGrants = global.LuminousEquipmentEffects?.grantedSkillIds?.(source) || [];
+    return [...new Set([...values.map(row => clean(row?.skillId || row?.id || row)), ...equipmentGrants].filter(Boolean))];
   }
 
   function skillIdsFor(source = {}) {
@@ -279,6 +282,10 @@
     const id = clean(skillId);
     if (!id) return false;
     if (grantedSkillIdsFor(source).includes(id)) return true;
+    const equipmentDeck = global.LuminousEquipmentLoadouts?.slotIds?.(source, source) || [];
+    // A mode-specific 3/2/1 deck owns its Skill slots while equipped. The
+    // player's persistent learned/deck fields are deliberately not rewritten.
+    if (equipmentDeck.length) return equipmentDeck.includes(id);
     if (source.equippedSkillIndex && typeof source.equippedSkillIndex === "object") return source.equippedSkillIndex[id] === true;
     return skillIdsFor(source).includes(id);
   }

@@ -1,0 +1,50 @@
+name: Build Equipment Deck Integration
+on:
+  pull_request:
+    paths:
+      - "js/build-equipment-catalog.js"
+      - "js/equipment-loadout-runtime.js"
+      - "js/combat-skill-loadout-074.js"
+      - "js/combat-v073-live-adapter.js"
+      - "js/combat-v073-deck.js"
+      - "js/combat-v073-authority.js"
+      - "js/battle-viewer-player-skill-planner-074.js"
+      - "js/item-inventory-runtime.js"
+      - "js/dm-character-gear-*.js"
+      - "tests/build-equipment-decks-smoke.mjs"
+      - "tests/battle-viewer-build-assets-smoke.mjs"
+      - "js/item-persistence-runtime.js"
+      - "Battle-viewer.html"
+      - ".github/workflows/build-equipment-decks.yml"
+  workflow_dispatch:
+jobs:
+  build-decks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate shared engine and equipment scripts
+        run: |
+          node --check js/build-equipment-catalog.js
+          node --check js/equipment-loadout-runtime.js
+          node --check js/combat-skill-loadout-074.js
+          node --check js/combat-v073-live-adapter.js
+          node --check js/combat-v073-deck.js
+          node --check js/combat-v073-authority.js
+          node --check js/battle-viewer-player-skill-planner-074.js
+          node --check js/item-inventory-runtime.js
+          node --check js/dm-character-gear-core.js
+          node --check js/dm-character-gear-manager.js
+      - name: Verify Jeske and Calipsys canonical equipment/Decks
+        run: node tests/build-equipment-decks-smoke.mjs
+      - name: Verify anatomically installed Augments and inventory ownership
+        run: node tests/dm-character-gear-smoke.cjs
+      - name: Verify Battle Viewer scripts, XP and canonical anatomy
+        run: node tests/battle-viewer-build-assets-smoke.mjs
+      - name: Verify existing equipment effects and planning
+        run: |
+          node tests/equipment-effects-standard-smoke.mjs
+          node tests/combat-v074-player-skill-planner-smoke.mjs
+          node tests/combat-deck-engine-smoke.mjs

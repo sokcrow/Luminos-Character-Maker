@@ -16,13 +16,25 @@
     const Deck=engine();if(!Deck||!unit||!['player','remote'].includes(unit.controlled))return null;
     const rows=definition(unit);if(!rows.length){delete unit.combatDeck;return null;}
     const signature=String(hash(JSON.stringify(rows))),scope=String(adapter().encounterId||'active');
+    const activeMode=global.LuminousEquipmentLoadouts?.active?.(unit,unit);
+    const modeKey=activeMode?activeMode.instanceId+":"+activeMode.modeId:"canonical";
+    const cache=unit.combatDeckModes||(unit.combatDeckModes={});
     let deck=unit.combatDeck;
     if(deck?.scope==='active'&&scope!=='active')deck.scope=scope;
-    if(!deck||deck.signature!==signature||deck.scope!==scope){
-      const actor={id:unit.id};
-      Deck.initDeck(actor,rows,{requireFull:false});
-      deck=unit.combatDeck={...actor.skillDeck,signature,scope,rngState:hash(`${scope}|${unit.id}|${signature}`)};
+    if(deck&&deck.modeKey&&deck.modeKey!==modeKey)cache[deck.modeKey]=deck;
+    if(!deck||deck.signature!==signature||deck.scope!==scope||deck.modeKey!==modeKey){
+      const saved=cache[modeKey];
+      if(saved&&saved.signature===signature&&(saved.scope===scope||saved.scope==="active")){
+        deck=unit.combatDeck=saved;
+        deck.scope=scope;
+      }else{
+        const actor={id:unit.id};
+        Deck.initDeck(actor,rows,{requireFull:false});
+        deck=unit.combatDeck={...actor.skillDeck,signature,scope,modeKey,
+          rngState:hash(scope+"|"+unit.id+"|"+signature)};
+      }
     }
+    cache[modeKey]=deck;
     const byId=new Map(rows.map(row=>[id(row),row]));
     // RTDB removes empty arrays/objects. An exhausted draw pile comes back
     // without a drawPile property; restore it before DeckEngine inspects it.
@@ -57,6 +69,8 @@
     for(const slot of Object.values(value.slots||{}))for(const card of [...(slot.hand||[]),...(slot.drawPile||[])])delete card.skill;
     return value;
   }
+  function compactModeDecks(value){return Object.fromEntries(
+    Object.entries(value||{}).map(([key,deck])=>[key,compact(deck)]));}
   function validatePlans(plans){
     for(const rows of Object.values(plans||{}))for(const [index,plan]of Object.entries(rows||{})){
       if(plan?.kind!=='skill')continue;
@@ -69,6 +83,6 @@
     }
     return true;
   }
-  global.LuminousCombatSlotDeck073=Object.freeze({skills,eligible,definition,ensure,syncAll,hand,mark,compact,validatePlans});
+  global.LuminousCombatSlotDeck073=Object.freeze({skills,eligible,definition,ensure,syncAll,hand,mark,compact,compactModeDecks,validatePlans});
   global.addEventListener('luminous:combat073-hydrated',()=>syncAll());
 })(window);

@@ -236,8 +236,18 @@
           spellCastOverrides: clone(authoritativePlayer.spellCastOverrides || authoritativePlayer.characterBuild?.spellCastOverrides || {})
         } : {}),
         inventario_activo: clone(liveActiveInventory),
-        equipment: linkedEquipment ? clone(linkedEquipment.equipment) : clone(raw.equipment || {}),
-        augmentations: clone(raw.augmentations || raw.augments || raw.bodyAugmentations || authoritativePlayer?.augmentations || authoritativePlayer?.augments || authoritativePlayer?.bodyAugmentations || []),
+        equipment: global.LuminousEquipmentLoadouts?.hydratedEquipment?.(
+          { ...raw, equipment: linkedEquipment?.equipment || raw.equipment || {} },
+          authoritativePlayer || raw
+        ) || (linkedEquipment ? clone(linkedEquipment.equipment) : clone(raw.equipment || {})),
+        activeEquipmentModes: clone(authoritativePlayer?.activeEquipmentModes || raw.activeEquipmentModes || {}),
+        // Prefer the authoritative Player anatomy (including an explicit empty
+        // list after DM extraction); stale Combat copies must not revive implants.
+        augmentations: clone(
+          authoritativePlayer?.augmentations ?? authoritativePlayer?.augments ??
+          authoritativePlayer?.bodyAugmentations ??
+          raw.augmentations ?? raw.augments ?? raw.bodyAugmentations ?? []
+        ),
         attunedItemInstanceIds: linkedEquipment
           ? clone(linkedEquipment.attunedItemInstanceIds)
           : clone(raw.attunedItemInstanceIds || []),
@@ -368,19 +378,21 @@
   function kitsFor(combatants) {
     const kits = {};
     for (const unit of combatants) {
-      const source = state.combatants?.[unit.id] || Object.values(state.combatants || {}).find((raw) => clean(raw?.id || raw?.combatId) === unit.id) || unit;
+      const source = unit;
+      const library = { ...(state.skills || {}), ...(global.LuminousPlayerSignatureSkillCatalog?.DEFINITIONS || {}),
+        ...(global.LuminousBuildSkillCatalog?.DEFINITIONS || {}) };
       const equippedGrants = new Set(global.LuminousEquipmentEffects?.grantedSkillIds?.(unit) || []);
-      const actions = [...new Set(skillIdsFor(source))].map((skillId) => {
-        if (!state.skills?.[skillId]) return null;
-        return normalizeSkill(skillId, state.skills[skillId]);
+      const actions = [...new Set(skillIdsFor(unit))].map((skillId) => {
+        if (!library[skillId]) return null;
+        return normalizeSkill(skillId, library[skillId]);
       }).filter(Boolean);
       const embedded = Array.isArray(source.actions) ? source.actions.map((row, index) => normalizeSkill(clean(row?.id || `${unit.id}:action:${index}`), row || {})) : [];
       // Resolve the ordinary kit first: a grant must never suppress embedded attacks.
       const combined = [...(actions.length ? actions : embedded)];
       const seen = new Set(combined.map(skill => skill.id));
       for (const skillId of equippedGrants) {
-        if (seen.has(skillId) || !state.skills?.[skillId]) continue;
-        const skill = normalizeSkill(skillId, state.skills[skillId]);
+        if (seen.has(skillId) || !library[skillId]) continue;
+        const skill = normalizeSkill(skillId, library[skillId]);
         // Only equipment-only Skills stay outside the offensive 3/2/1 deck.
         combined.push({ ...skill, inDeck: false, availability: { type: "granted" }, deck: { enabled: false } });
         seen.add(skillId);
@@ -421,9 +433,11 @@
       unit.battleActive,
       unit.statusEffects,
       unit.combatDeck,
+      unit.combatDeckModes,
       unit.proneSpeedRound,
       unit.confusionTurnMode,
       unit.equipment,
+      unit.activeEquipmentModes,
       unit.augmentations,
       unit.equipmentInactive,
       unit.scores,unit.abilityScores,unit.stats,unit.attributes,
