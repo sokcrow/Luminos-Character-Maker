@@ -1,0 +1,35 @@
+name: DM Theatre Director Workspace
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'hoja_de_DM.html'
+      - 'js/theatre-dm-workspace.js'
+      - 'js/theatre-controls.js'
+      - 'css/theatre-dm-workspace.css'
+      - 'tests/dm-theatre-director-workspace*'
+      - '.github/workflows/dm-theatre-director-workspace.yml'
+
+jobs:
+  director-workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: JS syntax and canonical Theatre contracts
+        run: |
+          node --check js/theatre-dm-workspace.js
+          node --check js/theatre-controls.js
+          node tests/dm-theatre-director-workspace-smoke.mjs
+          node tests/dm-dialogue-composer-layout-smoke.mjs
+          node tests/dm-dialogue-input-visible-smoke.mjs
+      - name: Playwright Chromium dependencies
+        run: |
+          npm install --no-save @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Mobile, tablet and desktop Director UI
+        run: npx playwright test tests/dm-theatre-director-workspace.spec.mjs --reporter=line --workers=1
