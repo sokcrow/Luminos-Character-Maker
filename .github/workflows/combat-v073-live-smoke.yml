@@ -18,6 +18,13 @@ on:
       - 'js/combat-v073-remote-intents.js'
       - 'js/combat-v073-library-client.js'
       - 'js/combat-v073-authority.js'
+      - 'js/death-save-runtime.js'
+      - 'js/combatEngine.js'
+      - 'js/combat-action-resolver.js'
+      - 'js/combat-v073-steps.js'
+      - 'tests/downed-lifecycle-and-interrupt-smoke.mjs'
+      - 'tests/combat-v073-downed-interrupt-smoke.mjs'
+      - 'tests/pr1042-real-downed-regression-smoke.mjs'
       - 'js/player-vitals-realtime-bridge.js'
       - 'js/player-vitals-hud.js'
       - 'js/player-stats-ability-bar.js'
@@ -217,6 +224,11 @@ jobs:
         run: node tests/combat-v073-limbus-facing-runtime-smoke.mjs
       - name: Player renderer performance contract
         run: node tests/combat-v073-player-renderer-performance-smoke.mjs
+      - name: Downed and fatal Bleed real-engine regressions
+        run: |
+          node tests/downed-lifecycle-and-interrupt-smoke.mjs
+          node tests/combat-v073-downed-interrupt-smoke.mjs
+          node tests/pr1042-real-downed-regression-smoke.mjs
       - name: FIELD and BACKUP lifecycle contract
         run: node tests/combat-backup-lifecycle-smoke.mjs
       - name: Unit rank and Backup command contract

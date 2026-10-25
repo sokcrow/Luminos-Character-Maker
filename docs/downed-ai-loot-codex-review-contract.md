@@ -8,6 +8,15 @@
 4. **P0: AI planning**. Do not plan even an automatic Escape for actors unavailable at 0 HP.
 5. Regression smoke tests for status-driven Downed, Captain/Leader, 0 HP loot eligibility, GOAP, direct resolver and v0.7.3 bleed/Coin interruption.
 
+## Corrections from the first Codex review
+
+- Real `CombatEngine.resolveUnilateralWithCounter` checks actor availability after Coin/status and event hooks, before damage and before later Coins or Counter scheduling. Fatal Bleed cannot land its own Coin in either resolver mode.
+- Incremental Clash interruption cancels the incapacitated actor and resolves the survivor's remaining Coins unopposed against a legal target. It grants no synthetic Clash-win SP. Guard remains defensive.
+- Kill variants require confirmed death. First knockdown of Captain/Leader fires no kill tags; later death fires them once.
+- The live HP setter commits the real Downed/death transition before snapshots/events. Incremental damage, healing, round-end Death Saves, Retreat/return and both replacement paths now consume that state. Death at 0 HP emits UnitDefeated; Downed does not become a corpse or consume a reserve.
+- Authority checkpoints, Firebase state and hydration signatures preserve life state and Death Saves, including changes while HP stays at zero. The shipped runtime is rebuilt from source; lifecycle script URLs refresh together.
+- `tests/pr1042-real-downed-regression-smoke.mjs` exercises actual engine/resolver and production incremental rule functions, plus the deployment bridge and checkpoint serializer. The three Downed suites run in the combat live workflow.
+
 ## Follow-up work — explicitly NOT shipped as working features here
 
 **P1: full combat life-state integration**
@@ -46,6 +55,7 @@ Please review the **implemented P0 diff** for correctness and regression before 
 ```sh
 node tests/downed-lifecycle-and-interrupt-smoke.mjs
 node tests/combat-v073-downed-interrupt-smoke.mjs
+node tests/pr1042-real-downed-regression-smoke.mjs
 ```
 
 ## Delivery protocol GH-01

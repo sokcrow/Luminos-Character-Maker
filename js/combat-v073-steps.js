@@ -49,13 +49,14 @@
           emit('StatusChanged', entry, { causeSequence: event.sequence, unitId: change.unitId,
             statusEffects: b.statusEffects || {}, pendingStatusEffects: b.pendingStatusEffects || [] });
         if (Number(b.staggerStage) > Number(a.staggerStage)) emit('UnitStaggered', entry, { causeSequence: event.sequence, unitId: change.unitId, stage: b.staggerStage });
-        if (Number(a.hp) > 0 && Number(b.hp) <= 0) {
-          const live = r.unit(change.unitId);
-          const downed = b.lifeState === 'downed' || b.isDowned === true ||
-            (live && (live.lifeState === 'downed' || live.isDowned === true ||
-              (global.LuminousDeathSaveRuntime?.usesDeathSaves?.(live) && live.isDead !== true && live.dead !== true)));
-          emit(downed ? 'UnitDowned' : 'UnitDefeated', entry, { causeSequence: event.sequence, unitId: change.unitId });
-        }
+        const wasDead = a.lifeState === 'dead' || a.isDead === true || a.dead === true;
+        const dead = b.lifeState === 'dead' || b.isDead === true || b.dead === true;
+        const downed = b.lifeState === 'downed' || b.isDowned === true;
+        const wasDowned = a.lifeState === 'downed' || a.isDowned === true;
+        if ((!wasDead && dead) || (Number(a.hp) > 0 && Number(b.hp) <= 0 && !downed))
+          emit('UnitDefeated', entry, { causeSequence: event.sequence, unitId: change.unitId });
+        else if (!wasDowned && downed && !dead)
+          emit('UnitDowned', entry, { causeSequence: event.sequence, unitId: change.unitId });
       }
       return result;
     }
@@ -170,7 +171,7 @@
         // Damage is committed once here. Motion/impact callbacks only consume the result.
         const outcome = mutate('HitResolved', entry, { unitId: targetId, coinIndex, side: coin.side, power: hit, heal }, () => {
           if (heal) { r.healCombatant(targetId, hit); total += hit; return { healingPower: hit }; }
-          const result = r.damageCombatant(targetId, hit, { damageType: data.damageType, attackerId: entry.ownerId, skillData: { ...(entry.plan?.data || {}), currentCoinIndex: coinIndex } });
+          const result = r.damageCombatant(targetId, hit, { damageType: data.damageType, attackerId: entry.ownerId, skillData: { ...(entry.plan?.data || {}), currentCoinIndex: coinIndex, __luminousDeathSaveSkillToken: action(entry).actionId } });
           total += Number(result?.finalDamage) || 0;
           r.triggerGettingHitStatuses(targetId, entry);
           if (result?.critical && canOwnerAct(entry.ownerId)) r.applySkillStatusEffects(entry, targetId, '[On Crit]', { coinIndex, side: coin.side, damageResult: result });
@@ -188,11 +189,34 @@
       await show('wait', 'totalHold');
       return total;
     }
+    async function finishInterruptedClash(a, b, remainingA, remainingB) {
+      const activeA = canOwnerAct(a.ownerId), activeB = canOwnerAct(b.ownerId);
+      if (!activeA) cancelOwner(a);
+      if (!activeB) cancelOwner(b);
+      const survivor = activeA !== activeB ? (activeA ? a : b) : null;
+      const fallen = survivor === a ? b : a;
+      const remaining = survivor === a ? remainingA : survivor ? remainingB : 0;
+      if (survivor) {
+        const defenses = global.LuminousClashableDefenses073;
+        // A Guard remains defensive when its opponent falls during a toss.
+        const defensive = defenses?.defenseTypeOf(survivor.plan?.data);
+        if (defensive === 'clashableguard') await guard(survivor);
+        else {
+          const targetId = r.isUnitTargetable(r.unit(fallen.ownerId)) ? fallen.ownerId :
+            r.unopposedTargetId?.(survivor);
+          if (targetId && r.isUnitTargetable(r.unit(targetId)))
+            await hits(defensive === 'clashablecounter' ? { ...survivor, _counterReaction: true } : survivor, targetId, remaining);
+          else emit('ActionCancelled', survivor, { reason: 'target_unavailable' });
+        }
+      }
+      await show('clashEnd', a, b, survivor);
+      emit('ActionFinished', a); emit('ActionFinished', b);
+      return { winner: survivor, loser: survivor ? fallen : null, interrupted: true,
+        cancelled: !survivor, reason: 'clash_actor_unavailable', spGain: 0, remaining };
+    }
     async function clash(a, b) {
       if (!canOwnerAct(a.ownerId) || !canOwnerAct(b.ownerId)) {
-        if (!canOwnerAct(a.ownerId)) cancelOwner(a);
-        if (!canOwnerAct(b.ownerId)) cancelOwner(b);
-        return { winner: null, loser: null, cancelled: true, reason: 'clash_actor_unavailable', spGain: 0, remaining: 0 };
+        return finishInterruptedClash(a, b, r.data(a.plan).coinAmount, r.data(b.plan).coinAmount);
       }
       const da = r.data(a.plan), db = r.data(b.plan);
       mutate('ActionStarted', a, {}, () => { r.processConditionRemovalTrigger(a.ownerId, 'attack'); r.processConditionRemovalTrigger(b.ownerId, 'attack'); r.markEntryStarted(a); });
@@ -202,19 +226,13 @@
       await show('clashStart', a, b, remainingA, remainingB);
       while (remainingA > 0 && remainingB > 0) {
         if (!canOwnerAct(a.ownerId) || !canOwnerAct(b.ownerId)) {
-          if (!canOwnerAct(a.ownerId)) cancelOwner(a);
-          if (!canOwnerAct(b.ownerId)) cancelOwner(b);
-          emit('ActionFinished', a); emit('ActionFinished', b);
-          return { winner: null, loser: null, cancelled: true, reason: 'clash_actor_unavailable', spGain: 0, remaining: 0 };
+          return finishInterruptedClash(a, b, remainingA, remainingB);
         }
         clashCount++;
         await show('clashContact', a, b, clashCount);
         const [ra, rb] = await rollPair(a, remainingA, b, remainingB);
         if (!canOwnerAct(a.ownerId) || !canOwnerAct(b.ownerId)) {
-          if (!canOwnerAct(a.ownerId)) cancelOwner(a);
-          if (!canOwnerAct(b.ownerId)) cancelOwner(b);
-          emit('ActionFinished', a); emit('ActionFinished', b);
-          return { winner: null, loser: null, cancelled: true, reason: 'clash_actor_unavailable', spGain: 0, remaining: 0 };
+          return finishInterruptedClash(a, b, remainingA, remainingB);
         }
         lastExchange = { a: ra.power, b: rb.power };
         const winner = ra.power === rb.power ? 'tie' : ra.power > rb.power ? 'a' : 'b';

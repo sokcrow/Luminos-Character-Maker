@@ -799,7 +799,7 @@
     if (originalTriggerEvent) {
       engine.triggerEvent = function (tag, context = {}, targetsHit = [], ...rest) {
         const targets = Array.isArray(targetsHit) && targetsHit.length ? targetsHit : [context?.defender || context?.currentTarget].filter(Boolean);
-        if (tag === "[On Kill]" && targets.some((target) => target?.__luminousDownedAttackProxy)) return;
+        if (["[On Kill]", "[On Crit Kill]", "[On Crit Kill Against Enemy]"].includes(tag) && !targets.some((target) => isDead(target))) return;
         const result = originalTriggerEvent.call(this, tag, context, targetsHit, ...rest);
         if (tag === "[On Hit]" && context?.skill) {
           targets.forEach((target) => {

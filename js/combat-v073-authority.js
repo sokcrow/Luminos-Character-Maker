@@ -122,7 +122,8 @@
       ...(traitState?{combatTraitState:traitState}:{}),
       ...Object.fromEntries(['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion',
         'combatEventState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
-        'deployedRound','deploymentState','replacementClaimed','equipmentEffectTurnLedger'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
+        'deployedRound','deploymentState','replacementClaimed','equipmentEffectTurnLedger',
+        'lifeState','isDowned','isDead','isRetreated','isStable','deathSaves','deathSavePower','deathSaveThreshold','deathSaveCheck','deathSaveRound','retreat','retreatSnapshot'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
       ...(unit.combatDeck?{combatDeck:global.LuminousCombatSlotDeck073?.compact(unit.combatDeck)||clone(unit.combatDeck),
         combatDeckModes:global.LuminousCombatSlotDeck073?.compactModeDecks?.(unit.combatDeckModes)||clone(unit.combatDeckModes||{})}:{}),
       hp:Math.max(0,finite(unit.hp,0)),maxHp:Math.max(1,finite(unit.maxHp,1)),sp:finite(unit.sp,0),
@@ -215,7 +216,9 @@
     const defensiveReactions=Object.fromEntries(memberIds
       .map(playerId=>[playerId,clean(ready?.[playerId]?.enchantmentReactionItemInstanceId)])
       .filter(([,id])=>id));
-    const seed=makeSeed(round);let payload={schemaVersion:1,engineVersion:'0.7.3-authority.9-step-rng',round,phase:'sealed',seed,authorityUid:s.uid,planningWitness,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
+    const aiPlans=collectAiPlans();
+    global.LuminousCombatSlotDeck073?.validatePlans(aiPlans);
+    const seed=makeSeed(round);let payload={schemaVersion:1,engineVersion:'0.7.3-authority.9-step-rng',round,phase:'sealed',seed,authorityUid:s.uid,planningWitness,plans:clone(plans||{}),aiPlans,defensiveReactions,createdAt:serverTime(),checkpoint:null};
     if(playback()?.negotiate(ready,memberIds))payload=await playback().seal(payload,{timeline:playback().canSchedule?.(ready,memberIds)===true});
     if(!payload.playback){
       const sealed=await global.LuminousCombatSession.updateRoot(s.db,raw=>{
@@ -565,3 +568,4 @@
   global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.9-step-rng',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,compactUnit,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,publishPresentation,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,preparePlanningState,readyComplete,allReadySnapshot,maybeAutoStart});
   start();
 })(window);
+
