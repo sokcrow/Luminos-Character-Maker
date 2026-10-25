@@ -598,6 +598,10 @@
     overlay.hidden = false;
     overlay.classList.add("active");
     card.classList.add("active");
+    // Mark the inventory shell inert while the independent popup is open.
+    // This prevents pointer and keyboard interaction behind aria-modal.
+    const shell = doc.querySelector("#inventory-modal > .inventory-modal-content");
+    if (shell) shell.inert = true;
     dialog.focus({ preventScroll: true });
   }
 
@@ -606,8 +610,18 @@
     overlay?.classList.remove("active");
     if (overlay) overlay.hidden = true;
     doc.getElementById("item-detail-card")?.classList.remove("active");
-    if (restoreFocus && detailReturnFocus?.isConnected && typeof detailReturnFocus.focus === "function") {
-      detailReturnFocus.focus({ preventScroll: true });
+    const shell = doc.querySelector("#inventory-modal > .inventory-modal-content");
+    if (shell) shell.inert = false;
+    if (restoreFocus) {
+      // Inventory refreshes replace grid buttons; use their stable container/key
+      // if the exact origin element has been detached by Firebase updates.
+      let target = detailReturnFocus?.isConnected ? detailReturnFocus : null;
+      if (!target && state.selected) {
+        const selector = state.selectedContainer === "stash" ? "#inv-stash-grid" : "#inv-active-grid";
+        target = Array.from(doc.querySelectorAll(selector + " [data-key]"))
+          .find((button) => button.dataset.key === state.selected.key) || null;
+      }
+      (target || doc.getElementById("inventory-modal-close"))?.focus?.({ preventScroll: true });
     }
     detailReturnFocus = null;
   }
@@ -674,7 +688,10 @@
       ) || []).filter((el) => el.getClientRects().length > 0);
       if (!focusables.length) { event.preventDefault(); dialog?.focus(); return; }
       const first = focusables[0], last = focusables[focusables.length - 1];
-      if (event.shiftKey && (doc.activeElement === first || doc.activeElement === dialog)) {
+      if (!dialog?.contains(doc.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && (doc.activeElement === first || doc.activeElement === dialog)) {
         event.preventDefault(); last.focus();
       } else if (!event.shiftKey && doc.activeElement === last) {
         event.preventDefault(); first.focus();
@@ -1464,6 +1481,21 @@
   function renderActions(item, equippedSlot) {
     const host = doc.getElementById("inventory-v2-actions");
     if (!host) return;
+    const dialog = doc.getElementById("inventory-v2-detail-dialog");
+    const activeAction = detailIsOpen() && host.contains(doc.activeElement) ? doc.activeElement : null;
+    const actionLabel = activeAction?.textContent || "";
+    const activeIndex = activeAction ? Array.from(host.querySelectorAll("button")).indexOf(activeAction) : -1;
+    const restoreActionFocus = () => {
+      if (!detailIsOpen()) return;
+      if (activeAction) {
+        const enabled = Array.from(host.querySelectorAll("button:not([disabled])"));
+        (enabled.find((button) => button.textContent === actionLabel)
+          || enabled[Math.max(0, Math.min(activeIndex, enabled.length - 1))]
+          || doc.getElementById("inventory-v2-detail-close"))?.focus?.({ preventScroll: true });
+      } else if (dialog && !dialog.contains(doc.activeElement)) {
+        dialog.focus({ preventScroll: true });
+      }
+    };
     host.innerHTML = "";
     const magical = magicRuntime()?.isMagicItem?.(item) === true;
     const presentation = magical ? magicPresentation(item) : null;
@@ -1478,12 +1510,14 @@
       addAction(host, "UNEQUIP", unequipSelected, "primary");
       appendAttunementAction(host, item);
       if (canStudy) addAction(host, "STUDY ARCANA · 1 SP", studySelectedArcana);
+      restoreActionFocus();
       return;
     }
     if (state.selectedContainer === "stash") {
       addAction(host, "CARRY / LLEVAR", () => moveSelected("stash", "active"), "primary", !state.stashUnlocked);
       if (canStudy) addAction(host, "STUDY ARCANA · 1 SP", studySelectedArcana, "", !state.stashUnlocked);
       if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary", !state.stashUnlocked);
+      restoreActionFocus();
       return;
     }
 
@@ -1498,6 +1532,7 @@
     if (canUse) addAction(host, "USE", useSelected);
     if (reloadProfile(item)) addAction(host, "RELOAD", reloadSelected);
     if (canStudy) addAction(host, "STUDY ARCANA · 1 SP", studySelectedArcana);
+    restoreActionFocus();
   }
 
   async function equipSelectedTo(slotId) {
