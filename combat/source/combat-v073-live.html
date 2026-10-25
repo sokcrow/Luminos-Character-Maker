@@ -2446,6 +2446,7 @@
 <script src="js/combat-context.js?v=20261021-encounter-3"></script>
 <script src="js/status-library.js"></script>
 <script src="js/status-engine.js"></script>
+<script id="death-save-runtime-script" src="js/death-save-runtime.js?v=20261025-pr1042-1"></script>
 <script src="js/deckEngine.js"></script>
 <script src="js/combat-v073-deck.js?v=20261020-roundtrip-1"></script>
 <script src="js/skill-catalog-player-signature.js"></script>
@@ -4037,7 +4038,9 @@ function planTargetRule(plan,owner){
   return'enemy'
 }
 function isUnitTargetable(unit){
-  return Boolean(unit&&unit.battleActive!==false&&!unit.incapacitated&&(Number(unit.hp)||0)>0)
+  if(!unit||unit.battleActive===false||unit.escaped||unit.isBackup)return false;
+  const life=window.LuminousDeathSaveRuntime;
+  return life?life.isTargetable(unit):Boolean(!unit.incapacitated&&(Number(unit.hp)||0)>0)
 }
 function validTargetUnits(owner,rule,plan=null){
   if(!owner||rule==='none'||!isUnitTargetable(owner))return[];
@@ -4986,7 +4989,7 @@ function isStaggerEffectActive(unit,turnNumber=round){
   return activated>0&&turnNumber>=activated&&turnNumber<=until
 }
 function unitActionBlocked(unit,turnNumber=round){
-  return Boolean(unit&&(unit.battleActive===false||unit.incapacitated||isStaggerEffectActive(unit,turnNumber)||unitHasStatus(unit,'paralyzed')||unitHasStatus(unit,'petrified')||unitHasStatus(unit,'incapacitated')||unit?.confusionTurnMode==='locked'))
+  return Boolean(unit&&(unit.battleActive===false||unit.incapacitated||window.LuminousDeathSaveRuntime?.canAct(unit)===false||isStaggerEffectActive(unit,turnNumber)||unitHasStatus(unit,'paralyzed')||unitHasStatus(unit,'petrified')||unitHasStatus(unit,'incapacitated')||unit?.confusionTurnMode==='locked'))
 }
 function normalizeDamageType(value){
   const raw=String(value||'NORMAL').trim().toUpperCase();
@@ -5360,7 +5363,7 @@ function clearHpAnimation(d){
   (d._hpTimers||[]).forEach(clearTimeout);
   d._hpTimers=[]
 }
-function setCombatantHP(id,nextHp,{triggerStagger=true}={}){
+function setCombatantHP(id,nextHp,{triggerStagger=true,sourceKind='direct'}={}){
   const d=combatData[id],
         token=$(`token-${id}`);
   if(!d)return false;
@@ -5371,13 +5374,19 @@ function setCombatantHP(id,nextHp,{triggerStagger=true}={}){
         number=token?.querySelector('.hp-number');
 
   clearHpAnimation(d);
-  const oldHp=Math.max(0,Math.min(d.maxHp,Number(d.hp)||0)),
-        hp=Math.max(0,Math.min(d.maxHp,Number(nextHp)||0)),
-        oldPct=combatantHpPct(d,oldHp),
+  const oldHp=Math.max(0,Math.min(d.maxHp,Number(d.hp)||0)),life=window.LuminousDeathSaveRuntime;
+  let hp=Math.max(0,Math.min(d.maxHp,Number(nextHp)||0));
+  if(life?.isDead(d)&&hp>0)hp=oldHp;
+  if(life?.isDowned(d)&&hp>0){life.heal(d,hp,{source:'external'});hp=d.hp}
+  const oldPct=combatantHpPct(d,oldHp),
         newPct=combatantHpPct(d,hp),
         animToken=(d._hpAnimToken||0)+1;
   d._hpAnimToken=animToken;
   d.hp=hp;
+  if(life&&hp<=0&&!life.isDead(d)&&!life.isDowned(d)){
+    life.enterDowned(d,{sourceKind});
+    d.retreatPendingRound=0;d.escapePendingRound=0;
+  }
   if(hp<=0&&concentrationState(d))loseConcentration(id,'UNIT DOWN');
   const wasIncapacitated=Boolean(d.incapacitated);
   d.incapacitated=hp<=0;
@@ -5385,7 +5394,7 @@ function setCombatantHP(id,nextHp,{triggerStagger=true}={}){
   if(d.faction==='enemy')syncUnitVisibility(id);
   if(d.incapacitated&&!wasIncapacitated){
     cancelUnitActions(id,'INCAPACITATED');
-    clearIncomingTargets(id)
+    if(!isUnitTargetable(d))clearIncomingTargets(id)
   }else if(!d.incapacitated&&wasIncapacitated){
     syncUnitActionState(id)
   }
@@ -5540,7 +5549,13 @@ function damageCombatant(id,amount,{damageType='NORMAL',ignoreResistance=false,i
   if(critical&&attackerId&&!poiseAutoCrit){consumeStatusCount(attackerId,'poise',1);pulseStatusIcon(attackerId,'poise')}
   showFloatingDamage(id,finalDamage,damageType,damageIconUrl);
 
-  if(shieldResult.remaining>0)setCombatantHP(id,hpBefore-shieldResult.remaining,{triggerStagger:!ignoreStaggerThreshold});
+  const life=window.LuminousDeathSaveRuntime;
+  if(shieldResult.remaining>0){
+    if(life?.isDowned(d)){
+      if(sourceStatus||(!skillData&&fixed))life.addFailure(d,{reason:'status_damage_while_downed'});
+      else if(skillData)life.noteSkillHitOnDowned(d,skillData,{__luminousDeathSaveSkillToken:skillData.__luminousDeathSaveSkillToken});
+    }else setCombatantHP(id,hpBefore-shieldResult.remaining,{triggerStagger:!ignoreStaggerThreshold,sourceKind:sourceStatus||(!skillData&&fixed)?'status':'skill'});
+  }
 
   const hpAfter=Math.max(0,Number(d.hp)||0),hpDamage=Math.max(0,hpBefore-hpAfter),actualTaken=Math.max(0,hpDamage+shieldResult.absorbed);
   d.damageTakenThisRound=Math.max(0,Number(d.damageTakenThisRound)||0)+actualTaken;
@@ -5624,7 +5639,19 @@ function backupReserveForFaction(faction){
   return Object.values(combatData).filter(unit=>unit.faction===faction&&unit.isBackup&&unit.battleActive===false&&!unit.incapacitated&&!unit.replacementClaimed&&!unit.escaped)
 }
 function vacantBattleUnits(faction){
-  return Object.values(combatData).filter(unit=>unit.faction===faction&&!unit.replacementClaimed&&((unit.battleActive!==false&&unit.incapacitated)||unit.retreatVacancy||unit.escapeVacancy))
+  return Object.values(combatData).filter(unit=>unit.faction===faction&&!unit.replacementClaimed&&((unit.battleActive!==false&&unit.incapacitated&&!window.LuminousDeathSaveRuntime?.isDowned(unit))||unit.retreatVacancy||unit.escapeVacancy))
+}
+function processDeathSavesRoundEnd(turnNumber=round){
+  const life=window.LuminousDeathSaveRuntime;if(!life)return;
+  Object.values(combatData).filter(unit=>unit.battleActive!==false&&!unit.isBackup&&!unit.escaped).forEach(unit=>{
+    if(life.isDowned(unit)&&!life.isDead(unit)&&!life.isStable(unit)&&unit.deathSaveRound!==turnNumber){
+      unit.deathSaveRound=turnNumber;life.resolveDeathSave(unit);
+    }
+    if(unit.retreat?.pending&&!life.isDead(unit)){
+      life.resolveRetreat(unit,{units:Object.values(combatData)});unit.retreatPendingRound=turnNumber;
+    }
+    unit.incapacitated=life.isDowned(unit)||life.isDead(unit);syncUnitActionState(unit.id);syncCombatantVitalNumber(unit.id);
+  })
 }
 function processTurnEndExitActions(turnNumber=round){
   Object.values(combatData).forEach(unit=>{
@@ -5681,7 +5708,8 @@ function prepareBackupDeployment(faction='enemy'){
     fallen.battleActive=false;
     if(wasRetreat){fallen.isBackup=true;fallen.retreatVacancy=false;fallen.replacementClaimed=false}
     if(wasEscape){fallen.escapeVacancy=false;fallen.escaped=true;fallen.xpEligible=false;fallen.isBackup=false}
-    backup.battleActive=true;
+    backup.battleActive=true;backup.isBackup=false;backup.deploymentState='field';
+    if(window.LuminousDeathSaveRuntime?.isRetreated(backup))window.LuminousDeathSaveRuntime.returnFromRetreat(backup,{force:true});
     backup.deployedRound=round;
     backup.replacementClaimed=false;
     backup._backupEntry={fallenId:fallen.id,fromX,fromY};
@@ -6958,6 +6986,8 @@ function combatStepRuntime(){
     'triggerCounterAfterHit','resolveEvadeAgainstCoin','processConditionRemovalTrigger','markEntryStarted',
     'healCombatantSP','addEphemeralShield','unitReactionBlocked','disarmEvade'];
   const rules={data:clashData,unit:id=>combatData[id],
+    canUnitAct:unit=>!unitActionBlocked(unit,round)&&(window.LuminousDeathSaveRuntime?.canAct(unit)??((Number(unit?.hp)||0)>0)),
+    unopposedTargetId:entry=>validTargetUnits(combatData[entry.ownerId],planTargetRule(entry.plan,combatData[entry.ownerId]),entry.plan)[0]?.id,
     rollSide:chance=>window.LuminousCoinEngine.rollSide(chance),coinSrc:side=>window.LuminousCoinEngine.coinSrc(side)};
   names.forEach(name=>{rules[name]=(...args)=>window[name](...args)});
   rules.caveEvadeBonus=(unit,plan)=>window.LuminousCaveSapphireSpiderRuntime?.evadeBonus?.(unit,plan)||0;
@@ -6976,7 +7006,8 @@ function combatStepRuntime(){
       encounterId:a?.current?.encounterId??window.LuminousCombatLiveAdapter073?.state?.encounterId??null,round,
       roundId:a?.current?.id??`${round}:${a?.seed||0}`,seed:a?.seed||0,rngCursor:a?.cursor??null}},
     snapshot:()=>window.LuminousCombatAuthority073?.snapshotRuntime?.()||Object.fromEntries(Object.entries(combatData).map(([id,u])=>[id,{
-      hp:u.hp,sp:u.sp,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],
+      hp:u.hp,sp:u.sp,lifeState:u.lifeState,isDowned:u.isDowned,isDead:u.isDead,deathSaves:u.deathSaves,
+      statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],
       shieldPools:u.shieldPools||{},staggerStage:u.staggerStage||0}])),
     presentation:{
       wait:key=>wait(COMBAT_PACE[key]),
@@ -7848,6 +7879,7 @@ async function startRound(){
   combatStepRuntime().mutate('RoundEndEffects',null,{},()=>{
     processConcentrationChecks(round);
     processStatusRoundEnd(round);
+    processDeathSavesRoundEnd(round);
     processTurnEndExitActions(round)
   });
   combatStepRuntime().emit('RoundFinished');

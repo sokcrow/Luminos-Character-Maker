@@ -439,6 +439,7 @@
       unit.actionSlots,
       unit.img,
       unit.battleActive,
+      unit.lifeState,unit.isDowned,unit.isDead,unit.isRetreated,unit.isStable,unit.deathSaves,
       unit.statusEffects,
       unit.combatDeck,
       unit.combatDeckModes,
