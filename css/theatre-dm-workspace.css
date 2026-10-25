@@ -479,3 +479,6 @@ body.on-game-dashboard #theatre-director-panel input:focus-visible { outline: 2p
   body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-composer { padding: 10px !important; }
   body.on-game-dashboard .dm-theatre-composer-modal #theatre-dialogue-input { height: 80px; min-height: 80px; }
 }
+
+.on-game-dashboard #theatre-director-panel .dm-director-action:disabled { opacity: .48; cursor: default; }
+.on-game-dashboard #theatre-director-panel .dm-director-action:disabled:hover { background: #26201a; border-color: #765c35; }
