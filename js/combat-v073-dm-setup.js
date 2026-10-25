@@ -225,6 +225,15 @@
     const spellIds = spellIdsForDeployment(spellSource);
     const slots = slotsFor(source);
     const stats = baseStats(source);
+    // Player sheets may contain movement in feet but no Limbus speedRange.
+    // Without it the packed turn roller silently defaults to [1,1].
+    const movementRange = global.LuminousMovementSpeedRuntime?.rangeForEntity?.(source) || null;
+    const authoredRange = Array.isArray(source.speedRange) && source.speedRange.length >= 2 &&
+      Number.isFinite(Number(source.speedRange[0])) && Number.isFinite(Number(source.speedRange[1])) &&
+      Number(source.speedRange[0]) >= 1 && Number(source.speedRange[1]) >= 2 &&
+      Number(source.speedRange[1]) >= Number(source.speedRange[0]) ? source.speedRange : null;
+    const speedRange = global.LuminousCombatSpeedAuthority073?.rangeFor?.(source) ||
+      (movementRange ? [movementRange.min, movementRange.max] : authoredRange || [1,6]);
     const id = `player:${safe(playerId, 'player')}`;
     const sprite = spriteFromSources([player, actor, unit], [unit, actor, player]);
     return {
@@ -253,6 +262,14 @@
       tokenImage: sprite || null,
       portrait: sprite || null,
       ...stats,
+      speedRange: speedRange.slice(0,2),
+      speedMin: speedRange[0],
+      speedMax: speedRange[1],
+      // Deployment starts fresh: never reuse a past encounter's Speed roll.
+      speed: 0,
+      speedBaseRoll: 0,
+      speedRollTurn: 0,
+      speedTie: 0,
       actionSlots: slots,
       activeSlots: slots,
       actionSlotIndex: slotIndex(slots),
