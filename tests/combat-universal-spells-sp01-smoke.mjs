@@ -89,10 +89,24 @@ function spellPlanningFixture(classIds){
     "js/combat-v073-economy-menu.js","js/combat-v073-plan-sync.js","js/combat-v073-authority.js"]){
     runInNewContext(read(path),{window:win,globalThis:win,console,Date,Promise,Math},{filename:path});
   }
-  return {win,unit};
+  // Small product-DOM fixture: the actual renderSpells() builds accessible
+  // candidate buttons. Clicking them must carry the chosen class to READY.
+  const element=tag=>{
+    const node={tag,children:[],className:"",style:{setProperty(){}},
+      classList:{add(){}},setAttribute(){},
+      appendChild(child){this.children.push(child);return child;}};
+    Object.defineProperty(node,"innerHTML",{get(){return this._html||"";},
+      set(value){this._html=value;this.children=[];}});
+    return node;
+  };
+  const body=element("div");
+  win.document={createElement:element,getElementById(id){return id==="category-body"?body:null;}};
+  let selection=null;
+  win.LuminousCombatEconomyMenu073.state.originals.selectAction=chosen=>{selection=chosen;return chosen;};
+  return {win,unit,body,selected:()=>selection};
 }
 for(const classes of [["wizard"],["wizard","sorcerer"]]){
-  const {win,unit}=spellPlanningFixture(classes),menu=win.LuminousCombatEconomyMenu073;
+  const {win,unit,body,selected}=spellPlanningFixture(classes),menu=win.LuminousCombatEconomyMenu073;
   const plans=win.LuminousCombatPlanSync073,authority=win.LuminousCombatAuthority073;
   const makePayload=data=>plans.payloadFor({type:"spells",data},0,unit.id,{
     playerId:"fixture",uid:"test",round:1,players:{fixture:unit}});
@@ -106,11 +120,19 @@ for(const classes of [["wizard"],["wizard","sorcerer"]]){
       assert.equal(authority.validateSpellPlans({fixture:{0:payload}}),true);
     }else{
       assert.deepEqual([...row.__spellClassCandidates],["wizard","sorcerer"]);
-      for(const classId of row.__spellClassCandidates){
-        const chosen=win.LuminousCombatSpellLoadout074.resolveSpellForCombatant(unit,spellId,{classId});
-        assert.equal(chosen.ok,true);
-        const selected={...menu.normalizeSpellForMenu(chosen.spell,spellId),classId:chosen.classId};
-        const payload=makePayload(selected);
+      menu.renderSpells();
+      const stack=body.children[0];
+      const group=stack.children.find(node=>node.className==="spell-class-choice"&&
+        node.children[0].textContent.startsWith(spellId+" · "));
+      assert.ok(group,spellId+" class chooser not rendered");
+      const buttons=group.children[1].children;
+      assert.equal(buttons.length,2);
+      for(const [index,classId] of row.__spellClassCandidates.entries()){
+        assert.equal(buttons[index].disabled,undefined);
+        buttons[index].onclick();
+        const choice=selected();
+        assert.equal(choice?.data?.classId,classId,"class lost after choosing "+classId);
+        const payload=makePayload(choice.data);
         assert.equal(payload.classId,classId);
         assert.equal(authority.validateSpellPlans({fixture:{0:payload}}),true);
       }
@@ -118,6 +140,6 @@ for(const classes of [["wizard"],["wizard","sorcerer"]]){
   }
   assert.throws(()=>authority.validateSpellPlans({fixture:{0:makePayload({id:"fire_bolt",classId:"rogue"})}}),/SPELL_CLASS_NOT_AVAILABLE/);
 }
-assert.match(menu,/__spellClassCandidates/);
+assert.match(read("js/combat-v073-economy-menu.js"),/__spellClassCandidates/);
 assert.match(read("css/combat-v073-spell-availability.css"),/min-height:48px/);
 console.log("Combat SP-01: real menu -> selected class -> plan -> authority regressions OK");
