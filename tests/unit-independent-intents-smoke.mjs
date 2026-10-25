@@ -30,7 +30,7 @@ function setup(database){
       const next=update(clone(database.raw));if(!next)return {committed:false};database.raw=next;database.writes++;return {committed:true};
     }}});
   context.window=context;
-  for(const file of ['status-library','status-engine','core-condition-runtime','trait-engine','trait-catalog-core','archetype-engine','archetype-trait-catalog','universal-action-economy','item-runtime-engine','combat-event-runtime','unit-independent-actions','unit-universal-action-policy','unit-universal-action-runtime','mastermind-archetype-runtime','combat-v073-authority','combat-v073-remote-intents'])vm.runInContext(read(`js/${file}.js`),context,{filename:file});
+  for(const file of ['status-library','status-engine','core-condition-runtime','item-equipment-effects-runtime','trait-engine','trait-catalog-core','archetype-engine','archetype-trait-catalog','universal-action-economy','item-runtime-engine','combat-event-runtime','unit-independent-actions','unit-universal-action-policy','unit-universal-action-runtime','mastermind-archetype-runtime','combat-v073-authority','combat-v073-remote-intents'])vm.runInContext(read(`js/${file}.js`),context,{filename:file});
   Object.assign(context,{combatData:units,round:1,OBSERVATION_META:{hp:{stat:'perception'},sp:{stat:'perception'}},CHECK_COIN_COUNT:5,CHECK_COIN_POWER:4,
     unitHasStatus:(unit,key)=>Number(unit?.statusEffects?.[key]?.count||0)>0,getCombatStatus:(unit,key)=>unit?.statusEffects?.[key],invisibleDetectedBy:(actor,target)=>(actor.detectedInvisibleIds||[]).includes(target.id),conditionCheckThresholdPenalty:()=>0,normalizeSaveAbility:value=>value,unitAbilitySkillModifier:(unit,key)=>Number(unit.skillBonuses?.[key]||0),coinHeadsChanceForUnit:()=>100,LuminousCoinEngine:{rollSide:()=> 'head',coinSrc:()=>''}});
   const source=read('combat/source/combat-v073-live.html');
@@ -149,3 +149,30 @@ for(const condition of [null,'paralyzed','petrified','incapacitated','confusion'
  }
 }
 console.log('Authoritative Quick Help: real condition gate rejects four disabling Statuses, preserves budgets/effects and receipts remain idempotent.');
+
+for(const equipped of [false,true]){
+ const db=universalDatabase(),gear={instanceId:'perception-accessory',quantity:1,runtime:{equipmentEffects:[{type:'skill_check_bonus',skill:'perception',value:2}]}};
+ if(equipped)db.raw.combatants['player:p1'].equipment={accessories:[gear]};
+ const app=setup(db);let coins=0;app.context.LuminousCoinEngine.rollSide=()=>coins++<2?'head':'tail';
+ await app.remote.processIndependentIntents(db.raw.independentIntents);
+ const result=db.raw.independentReceipts.p1.once.result;
+ assert.equal(result.total,equipped?10:8,'Online Analyse includes the real equipped modifier once');
+ assert.equal(result.success,equipped);
+ assert.equal(db.raw.combatants.enemy.observationKnown.includes('hp'),equipped);
+}
+for(const duplicate of [true,false]){
+ const db=quickHelpDatabase(null);
+ db.raw.plannedActions={p1:{0:{kind:'global',planType:'global',unitId:'player:p1',round:1,sourceSlotIndex:0,actionKey:'help',actionData:{actionKey:'help',kind:'global'},targetId:'friend',targetSlotIndex:0}}};
+ if(!duplicate){
+  db.raw.combatants.other={...clone(db.raw.combatants.friend),id:'other'};
+  db.raw.planningAi.plans.other={0:{...clone(db.raw.planningAi.plans.friend[0]),unitId:'other'}};
+  db.raw.independentIntents.p1.once.targetId='other';
+ }
+ const before=JSON.stringify(db.raw.combatants),app=setup(db);
+ await app.remote.processIndependentIntents(db.raw.independentIntents);
+ const receipt=db.raw.independentReceipts.p1.once;
+ assert.equal(receipt.applied,!duplicate,'Online Help shares the offline planned-ally gate');
+ if(duplicate){assert.equal(receipt.result.reason,'help_target_already_assisted');assert.equal(JSON.stringify(db.raw.combatants),before);}
+ else assert.equal(db.raw.combatants['player:p1'].universalActionPhaseLedger.reserved.combat_phase.targetId,'friend','Accepting Quick retains the current normal reservation');
+}
+console.log('Online universal regressions: equipped Analyse modifier and shared normal/Quick Help ally validation passed.');

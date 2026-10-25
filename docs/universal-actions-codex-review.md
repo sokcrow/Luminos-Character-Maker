@@ -40,3 +40,11 @@ Aplicar GH-01: publicar, solicitar review y terminar sin esperar checks ni una n
 `useInstant` consulta `LuminousConditionRuntime.actionAvailability` antes de preparar el presupuesto, tocar el ledger o aplicar efectos. Usa `quick_action` para la variante Mastermind y conserva la razón canónica del rechazo. Las Universal Actions Free pasan también por el gate con `universalAction:true`.
 
 La regresión falló antes del fix tanto en el runtime directo como en el procesamiento autoritativo real. Ahora se prueban Paralyzed, Petrified, Incapacitated y Confusion para Player/IA/remote: rechazo sin mutaciones de presupuesto/ledger, Help ni Misdirection; tras quitar el estado vuelve a ser válido. La prueba de intents confirma además receipt negativo idempotente y roster canónico intacto, con un caso sano de control que sí consume y aplica Help.
+
+## P2: bonus de equipo de Analyse y Help Quick offline
+
+`rollAbilitySkillCheck` incorpora el bonus canónico de equipo correspondiente al Skill del actor una sola vez. `unit-universal-live-free-smoke.mjs` ejecuta el resolver de producción con el runtime real de equipamiento: dos Heads contra TH9 dan 10 con accesorio +2 Perception y 8 sin él, para Player/IA/remote. La prueba autoritativa repite ambos casos en el flujo online y comprueba el descubrimiento.
+
+`useInstant` previsualiza las reservas de los planes normales actuales antes de comprobar Help Quick, en un ledger separado. Solo instala ese ledger al confirmar un Quick válido. El handler remoto delega esta comprobación al mismo runtime. La prueba ejecuta `requestUniversalInstant` offline con el dispatcher de producción: mismo aliado se rechaza sin mutaciones, otro aliado es válido, y editar el plan normal sustituye correctamente una reserva anterior. Todos los casos permiten preparar el turno después; la ruta online verifica la misma regla y conserva la reserva normal al aceptar Quick.
+
+Ambas reproducciones fallaron antes de la corrección y pasaron después. El workflow incluye la nueva regresión de producción.

@@ -303,8 +303,7 @@
           if(norm(row.sourceType)==='universal'){
             Object.assign(unit,controller.characterFor(unit));
             const u=global.LuminousUnitUniversalActionRuntime,key=clean(row.sourceId),variant=row.variant||null,allowed=(['analyse','find'].includes(key)&&row.cost==='free_action'&&!variant)||(key==='help'&&row.cost==='quick_action'&&variant==='mastermind_quick'),drafts=Object.fromEntries(units.map(entry=>[entry.id,entry])),plans=u?.plansFromRaw(raw),target=units.find(entry=>entry.id===clean(row.targetId));
-            const reservation=key==='help'&&u?u.reservePlans(unit,plans[unit.id]||[],{round:turn,units:drafts,plans}):{ok:true};if(reservation.ok&&reservation.ledger)unit.universalActionPhaseLedger=reservation.ledger;
-            result=!allowed||!u?{used:false,reason:'unknown_universal_action'}:!reservation.ok?{used:false,reason:reservation.reason}:u.useInstant(unit,key,{round:turn,phase:'planning',variant,choice:row.choice,target,targetSlotIndex:row.targetSlotIndex,targetActionSlotId:row.targetSlotIndex==null?null:u.slotId(row.targetId,row.targetSlotIndex),units:drafts,plans,resolve:global.resolveUniversalFreeDraft,random:authority.random});
+            result=!allowed||!u?{used:false,reason:'unknown_universal_action'}:u.useInstant(unit,key,{round:turn,phase:'planning',variant,choice:row.choice,target,targetSlotIndex:row.targetSlotIndex,targetActionSlotId:row.targetSlotIndex==null?null:u.slotId(row.targetId,row.targetSlotIndex),units:drafts,plans,resolve:global.resolveUniversalFreeDraft,random:authority.random});
           }else{
           const choice=trustedIndependentSources(unit).find(candidate=>norm(candidate.sourceType)===norm(row.sourceType)&&clean(candidate.definition?.instanceId||candidate.definition?.id)===clean(row.sourceId)&&candidate.cost===row.cost);
           const target=units.find(entry=>entry.id===clean(row.targetId));

@@ -3952,7 +3952,7 @@ function rollAbilitySkillCheck(unitId,{ability='perception',skill=null,threshold
         forcedFail=unitHasStatus(unit,'sleep')&&['strength','dexterity'].includes(saveAbility),
         baseThreshold=Math.max(0,Math.floor(Number(threshold)||0)),
         effectiveThreshold=baseThreshold+conditionCheckThresholdPenalty(unit,{ability:saveAbility,skill:Boolean(skill),special}),
-        modifier=unitAbilitySkillModifier(unit,key)+(targetId?charmedCheckBonus(unit,combatData[targetId],saveAbility):0),
+        modifier=unitAbilitySkillModifier(unit,key)+(Number(window.LuminousEquipmentEffects?.skillCheckBonus?.(unit,key))||0)+(targetId?charmedCheckBonus(unit,combatData[targetId],saveAbility):0),
         coinCount=CHECK_COIN_COUNT,coinPower=CHECK_COIN_POWER,headsChance=coinHeadsChanceForUnit(unitId),engine=window.LuminousCoinEngine,
         coins=forcedFail?[]:Array.from({length:coinCount},(_,index)=>{const side=engine?.rollSide?engine.rollSide(headsChance):((Math.random()*100)<headsChance?'head':'tail');return{index,side,src:engine?.coinSrc?engine.coinSrc(side):''}}),
         heads=coins.filter(c=>c.side==='head').length,total=forcedFail?0:modifier+(heads*coinPower),success=!forcedFail&&total>=effectiveThreshold,

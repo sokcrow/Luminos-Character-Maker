@@ -19,6 +19,7 @@ jobs:
           node tests/unit-universal-action-runtime-smoke.mjs
           node tests/unit-universal-action-recovery-smoke.mjs
           node tests/unit-universal-ai-deck-smoke.mjs
+          node tests/unit-universal-live-free-smoke.mjs
           node tests/npc-belongings-smoke.mjs
           node tests/unit-independent-intents-smoke.mjs
           node tests/team-action-economy-smoke.mjs

@@ -58,8 +58,17 @@ function useInstant(unit,key,options={}){const p=policy();if(!p)return{used:fals
 const variant=options.variant,round=Number(options.round),target=options.target;
 const condition=global.LuminousConditionRuntime?.actionAvailability?.(unit,variant==='mastermind_quick'?'quick_action':'free_action',{phase:options.phase||'planning',universalAction:true});
 if(condition?.available===false)return{used:false,reason:condition.reason||'condition_blocks_action'};
-global.LuminousUnitIndependentActions?.prepareRound?.(unit,round);const gate=p.check(unit,key,{round,variant,targetId:target?.id,targetActionSlotId:options.targetActionSlotId});if(!gate.ok)return{used:false,reason:gate.reason};
-if(variant==='mastermind_quick'){const index=options.targetSlotIndex,plan=options.plans?.[target?.id]?.[index],valid=targetGate(unit,{data:{actionKey:'help'},targetId:target?.id,targetSlotIndex:index},options.units,options.plans);if(!valid.ok||!plan)return{used:false,reason:valid.reason||'help_target_action_required'};if(Number(unit.quickActionRemaining??1)<=0)return{used:false,reason:'quick_action_spent'};const spent=p.useInstant(unit,key,{round,variant,targetId:target.id,targetActionSlotId:slotId(target.id,index),targetActionId:fingerprint(plan)});if(!spent.ok)return{used:false,reason:spent.reason};unit.quickActionRemaining=Math.max(0,Number(unit.quickActionRemaining??1)-1);const budget=global.LuminousActionEconomy?.ensureState?.(unit);if(budget)budget.quickActionRemaining=unit.quickActionRemaining;applyHelp(unit,target,plan,index,round,options.units);return{used:true,cost:'quick_action',sourceId:'help',targetId:target.id};}
+// Preview the current normal plans before Quick Help. UI previews do not
+// install reservations; online and offline must enforce the same ally rule.
+let gateUnit=unit;
+if(variant==='mastermind_quick'&&options.plans){
+const prepared=reservePlans(unit,options.plans[unit.id]||[],{round,units:options.units,plans:options.plans});
+if(!prepared.ok)return{used:false,reason:prepared.reason};
+gateUnit={...unit,[p.STORE]:prepared.ledger};
+}
+const gate=p.check(gateUnit,key,{round,variant,targetId:target?.id,targetActionSlotId:options.targetActionSlotId});if(!gate.ok)return{used:false,reason:gate.reason};
+global.LuminousUnitIndependentActions?.prepareRound?.(unit,round);
+if(variant==='mastermind_quick'){const index=options.targetSlotIndex,plan=options.plans?.[target?.id]?.[index],valid=targetGate(unit,{data:{actionKey:'help'},targetId:target?.id,targetSlotIndex:index},options.units,options.plans);if(!valid.ok||!plan)return{used:false,reason:valid.reason||'help_target_action_required'};if(Number(unit.quickActionRemaining??1)<=0)return{used:false,reason:'quick_action_spent'};const spent=p.useInstant(gateUnit,key,{round,variant,targetId:target.id,targetActionSlotId:slotId(target.id,index),targetActionId:fingerprint(plan)});if(!spent.ok)return{used:false,reason:spent.reason};unit[p.STORE]=gateUnit[p.STORE];unit.quickActionRemaining=Math.max(0,Number(unit.quickActionRemaining??1)-1);const budget=global.LuminousActionEconomy?.ensureState?.(unit);if(budget)budget.quickActionRemaining=unit.quickActionRemaining;applyHelp(unit,target,plan,index,round,options.units);return{used:true,cost:'quick_action',sourceId:'help',targetId:target.id};}
 if(typeof options.resolve!=='function')return{used:false,reason:'universal_handler_missing'};const result=options.resolve(unit,key,options);if(!result?.attempted)return{used:false,reason:result?.reason||'invalid_target'};const spent=p.useInstant(unit,key,{round});if(!spent.ok)return{used:false,reason:spent.reason};return{used:true,cost:'free_action',sourceId:key,...result};}
 global.LuminousUnitUniversalActionRuntime=Object.freeze({active,actionKey,slotId,planAiRoster,fingerprint,reservationId,targetGate,reservePlans,prepare,plansFromRaw,prepareSealed,cancelPending,commitEntry,applyHelp,helpBonus,useInstant});
 })(typeof window!=='undefined'?window:globalThis);
