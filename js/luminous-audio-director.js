@@ -47,6 +47,10 @@
   let database = null;
   let audioRef = null;
   let configRef = null;
+  let offsetRef = null;
+  let audioListener = null;
+  let configListener = null;
+  let offsetListener = null;
   let musicState = null;
   let ambienceState = null;
   let previousMusicKey = null;
@@ -317,7 +321,7 @@
     panel.querySelector("[data-audio-activate]").addEventListener("click", () => {
       if (musicState && musicState.active) playSafely(music);
       if (ambienceState && ambienceState.active) playSafely(ambience);
-      setHint("Audio habilitado. Ajusta los volúmenes como prefieras.");
+      setHint("Intentando activar el audio. Si tu navegador lo bloquea, pulsa otra vez.");
     });
     doc.addEventListener("keydown", (event) => {
       if (panel.hidden) return;
@@ -336,11 +340,15 @@
     updateDirectorView();
   }
   function detachFirebase() {
-    if (audioRef) audioRef.off("value");
-    if (configRef) configRef.off("value");
-    if (database) database.ref(".info/serverTimeOffset").off("value");
+    if (audioRef && audioListener) audioRef.off("value", audioListener);
+    if (configRef && configListener) configRef.off("value", configListener);
+    if (offsetRef && offsetListener) offsetRef.off("value", offsetListener);
     audioRef = null;
     configRef = null;
+    offsetRef = null;
+    audioListener = null;
+    configListener = null;
+    offsetListener = null;
     firstCueReceived = false;
     previousCue = null;
     ownCue = null;
@@ -362,20 +370,22 @@
       if (!user) return;
       database = global.firebase.database();
       configRef = database.ref("campaña/config/dm_uid");
-      configRef.on("value", (snapshot) => {
+      configListener = (snapshot) => {
         isDirector = user.uid === BOOTSTRAP_DM || user.uid === snapshot.val();
         updateDirectorView();
-      }, () => { isDirector = user.uid === BOOTSTRAP_DM; updateDirectorView(); });
-      database.ref(".info/serverTimeOffset").on("value", (snapshot) => {
-        serverOffset = Number(snapshot.val()) || 0;
-      });
+      };
+      configRef.on("value", configListener, () => { isDirector = user.uid === BOOTSTRAP_DM; updateDirectorView(); });
+      offsetRef = database.ref(".info/serverTimeOffset");
+      offsetListener = (snapshot) => { serverOffset = Number(snapshot.val()) || 0; };
+      offsetRef.on("value", offsetListener);
       audioRef = database.ref(ROOT);
-      audioRef.on("value", (snapshot) => {
+      audioListener = (snapshot) => {
         const value = snapshot.val() || {};
         receiveLoop("music", value.music);
         receiveLoop("ambience", value.ambience);
         receiveCue(value.cue);
-      }, () => { setHint("La sincronización de audio no está disponible."); });
+      };
+      audioRef.on("value", audioListener, () => { setHint("La sincronización de audio no está disponible."); });
     });
   }
   global.addEventListener("storage", (event) => {
