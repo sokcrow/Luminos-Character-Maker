@@ -64,7 +64,6 @@ function harness() {
     id === 'round' ? { textContent: String(currentTurn) } : null;
   vm.runInContext(source('js/combat-v073-authority.js'), c);
   const authority = c.LuminousCombatAuthority073;
-  authority.state.originalStartRound = c.startRound;
 
   const members = c.LuminousCombatParticipants.players(units);
   assert.equal(members.length, 6);
