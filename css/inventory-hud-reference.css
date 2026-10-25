@@ -25,9 +25,9 @@
 }
 #inventory-modal.inventory-v2-ready .inventory-v2-equipment,
 #inventory-modal.inventory-v2-ready .inventory-v2-carry{
-  display:flex;flex-direction:column;box-sizing:border-box;align-self:stretch;
-  width:100%;max-width:none;min-width:0;min-height:0;height:100%;max-height:none;
-  aspect-ratio:auto;overflow:hidden;
+  display:flex;flex-direction:column;box-sizing:border-box;align-self:start;
+  width:100%;max-width:620px;min-width:0;min-height:0;height:auto;max-height:100%;
+  aspect-ratio:1/1;overflow:hidden;
 }
 #inventory-modal.inventory-v2-ready .inventory-v2-equipment-field{
   flex:1 1 auto;height:auto;min-height:0;overflow-y:auto;
@@ -237,7 +237,9 @@
     grid-template-rows:minmax(0,1fr);gap:5px;height:100%;min-height:0;
   }
   #inventory-modal.inventory-v2-ready .inventory-v2-equipment,
-  #inventory-modal.inventory-v2-ready .inventory-v2-carry{height:100%;aspect-ratio:auto}
+  #inventory-modal.inventory-v2-ready .inventory-v2-carry{
+    height:100%;max-height:none;aspect-ratio:auto;align-self:stretch
+  }
   #inventory-modal.inventory-v2-ready .inventory-v2-equipment-header,
   #inventory-modal.inventory-v2-ready .inventory-v2-carry-header{
     min-height:46px;padding:6px 5px;border-bottom-width:2px;
@@ -341,6 +343,10 @@
   #inventory-modal.inventory-v2-ready #inv-active .inventory-v2-active-stack{
     grid-template-columns:minmax(0,43%) minmax(0,57%);grid-template-rows:minmax(0,1fr);
     height:100%;min-height:0;
+  }
+  #inventory-modal.inventory-v2-ready .inventory-v2-equipment,
+  #inventory-modal.inventory-v2-ready .inventory-v2-carry{
+    height:100%;max-height:none;aspect-ratio:auto;align-self:stretch
   }
   #inventory-modal.inventory-v2-ready .inventory-v2-equipment-field{overflow-y:auto}
   #inventory-modal.inventory-v2-ready .inventory-v2-detail-dialog{max-height:94dvh}
