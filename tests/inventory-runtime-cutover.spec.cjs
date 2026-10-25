@@ -269,7 +269,7 @@ test("Pertenencias uses compact effect letters in the icon corner, never prices"
   }
 });
 
-test("Active inventory and equipment remain square with centered item icons", async ({ page }) => {
+test("Desktop panels stay square and mobile keeps the character left of centered item icons", async ({ page }) => {
   await bootHarness(page);
   for (const viewport of [
     { width: 1500, height: 950 },
@@ -342,7 +342,7 @@ test("Active icons stay inside minimal tiles and names appear only in popup", as
   }
 });
 
-test("Phone equipment keeps fourth row and vitals reachable within its square", async ({ page }) => {
+test("Phone equipment keeps fourth row and vitals reachable in the left panel", async ({ page }) => {
   await bootHarness(page);
   for (const width of [320, 375, 390, 430, 475]) {
     await page.setViewportSize({ width, height: 800 });
