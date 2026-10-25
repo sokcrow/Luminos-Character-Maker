@@ -191,3 +191,23 @@ body:not(.on-game-dashboard) #skills-modal.psdm-enabled .hud-modal-close{
  #skills-modal .psdm-detail-cover{height:165px}
 }
 @media(prefers-reduced-motion:reduce){#skills-modal .psdm *{scroll-behavior:auto!important;transition:none!important}}
+
+/* TX-01: independent deck cards, accessible removal, 10-point progress. */
+#skills-modal .psdm-slot-grid{grid-template-columns:repeat(auto-fit,minmax(82px,1fr));grid-auto-rows:minmax(86px,1fr);overflow-y:auto;overflow-x:hidden;align-content:start}
+#skills-modal .psdm-slot{position:relative;min-height:86px;min-width:0}
+#skills-modal .psdm-slot>.psdm-card{width:100%;height:100%}
+#skills-modal .psdm-remove{position:absolute;right:0;top:0;z-index:5;min-width:44px;min-height:44px;border:1px solid #b68379;background:#260d16ef;color:#fff0d9;font:bold 25px Arial,sans-serif}
+#skills-modal .psdm-add-card{min-height:86px;border:2px dashed #9e8160;background:#171414;color:#f2d29d;display:grid;place-content:center;gap:3px;font:bold 29px Georgia,serif}
+#skills-modal .psdm-add-card small{font:700 11px Arial,sans-serif}
+#skills-modal .psdm-deck-note{font-weight:700;color:#e6c68d}
+@media(max-width:980px){#skills-modal .psdm-slot-grid{grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(98px,1fr);overflow-y:auto;overflow-x:hidden}}
+@media(max-width:640px){
+ #skills-modal .psdm-deck{height:clamp(330px,54dvh,520px)}
+ #skills-modal .psdm-slot-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(104px,1fr);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+ #skills-modal .psdm-slot{min-height:104px}
+ #skills-modal .psdm-add-card{min-height:104px}
+ #skills-modal .psdm-section-head{gap:4px}
+ #skills-modal #psdm-save{min-height:44px}
+ #skills-modal #psdm-tabs button{min-width:32px;min-height:44px}
+ #skills-modal .psdm-pencil{min-width:44px;min-height:44px}
+}

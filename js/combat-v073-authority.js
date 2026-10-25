@@ -215,7 +215,9 @@
     const defensiveReactions=Object.fromEntries(memberIds
       .map(playerId=>[playerId,clean(ready?.[playerId]?.enchantmentReactionItemInstanceId)])
       .filter(([,id])=>id));
-    const seed=makeSeed(round);let payload={schemaVersion:1,engineVersion:'0.7.3-authority.9-step-rng',round,phase:'sealed',seed,authorityUid:s.uid,planningWitness,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
+    const aiPlans=collectAiPlans();
+    global.LuminousCombatSlotDeck073?.validatePlans(aiPlans);
+    const seed=makeSeed(round);let payload={schemaVersion:1,engineVersion:'0.7.3-authority.9-step-rng',round,phase:'sealed',seed,authorityUid:s.uid,planningWitness,plans:clone(plans||{}),aiPlans,defensiveReactions,createdAt:serverTime(),checkpoint:null};
     if(playback()?.negotiate(ready,memberIds))payload=await playback().seal(payload,{timeline:playback().canSchedule?.(ready,memberIds)===true});
     if(!payload.playback){
       const sealed=await global.LuminousCombatSession.updateRoot(s.db,raw=>{
@@ -565,3 +567,4 @@
   global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.9-step-rng',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,compactUnit,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,publishPresentation,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,preparePlanningState,readyComplete,allReadySnapshot,maybeAutoStart});
   start();
 })(window);
+
