@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import path from "node:path";
+import fs from "node:fs/promises";
 
 const root = process.cwd();
 const asset = (name) => path.join(root, name);
@@ -11,7 +12,8 @@ const viewports = [
   { width: 1280, height: 720, touch: false },
   { width: 1920, height: 1080, touch: false },
 ];
-const iconData = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="#961c27"/><path d="M35 10h10v60H35z" fill="#fff"/></svg>');
+// Exercise the actual canonical registry and disk asset, not a placeholder icon.
+const ORIGIN = "https://inventory.luminous.test";
 const html = `<!doctype html><html lang="es"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;background:#0b0908">
 <button id="btn-global-inventory" type="button">Inventario</button>
@@ -51,15 +53,34 @@ test("inventory keeps character left, real icons and item popups across desktop 
   test.setTimeout(120000);
   for (const { width, height, touch } of viewports) {
     const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
+    // Serve the fixture and every canonical asset via Playwright interception:
+    // no localhost server, Firebase credentials or external network dependency.
+    await context.route("**/*", (route) => route.abort());
+    await context.route(ORIGIN + "/**", async (route) => {
+      const pathname = decodeURIComponent(new URL(route.request().url()).pathname);
+      if (pathname === "/") {
+        return route.fulfill({ contentType: "text/html; charset=utf-8", body: html });
+      }
+      const file = path.resolve(root, "." + pathname);
+      if (!file.startsWith(root + path.sep)) return route.fulfill({ status: 403 });
+      try {
+        const body = await fs.readFile(file);
+        const ext = path.extname(file).toLowerCase();
+        const contentType = ({ ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml",
+          ".css": "text/css", ".js": "text/javascript", ".woff2": "font/woff2", ".woff": "font/woff" })[ext]
+          || "application/octet-stream";
+        return route.fulfill({ status: 200, contentType, body });
+      } catch (_) {
+        return route.fulfill({ status: 404 });
+      }
+    });
     const page = await context.newPage();
-    await page.setContent(html);
+    await page.goto(ORIGIN + "/");
     await page.addStyleTag({ path: asset("hoja_personaje.css") });
     await page.addStyleTag({ path: asset("css/inventory-hud-v2.css") });
     await page.addStyleTag({ path: asset("css/inventory-gothic-art.css") });
     await page.addStyleTag({ path: asset("css/inventory-hud-reference.css") });
-    await page.evaluate((src) => {
-      window.LuminousItemIconRegistry = { resolveIcon: () => src };
-    }, iconData);
+    await page.addScriptTag({ path: asset("js/item-icon-registry.js") });
     await page.addScriptTag({ path: asset("js/inventory-hud-v2.js") });
     await page.evaluate(() => document.getElementById("btn-global-inventory").click());
     await page.evaluate(() => {
@@ -84,6 +105,10 @@ test("inventory keeps character left, real icons and item popups across desktop 
     expect(charPanel.x + charPanel.width, `panels must be side by side at ${width}x${height}`).toBeLessThanOrEqual(inventoryPanel.x + 2);
     expect(Math.abs(charPanel.y - inventoryPanel.y)).toBeLessThan(8);
     await expect(page.locator("#inv-active-grid .inventory-v2-item-image")).toHaveCount(1);
+    await expect(page.locator("#inv-active-grid .inventory-v2-item-image"))
+      .toHaveAttribute("src", "Assets/Icons/items/consumable/medicine_vial.png");
+    await expect.poll(() => page.locator("#inv-active-grid .inventory-v2-item-image")
+      .evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
     await expect(page.locator("#inv-active-grid .item-name")).toBeHidden();
     await expect(page.locator("#inventory-v2-detail-overlay")).toBeHidden();
     await page.locator('#inv-active-grid [data-key="healing-1"]').click();
@@ -91,6 +116,17 @@ test("inventory keeps character left, real icons and item popups across desktop 
     await expect(page.locator("#detail-title")).toHaveText("Poción de curación");
     await expect(page.locator("#detail-cost-val")).toHaveText("120");
     await expect(page.locator("#detail-desc")).toContainText("Restaura una pequeña");
+    // Firebase-like replacement must preserve focus inside the modal actions.
+    await page.evaluate(() => {
+      const hud = window.LuminousInventoryHudV2;
+      hud.state.stashUnlocked = true;
+      hud.renderDetail();
+    });
+    await page.getByRole("button", { name: "STORE / GUARDAR" }).focus();
+    await page.evaluate(() => window.LuminousInventoryHudV2.renderAll());
+    await expect(page.getByRole("button", { name: "STORE / GUARDAR" })).toBeFocused();
+    await expect(page.locator("#inventory-modal > .inventory-modal-content"))
+      .toHaveJSProperty("inert", true);
     const overlay = await page.locator("#inventory-v2-detail-dialog").boundingBox();
     expect(overlay.x).toBeGreaterThanOrEqual(-1);
     expect(overlay.x + overlay.width).toBeLessThanOrEqual(width + 1);
@@ -98,6 +134,8 @@ test("inventory keeps character left, real icons and item popups across desktop 
     expect(overlay.y + overlay.height).toBeLessThanOrEqual(height + 1);
     await page.locator("#inventory-v2-detail-close").click();
     await expect(page.locator("#inventory-v2-detail-overlay")).toBeHidden();
+    await expect(page.locator("#inventory-modal > .inventory-modal-content"))
+      .toHaveJSProperty("inert", false);
     await page.locator('#inv-active-grid [data-key="healing-1"]').click();
     await page.keyboard.press("Escape");
     await expect(page.locator("#inventory-v2-detail-overlay")).toBeHidden();
