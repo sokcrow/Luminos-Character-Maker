@@ -1,9 +1,9 @@
 # Audio de campaña · Luminous
 
 La página de login ya usaba música, ambiente y voces. El nuevo motor
-\`js/luminous-audio-director.js\` mantiene dos canales de volumen por
+`js/luminous-audio-director.js` mantiene dos canales de volumen por
 navegador: **Música** y **Efectos de sonido** (incluye voces y ambientes).
-Ambos se guardan en \`localStorage\` y nunca se escriben en Firebase.
+Ambos se guardan en `localStorage` y nunca se escriben en Firebase.
 
 ## Uso en el juego
 
@@ -18,36 +18,36 @@ Ambos se guardan en \`localStorage\` y nunca se escriben en Firebase.
 
 ## Datos y autoridad
 
-- RTDB: \`campaña/audio_director/music\`, \`ambience\`, \`cue\`.
+- RTDB: `campaña/audio_director/music`, `ambience`, `cue`.
 - El Director es el único escritor: UID configurado en
-  \`campaña/config/dm_uid\` o UID bootstrap existente del proyecto.
-- \`music\` y \`ambience\` son estados duraderos con \`startedAt\` basado
-  en \`ServerValue.TIMESTAMP\`; las conexiones tardías buscan una posición
-  acorde al tiempo del servidor. \`cue\` es un evento puntual con nonce;
+  `campaña/config/dm_uid` o UID bootstrap existente del proyecto.
+- `music` y `ambience` son estados duraderos con `startedAt` basado
+  en `ServerValue.TIMESTAMP`; las conexiones tardías buscan una posición
+  acorde al tiempo del servidor. `cue` es un evento puntual con nonce;
   el último evento guardado **no se reproduce** al reconectar.
 - Los volúmenes son preferencias personales independientes del estado
   compartido. La UI no revela UID, tokens ni datos de depuración.
 - Los iframes de combate embebidos heredan el soundtrack de la página
   que los contiene para evitar mezcla duplicada.
-- **Desplegar \`database.rules.json\` junto con el código**: sin esas
+- **Desplegar `database.rules.json` junto con el código**: sin esas
   reglas el DM no podrá escribir el estado de audio compartido.
 
 ## Ampliar la biblioteca
 
-Registrar únicamente archivos existentes bajo \`Assets/Audio/\` en
-\`LIBRARY.music\`, \`LIBRARY.ambience\` o \`LIBRARY.sfx\` del motor.
+Registrar únicamente archivos existentes bajo `Assets/Audio/` en
+`LIBRARY.music`, `LIBRARY.ambience` o `LIBRARY.sfx` del motor.
 Añadir los IDs nuevos a las validaciones de
-\`database.rules.json > campaña > audio_director\` en el mismo PR.
+`database.rules.json > campaña > audio_director` en el mismo PR.
 No usar URLs externas arbitrarias ni inventar audios de demostración.
 El catálogo inicial usa el tema instrumental del login, el ruido del bus
 y los dos sonidos de moneda ya versionados.
 
 ## Comprobaciones
 
-\`\`\`bash
+```bash
 node tests/luminous-audio-director-smoke.mjs
 node tests/luminous-audio-responsive.mjs
-\`\`\`
+```
 
 La segunda prueba usa Playwright/Chromium y comprueba tanto DM como
 jugador en 360×800, 390×844, 844×390, 768×1024, 1280×720 y
