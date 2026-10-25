@@ -151,6 +151,9 @@
       originalSpawner.classList.add("dm-director-native-controls");
       originalSpawner.setAttribute("aria-label", "Selector original de elenco");
       cast.appendChild(originalSpawner);
+      npcSelect.tabIndex = -1;
+      const nativeSpawn = document.getElementById("btn-spawn-npc");
+      if (nativeSpawn) nativeSpawn.tabIndex = -1;
     }
     cast.appendChild(el("h4", "dm-director-section-title", "Elenco disponible en esta escena"));
     if (originalCast) cast.appendChild(originalCast);
@@ -268,7 +271,7 @@
         return;
       }
       items.sort((a,b) => (a.textContent || "").localeCompare(b.textContent || "", "es"));
-      items.forEach(option => {
+      items.slice(0, 48).forEach(option => {
         const id = option.value;
         const actor = state.npcs[id] || state.actorLibrary[id] || {};
         const isPlayer = option.dataset.sourceType === "player-profile";
@@ -287,6 +290,7 @@
         item.appendChild(labels);
         rosterGrid.appendChild(item);
       });
+      if (items.length > 48) rosterGrid.appendChild(el("p", "dm-director-empty", "Mostrando 48 personajes. Busca por nombre para encontrar los demás."));
     }
 
     function decorateActors() {
