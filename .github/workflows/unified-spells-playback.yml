@@ -5,6 +5,7 @@ on:
       - 'js/**'
       - 'css/dm-player-loadout-manager.css'
       - 'css/theatre-spell-loadout.css'
+      - 'css/combat-v073-spell-availability.css'
       - 'hoja_personaje.html'
       - 'Battle-viewer.html'
       - 'tests/*spell*'
@@ -27,6 +28,7 @@ jobs:
       - name: Shared assignment and playback regressions
         run: |
           node tests/unified-spell-loadout-smoke.mjs
+          node tests/combat-universal-spells-sp01-smoke.mjs
           node tests/spell-catalog-sheet-idle-smoke.mjs
           node tests/combat-playback-catchup-smoke.mjs
           node tests/combat-shared-clock-smoke.mjs

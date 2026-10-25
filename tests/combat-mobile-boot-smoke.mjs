@@ -65,6 +65,8 @@ try {
 }
 assert.equal(window.LuminousCombatBootstrapState.stage, "runtime-write");
 assert.ok(written.length > 200000, "Incomplete Combat runtime output");
+assert.match(written,/src="js\\/combat-v073-spell-bootstrap\\.js/, "Packed Combat must load canonical Spells");
+assert.match(written,/href="css\\/combat-v073-spell-availability\\.css/, "Player Spell status styles must load on mobile and desktop");
 
 const scripts = [...written.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
 assert.ok(scripts.length >= 30, "Missing packed scripts");
