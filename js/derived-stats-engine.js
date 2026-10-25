@@ -101,7 +101,7 @@
 
   function baseStats(character = {}) {
     const modern = character.characterBuild?.baseStats || character.baseStats;
-    const storedStats = character.stats || character.dndStats || {};
+    const storedStats = character.stats || character.dndStats || character.scores || {};
     const storedRacial = storedRacialBreakdown(character);
     const modernBase = hasBaseStats(character);
     const output = {};
@@ -368,11 +368,12 @@
     const explicitRange = Array.isArray(speedUnit?.speedRange) && speedUnit.speedRange.length >= 2
       ? { min: Number(speedUnit.speedRange[0]), max: Number(speedUnit.speedRange[1]), mode: speedUnit.speedProfileMode || null }
       : null;
-    const movementRange = movementRuntime?.rangeForEntity?.(speedUnit, options) || null;
+    const movementRange = movementRuntime?.combatRangeForEntity?.(speedUnit, options)
+      || movementRuntime?.rangeForEntity?.(speedUnit, options) || null;
     const storedCurrent = readFirst(character, ["combatStats.speed", "baseSpeed", "base_speed", "speed"], null);
     const storedMin = readFirst(character, ["combatStats.minSpeed", "combatStats.min_speed", "minSpeed", "min_speed"], null);
     const storedMax = readFirst(character, ["combatStats.maxSpeed", "combatStats.max_speed", "maxSpeed", "max_speed"], null);
-    const authoredRange = explicitRange && Number.isFinite(explicitRange.min) && Number.isFinite(explicitRange.max) ? explicitRange : null;
+    const authoredRange = !movementRange && explicitRange && Number.isFinite(explicitRange.min) && Number.isFinite(explicitRange.max) ? explicitRange : null;
 
     const baseMin = Math.max(1, numberOr(
       options.baseMinSpeed ?? authoredRange?.min ?? movementRange?.min ?? storedMin ?? storedCurrent ?? 1,
@@ -392,7 +393,10 @@
     const maxModifier = numberOr(channels.merged?.max_speed, 0);
     const min = Math.max(1, baseMin + minModifier + passive);
     const max = Math.max(2, min, baseMax + maxModifier + passive);
-    const current = Math.max(min, Math.min(max, Math.max(1, baseCurrent + passive)));
+    const rolled = Number(speedUnit?.speedRollTurn) > 0 && Number(speedUnit?.speedBaseRoll) > 0;
+    const current = rolled
+      ? Math.max(1, numberOr(options.baseSpeed ?? speedUnit.speed, baseCurrent))
+      : Math.max(min, Math.min(max, Math.max(1, baseCurrent + passive)));
     return Object.freeze({
       current,
       min,
@@ -403,10 +407,12 @@
       passiveModifier: passive,
       minModifier,
       maxModifier,
-      source: authoredRange ? "resolved-range" : (movementRange ? "movement-size" : "stored"),
+      source: authoredRange ? "resolved-range" : (movementRange?.source || (movementRange ? "movement-size" : "stored")),
       movementMode: authoredRange?.mode || movementRange?.mode || null,
       movementFeet: movementRange?.movementFeet || null,
       sizeMaxSpeedModifier: movementRange?.sizeMaxSpeedModifier || 0,
+      dexterityModifier: movementRange?.dexterityModifier ?? options.dexterityModifier ?? 0,
+      dexterityAdjustment: movementRange?.dexterityAdjustment || 0,
     });
   }
 
@@ -437,7 +443,7 @@
     });
     const hp = hpSnapshot(source, calculation, { ...options, defensiveLevel: defensiveLevel.total });
     const sp = spSnapshot(source);
-    const speed = speedSnapshot(source, channels, options);
+    const speed = speedSnapshot(source, channels, { ...options, dexterityModifier: abilities.dex.modifier });
 
     return Object.freeze({
       version: VERSION,
@@ -492,3 +498,4 @@
   global.LuminousDerivedStats = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
+

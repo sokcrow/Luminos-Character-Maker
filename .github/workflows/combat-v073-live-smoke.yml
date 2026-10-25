@@ -53,6 +53,12 @@ on:
       - 'tests/combat-v074-player-skill-planner-smoke.mjs'
       - 'js/combat-v073-dm-setup.js'
       - 'js/combat-v073-speed-authority.js'
+      - 'js/movement-speed-runtime.js'
+      - 'js/universal-speed-runtime.js'
+      - 'docs/canonical-speed-rules.md'
+      - 'tests/movement-speed-runtime-smoke.mjs'
+      - 'tests/speed-dex-size-integration-smoke.mjs'
+      - 'tests/combat-v073-player-speed-turn-one-smoke.mjs'
       - 'js/combat-v073-dm-observer.js'
       - 'js/dm-combat-live-viewer.js'
       - 'js/combat-unit-library-sync.js'
@@ -63,6 +69,7 @@ on:
       - 'js/goblin-unit-runtime.js'
       - 'js/dm-combat-tab-manager.js'
       - 'tests/combat-v073-live-cutover-smoke.mjs'
+      - 'tests/combat-v073-six-ready-start-smoke.mjs'
       - 'tests/combat-v073-dm-editor-smoke.mjs'
       - 'tests/dm-combat-live-viewer-smoke.mjs'
       - 'tests/dm-combat-unit-library-real-ui-smoke.mjs'
@@ -151,6 +158,8 @@ jobs:
           node --check js/dm-combat-tab-manager.js
       - name: Canonical v0.7.3 cutover contract
         run: node tests/combat-v073-live-cutover-smoke.mjs
+      - name: Six live Players READY and AI preparation regression
+        run: node tests/combat-v073-six-ready-start-smoke.mjs
       - name: DM Combat Library and field setup contract
         run: node tests/combat-v073-dm-editor-smoke.mjs
       - name: Real DM Battle visual parity contract
@@ -193,6 +202,13 @@ jobs:
         run: node tests/item-runtime-canonical-combat-use-smoke.mjs
       - name: Universal Player HP/SP sync contract
         run: node tests/player-vitals-universal-sync-smoke.mjs
+      - name: Shared movement, Dexterity and size Speed rules
+        run: |
+          node --check js/movement-speed-runtime.js
+          node --check js/universal-speed-runtime.js
+          node tests/movement-speed-runtime-smoke.mjs
+          node tests/speed-dex-size-integration-smoke.mjs
+          node tests/combat-v073-player-speed-turn-one-smoke.mjs
       - name: Speed persistence contract
         run: node tests/combat-v073-speed-persistence-smoke.mjs
       - name: DM observer mode contract
@@ -213,3 +229,4 @@ jobs:
         run: node tests/combat-v073-theatre-isolation-smoke.mjs
       - name: Encounter end and DM resolution contract
         run: node tests/combat-v074-dm-console-smoke.mjs
+

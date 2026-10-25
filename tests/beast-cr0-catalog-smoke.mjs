@@ -184,18 +184,18 @@ assert.equal(skills.get("vulture_beak").coins[0].effects[0].status, "bleed");
 assert.equal(skills.get("weasel_bite").coins[0].effects[0].status, "bleed");
 
 assert.deepEqual(units.get("hyena").speedRange, [1, 10]);
-assert.deepEqual(units.get("jackal").speedRange, [1, 10]);
-assert.deepEqual(units.get("lizard").speedRange, [1, 6]);
-assert.deepEqual(units.get("octopus").speedRange, [1, 8]);
-assert.deepEqual(units.get("owl").speedRange, [1, 14]);
-assert.deepEqual(units.get("piranha").speedRange, [1, 10]);
-assert.deepEqual(units.get("rat").speedRange, [1, 6]);
-assert.deepEqual(units.get("raven").speedRange, [1, 12]);
-assert.deepEqual(units.get("scorpion").speedRange, [1, 4]);
-assert.deepEqual(units.get("seahorse").speedRange, [1, 6]);
-assert.deepEqual(units.get("spider").speedRange, [1, 6]);
+assert.deepEqual(units.get("jackal").speedRange, [2, 10]);
+assert.deepEqual(units.get("lizard").speedRange, [1, 5]);
+assert.deepEqual(units.get("octopus").speedRange, [2, 8]);
+assert.deepEqual(units.get("owl").speedRange, [1, 13]);
+assert.deepEqual(units.get("piranha").speedRange, [2, 10]);
+assert.deepEqual(units.get("rat").speedRange, [1, 5]);
+assert.deepEqual(units.get("raven").speedRange, [2, 12]);
+assert.deepEqual(units.get("scorpion").speedRange, [1, 3]);
+assert.deepEqual(units.get("seahorse").speedRange, [1, 5]);
+assert.deepEqual(units.get("spider").speedRange, [2, 6]);
 assert.deepEqual(units.get("vulture").speedRange, [1, 10]);
-assert.deepEqual(units.get("weasel").speedRange, [1, 8]);
+assert.deepEqual(units.get("weasel").speedRange, [2, 8]);
 
 for (const id of expectedIds) {
   assert.equal(units.get(id).metadata.canonicalUnit, true, `${id} must be a canonical Unit`);
@@ -213,23 +213,23 @@ assert.equal(eagle65.maxHp, 9);
 assert.equal(eagle65.speedProfileMode, "fly");
 
 const groundedOwl = units.resolve("owl", { level: 1, flying: false });
-assert.deepEqual(groundedOwl.speedRange, [1, 4]);
+assert.deepEqual(groundedOwl.speedRange, [1, 3]);
 assert.equal(groundedOwl.speedProfileMode, "ground");
 
 const underwaterOctopus = units.resolve("octopus", { level: 1, encounterTags: ["underwater"] });
-assert.deepEqual(underwaterOctopus.speedRange, [1, 8]);
+assert.deepEqual(underwaterOctopus.speedRange, [2, 8]);
 assert.equal(underwaterOctopus.speedProfileMode, "swim");
 
 const dryOctopus = units.resolve("octopus", { level: 1, encounterTags: ["land"] });
-assert.deepEqual(dryOctopus.speedRange, [1, 4]);
+assert.deepEqual(dryOctopus.speedRange, [2, 4]);
 assert.equal(dryOctopus.speedProfileMode, "ground");
 
 const underwaterSeahorse = units.resolve("seahorse", { level: 1, encounterTags: ["underwater"] });
-assert.deepEqual(underwaterSeahorse.speedRange, [1, 6]);
+assert.deepEqual(underwaterSeahorse.speedRange, [1, 5]);
 assert.equal(underwaterSeahorse.speedProfileMode, "swim");
 
 const drySeahorse = units.resolve("seahorse", { level: 1, encounterTags: ["land"] });
-assert.deepEqual(drySeahorse.speedRange, [1, 4]);
+assert.deepEqual(drySeahorse.speedRange, [1, 3]);
 assert.equal(drySeahorse.speedProfileMode, "ground");
 
 const groundedVulture = units.resolve("vulture", { level: 1, flying: false });
@@ -237,3 +237,4 @@ assert.deepEqual(groundedVulture.speedRange, [1, 2]);
 assert.equal(groundedVulture.speedProfileMode, "ground");
 
 console.log("CR0 beast catalog smoke: ok");
+

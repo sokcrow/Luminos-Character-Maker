@@ -186,13 +186,13 @@ assert.ok(queue.some((row) => row.ownerId === 'player:a'));
 assert.ok(queue.some((row) => row.ownerId === 'player:b'), 'remote Player must be in the shared execution queue');
 
 const readiness = a.LuminousCombatAuthority073.readyComplete(
-  { a: { ready: true, round: 1, plannedSlots: 1 }, b: { ready: true, round: 1, plannedSlots: 1 } },
+  { a: { ready: true, round: 1, unitId: 'player:a', plannedSlots: 1 }, b: { ready: true, round: 1, unitId: 'player:b', plannedSlots: 1 } },
   { a: { 0: { skillId: 'a_skill' } }, b: { 0: { skillId: 'b_skill' } } },
   1,
 );
 assert.equal(readiness.complete, true);
 const missingPlan = a.LuminousCombatAuthority073.readyComplete(
-  { a: { ready: true, round: 1, plannedSlots: 1 }, b: { ready: true, round: 1, plannedSlots: 1 } },
+  { a: { ready: true, round: 1, unitId: 'player:a', plannedSlots: 1 }, b: { ready: true, round: 1, unitId: 'player:b', plannedSlots: 1 } },
   { a: { 0: { skillId: 'a_skill' } }, b: {} },
   1,
 );

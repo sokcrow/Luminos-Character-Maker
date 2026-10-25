@@ -19,7 +19,7 @@ assert.ok(authority.includes('confusionTurnMode:unit.confusionTurnMode==null?nul
 assert.ok(speed.includes('speedRolledAt:global.firebase.database.ServerValue.TIMESTAMP'),'speed roll must record authoritative timestamp');
 assert.ok(speed.includes("state.db.ref(`${ROOT}/combatants`)"),'speed persistence must transact the canonical combatant collection');
 assert.ok(speed.includes('ref.transaction(current=>'),'speed persistence must use one collection transaction');
-assert.ok(speed.includes('!legacyOneSpeedRoll(unit,expectedRound))continue'),'same round refresh must keep legal Speed, but repair legacy [1,1] rolls');
+assert.ok(speed.includes('!legacyOneSpeedRoll(unit,expectedRound))continue'),'same round refresh must preserve valid Speed while repairing a legacy roll without its range');
 assert.ok(speed.includes('return changed?next:undefined'),'transaction must abort when every combatant already has this round speed');
 assert.ok(!speed.includes("a.state.lastSignature=''"),'Speed refresh must not invalidate the whole adapter hydration cache');
 assert.ok(!speed.includes('a.hydrateNow()'),'Speed refresh must not rebuild the Combat runtime or reset Player menus');
@@ -100,3 +100,4 @@ sandbox.rollTurnSpeeds(1);sandbox.rollTurnSpeeds(1);
 assert.equal(layouts,2,'Repeated same-round reads do not keep relaying out');
 assert.equal(api.forceRuntimeRefresh(),false,'The same snapshot is idempotent');
 console.log('Startup Speed formation refresh: canonical changes update order once without another roll.');
+

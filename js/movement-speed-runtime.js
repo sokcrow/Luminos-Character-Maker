@@ -15,8 +15,8 @@
   });
 
   const SIZE_MAX_SPEED_MODIFIERS = Object.freeze({
-    tiny: 2,
-    small: 2,
+    tiny: 1,
+    small: 1,
     medium: 0,
     large: -1,
     huge: -2,
@@ -48,7 +48,47 @@
     return Math.max(0, feet);
   }
 
-  function rangeFromFeet(feetInput, sizeInput = BASELINE.size) {
+  function dexteritySpeedAdjustment(modifier = 0) {
+    return Math.max(-2, Math.min(2, Math.trunc(numberOr(modifier, 0) / 2))) || 0;
+  }
+
+  function statNumber(value) {
+    if (value == null || value === "" || typeof value === "boolean") return null;
+    const number = Number(value?.score ?? value?.value ?? value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function dexterityModifierForEntity(entity = {}, options = {}) {
+    const explicit = statNumber(options.dexterityModifier);
+    if (explicit != null) return explicit;
+    let score = statNumber(options.dexterityScore);
+    const base = entity.characterBuild?.baseStats || entity.baseStats;
+    if (score == null && base) {
+      const persistent = global.LuminousDerivedStats?.persistentEffectiveStats?.(entity);
+      score = statNumber(persistent?.stats?.destreza ?? base.destreza ?? base.dex ?? base.dexterity);
+      if (!persistent && score != null) {
+        const breakdown = entity.characterBuild?.breakdown || {};
+        const bonuses = [breakdown.racialStatBonuses ?? entity.racialStatBonuses,
+          breakdown.backgroundStatBonuses ?? entity.backgroundStatBonuses,
+          breakdown.traitStatBonuses ?? breakdown.traitsStatBonuses ?? entity.traitStatBonuses ?? entity.traitsStatBonuses];
+        for (const bonus of bonuses) score += numberOr(bonus?.destreza ?? bonus?.dex, 0);
+      }
+    }
+    // NPC catalogs store canonical scores; Player sheets use Spanish stats.
+    const player = entity.isPlayer === true || entity.category === "player" || entity.actorCategory === "player" || Boolean(entity.characterBuild);
+    const pools = player
+      ? [entity.stats, entity.dndStats, entity.scores, entity.abilityScores, entity.abilities]
+      : [entity.scores, entity.stats, entity.dndStats, entity.abilityScores, entity.abilities];
+    if (score == null) {
+      for (const pool of pools) {
+        score = statNumber(pool?.destreza ?? pool?.dex ?? pool?.dexterity);
+        if (score != null) break;
+      }
+    }
+    return Math.floor(((score ?? 10) - 10) / 2);
+  }
+
+  function rangeFromFeet(feetInput, sizeInput = BASELINE.size, dexterityModifier = 0) {
     const feet = normalizeFeet(feetInput);
     if (!feet) return null;
 
@@ -65,9 +105,9 @@
     min = Math.max(BASELINE.minSpeed, Math.trunc(min));
     max = Math.max(BASELINE.maxSpeedFloor, Math.trunc(max));
 
-    max += sizeMaxSpeedModifier(sizeInput);
-    max = Math.max(BASELINE.maxSpeedFloor, Math.trunc(max));
-    if (min > max) min = max;
+    const dexterityAdjustment = dexteritySpeedAdjustment(dexterityModifier);
+    min = Math.max(BASELINE.minSpeed, min + dexterityAdjustment);
+    max = Math.max(BASELINE.maxSpeedFloor, min, max + dexterityAdjustment + sizeMaxSpeedModifier(sizeInput));
 
     return Object.freeze({
       min,
@@ -78,6 +118,8 @@
         ? Math.floor((feet - BASELINE.movementFeet) / 5)
         : -Math.ceil((BASELINE.movementFeet - feet) / 5),
       sizeMaxSpeedModifier: sizeMaxSpeedModifier(sizeInput),
+      dexterityModifier,
+      dexterityAdjustment,
       baseline: BASELINE,
     });
   }
@@ -143,7 +185,8 @@
   function rangeForEntity(entity = {}, options = {}) {
     const movement = movementFeetFor(entity, options);
     if (!movement.feet) return null;
-    const range = rangeFromFeet(movement.feet, options.size ?? entity.size ?? entity.creatureSize ?? entity.mechanics?.size);
+    const range = rangeFromFeet(movement.feet, options.size ?? entity.size ?? entity.creatureSize ?? entity.unitSize ?? entity.mechanics?.size,
+      dexterityModifierForEntity(entity, options));
     if (!range) return null;
     return Object.freeze({
       ...range,
@@ -152,12 +195,44 @@
     });
   }
 
+  function usableRange(range) {
+    return Array.isArray(range) && range.length >= 2 &&
+      statNumber(range[0]) != null && statNumber(range[1]) != null &&
+      Number(range[0]) >= 1 && Number(range[1]) >= Math.max(2, Number(range[0]));
+  }
+
+  function combatRangeForEntity(entity = {}, options = {}) {
+    let range = rangeForEntity(entity, options);
+    if (!range) {
+      // Explicit DM-authored ranges without a movement profile are overrides.
+      // Automatically persisted ranges must be recomputed, never shifted twice.
+      const player = entity.isPlayer === true || entity.category === "player" || entity.actorCategory === "player" || Boolean(entity.characterBuild);
+      const authored = entity.speedRangeSource !== "movement-dex-size" &&
+        (!player || entity.speedRangeSource === "authored-range") &&
+        [entity.speedRange, entity.mechanics?.speedRange,
+          [entity.speedMin ?? entity.minSpeed ?? entity.combatStats?.minSpeed ?? entity.combatStats?.min_speed,
+            entity.speedMax ?? entity.maxSpeed ?? entity.combatStats?.maxSpeed ?? entity.combatStats?.max_speed]]
+          .find(usableRange);
+      if (authored) return Object.freeze({ min: Math.trunc(Number(authored[0])), max: Math.trunc(Number(authored[1])), source: "authored-range" });
+      range = rangeFromFeet(BASELINE.movementFeet, options.size ?? entity.size ?? entity.creatureSize ?? entity.unitSize ?? entity.mechanics?.size,
+        dexterityModifierForEntity(entity, options));
+    }
+    // Catalog resolvers already use these same bonuses after the base profile.
+    // Rebuild from base data so rank bonuses survive an active-mode change.
+    const bonuses = entity.rankBonuses || {};
+    const extra = entity.mechanics?.speedBonus || {};
+    const min = Math.max(1, range.min + numberOr(bonuses.minSpeedBonus, 0) + numberOr(extra.min, 0));
+    const max = Math.max(2, min, range.max + numberOr(bonuses.maxSpeedBonus, 0) + numberOr(extra.max, 0));
+    return Object.freeze({ ...range, min, max, source: "movement-dex-size" });
+  }
+
   function profilesForEntity(entity = {}, options = {}) {
     const map = movementMap(entity);
-    const size = options.size ?? entity.size ?? entity.creatureSize ?? entity.mechanics?.size;
+    const size = options.size ?? entity.size ?? entity.creatureSize ?? entity.unitSize ?? entity.mechanics?.size;
+    const dexterityModifier = dexterityModifierForEntity(entity, options);
     const profiles = {};
     MODES.forEach((mode) => {
-      if (map[mode] > 0) profiles[mode] = rangeFromFeet(map[mode], size);
+      if (map[mode] > 0) profiles[mode] = rangeFromFeet(map[mode], size, dexterityModifier);
     });
     return Object.freeze(profiles);
   }
@@ -172,6 +247,7 @@
       entity.speedMin = active.min;
       entity.speedMax = active.max;
       entity.speedProfileMode = active.mode;
+      entity.speedRangeSource = "movement-dex-size";
       entity.mechanics = {
         ...(entity.mechanics || {}),
         speedRange: [active.min, active.max],
@@ -185,18 +261,21 @@
   }
 
   const api = Object.freeze({
-    version: "1.0.0",
+    version: "2.0.0",
     BASELINE,
     SIZE_MAX_SPEED_MODIFIERS,
     MODES,
     normalizeSize,
     sizeMaxSpeedModifier,
+    dexteritySpeedAdjustment,
+    dexterityModifierForEntity,
     rangeFromFeet,
     movementMap,
     activeMovementMode,
     movementFeetFor,
     explicitMovementProfile,
     rangeForEntity,
+    combatRangeForEntity,
     profilesForEntity,
     decorateEntity,
   });
@@ -204,3 +283,4 @@
   global.LuminousMovementSpeedRuntime = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
+
