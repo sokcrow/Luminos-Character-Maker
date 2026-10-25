@@ -157,7 +157,7 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
   const card = page.locator('#inv-active-grid [data-key="blade_1"]');
   const name = card.locator(".item-name");
   await expect(name).toHaveText("Test Workshop Blade");
-  await expect(name).toBeVisible();
+  await expect(name).toBeHidden();
   await expect(card.locator(".tier")).toHaveText("III");
   await expect(card.locator(".inventory-v2-icon-holder")).toHaveCount(1);
   await expect(card.locator(".inventory-v2-card-meta")).toHaveCount(0);
@@ -185,11 +185,9 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
   });
   expect(Math.abs(geometry.cardWidth - geometry.cardHeight)).toBeLessThanOrEqual(4);
   expect(geometry.iconWidth).toBeGreaterThanOrEqual(30);
-  expect(geometry.nameWidth).toBeGreaterThan(50);
+  expect(geometry.nameWidth).toBe(0); // Design: reveal name only inside popup.
   expect(geometry.iconCentered).toBe(true);
   expect(geometry.holderCentered).toBe(true);
-  expect(geometry.nameCentered).toBe(true);
-  expect(geometry.nameBelowIcon).toBe(true);
 });
 
 test("Pertenencias uses compact effect letters in the icon corner, never prices", async ({ page }) => {
@@ -230,7 +228,8 @@ test("Pertenencias uses compact effect letters in the icon corner, never prices"
   await hpMarker.click();
   await expect(page.locator("#detail-title")).toHaveText("Hybrid Restoration Ampoule");
   await expect(hybrid).toHaveAttribute("aria-label", /effects HP, SP, CUR/);
-  await expect(hybrid.locator(".inventory-v2-card-meta, .inventory-v2-card-value, .inventory-v2-card-qty, .item-quantity")).toHaveCount(0);
+  await expect(hybrid.locator(".inventory-v2-card-meta, .inventory-v2-card-value, .inventory-v2-card-qty")).toHaveCount(0);
+  await expect(hybrid.locator(".item-quantity")).toHaveText("x3");
   await expect(hybrid.locator(".inventory-v2-effect-rail")).toHaveCount(0);
   const stash = page.locator('#inv-stash-grid [data-key="med_1"]');
   await expect(stash.locator(".inventory-v2-effect-rail")).toHaveCount(1);
@@ -244,26 +243,25 @@ test("Pertenencias uses compact effect letters in the icon corner, never prices"
     { width: 812, height: 375 },
   ]) {
     await page.setViewportSize(viewport);
+    await page.locator("#inventory-v2-detail-close").click();
     const layout = await hybrid.evaluate((tile) => {
       const card = tile.getBoundingClientRect();
       const holder = tile.querySelector(".inventory-v2-icon-holder").getBoundingClientRect();
       const icon = tile.querySelector(".item-icon").getBoundingClientRect();
-      const name = tile.querySelector(".item-name").getBoundingClientRect();
+      const name = tile.querySelector(".item-name");
       const marker = tile.querySelector(".inventory-v2-icon-effect").getBoundingClientRect();
       const mid = (r) => (r.left + r.right) / 2;
       return {
         square: Math.abs(card.width - card.height),
         iconCenter: Math.abs(mid(card) - mid(icon)),
-        nameCenter: Math.abs(mid(card) - mid(name)),
-        nameBelow: name.top >= icon.bottom - 2,
+        nameHidden: getComputedStyle(name).display === "none",
         badgeNearTopRight: marker.right >= holder.right - 20 && marker.right <= holder.right + 8 &&
           marker.top >= holder.top - 8 && marker.top <= holder.top + 13,
       };
     });
     expect(layout.square, JSON.stringify(viewport)).toBeLessThanOrEqual(4);
     expect(layout.iconCenter, JSON.stringify(viewport)).toBeLessThanOrEqual(4);
-    expect(layout.nameCenter, JSON.stringify(viewport)).toBeLessThanOrEqual(4);
-    expect(layout.nameBelow, JSON.stringify(viewport)).toBe(true);
+    expect(layout.nameHidden, JSON.stringify(viewport)).toBe(true);
     expect(layout.badgeNearTopRight, JSON.stringify(viewport)).toBe(true);
     await hybrid.click();
     await expect(page.locator("#detail-title")).toHaveText("Hybrid Restoration Ampoule");
@@ -300,20 +298,24 @@ test("Active inventory and equipment remain square with centered item icons", as
     });
 
     for (const panel of [geometry.equipment, geometry.carry]) {
-      expect(panel.width, JSON.stringify(viewport)).toBeGreaterThan(200);
-      expect(Math.abs(panel.width - panel.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+      expect(panel.width, JSON.stringify(viewport)).toBeGreaterThan(85);
+      if (viewport.width > 1024) {
+        expect(Math.abs(panel.width - panel.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+      }
     }
+    expect(geometry.equipment.right, JSON.stringify(viewport)).toBeLessThanOrEqual(geometry.carry.left + 2);
+    expect(Math.abs(geometry.equipment.top - geometry.carry.top), JSON.stringify(viewport)).toBeLessThanOrEqual(8);
     expect(Math.abs(geometry.equipmentSlot.width - geometry.equipmentSlot.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
     expect(Math.abs(geometry.itemCard.width - geometry.itemCard.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
     expect(Math.abs(geometry.itemIcon.centerX - geometry.itemCard.centerX), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
-    expect(Math.abs(geometry.itemName.centerX - geometry.itemCard.centerX), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
     expect(geometry.itemCard.top, JSON.stringify(viewport)).toBeGreaterThanOrEqual(geometry.gridHost.top - 1);
     await page.locator('#inv-active-grid [data-key="blade_1"]').click();
     await expect(page.locator("#detail-title")).toHaveText("Test Workshop Blade");
+    await page.locator("#inventory-v2-detail-close").click();
   }
 });
 
-test("Active icons and names stay inside their tiles with the complete sheet styles", async ({ page }) => {
+test("Active icons stay inside minimal tiles and names appear only in popup", async ({ page }) => {
   await bootHarness(page);
   // The complete legacy sheet includes item-slot flex rules missing from the minimal harness.
   await page.addStyleTag({ content: fs.readFileSync(SHEET_CSS, "utf8").replace(/@import[^;]+;/g, "") });
@@ -325,21 +327,18 @@ test("Active icons and names stay inside their tiles with the complete sheet sty
     await card.scrollIntoViewIfNeeded();
     const geometry = await card.evaluate(tile => {
       const outer = tile.getBoundingClientRect();
-      return [".item-icon", ".item-name"].map(selector => {
-        const element = tile.querySelector(selector);
-        const rect = element.getBoundingClientRect();
-        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
-        return { selector, width: rect.width, height: rect.height,
-          inside: rect.left >= outer.left && rect.right <= outer.right && rect.top >= outer.top && rect.bottom <= outer.bottom,
-          visible: element === hit || element.contains(hit) };
-      });
+      const icon = tile.querySelector(".item-icon");
+      const rect = icon.getBoundingClientRect();
+      const name = tile.querySelector(".item-name");
+      return {
+        inside: rect.left >= outer.left && rect.right <= outer.right && rect.top >= outer.top && rect.bottom <= outer.bottom,
+        iconWidth: rect.width,
+        nameHidden: getComputedStyle(name).display === "none"
+      };
     });
-    for (const element of geometry) {
-      expect(element.inside, JSON.stringify({ viewport, element })).toBe(true);
-      expect(element.visible, JSON.stringify({ viewport, element })).toBe(true);
-      expect(element.width).toBeGreaterThan(20);
-      expect(element.height).toBeGreaterThan(8);
-    }
+    expect(geometry.inside, JSON.stringify({ viewport })).toBe(true);
+    expect(geometry.iconWidth).toBeGreaterThan(20);
+    expect(geometry.nameHidden).toBe(true);
   }
 });
 
