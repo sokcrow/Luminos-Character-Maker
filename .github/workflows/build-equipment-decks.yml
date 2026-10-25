@@ -7,6 +7,8 @@ on:
       - "js/combat-skill-loadout-074.js"
       - "js/dm-player-loadout-core.js"
       - "js/dm-player-loadout-manager.js"
+      - "js/dm-player-dnd-studio.js"
+      - "css/dm-player-loadout-manager.css"
       - "tests/dm-player-loadout-manager-smoke.mjs"
       - "js/combat-v073-live-adapter.js"
       - "js/combat-v073-deck.js"
