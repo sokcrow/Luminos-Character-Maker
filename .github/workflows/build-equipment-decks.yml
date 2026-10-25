@@ -5,6 +5,9 @@ on:
       - "js/build-equipment-catalog.js"
       - "js/equipment-loadout-runtime.js"
       - "js/combat-skill-loadout-074.js"
+      - "js/dm-player-loadout-core.js"
+      - "js/dm-player-loadout-manager.js"
+      - "tests/dm-player-loadout-manager-smoke.mjs"
       - "js/combat-v073-live-adapter.js"
       - "js/combat-v073-deck.js"
       - "js/combat-v073-authority.js"
@@ -30,6 +33,8 @@ jobs:
           node --check js/build-equipment-catalog.js
           node --check js/equipment-loadout-runtime.js
           node --check js/combat-skill-loadout-074.js
+          node --check js/dm-player-loadout-core.js
+          node --check js/dm-player-loadout-manager.js
           node --check js/combat-v073-live-adapter.js
           node --check js/combat-v073-deck.js
           node --check js/combat-v073-authority.js
@@ -39,6 +44,8 @@ jobs:
           node --check js/dm-character-gear-manager.js
       - name: Verify Jeske and Calipsys canonical equipment/Decks
         run: node tests/build-equipment-decks-smoke.mjs
+      - name: Verify DM preset selector, applying 3/2/1 Deck and Firebase saves
+        run: node tests/dm-player-loadout-manager-smoke.mjs
       - name: Verify anatomically installed Augments and inventory ownership
         run: node tests/dm-character-gear-smoke.cjs
       - name: Verify Battle Viewer scripts, XP and canonical anatomy
