@@ -63,7 +63,15 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Six physical viewports / image loading / popup / realtime focus
         run: npx playwright test tests/inventory-reference-popup.spec.mjs --workers=1 --reporter=line --trace=retain-on-failure
-      - name: Upload failure trace
+      - name: Attach 6 screen-size HUD and popup screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inventory-hud-visual-evidence
+          path: test-results/inventory-hud-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload failure traces
         if: failure()
         uses: actions/upload-artifact@v4
         with:
