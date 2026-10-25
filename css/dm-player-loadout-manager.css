@@ -389,3 +389,17 @@
 .dm-loadout-unified-spells input[type="checkbox"]{width:22px;height:22px}
 .dm-player-loadout-manager :focus-visible{outline:2px solid #e9c77a;outline-offset:2px}
 @media(max-width:650px){.dm-loadout-spell-toolbar{grid-template-columns:minmax(0,1fr)}.dm-loadout-actions{flex-wrap:wrap}.dm-loadout-actions button{width:100%}.dm-player-loadout-manager select,.dm-player-loadout-manager input[type="search"]{font-size:16px}}
+
+/* TX-01: Deck Presets are touch-friendly on 360px phones and desktops. */
+.dm-loadout-preset label{min-width:0}
+.dm-loadout-preset select,
+.dm-loadout-preset button{min-height:44px;font-size:12px}
+.dm-loadout-preset>small{
+  grid-column:1/-1;
+  display:block;
+  min-width:0;
+  color:#b7b09f;
+  font:11px/1.45 system-ui,sans-serif;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}

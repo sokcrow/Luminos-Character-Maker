@@ -110,6 +110,37 @@
       .sort((a, b) => a.label.localeCompare(b.label));
   }
 
+  // Presets are derived from the *same* item definitions used by Combat
+  // Master. We intentionally do not copy or maintain a second list of Decks.
+  function equipmentDeckPresets(catalog = {}, skillCatalog = {}) {
+    const items = Array.isArray(catalog?.ITEMS) ? catalog.ITEMS :
+      typeof catalog?.list === "function" ? catalog.list() : [];
+    const skills = skillCatalog?.DEFINITIONS || skillCatalog?.definitions || skillCatalog || {};
+    const hasLibrary = Object.keys(skills).length > 0;
+    const presets = [];
+    for (const item of items) {
+      const definitionId = normalizeId(item?.definitionId || item?.id);
+      const loadouts = item?.runtime?.buildLoadouts?.modes;
+      if (!definitionId || !loadouts || typeof loadouts !== "object") continue;
+      for (const [rawModeId, mode] of Object.entries(loadouts)) {
+        const modeId = normalizeId(rawModeId);
+        const deck = normalizeDeck(mode?.deck || {});
+        if (!modeId || ![deck.tier1, deck.tier2, deck.tier3].every(Boolean)) continue;
+        if (hasLibrary && !validateDeck(deck, skills).valid) continue;
+        const itemLabel = clean(item?.displayName || item?.name || item?.nombre) || humanizeId(definitionId);
+        presets.push({
+          id: `equipment_${definitionId}_${modeId}`,
+          label: `${itemLabel} · ${clean(mode?.name) || humanizeId(modeId)}`,
+          source: "equipment",
+          definitionId,
+          modeId,
+          deck,
+        });
+      }
+    }
+    return presets.sort((a, b) => a.label.localeCompare(b.label, "es"));
+  }
+
   function normalizeClassIds(player = {}) {
     const source = player?.characterBuild?.classes || player?.classes || player?.classLevels || [];
     const rows = Array.isArray(source)
@@ -219,6 +250,7 @@
     skillTier,
     validateDeck,
     signaturePresets,
+    equipmentDeckPresets,
     normalizeClassIds,
     spellAllowedClassIds,
     spellCompatibleWithPlayer,
