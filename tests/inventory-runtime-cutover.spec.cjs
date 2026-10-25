@@ -11,44 +11,18 @@ const BRIDGE = path.join(ROOT, "js/item-equipment-bridge.js");
 const HUD = path.join(ROOT, "js/inventory-hud-v2.js");
 const CSS = path.join(ROOT, "css/inventory-hud-v2.css");
 const GOTHIC_CSS = path.join(ROOT, "css/inventory-gothic-art.css");
+const REFERENCE_CSS = path.join(ROOT, "css/inventory-hud-reference.css");
 const SHEET_CSS = path.join(ROOT, "hoja_personaje.css");
 
 async function bootHarness(page) {
-  await page.setContent(`<!doctype html><html><head></head><body>
-    <button id="btn-global-inventory">Inventory</button>
-    <div id="inventory-modal" class="inventory-modal"><div class="inventory-modal-content">
-      <button id="inventory-modal-close">x</button>
-      <div class="inventory-tabs">
-        <button class="inv-tab-btn active" data-tab="inv-active">Inventario Activo</button>
-        <button class="inv-tab-btn" data-tab="inv-stash">Stash/Alijo</button>
-        <button class="inv-tab-btn" data-tab="inv-sintesis">SÍNTESIS</button>
-      </div>
-      <div class="inventory-body-wrapper">
-        <div class="inventory-left-panel">
-          <div class="inventory-tab-content active" id="inv-active"><div class="inv-grid" id="inv-active-grid"></div></div>
-          <div class="inventory-tab-content" id="inv-stash">
-            <input id="buscador-items-stash" />
-            <div id="filtros-stash"><button class="inv-filter-btn active" data-filter="todo">Todo</button><button class="inv-filter-btn" data-filter="medical">Medical</button></div>
-            <div class="inv-grid" id="inv-stash-grid"></div>
-          </div>
-          <div class="inventory-tab-content" id="inv-sintesis"><div class="limbus-synthesis-container">Synthesis preserved</div></div>
-        </div>
-        <div class="item-detail-card" id="item-detail-card">
-          <div class="detail-left"><div class="detail-icon-box"><img id="detail-icon" /></div></div>
-          <div class="detail-right">
-            <div class="detail-title-badge" id="detail-title"></div>
-            <div class="inventory-v2-detail-meta">
-              <span class="detail-tier">Tier <b id="detail-tier-val"></b></span>
-              <span class="detail-cost">Valor <b id="detail-cost-val"></b></span>
-            </div>
-            <div class="inventory-v2-detail-effects" id="inventory-v2-detail-effects" hidden></div>
-            <div id="detail-desc"></div>
-            <div id="detail-tags-val" hidden></div>
-          </div>
-        </div>
-      </div>
-    </div></div>
-  </body></html>`);
+  // Exercise the production inventory DOM, never a second legacy detail sidebar.
+  const sheet = fs.readFileSync(path.join(ROOT, "hoja_personaje.html"), "utf8");
+  const start = sheet.indexOf("<!-- Inventory Modal -->");
+  const end = sheet.indexOf("<!-- Toggle Button -->", start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  await page.setContent('<!doctype html><html lang="es"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>' +
+    '<button type="button" id="btn-global-inventory">Inventory</button>' + sheet.slice(start, end) + '</body></html>');
   // Reproduce the production cascade: the old sheet still declares a 74px Active grid.
   const legacySheetCss = fs.readFileSync(SHEET_CSS, "utf8");
   const legacyActiveGridRule = legacySheetCss.match(/#inv-active-grid\s*\{[^}]*height:\s*74px;[^}]*\}/)?.[0];
@@ -58,6 +32,7 @@ async function bootHarness(page) {
   await page.addStyleTag({ content: legacyActiveGridRule + "\n" + legacyItemDisplayRule });
   await page.addStyleTag({ path: CSS });
   await page.addStyleTag({ path: GOTHIC_CSS });
+  await page.addStyleTag({ path: REFERENCE_CSS });
 
   await page.evaluate(() => {
     const active = {
