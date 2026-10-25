@@ -15,9 +15,12 @@
   function ensure(unit,turn=runtime()?.uiState?.().round||adapter().round||1){
     const Deck=engine();if(!Deck||!unit||!['player','remote'].includes(unit.controlled))return null;
     const rows=definition(unit);if(!rows.length){delete unit.combatDeck;return null;}
-    const signature=String(hash(JSON.stringify(rows))),scope=String(adapter().encounterId||'active');
     const activeMode=global.LuminousEquipmentLoadouts?.active?.(unit,unit);
     const modeKey=activeMode?activeMode.instanceId+":"+activeMode.modeId:"canonical";
+    const savedSelection=unit.characterBuild?.skillDeck||unit.skillDeck;
+    const deckEntries=modeKey==='canonical'&&Number(savedSelection?.schemaVersion)>=2&&Array.isArray(savedSelection.entries)
+      ?savedSelection.entries:null;
+    const signature=String(hash(JSON.stringify({rows,deckEntries}))),scope=String(adapter().encounterId||'active');
     const cache=unit.combatDeckModes||(unit.combatDeckModes={});
     let deck=unit.combatDeck;
     if(deck?.scope==='active'&&scope!=='active')deck.scope=scope;
@@ -29,7 +32,8 @@
         deck.scope=scope;
       }else{
         const actor={id:unit.id};
-        Deck.initDeck(actor,rows,{requireFull:false});
+        try{Deck.initDeck(actor,rows,deckEntries?{requireFull:true,deckEntries}:{requireFull:false});}
+        catch(error){console.warn('[LuminousDeck] V2 inválido; no se usarán cartas no autorizadas.',error?.message);delete unit.combatDeck;return null;}
         deck=unit.combatDeck={...actor.skillDeck,signature,scope,modeKey,
           rngState:hash(scope+"|"+unit.id+"|"+signature)};
       }

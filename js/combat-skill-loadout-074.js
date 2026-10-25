@@ -47,6 +47,8 @@
 
   function skillDeckSlots(value = {}) {
     const source = value && typeof value === "object" ? value : {};
+    if(Number(source.schemaVersion)>=2 && Array.isArray(source.entries))
+      return source.entries.map(row=>clean(row?.skillId||row?.id)).filter(Boolean);
     const deck = {
       tier1: clean(source.tier1 ?? source.t1 ?? source["1"] ?? source.skill1),
       tier2: clean(source.tier2 ?? source.t2 ?? source["2"] ?? source.skill2),
@@ -63,7 +65,9 @@
   function firstLoadoutSource(source = {}) {
     const equipmentDeck = global.LuminousEquipmentLoadouts?.slotIds?.(source, source);
     if (Array.isArray(equipmentDeck) && equipmentDeck.length) return equipmentDeck;
-    const canonicalDeck = skillDeckSlots(source.characterBuild?.skillDeck || source.skillDeck || {});
+    const explicitDeck=source.characterBuild?.skillDeck||source.skillDeck||{};
+    const canonicalDeck = skillDeckSlots(explicitDeck);
+    if(Number(explicitDeck.schemaVersion)>=2&&Array.isArray(explicitDeck.entries))return canonicalDeck;
     if (canonicalDeck.length) return canonicalDeck;
     if (source.characterBuild?.skillSlotIds != null) return source.characterBuild.skillSlotIds;
     if (source.skillSlotIds != null) return source.skillSlotIds;
@@ -115,7 +119,8 @@
   function skillIdsFor(source = {}) {
     const ids = skillSlotIdsFor(source);
     const index = source.characterBuild?.equippedSkillIndex || source.equippedSkillIndex;
-    const base = !ids.length && index && typeof index === "object"
+    const v2=source.characterBuild?.skillDeck||source.skillDeck;
+    const base = !ids.length && !(Number(v2?.schemaVersion)>=2&&Array.isArray(v2?.entries)) && index && typeof index === "object"
       ? Object.entries(index).filter(([,enabled]) => enabled === true).map(([id]) => clean(id)).filter(Boolean)
       : ids;
     return [...new Set([...base, ...grantedSkillIdsFor(source)])];

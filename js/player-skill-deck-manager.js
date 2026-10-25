@@ -1,13 +1,13 @@
 (function (global) {
   "use strict";
-  // One visual editor for the canonical 3/2/1 Combat deck. It reuses the
-  // Player Skills HUD's learned-skills model; no demo data or separate engine.
+  // Editable ten-point Skill Deck. Uses the learned-skills HUD and a single V2 rule contract.
   if (global.LuminousPlayerDeckManager || !global.document) return;
   const ROOT = "campaña/jugadores/";
   const DEFAULT_ART = "Assets/Images/Buttons/Skills.png";
   const FALLBACK_SPLASH = "Assets/Images/Buttons/Player.svg";
   const ROMAN = {1:"I",2:"II",3:"III"};
-  const TIER_POSITIONS = Object.freeze([1,1,1,2,2,3]);
+  const Rules=global.LuminousSkillDeckRulesV2 || (typeof require==='function'?require('./skill-deck-rules-v2.js'):null);
+  if(!Rules)return;
   const state = {
     playerId:"", character:null, uid:"", initialized:false, ref:null, handler:null,
     presets:[], active:0, savedDeckKey:"", dirty:false, busy:false,
@@ -22,34 +22,29 @@
   const safeUrl=v=>{const url=clean(v);return /^(https?:\/\/|data:image\/(?:png|jpeg|jpg|webp|gif);base64,|(?:\.?\/)?Assets\/)/i.test(url)?url:"";};
   const n=(v,d=0)=>Number.isFinite(Number(v))?Number(v):d;
   const clone=obj=>JSON.parse(JSON.stringify(obj||{}));
-  function normalizeDeck(raw={}) {
-    return {tier1:normalizeId(raw.tier1||raw.t1||raw["1"]),tier2:normalizeId(raw.tier2||raw.t2||raw["2"]),tier3:normalizeId(raw.tier3||raw.t3||raw["3"])};
-  }
-  function expandDeck(deck) {
-    const d=normalizeDeck(deck);
-    return [d.tier1,d.tier1,d.tier1,d.tier2,d.tier2,d.tier3];
-  }
+  const normalizeDeck=Rules.normalizeDeck;
+  const expandDeck=Rules.slotIds;
   function playerName() {
     const p=state.character||{};
     return clean(p.characterName||p.character_name||p.nombre||p.characterIdentity?.name||p.name)||"PERSONAJE";
   }
-  function owningModel(){
+  function owningModel(character=state.character||global.datosJugador||{}){
     const hud=global.LuminousPlayerSkillsHud;
     if(!hud?.buildSkillViewModel)return null;
-    return hud.buildSkillViewModel(state.character||global.datosJugador||{});
+    return hud.buildSkillViewModel(character);
   }
   function catalog(){
     return global.LuminousCombatSkillLoadout074?.skillLibrary?.()||global.LuminousPlayerSignatureSkillCatalog?.DEFINITIONS||{};
   }
-  function permittedSkills(){
-    const model=owningModel();
+  function permittedSkills(character=state.character||global.datosJugador||{}){
+    const model=owningModel(character);
     const defs=catalog();
     const rows=new Map();
     (model?.skills||[]).forEach(skill=>{
       const key=normalizeId(skill.id);
       if(key&&(skill.assigned||skill.learned))rows.set(key,{...defs[key],...skill,id:key});
     });
-    const p=state.character||{};
+    const p=character||{};
     const raw=p.characterBuild?.grantedSkillIds||p.grantedSkillIds||[];
     const granted=Array.isArray(raw)?raw:Object.entries(raw).filter(([,enabled])=>enabled===true).map(([id])=>id);
     granted.forEach(v=>{
@@ -101,27 +96,17 @@
     const stored=Array.isArray(raw)?raw:Object.values(raw||{});
     state.presets=Array.from({length:5},(_,i)=>{
       const row=stored[i]||{};
-      const def=normalizeDeck(row);
-      return {name:clean(row.name)||("Deck "+String(i+1).padStart(2,"0")), ...def};
+      return {name:clean(row.name)||("Deck "+String(i+1).padStart(2,"0")), ...normalizeDeck(row)};
     });
     state.active=Math.max(0,Math.min(4,Math.floor(n(d.activeSkillDeckPreset??state.character?.activeSkillDeckPreset,0))));
     Object.assign(state.presets[state.active],canonical);
     state.savedDeckKey=JSON.stringify(canonical);
     state.dirty=false;
   }
-  function current(){return state.presets[state.active]||{name:"Deck 01",tier1:"",tier2:"",tier3:""};}
+  function current(){return state.presets[state.active]||{name:"Deck 01",...normalizeDeck({})};}
   function isDefense(skill){return typeFor(skill)==="defense";}
-  function isLegal(skill,tier){return !!skill&&!isDefense(skill)&&n(skill.tier)===tier;}
-  function validateDeck(deck,skills=permittedSkills()){
-    const d=normalizeDeck(deck),valid=new Set(skills.map(x=>x.id));
-    const problems=[];
-    for(let tier=1;tier<=3;tier++){
-      const id=d["tier"+tier],skill=skills.find(x=>x.id===id);
-      if(!id||!valid.has(id))problems.push("Falta una Skill conocida de Tier "+ROMAN[tier]+".");
-      else if(!isLegal(skill,tier))problems.push("La Skill "+clean(skill.name||id)+" no corresponde al Tier "+ROMAN[tier]+".");
-    }
-    return {valid:!problems.length,errors:problems,deck:d};
-  }
+  function isLegal(skill,tier){return !!skill&&!isDefense(skill)&&Rules.tier(skill.tier)===tier;}
+  const validateDeck=(deck,skills=permittedSkills())=>Rules.validateDeck(deck,skills);
   function setMessage(msg,error=false){state.status=msg;state.lastError=error?msg:"";const x=el("psdm-feedback");if(x){x.textContent=msg;x.classList.toggle("is-error",error);}}
   function coins(skill={}){
     const count=Math.max(1,Math.min(12,n(skill.coinAmount??skill.coinCount??skill.coin_count,1)));
@@ -130,8 +115,8 @@
       return '<span class="psdm-coin'+(unbreakable?' unbreakable':'')+'" aria-label="'+(unbreakable?"Coin irrompible":"Coin")+'"></span>';
     }).join("");
   }
-  function card(skill,context,index){
-    const tier=Math.max(1,Math.min(3,n(skill?.tier,1))),id=skill?.id||"";
+  function card(skill,context,index,entry=null){
+    const tier=Rules.tier(entry?.tier||skill?.tier)||1,id=skill?.id||"";
     const cat=skill?typeFor(skill):"empty";
     return '<button type="button" draggable="'+Boolean(skill&&context==="library")+'" class="psdm-card '+cat+(id===state.selected?" selected":"")+
       '" data-psdm-skill="'+esc(id)+'"'+(context==="deck"?' data-psdm-slot="'+index+'"':'')+
@@ -139,10 +124,10 @@
       (context==="deck"?(index+1):ROMAN[tier])+'</span>'+
       (skill?'<img src="'+esc(artwork(skill))+'" loading="lazy" alt="" onerror="this.style.display=\'none\'">':
        '<span class="psdm-card-empty">+</span>')+
-      '<span class="psdm-card-tier">'+(skill?ROMAN[tier]:ROMAN[TIER_POSITIONS[index]])+'</span>'+
+      '<span class="psdm-card-tier">'+ROMAN[tier]+'</span>'+
       '<span class="psdm-card-coins">'+(skill?coins(skill):"")+'</span>'+
       '<span class="psdm-card-label">'+esc(skill?.name||"LIBRE")+'</span>'+
-      (context==="deck"?'<b class="psdm-copies">×'+([3,2,1][tier-1])+'</b>':"")+
+      (context==="deck"?'<b class="psdm-copies">'+tier+' PT</b>':"")+
       '</button>';
   }
   function coinEffects(skill={}){
@@ -173,18 +158,18 @@
   }
   function details(skill){
     if(!skill)return '<div class="psdm-no-skill">Selecciona una carta para ver sus estadísticas y efectos.</div>';
-    const tier=Math.max(1,Math.min(3,n(skill.tier,1)));
-    const copies=[3,2,1][tier-1];
+    const tier=Rules.tier(skill.tier)||1;
+    const copies=Rules.LIMITS[tier];
+    const canAdd=Rules.addCard(current(),skill,permittedSkills());
     const amount=Math.max(1,n(skill.coinAmount,1)),base=n(skill.basePower),power=n(skill.coinPower),kind=typeFor(skill);
-    const val=validateDeck({...current(),["tier"+tier]:skill.id});
     const action=isDefense(skill)?'<span class="psdm-info">Defensa · disponible en combate, fuera del Deck ofensivo.</span>':
-      '<button type="button" class="psdm-equip" data-psdm-equip="'+esc(skill.id)+'"'+(!isLegal(skill,tier)?' disabled':'')+'>EQUIPAR TIER '+ROMAN[tier]+'</button>';
+      '<button type="button" class="psdm-equip" data-psdm-equip="'+esc(skill.id)+'"'+(!canAdd.valid?' disabled':'')+'>AÑADIR COPIA · '+tier+' PT</button>';
     return '<div class="psdm-detail-cover '+kind+'"><img src="'+esc(artwork(skill))+'" alt=""><span class="psdm-detail-tier">'+ROMAN[tier]+'</span>'+
       '<div class="psdm-detail-coins">'+coins(skill)+'</div></div>'+
       '<h3>'+esc(skill.name||skill.id)+'</h3>'+
       '<div class="psdm-stats"><div><small>BASE POWER</small><b>'+base+'</b></div><div><small>ATTACK WEIGHT</small><b>'+Math.max(1,n(skill.attackWeight,1))+'</b></div>'+
       '<div><small>COINS</small><b>'+amount+'</b></div><div><small>COIN POWER</small><b>'+(power>=0?"+":"")+power+'</b></div></div>'+
-      '<div class="psdm-tier-line">Tier <b>'+ROMAN[tier]+'</b><span>×'+copies+' en Deck</span></div>'+
+      '<div class="psdm-tier-line">Tier <b>'+ROMAN[tier]+'</b><span>Máx. '+copies+(tier===3?' en todo el Deck':' por Skill')+'</span></div>'+
       '<section class="psdm-detail-text"><h4>DESCRIPCIÓN</h4><p>'+esc(skill.description||skill.descripcion||"Habilidad de combate.")+'</p></section>'+
       '<section class="psdm-detail-text"><h4>EFECTOS</h4>'+coinEffects(skill)+'</section>'+action;
   }
@@ -210,7 +195,12 @@
       '<button type="button" data-psdm-tab="'+i+'" class="'+(state.active===i?'active':'')+'">'+
       String(i+1).padStart(2,"0")+'</button>').join("");
     el("psdm-deck-name").textContent=deck.name;
-    el("psdm-slots").innerHTML=expandDeck(deck).map((id,i)=>card(skills.find(s=>s.id===id), "deck",i)).join("");
+    const checked=validateDeck(deck,skills);
+    el("psdm-slots").innerHTML=deck.entries.map((entry,i)=>
+      '<div class="psdm-slot">'+card(skills.find(s=>s.id===entry.skillId),"deck",i,entry)+
+      '<button type="button" class="psdm-remove" data-psdm-remove="'+esc(entry.entryId)+'" aria-label="Quitar carta '+(i+1)+'" title="Quitar carta">×</button></div>').join("")+
+      (checked.remaining>0?'<button type="button" class="psdm-add-card" data-psdm-add="true" aria-label="Añadir Skill seleccionada">+<small>AÑADIR</small></button>':"");
+    el("psdm-budget").textContent=checked.spent+" / "+Rules.CAPACITY+" PT · "+deck.entries.length+" CARTAS · MÁX. 1 TIER III";
     el("psdm-library").innerHTML=visible(skills).map(s=>card(s,"library",-1)).join("")||
       '<p class="psdm-empty-library">No hay habilidades disponibles con este filtro.</p>';
     el("psdm-details").innerHTML=details(selected);
@@ -224,17 +214,18 @@
     global.LuminousRuleReferences?.decorate?.(el("psdm-details"),{mode:"card"});
     return true;
   }
-  function equip(id,tier){
+  function equip(id){
     const skill=skillById(id);
     if(!skill){setMessage("Esta habilidad ya no está disponible.",true);return;}
-    if(isDefense(skill)){state.selected=id;setMessage("Las defensas se usan en combate, fuera del Deck ofensivo.");render();return;}
-    const required=n(skill.tier);
-    if(tier!=null&&tier!==required){setMessage("Solo puedes colocarla en el Tier "+ROMAN[required]+".",true);return;}
-    const key="tier"+required;
-    if(current()[key]!==id){current()[key]=id;state.dirty=true;}
-    state.selected=id;
-    setMessage(clean(skill.name)+" equipada en Tier "+ROMAN[required]+".");
+    const checked=Rules.addCard(current(),skill,permittedSkills());
+    if(!checked.valid){setMessage(checked.errors.join(" "),true);render();return;}
+    current().entries=checked.deck.entries;state.dirty=true;state.selected=id;
+    setMessage(clean(skill.name)+" añadida. "+checked.spent+" de "+Rules.CAPACITY+" puntos.");
     render();
+  }
+  function remove(entryId){
+    current().entries=Rules.removeCard(current(),entryId).entries;
+    state.dirty=true;setMessage("Carta retirada del Deck.");render();
   }
   function switchTab(index){
     if(index<0||index>=5)return;
@@ -326,13 +317,16 @@
         if(!player||clean(player.uid||player.ownerUid)!==uid){failure="owner";return;}
         const canonical=normalizeDeck(player.characterBuild?.skillDeck||player.skillDeck||{});
         if(JSON.stringify(canonical)!==savedKey){failure="conflict";return;}
+        // Revalidate against the current transaction snapshot, not a stale HUD.
+        const serverCheck=validateDeck(deck,permittedSkills(player));
+        if(!serverCheck.valid){failure="invalid";return;}
         const ids=expandDeck(deck),unique=[...new Set(ids.filter(Boolean))];
         const enabled=Object.fromEntries(unique.map(id=>[id,true]));
         const build={...(player.characterBuild||{}),
-          skillDeck:{...deck,schemaVersion:1},skillSlotIds:ids,skillIds:unique,
+          skillDeck:{...deck,schemaVersion:2},skillSlotIds:ids,skillIds:unique,
           equippedSkillIndex:enabled,skillDeckPresets:presets,activeSkillDeckPreset:index,
           skillLoadoutSource:"player_skill_deck_manager"};
-        return {...player,skillDeck:{...deck,schemaVersion:1},skillSlotIds:ids,
+        return {...player,skillDeck:{...deck,schemaVersion:2},skillSlotIds:ids,
           skillIds:unique,equippedSkillIndex:enabled,characterBuild:build};
       },undefined,false);
       if(!result.committed)throw Error(failure==="conflict"?"CONFLICT":"SAVE_DENIED");
@@ -340,7 +334,7 @@
       setMessage("Deck guardado en tu personaje.");
     }catch(err){
       const msg=err?.message==="CONFLICT"?"Tu Deck cambió desde otra sesión. Reabre el menú para revisar antes de sobrescribir.":
-        "No se pudo guardar el Deck. Comprueba tus permisos y conexión.";
+        "No se pudo guardar el Deck. Comprueba tus permisos, habilidades o conexión.";
       setMessage(msg,true);
     }finally{state.busy=false;render();}
   }
@@ -368,8 +362,8 @@
               '<button type="button" class="psdm-pencil" id="psdm-rename" title="Renombrar Deck" aria-label="Renombrar Deck">✎</button>'+
               '<nav id="psdm-tabs" aria-label="Decks"></nav>'+
               '<button type="button" id="psdm-save" disabled>GUARDADO</button></div>'+
-              '<div id="psdm-slots" class="psdm-slot-grid" aria-label="Seis cartas del Deck"></div>'+
-              '<p class="psdm-deck-note">TIER I ×3 · TIER II ×2 · TIER III ×1</p></section>'+
+              '<div id="psdm-slots" class="psdm-slot-grid" aria-label="Cartas equipadas en el Deck"></div>'+
+              '<p class="psdm-deck-note" id="psdm-budget">0 / 10 PT · MÁX. 1 TIER III</p></section>'+
             '<section class="psdm-library psdm-frame"><div class="psdm-section-head"><h2>SKILL LIBRARY</h2>'+
               '<nav class="psdm-filters" aria-label="Filtros de Skills">'+
               '<button type="button" data-psdm-filter="all">TODAS</button>'+
@@ -392,11 +386,11 @@
       if(target.id==="psdm-save"){void save();return;}
       if(target.id==="psdm-rename"){rename();return;}
       if(target.dataset.psdmEquip){equip(target.dataset.psdmEquip);return;}
+      if(target.dataset.psdmRemove!==undefined){remove(target.dataset.psdmRemove);return;}
+      if(target.dataset.psdmAdd!==undefined){if(state.selected)equip(state.selected);return;}
       if(target.dataset.psdmSlot!==undefined){
-        const index=Number(target.dataset.psdmSlot),tier=TIER_POSITIONS[index];
-        const targetSkill=skillById(state.selected);
-        if(targetSkill&&isLegal(targetSkill,tier))equip(targetSkill.id,tier);
-        else{const deckSkill=expandDeck(current())[index];if(deckSkill){state.selected=deckSkill;render();}}
+        const deckSkill=expandDeck(current())[Number(target.dataset.psdmSlot)];
+        if(deckSkill){state.selected=deckSkill;render();}
         return;
       }
       if(target.dataset.psdmSkill){state.selected=target.dataset.psdmSkill;render();}
@@ -408,11 +402,11 @@
       const c=event.target.closest("[data-psdm-skill]");
       if(c&&c.draggable)event.dataTransfer?.setData("text/plain",c.dataset.psdmSkill);
     });
-    root.addEventListener("dragover",event=>{if(event.target.closest("[data-psdm-slot]"))event.preventDefault();});
+    root.addEventListener("dragover",event=>{if(event.target.closest("[data-psdm-add]"))event.preventDefault();});
     root.addEventListener("drop",event=>{
-      const c=event.target.closest("[data-psdm-slot]");if(!c)return;
+      const c=event.target.closest("[data-psdm-add]");if(!c)return;
       event.preventDefault();const skillId=event.dataTransfer?.getData("text/plain");
-      if(skillId)equip(skillId,TIER_POSITIONS[Number(c.dataset.psdmSlot)]);
+      if(skillId)equip(skillId);
     });
     return true;
   }
