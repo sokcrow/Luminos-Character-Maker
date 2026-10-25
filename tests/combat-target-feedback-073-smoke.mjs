@@ -8,13 +8,13 @@ const viewer = read('Battle-viewer.html');
 const js = read('js/combat-target-feedback-073.js');
 const css = read('css/combat-target-feedback-073.css');
 const manifest = JSON.parse(read('combat/combat-v073-live.manifest.json'));
-const packed = gunzipSync(Buffer.from(manifest.parts.map(part => read(part.file).replace(/\\s+/g, '')).join(''), 'base64')).toString('utf8');
-const commitNeedle = '  renderTargetArrows();\\n  if(isClashIntent(PLAYER_ID,completedIndex,plan)){';
+const packed = gunzipSync(Buffer.from(manifest.parts.map(part => read(part.file).replace(/\s+/g, '')).join(''), 'base64')).toString('utf8');
+const commitNeedle = '  renderTargetArrows();\n  if(isClashIntent(PLAYER_ID,completedIndex,plan)){';
 assert.equal(packed.split(commitNeedle).length - 1, 1, 'exactly one real packed successful targeting commit');
-assert.match(viewer, /replaceUniqueCombatSource\\(/);
+assert.match(viewer, /replaceUniqueCombatSource\(/);
 assert.match(viewer, /luminous:combat073-target-selected/);
-assert.match(viewer, /css\\/combat-target-feedback-073\\.css/);
-assert.match(viewer, /js\\/combat-target-feedback-073\\.js/);
+assert.match(viewer, /css\/combat-target-feedback-073\.css/);
+assert.match(viewer, /js\/combat-target-feedback-073\.js/);
 for (const token of ['520px', '460px', 'prefers-reduced-motion', 'safe-area-inset-top', 'pointer-events: none']) {
   assert.ok(css.includes(token), 'mobile, desktop, reduced motion and click-through: ' + token);
 }
