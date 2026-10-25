@@ -56,7 +56,7 @@ try {
     assert.ok(geometry.x >= -1 && geometry.y >= -1, JSON.stringify({role,width,height,geometry}));
     assert.ok(geometry.right <= width + 1 && geometry.bottom <= height + 1, JSON.stringify({role,width,height,geometry}));
     assert.ok(geometry.scrollWidth <= width + 1, "horizontal overflow " + width);
-    await page.locator('[data-audio-range="music"]').fill("25");
+    await page.locator('[data-audio-range="music"]').evaluate((range) => { range.value = "25"; range.dispatchEvent(new Event("input", { bubbles: true })); });
     assert.equal(await page.locator('[data-audio-value="music"]').textContent(), "25%");
     assert.equal(await page.locator("[data-audio-director]").isVisible(), role === "dm");
     if (role === "dm") assert.equal(await page.locator('[data-audio-command="play-music"]').isEnabled(), true);
