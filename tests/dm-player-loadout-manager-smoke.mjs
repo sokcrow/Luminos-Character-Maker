@@ -145,11 +145,17 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const studio = fs.readFileSync(path.join(here, '..', 'js', 'dm-player-dnd-studio.js'), 'utf8');
 const tabs = fs.readFileSync(path.join(here, '..', 'js', 'dm-player-dnd-studio-tabs.js'), 'utf8');
 const manager = fs.readFileSync(path.join(here, '..', 'js', 'dm-player-loadout-manager.js'), 'utf8');
+const loadoutStyle = fs.readFileSync(path.join(here, '..', 'css', 'dm-player-loadout-manager.css'), 'utf8');
 const skillLoadout = fs.readFileSync(path.join(here, '..', 'js', 'combat-skill-loadout-074.js'), 'utf8');
 const playerEntry = fs.readFileSync(path.join(here, '..', 'js', 'battle-viewer-player-entry-074.js'), 'utf8');
 
 assert.match(studio, /dm-player-dnd-studio-tabs\.js/);
 assert.match(studio, /dm-player-loadout-manager\.js/);
+assert.match(studio, /dm-player-loadout-manager\\.js\\?v=20261024-deck-presets-1/,
+  'Studio must load the current preset manager, not a stale cached script');
+assert.match(studio, /dm-player-loadout-core\\.js\\?v=20261024-deck-presets-1/);
+assert.match(loadoutStyle, /min-height:44px/, 'Mobile Deck controls remain touch-friendly');
+assert.match(manager, /optgroup label="Armas y modos de combate"/);
 assert.match(tabs, /EXPERIENCIA/);
 assert.match(tabs, /CLASE \/ BUILD/);
 assert.match(tabs, /STATS \/ SKILLS/);
