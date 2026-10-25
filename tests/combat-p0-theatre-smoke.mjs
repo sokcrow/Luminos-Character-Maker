@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 await import('../js/combat-session-lifecycle.js');
+await import('../js/combat-xp-runtime.js');
 const session = globalThis.LuminousCombatSession;
 const clone = value => value == null ? value : structuredClone(value);
 
@@ -64,9 +65,16 @@ db.combat = {
   estado: { encounterId: 'campaign-43', phase: 'ENDING', round: 12, active: true, ending: { token: 'token', uid: 'dm', result: 'victory' } },
   combatants: { player: { hp: 9 } },
 };
-const ended = await session.commitEnd({ db, uid: 'dm', result: 'victory', token: 'token' });
+await assert.rejects(
+  () => session.commitEnd({ db, uid: 'dm', result: 'victory', token: 'token' }),
+  /ENCOUNTER_XP_RECEIPTS_REQUIRED/,
+  'Victory must not seal when the XP receipt summary is missing'
+);
+const xpAward = { encounterId:'campaign-43', participantIds:[], participantCount:0, totalXp:0, xpPerParticipant:0, remainderXp:0, missingCr:[] };
+const ended = await session.commitEnd({ db, uid: 'dm', result: 'victory', token: 'token', xpAward });
 assert.equal(ended.phase, 'ENDED');
 assert.equal(ended.result, 'victory');
+assert.deepEqual(ended.xpAward.participantCount, 0);
 assert.equal(ended.round, 1);
 assert.equal(ended.completedRound, 12);
 assert.equal(ended.transition, 'result');

@@ -46,6 +46,8 @@
 #${OVERLAY_ID} img{display:block;max-width:min(94vw,1100px);max-height:70vh;object-fit:contain;mix-blend-mode:screen;filter:drop-shadow(0 6px 26px rgba(0,0,0,.65))}
 #${OVERLAY_ID} .combat-result-fallback{position:absolute;font:700 clamp(42px,9vw,120px)/1 var(--font-limbus,'Bebas Neue',Impact,sans-serif);letter-spacing:.08em;color:#ead7b2;text-shadow:0 6px 18px #000;text-transform:uppercase}
 #${OVERLAY_ID} img:not([src=""]) + .combat-result-fallback{opacity:.15}
+#${OVERLAY_ID} .combat-result-xp{font:700 clamp(15px,2.5vw,24px)/1.4 var(--font-limbus,Arial,sans-serif);letter-spacing:.04em;color:#f6df9e;text-align:center;text-shadow:0 3px 12px #000;max-width:96vw;padding:2px 12px}
+#${OVERLAY_ID} .combat-result-xp:empty{display:none}
 @media(max-width:600px){#${OVERLAY_ID} img{max-width:98vw;max-height:56vh}}
 `;
     doc.head.appendChild(style);
@@ -60,7 +62,7 @@
     overlay = doc.createElement("div");
     overlay.id = OVERLAY_ID;
     overlay.setAttribute("aria-hidden", "true");
-    overlay.innerHTML = '<div class="combat-result-frame"><img alt=""><div class="combat-result-fallback"></div></div>';
+    overlay.innerHTML = '<div class="combat-result-frame"><img alt=""><div class="combat-result-fallback"></div><div class="combat-result-xp" role="status"></div></div>';
     doc.body.appendChild(overlay);
     return overlay;
   }
@@ -84,6 +86,13 @@
         : normalized === "defeat"
           ? "DEFEAT"
           : "ENCOUNTER CANCELADO";
+    }
+    const xpLabel = overlay.querySelector(".combat-result-xp");
+    if (xpLabel) {
+      const award = state?.xpAward;
+      xpLabel.textContent = normalized === "victory" && award && Number.isFinite(Number(award.totalXp))
+        ? `XP TOTAL ${Number(award.totalXp).toLocaleString()} · ${Number(award.participantCount) || 0} PARTICIPANTES · +${Number(award.xpPerParticipant) || 0} XP C/U`
+        : "";
     }
     overlay.dataset.result = normalized;
     overlay.dataset.endedAt = String(state?.endedAt || "");

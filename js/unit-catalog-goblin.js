@@ -103,6 +103,7 @@
   const DEFINITIONS = Object.freeze({
     goblin: Object.freeze({
       id: 'goblin', name: 'Goblin', species: 'goblin', variant: 'standard', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
+      challengeRating: 0.25, // Goblin Warrior (Monster Manual 2025): CR 1/4, 50 XP
       naturalWorldLevel: Object.freeze({ min: 2, max: 4 }), baseLevel: Object.freeze({ min: 2, max: 4 }),
       scores: GOBLIN_SCORES,
       proficiencies: GOBLIN_PROFICIENCIES,
@@ -134,11 +135,12 @@
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: false, speedPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Goblin Warrior', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
-      schemaVersion: 4,
+      schemaVersion: 5,
     }),
 
     goblin_boss: Object.freeze({
       id: 'goblin_boss', name: 'Goblin Boss', species: 'goblin', variant: 'boss', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
+      challengeRating: 1, // Goblin Boss (Monster Manual 2025): CR 1, 200 XP
       naturalWorldLevel: Object.freeze({ min: 5, max: 5 }), baseLevel: Object.freeze({ min: 5, max: 5 }),
       scores: GOBLIN_BOSS_SCORES,
       proficiencies: GOBLIN_PROFICIENCIES,
@@ -172,7 +174,7 @@
         staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: false, speedPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Goblin Boss', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
-      schemaVersion: 4,
+      schemaVersion: 5,
     }),
   });
 

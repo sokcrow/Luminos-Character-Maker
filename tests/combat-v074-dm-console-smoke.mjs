@@ -186,6 +186,7 @@ assert.ok(victoryPng.length > 100000);
 assert.ok(defeatPng.length > 100000);
 
 await import('../js/combat-session-lifecycle.js');
+await import('../js/combat-xp-runtime.js');
 const encounterWrites = [];
 let encounterCombatants = {
   alpha: { id: 'alpha', hp: 20, maxHp: 20, statusEffects: {} },
@@ -255,6 +256,10 @@ assert.equal(finished.result, 'victory');
 assert.equal(finished.transition, 'result');
 assert.equal(finished.nextInstance, 'teatro');
 assert.deepEqual(finished.lootFinalization, { finalized: [], skipped: [] });
+assert.equal(finished.xpAward.encounterId, 'smoke-encounter');
+assert.equal(finished.xpAward.totalXp, 0);
+assert.equal(finished.xpAward.participantCount, 0);
+assert.deepEqual(encounterRaw.estado.xpAward.participantCount, 0);
 assert.equal(lootFinalizationCalls.length, 1);
 assert.equal(lootFinalizationCalls[0].encounterId, 'smoke-encounter');
 assert.equal(lootFinalizationCalls[0].result, 'victory');
