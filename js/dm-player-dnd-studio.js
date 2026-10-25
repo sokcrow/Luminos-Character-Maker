@@ -230,9 +230,9 @@
     });
 
     const scripts = [
-      ["dm-player-loadout-core-script", "js/dm-player-loadout-core.js?v=20261024-deck-presets-1"],
+      ["dm-player-loadout-core-script", "js/dm-player-loadout-core.js?v=20261024-live-presets-2"],
       ["dm-player-dnd-studio-tabs-script", "js/dm-player-dnd-studio-tabs.js"],
-      ["dm-player-loadout-manager-script", "js/dm-player-loadout-manager.js?v=20261024-deck-presets-1"],
+      ["dm-player-loadout-manager-script", "js/dm-player-loadout-manager.js?v=20261024-live-presets-2"],
     ];
     scripts.forEach(([id, src]) => {
       if (doc.getElementById(id)) return;
