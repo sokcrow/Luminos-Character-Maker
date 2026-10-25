@@ -1,0 +1,481 @@
+/* Director Workspace · real actor data, compact navigation, mobile + desktop */
+.on-game-dashboard #theatre-director-panel[data-workspace="true"] {
+  width: min(490px, 98vw) !important;
+  padding: 70px 16px 22px !important;
+  background: linear-gradient(160deg, #171513 0%, #090b0f 56%, #0a0808 100%) !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.on-game-dashboard #theatre-director-panel[data-workspace="true"] .panel-title {
+  margin: 0 0 3px;
+  padding: 0;
+  border: none;
+  text-align: left;
+  font: 700 22px "BebasKai", Impact, sans-serif !important;
+  letter-spacing: .09em;
+  color: #f0cc83;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-intro {
+  margin: 0 0 14px;
+  color: #ada394;
+  font: 12px/1.45 Roboto, Arial, sans-serif;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-tabs {
+  position: sticky;
+  top: -70px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0 0 20px;
+  padding: 9px 0 12px;
+  background: #11100f;
+  border-bottom: 1px solid #44351d;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 9px 12px;
+  background: #26201a;
+  color: #f2e1c7;
+  border: 1px solid #765c35;
+  border-radius: 8px;
+  cursor: pointer;
+  font: 700 13px/1.2 Roboto, Arial, sans-serif !important;
+  letter-spacing: .01em;
+  white-space: normal;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-action:hover,
+.on-game-dashboard #theatre-director-panel .dm-director-action:focus-visible {
+  background: #463019;
+  border-color: #d9b16d;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-action img {
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
+  flex: 0 0 23px;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-tab {
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+  padding: 7px 3px;
+  border: 1px solid transparent;
+  background: #191817;
+  color: #aaa398;
+  border-radius: 7px;
+  font-size: 11px !important;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-tab[aria-selected="true"] {
+  color: #ffe3a3;
+  background: #382617;
+  border-color: #b98a45;
+  box-shadow: inset 0 -3px #d4a44c;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-view[hidden],
+.on-game-dashboard #theatre-director-panel [hidden] { display: none !important; }
+.on-game-dashboard #theatre-director-panel .dm-director-view {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  align-content: start;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-section-title {
+  margin: 2px 0 0;
+  font: 700 20px "BebasKai", Impact, sans-serif !important;
+  letter-spacing: .045em;
+  color: #e4c486;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-hint,
+.on-game-dashboard #theatre-director-panel .dm-director-empty {
+  margin: 0;
+  padding: 8px 0;
+  color: #bbb0a0;
+  font: 13px/1.45 Roboto, Arial, sans-serif;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-voice-grid,
+.on-game-dashboard #theatre-director-panel .dm-director-roster-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  min-width: 0;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-person-card {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  min-width: 0;
+  min-height: 86px;
+  padding: 9px;
+  text-align: left;
+  border: 1px solid #564936;
+  border-radius: 9px;
+  color: #f5ead9;
+  background: linear-gradient(140deg, #28221d, #141616);
+  cursor: pointer;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-person-card:hover,
+.on-game-dashboard #theatre-director-panel .dm-director-person-card:focus-visible {
+  border-color: #e0b75f;
+  background: #38291b;
+  outline-offset: 2px;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-person-card[data-selected="true"] {
+  border-color: #d6ac55;
+  box-shadow: inset 0 0 0 1px #d6ac55;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-portrait {
+  position: relative;
+  display: block;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 64px;
+  border: 1px solid #695337;
+  border-radius: 5px;
+  background: #101114;
+  overflow: hidden;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-portrait .dm-director-portrait-image {
+  position: absolute;
+  inset: 0;
+  background: #0c0c0e;
+  object-fit: cover;
+  object-position: top center;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-person-text {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-person-text strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.25;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-person-text small {
+  display: block;
+  color: #baa985;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-search,
+.on-game-dashboard #theatre-director-panel #theatre-scenario-select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: #121820;
+  color: #f4ede0;
+  border: 1px solid #65573f;
+  font: 14px Roboto, Arial, sans-serif;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-native-controls {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+.on-game-dashboard #theatre-director-panel #live-actors-list {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0 !important;
+}
+.on-game-dashboard #theatre-director-panel .actor-control-card {
+  padding: 12px;
+  background: #1a1b1b;
+  border: 1px solid #5b4d35;
+  border-radius: 9px;
+  min-width: 0;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-head {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px !important;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-head .dm-director-portrait {
+  flex-basis: 45px;
+  width: 45px;
+  height: 50px;
+  grid-row: span 3;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-head .actor-name {
+  color: #f3e6c7;
+  overflow-wrap: anywhere;
+  align-self: end;
+  font-size: 14px;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-head .actor-expression-select {
+  grid-column: 2 / -1;
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+  padding: 8px;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-head .dm-director-actor-speak {
+  min-height: 44px;
+  padding: 7px 9px;
+  grid-column: 3;
+  grid-row: 1 / 3;
+}
+.on-game-dashboard #theatre-director-panel .actor-buttons {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px !important;
+}
+.on-game-dashboard #theatre-director-panel .actor-buttons button,
+.on-game-dashboard #theatre-director-panel .actor-identity-controls button {
+  min-height: 44px;
+  min-width: 0;
+  padding: 6px;
+  font-size: 11px;
+  white-space: normal;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-advanced {
+  border-top: 1px solid #564737;
+  padding-top: 9px;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-advanced > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: #e5c787;
+  cursor: pointer;
+  font-size: 13px;
+}
+.on-game-dashboard #theatre-director-panel .actor-identity-controls {
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+.on-game-dashboard #theatre-director-panel .actor-identity-controls input,
+.on-game-dashboard #theatre-director-panel .actor-identity-controls select {
+  min-width: 0 !important;
+  min-height: 44px;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-scene-preview {
+  width: 100%;
+  min-height: 110px;
+  max-height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #665033;
+  border-radius: 9px;
+  color: #ad9d86;
+  background: #101015;
+  text-align: center;
+  padding: 8px;
+  font-size: 12px;
+}
+.on-game-dashboard #theatre-director-panel .dm-director-scene-preview img {
+  width: 100%;
+  height: 100%;
+  max-height: 174px;
+  object-fit: cover;
+}
+.on-game-dashboard #theatre-director-panel #theatre-render-policy {
+  display: grid !important;
+  gap: 12px !important;
+  margin: 0 !important;
+  padding: 12px !important;
+  border: 1px solid #51442e !important;
+  border-radius: 8px;
+}
+.on-game-dashboard #theatre-director-panel #theatre-render-policy select,
+.on-game-dashboard #theatre-director-panel #theatre-render-policy button {
+  min-height: 44px;
+}
+
+/* Native modal is mounted at body level to escape the director drawer clipping.
+   All existing composer / Firebase send handlers and language policy remain intact. */
+body.on-game-dashboard .dm-theatre-composer-modal {
+  position: fixed;
+  width: min(610px, calc(100vw - 24px));
+  max-width: 610px;
+  max-height: min(92dvh, 820px);
+  padding: 0;
+  margin: auto;
+  border: 1px solid #b28a4d;
+  border-radius: 15px;
+  color: #f4e8d3;
+  background: linear-gradient(170deg, #211913, #101115 65%, #0b0b0e);
+  box-shadow: 0 24px 80px #000;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+body.on-game-dashboard .dm-theatre-composer-modal:not([open]) { display: none; }
+body.on-game-dashboard .dm-theatre-composer-modal::backdrop {
+  background: rgba(0, 0, 0, .78);
+  backdrop-filter: blur(4px);
+}
+body.on-game-dashboard .dm-theatre-composer-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px 11px;
+  background: #1b1714;
+  border-bottom: 1px solid #59452d;
+}
+body.on-game-dashboard .dm-theatre-composer-head h3 {
+  margin: 4px 0 0;
+  font: 700 25px "BebasKai", Impact, sans-serif;
+  letter-spacing: .035em;
+}
+body.on-game-dashboard .dm-theatre-composer-eyebrow {
+  color: #d5b071;
+  font-size: 10px;
+  letter-spacing: .15em;
+}
+body.on-game-dashboard .dm-theatre-composer-head button {
+  min-height: 44px;
+  min-width: 72px;
+  border: 1px solid #8f7350;
+  border-radius: 8px;
+  background: #29201b;
+  color: #f2e2cc;
+  cursor: pointer;
+}
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-composer {
+  position: static !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 12px !important;
+  margin: 0 !important;
+  padding: 18px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  background: transparent !important;
+  overflow: visible !important;
+}
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-composer-title {
+  display: none;
+}
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-composer-selects {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+body.on-game-dashboard .dm-theatre-composer-modal #theatre-expression-select { grid-column: 1 / -1; }
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-composer-selects > *,
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-message-policy input,
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-message-policy select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-composer-selects select {
+  padding: 10px;
+  color: #f3e8d8;
+  background: #121820;
+  border: 1px solid #63553b;
+  border-radius: 6px;
+  font-size: 14px;
+}
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-message-policy {
+  width: 100%;
+  min-width: 0;
+}
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-message-policy .tmp-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+body.on-game-dashboard .dm-theatre-composer-modal #btn-theatre-message-next {
+  min-height: 44px;
+}
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-compose-action {
+  position: static;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+  min-width: 0;
+}
+body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-compose-label {
+  color: #d1ae6a;
+  font-size: 12px;
+  letter-spacing: .09em;
+}
+body.on-game-dashboard .dm-theatre-composer-modal #theatre-dialogue-input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 135px;
+  min-height: 112px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #0b1017;
+  border: 1px solid #665537;
+  color: #fff2dc;
+  font: 16px/1.4 Roboto, Arial, sans-serif;
+  resize: vertical;
+}
+body.on-game-dashboard .dm-theatre-composer-modal #btn-send-dialogue {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid #edc47c;
+  border-radius: 8px;
+  background: linear-gradient(110deg, #683019, #a64e29);
+  color: #fff1d7;
+  font: 700 14px Roboto, Arial, sans-serif;
+  cursor: pointer;
+}
+body.on-game-dashboard .dm-theatre-composer-modal button:disabled { opacity: .55; cursor: default; }
+body.on-game-dashboard .dm-theatre-composer-modal button:focus-visible,
+body.on-game-dashboard #theatre-director-panel button:focus-visible,
+body.on-game-dashboard #theatre-director-panel input:focus-visible { outline: 2px solid #f6d085; outline-offset: 2px; }
+
+@media (max-width: 700px) {
+  .on-game-dashboard #theatre-director-panel[data-workspace="true"] {
+    width: min(100vw, 490px) !important;
+    padding: max(65px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)) !important;
+  }
+  .on-game-dashboard #theatre-director-panel .dm-director-tabs { top: -65px; }
+  body.on-game-dashboard .dm-theatre-composer-modal {
+    width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-composer { padding: 12px !important; }
+}
+@media (max-width: 390px) {
+  .on-game-dashboard #theatre-director-panel .dm-director-voice-grid,
+  .on-game-dashboard #theatre-director-panel .dm-director-roster-grid { grid-template-columns: minmax(0, 1fr); }
+  .on-game-dashboard #theatre-director-panel .dm-director-person-card { min-height: 68px; }
+  .on-game-dashboard #theatre-director-panel .dm-director-portrait { height: 48px; width: 48px; flex-basis: 48px; }
+  body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-composer-selects { grid-template-columns: minmax(0, 1fr); }
+  body.on-game-dashboard .dm-theatre-composer-modal #theatre-expression-select { grid-column: auto; }
+}
+@media (max-height: 430px) and (orientation: landscape) {
+  .on-game-dashboard #theatre-director-panel[data-workspace="true"] {
+    padding-top: 50px !important;
+  }
+  .on-game-dashboard #theatre-director-panel .dm-director-tabs { top: -50px; }
+  body.on-game-dashboard .dm-theatre-composer-modal {
+    max-height: calc(100dvh - 6px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  body.on-game-dashboard .dm-theatre-composer-head { padding: 6px 14px; }
+  body.on-game-dashboard .dm-theatre-composer-modal .theatre-dm-composer { padding: 10px !important; }
+  body.on-game-dashboard .dm-theatre-composer-modal #theatre-dialogue-input { height: 80px; min-height: 80px; }
+}
