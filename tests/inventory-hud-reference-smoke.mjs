@@ -1,15 +1,17 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
+import vm from "node:vm";
 
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const sheet = read("hoja_personaje.html");
 const js = read("js/inventory-hud-v2.js");
 const css = read("css/inventory-hud-reference.css");
-const require = createRequire(import.meta.url);
-const registry = require("../js/item-icon-registry.js");
+// The project is ESM; the legacy registry is a browser-compatible IIFE.
+const sandbox = { module: { exports: {} } };
+vm.runInNewContext(read("js/item-icon-registry.js"), sandbox, { filename: "js/item-icon-registry.js" });
+const registry = sandbox.module.exports;
 
 // This lightweight structural smoke is intentionally separate from Playwright:
 // it fails if the production sheet forgets to load the implementation / styles.
