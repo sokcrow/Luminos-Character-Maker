@@ -129,6 +129,10 @@ const planningContext=vm.createContext({console,JSON,Math,Map,Set,setTimeout(){r
  LuminousCombat073:{combatants:()=>cacheUnits,kit:()=>({actions:[]})},
  LuminousCombatAuthority073:{state:{},serializeRuntimePlan:plan=>({kind:plan.type==='items'?'item':'skill',planType:plan.type,actionData:plan.data})}});
 planningContext.window=planningContext;
+// This cache fixture has no loaded Skill catalog and keeps its authored plans.
+// Publication still runs the real final-roster validator before writing them.
+planningContext.LuminousUnitAiKitAdapter={planUnitTurn:()=>({planned:false})};
+for(const name of ['unit-universal-action-policy','unit-universal-action-runtime'])vm.runInContext(fs.readFileSync('js/'+name+'.js','utf8'),planningContext);
 vm.runInContext(fs.readFileSync('js/combat-v073-remote-intents.js','utf8'),planningContext);
 const previews=planningContext.LuminousCombatRemoteIntents073;
 const replan=()=>{cacheHealer.autoPlans=[api.selectItemPlan(cacheHealer,Object.values(cacheUnits))||{type:'auto',data:{kind:'skill',id:'attack'}}];};

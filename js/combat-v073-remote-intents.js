@@ -132,7 +132,7 @@
     // one Player Skill is still unavailable from the sparse library.
     for(const unit of Object.values(s.combatants||{}).filter(unit=>global.LuminousCombatParticipants?.isField(unit)&&!global.LuminousCombatParticipants?.isPlayer(unit)))if(bridge?.skillIdsFor?.(unit).some(id=>!s.skills?.[id])){retryPlanningAi();return false;}
     const serialize=global.LuminousCombatAuthority073?.serializeRuntimePlan;if(!serialize){retryPlanningAi();return false;}
-    global.LuminousUnitUniversalActionRuntime?.planAiRoster(runtime()?.combatants?.()||{},{round:Number(s.round)||1});
+    if(!global.LuminousUnitUniversalActionRuntime?.planAiRoster(runtime()?.combatants?.()||{},{round:Number(s.round)||1})){retryPlanningAi();return false;}
     const plans={};
     for(const unit of Object.values(runtime()?.combatants?.()||{}))if(unit.controlled==='ai'){
       plans[unit.id]={};(unit.autoPlans||[]).forEach((plan,index)=>{if(plan)plans[unit.id][index]=serialize(plan,unit.id,index);});

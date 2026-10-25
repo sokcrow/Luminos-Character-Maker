@@ -31,13 +31,18 @@ if(!payload)for(const row of Object.values(raw.readyPlayers||{}))include(row.tar
 function prepareSealed(raw,payload){const units=Object.fromEntries(Object.entries(raw.combatants||{}).map(([id,u])=>[id,{...u,id}]));return prepare(units,plansFromRaw(raw,payload),{round:Number(payload.round)});}
 function planAiRoster(units,options={}){
 const adapter=global.LuminousUnitAiKitAdapter;if(!adapter?.planUnitTurn)return false;
-for(const unit of Object.values(units).filter(u=>u.controlled==='ai'&&active(u))){if(unit.autoPlans?.some(plan=>plan?.data?.actionKey==='grapple_check'))continue;
+const ai=Object.values(units).filter(u=>u.controlled==='ai'&&active(u));
+const groups=()=>Object.fromEntries(Object.values(units).map(unit=>[unit.id,unit.autoPlans||[]]));
+const validRoster=()=>{const plans=groups();return ai.every(unit=>reservePlans(unit,unit.autoPlans||[],{...options,units,plans}).ok)};
+const previous=ai.map(unit=>[unit,unit.autoPlans]);
+function propose(unit,allowHelp){
+if(unit.autoPlans?.some(plan=>plan?.data?.actionKey==='grapple_check'))return null;
 const rows=global.LuminousCombat073?.kit?.(unit.id)?.actions||[],deck=global.LuminousCombatSlotDeck073;
 const optionsBySlot=Array.from({length:count(unit)},(_,index)=>deck?.actionOptions?deck.actionOptions(unit.id,index,rows):rows);
 const legalSkills=optionsBySlot.map(options=>new Set(options.filter(row=>row.kind!=='spell').map(row=>String(row.id||row.skillId))));
 const legalRows=optionsBySlot.flat(),actor={...unit,traits:[],combatTraits:[],activeTraits:[],resolvedSkills:legalRows.filter(row=>row.kind!=='spell'&&global.LuminousUnitIndependentActions?.costOf(row)==='action'),resolvedSpells:legalRows.filter(row=>row.kind==='spell'&&global.LuminousUnitIndependentActions?.costOf(row)==='action')},allies=Object.values(units).filter(u=>u.faction===unit.faction&&active(u));
 const committed=allies.flatMap(u=>(u.autoPlans||[]).flatMap((plan,index)=>!plan||actionKey(plan)?[]:[{id:fingerprint(plan),actorId:u.id,actionSlotId:slotId(u.id,index),phase:{executesAt:'combat_phase'},resolution:{type:'clash'},metadata:{sourceDefinition:plan.data}}]));
-const result=adapter.planUnitTurn({actor,allies,isSourceAllowedInSlot:(candidate,_slot,index)=>candidate.sourceType!=='skill'||legalSkills[index].has(String(candidate.sourceId)),alliedCommittedActions:committed,targets:Object.values(units).filter(u=>u.faction!==unit.faction&&active(u)),availableSlots:count(unit),slotIds:Array.from({length:count(unit)},(_,i)=>slotId(unit.id,i)),supportsTurnEndActions:true,allowEscape:true,allowUniversalOnly:true,universalActions:Object.keys(policy().DEFINITIONS).filter(key=>policy().DEFINITIONS[key].cost==='action'&&(!Array.isArray(unit.aiUniversalActions)||unit.aiUniversalActions.includes(key)))});if(!result?.planned)continue;
+const result=adapter.planUnitTurn({actor,allies,allowHelp,isSourceAllowedInSlot:(candidate,_slot,index)=>candidate.sourceType!=='skill'||legalSkills[index].has(String(candidate.sourceId)),alliedCommittedActions:committed,targets:Object.values(units).filter(u=>u.faction!==unit.faction&&active(u)),availableSlots:count(unit),slotIds:Array.from({length:count(unit)},(_,i)=>slotId(unit.id,i)),supportsTurnEndActions:true,allowEscape:true,allowUniversalOnly:true,universalActions:Object.keys(policy().DEFINITIONS).filter(key=>policy().DEFINITIONS[key].cost==='action'&&(!Array.isArray(unit.aiUniversalActions)||unit.aiUniversalActions.includes(key)))});if(!result?.planned)return null;
 const plans=[];let legal=true;
 for(const action of result.actions){
 const index=Array.from({length:count(unit)},(_,i)=>slotId(unit.id,i)).indexOf(action.actionSlotId);if(index<0||plans[index]){legal=false;break;}
@@ -47,9 +52,20 @@ const d=clone(option||action.metadata?.sourceDefinition||rows.find(row=>row.id==
 if(type==='universal')plans[index]={type:'global',sourceSlotIndex:index,data:{...d,kind:'global',id:action.source.id,actionKey:action.source.id},targetId,targetSlotIndex:action.metadata?.targetActionSlotId==null?null:Number(String(action.metadata.targetActionSlotId).split('_slot_').at(-1))};
 else plans[index]={type:d.__deckCard?'deck':type==='spell'?'spells':type==='item'?'items':d.kind==='defense'?'defense':'auto',sourceSlotIndex:index,...(d.__deckCard?{drawId:d.__deckCard.drawId}:{}),data:{...d,...(type==='item'?{npcItem:true}:{})},targetId,targetSlotIndex:0};
 }
-if(!legal)continue;
-const groups=Object.fromEntries(Object.values(units).map(u=>[u.id,u.id===unit.id?plans:u.autoPlans||[]]));if(reservePlans(unit,plans,{...options,units,plans:groups}).ok)unit.autoPlans=plans;
-}return true;}
+if(!legal)return null;
+const proposed={...groups(),[unit.id]:plans};
+return reservePlans(unit,plans,{...options,units,plans:proposed}).ok?plans:null;
+}
+// First finalize ordinary actions and withdrawal. Only then choose Help against
+// that roster. A later helper cannot invalidate an aid accepted earlier.
+for(const unit of ai){const plans=propose(unit,false);if(plans)unit.autoPlans=plans;}
+if(!validRoster()){for(const [unit,plans]of previous)unit.autoPlans=plans;return false;}
+for(const unit of ai){
+const plans=propose(unit,true);if(!plans)continue;
+const baseline=unit.autoPlans;unit.autoPlans=plans;
+if(!validRoster())unit.autoPlans=baseline;
+}
+return validRoster();}
 function cancelPending(unit,round){const p=policy(),snap=p?.snapshot(unit,{round});if(!snap?.ok)return;for(const entry of Object.values(snap.ledger.reserved))p.cancel(unit,{round,...entry});unit.retreatPendingRound=unit.escapePendingRound=0;}
 function commitEntry(entry,units,plans,round,phase){const p=policy(),unit=units[entry.ownerId],key=actionKey(entry.plan),def=p?.definitionFor(key);if(!def)return{ok:true,ordinary:true};if(!active(unit)){if(unit)cancelPending(unit,round);return fail('unit_not_active');}if(def.phase!==phase)return fail('wrong_execution_phase');const snap=p.snapshot(unit,{round});if(!snap.ok)return snap;const gate=targetGate(unit,entry.plan,units,plans);if(!gate.ok){const row=snap.ledger.reserved[phase];if(row)p.cancel(unit,{round,...row});return gate;}const reserved=snap.ledger.reserved[phase],targetPlan=plans[entry.plan.targetId]?.[entry.plan.targetSlotIndex];if(key==='help'&&Number(targetPlan?._universalStartedRound)===round){if(reserved)p.cancel(unit,{round,...reserved});return fail('help_target_already_started');}if(key==='help'&&reserved?.targetActionId!==fingerprint(targetPlan))return fail('help_target_changed');return p.commit(unit,{round,phase,slotId:slotId(unit.id,entry.localIndex),reservationId:reservationId(unit,entry.plan,entry.localIndex,round)});}
 function applyHelp(unit,target,plan,index,round,units={}){const m=global.LuminousMastermindArchetypeRuntime,amount=1+(m?.hasMastermindLevel?.(unit,15)?m.helpAdditionalBonus(unit,target,{units:Object.values(units).filter(active)}):0);target.universalHelpBuffs=Object.values(target.universalHelpBuffs||{});target.universalHelpBuffs.push({round,sourceId:unit.id,targetActionSlotId:slotId(target.id,index),targetActionId:fingerprint(plan),amount});if(m?.hasMastermindLevel?.(unit,65))m.applyAssistGuard(target,unit,1);return amount;}

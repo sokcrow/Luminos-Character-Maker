@@ -48,3 +48,11 @@ La regresión falló antes del fix tanto en el runtime directo como en el proces
 `useInstant` previsualiza las reservas de los planes normales actuales antes de comprobar Help Quick, en un ledger separado. Solo instala ese ledger al confirmar un Quick válido. El handler remoto delega esta comprobación al mismo runtime. La prueba ejecuta `requestUniversalInstant` offline con el dispatcher de producción: mismo aliado se rechaza sin mutaciones, otro aliado es válido, y editar el plan normal sustituye correctamente una reserva anterior. Todos los casos permiten preparar el turno después; la ruta online verifica la misma regla y conserva la reserva normal al aceptar Quick.
 
 Ambas reproducciones fallaron antes de la corrección y pasaron después. El workflow incluye la nueva regresión de producción.
+
+## P1/P2: roster IA final y Help durante Misdirection
+
+`planAiRoster` fija una primera propuesta sin Help para todo el roster, incluidas las retiradas. Después propone ayudas contra ese conjunto y valida cada reemplazo contra todos los planes IA; si rompe otra ayuda conserva la propuesta anterior. Se comprueba el conjunto final y `publishPlanningAi` no publica un fallo de planificación/validación. `unit-universal-ai-help-roster-smoke.mjs` reproduce helper antes de beneficiario con HP crítico que elige Escape, prueba ambos órdenes, conserva Help cuando hay una acción válida y ejecuta publicación más validación de sellado reales. Un roster inválido sin replanning disponible no se escribe.
+
+Misdirection conserva en la copia redirigida la identidad original de ronda/Unit/Slot/fingerprint. La consulta de Help verifica que el plan canónico siga siendo esa acción y que la copia solo haya cambiado el objetivo; conserva la elegibilidad actual del ayudante. `unit-universal-assist-guard-smoke.mjs` ejecuta Help real → Assist Guard real → dispatcher nativo → consulta de datos de Clash de producción para atacantes Player/IA, con +1 normal y +4 Mastermind. Comprueba aislamiento entre Slots con Skills idénticas, persistencia JSON, cambio de Skill/plan, ayudante caído y cambio de ronda.
+
+Ambas pruebas fallaron antes del fix y pasan después; se incorporan al workflow. La prueba aislada de caché NPC ahora carga el validador real antes de publicar sus planes authored.

@@ -6478,7 +6478,18 @@ function damageTypeLabel(data){
   // SPELL is not a resistance type. Spells may explicitly deal a physical or Sin damage type.
   return 'NORMAL'
 }
-function universalHelpBonusForPlan(plan){for(const unit of Object.values(combatData)){const index=plansForUnit(unit.id).indexOf(plan);if(index>=0)return window.LuminousUnitUniversalActionRuntime.helpBonus(unit,plan,index,round,combatData)}return 0}
+function universalHelpBonusForPlan(plan){
+  const runtime=window.LuminousUnitUniversalActionRuntime,origin=plan?._universalHelpOrigin;
+  if(origin){
+    const unit=combatData[origin.ownerId],index=Number(origin.slotIndex),original=unit&&plansForUnit(unit.id)[index];
+    if(Number(origin.round)!==round||!Number.isInteger(index)||index<0||!original||runtime.fingerprint(original)!==origin.actionId)return 0;
+    // Only targeting was redirected. Changing the Skill/card must not transfer
+    // the original action's Help, including Mastermind bonuses.
+    if(runtime.fingerprint({...plan,targetId:original.targetId,targetSlotIndex:original.targetSlotIndex})!==origin.actionId)return 0;
+    return runtime.helpBonus(unit,original,index,round,combatData)
+  }
+  for(const unit of Object.values(combatData)){const index=plansForUnit(unit.id).indexOf(plan);if(index>=0)return runtime.helpBonus(unit,plan,index,round,combatData)}return 0
+}
 function clashData(plan){
   const data=plan?.data||{};
   return{
@@ -7641,7 +7652,8 @@ async function resolveNativeAssistGuard(entry){
   const context={units:Object.values(combatData),actionMap,getAvailableAssistGuardSkills:unit=>(UNIT_KITS[unit.id]?.actions||[]).filter(skill=>skill.kind==='skill'),isAssistGuardSkillAvailable:({guard,skill})=>Number(guard.mastermindAssistGuardState?.round)!==round||!(guard.mastermindAssistGuardState?.usedSkills||[]).includes(skill.id||skill.skillId)};
   const found=m.findAssistGuard(target,actor,{actorId:actor.id},context);if(!found||!window.LuminousUnitUniversalActionRuntime.active(found.guard)||!m.consumeAssistGuard(found.guard,found.statusId)?.consumed)return false;
   if(Number(found.guard.mastermindAssistGuardState?.round)!==round)found.guard.mastermindAssistGuardState={round,usedSkills:[]};found.guard.mastermindAssistGuardState.usedSkills.push(found.skill.id||found.skill.skillId);
-  await resolveSkillClash({...entry,plan:{...entry.plan,targetId:found.guard.id,targetSlotIndex:null}},{ownerId:found.guard.id,ownerName:found.guard.name,controller:found.guard.controlled,localIndex:0,slot:unitSlots(found.guard.id)[0],plan:{type:'granted',data:found.skill,targetId:actor.id,targetSlotIndex:entry.localIndex}});return true;
+  const origin=entry.plan._universalHelpOrigin||{round,ownerId:entry.ownerId,slotIndex:entry.localIndex,actionId:window.LuminousUnitUniversalActionRuntime.fingerprint(entry.plan)};
+  await resolveSkillClash({...entry,plan:{...entry.plan,_universalHelpOrigin:origin,targetId:found.guard.id,targetSlotIndex:null}},{ownerId:found.guard.id,ownerName:found.guard.name,controller:found.guard.controlled,localIndex:0,slot:unitSlots(found.guard.id)[0],plan:{type:'granted',data:found.skill,targetId:actor.id,targetSlotIndex:entry.localIndex}});return true;
 }
 async function executeQueueEntry(entry,queue,resolvedKeys){
   if(window.LuminousUnitUniversalActionPolicy.definitionFor(entry.plan?.data?.actionKey)?.phase==='on_turn_end'&&!entry._turnEnd)return;
