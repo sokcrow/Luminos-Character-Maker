@@ -49,7 +49,9 @@
     const granted=Array.isArray(raw)?raw:Object.entries(raw).filter(([,enabled])=>enabled===true).map(([id])=>id);
     granted.forEach(v=>{
       const key=normalizeId(v?.skillId||v?.id||v);
-      if(key&&defs[key])rows.set(key,{...defs[key],id:key,granted:true,learned:true});
+      // Equipment grants remain outside the player's learned Skill Deck.
+      // Never overwrite a genuinely learned Skill with an equipment-only grant.
+      if(key&&defs[key]&&!rows.has(key))rows.set(key,{...defs[key],id:key,granted:true,availability:{type:"granted"}});
     });
     return Array.from(rows.values()).sort((a,b)=>n(a.tier,99)-n(b.tier,99)||clean(a.name).localeCompare(clean(b.name),"es"));
   }
