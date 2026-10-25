@@ -1,0 +1,31 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {Script,runInNewContext} from "node:vm";
+const read=path=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
+const html=read("Battle-viewer.html");
+const loader=read("js/combat-v073-spell-bootstrap.js");
+const menu=read("js/combat-v073-economy-menu.js");
+const authority=read("js/combat-v073-authority.js");
+assert.match(html,/combat-v073-spell-bootstrap\.js/);
+assert.match(html,/combat-v073-spell-availability\.css/);
+assert.match(loader,/spellcasting-basic-rules-runtime\.js/);
+assert.match(loader,/battle-viewer-spell-adapter-074\.js/);
+assert.match(loader,/battle-viewer-spell-runtime-074\.js/);
+assert.match(loader,/__spellAdapter074/);
+assert.match(loader,/__spellRuntime074/);
+assert.doesNotMatch(loader,/battle-viewer-runtime-074\.js/);
+assert.match(menu,/__spellUnavailableReason/);
+assert.match(menu,/button\.disabled=true/);
+assert.match(menu,/if\(explicit\)/);
+assert.match(authority,/SPELL_PLAN_REJECTED:/);
+assert.match(authority,/resolveSpellForCombatant\(unit,spellId/);
+assert.match(read("js/combat-v073-live-adapter.js"),/LuminousSpellLoadout\.canonical\(authoritativePlayer\)/);
+for(const path of ["js/combat-v073-spell-bootstrap.js","js/combat-v073-economy-menu.js","js/combat-v073-authority.js","js/spell-loadout-core.js","js/combat-v073-live-adapter.js"]){
+  assert.doesNotThrow(()=>new Script(read(path),{filename:path}),path);
+}
+const fake={addEventListener(){},setTimeout(){return 1},clearTimeout(){},console:{error(){}}};
+fake.document={head:{appendChild(){}},getElementById(){return null},createElement(){return {addEventListener(){}}}};
+runInNewContext(loader,{window:fake,globalThis:fake,Promise,Date});
+assert.equal(fake.LuminousCombatSpellBootstrap073.state.ready,false);
+assert.ok(fake.LuminousCombatSpellBootstrap073.MODULES.length>=12);
+console.log("Combat SP-01 canonical boot, disabled invalid Spells and DM seal validation: OK");
