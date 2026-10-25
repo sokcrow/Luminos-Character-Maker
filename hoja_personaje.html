@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="css/player-terminal-fullscreen.css?v=20261006-cellphone-context-1" />
     <link rel="stylesheet" href="css/player-mobile-runtime.css?v=20261006-mobile-runtime-6" />
     <link rel="stylesheet" href="css/inventory-gothic-art.css?v=20261024-visible-item-icons-1" />
+    <link rel="stylesheet" href="css/inventory-hud-reference.css?v=20261025-popup-square-1" />
 
     <style>
       #system-loading-overlay {
@@ -12132,7 +12133,7 @@
     <!-- Inventory Modal -->
     <div id="inventory-modal" class="inventory-modal">
       <div class="inventory-modal-content">
-        <button id="inventory-modal-close" class="inventory-modal-close">
+        <button type="button" id="inventory-modal-close" class="inventory-modal-close" aria-label="Cerrar inventario">
           ×
         </button>
         <div class="inventory-tabs">
@@ -12262,8 +12263,11 @@
           </div>
           <!-- End of inventory-left-panel -->
 
-          <!-- Player item detail: compact gameplay information only -->
-          <div class="item-detail-card" id="item-detail-card">
+          <!-- Ficha de objeto: modal central independiente, siempre encima del inventario. -->
+          <div class="inventory-v2-detail-overlay" id="inventory-v2-detail-overlay" hidden>
+            <section class="inventory-v2-detail-dialog" id="inventory-v2-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="detail-title" tabindex="-1">
+              <button type="button" class="inventory-v2-detail-close" id="inventory-v2-detail-close" aria-label="Cerrar información del objeto">×</button>
+              <div class="item-detail-card" id="item-detail-card">
             <div class="detail-left">
               <div class="detail-icon-box">
                 <img id="detail-icon" src="" alt="Icono" />
@@ -12284,6 +12288,8 @@
               <div class="detail-tags" id="detail-tags-val" hidden></div>
               <div id="detail-vinculo-info" hidden></div>
             </div>
+              </div>
+            </section>
           </div>
         </div>
       </div>
@@ -13391,7 +13397,7 @@
     <script src="js/item-cooking-runtime.js"></script>
     <script src="js/item-content-registry.js"></script>
     <script src="js/item-food-rest-runtime.js"></script>
-    <script src="js/inventory-hud-v2.js?v=20261024-visible-item-icons-1"></script>
+    <script src="js/inventory-hud-v2.js?v=20261025-popup-square-1"></script>
     <script src="js/item-food-rest-ui.js"></script>
     <script src="js/coin-engine-core.js"></script>
     <script src="js/item-cooking-ui.js?v=20261022-tx01-cooking-canonical"></script>
