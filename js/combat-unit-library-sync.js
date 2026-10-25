@@ -18,6 +18,7 @@
     'js/skill-catalog-kobold-tier1.js',
     'js/skill-catalog-goblin-tier1.js',
     'js/skill-catalog-wolf.js',
+    'js/skill-catalog-cave-sapphire-spiders.js',
     'js/unit-rank-runtime.js',
     'js/universal-action-economy.js',
     'js/universal-ranged-ammo-runtime.js',
@@ -28,10 +29,12 @@
     'js/loot-social-profile-contract.js',
     'js/goblin-unit-runtime.js',
     'js/wolf-unit-runtime.js',
+    'js/cave-sapphire-spider-runtime.js',
     'js/unit-catalog-beast-cr0.js',
     'js/unit-catalog-kobold-tier1.js',
     'js/unit-catalog-goblin.js',
-    'js/unit-catalog-wolf.js'
+    'js/unit-catalog-wolf.js',
+    'js/unit-catalog-cave-sapphire-spiders.js'
   ]);
   const DEPLOYMENT_SCRIPTS=Object.freeze(['js/item-inventory-runtime.js','js/item-catalog-hp-healing.js','js/item-catalog-culinary-staples.js','js/npc-belongings-runtime.js','js/unit-combat-instantiator.js','js/combat-v073-unit-deploy-bridge.js?v=20261021-encounter-3']);
   const state={loading:null,deploymentLoading:null,localUnits:{},localSkills:{},fallbackDb:null,fallbackUnsubscribers:[],remoteCampaignUnits:{},remoteManifest:{}};
@@ -48,6 +51,7 @@
       'js/skill-catalog-kobold-tier1.js':()=>Boolean(global.LuminousKoboldTier1SkillCatalog),
       'js/skill-catalog-goblin-tier1.js':()=>Boolean(global.LuminousGoblinTier1SkillCatalog),
       'js/skill-catalog-wolf.js':()=>Boolean(global.LuminousWolfSkillCatalog),
+      'js/skill-catalog-cave-sapphire-spiders.js':()=>Boolean(global.LuminousCaveSapphireSpiderSkillCatalog),
       'js/unit-rank-runtime.js':()=>Boolean(global.LuminousUnitRankRuntime),
       'js/universal-action-economy.js':()=>Boolean(global.LuminousActionEconomy),
       'js/universal-ranged-ammo-runtime.js':()=>Boolean(global.LuminousUniversalRangedAmmoRuntime),
@@ -58,10 +62,12 @@
       'js/loot-social-profile-contract.js':()=>Boolean(global.LuminousLootSocialProfileContract),
       'js/goblin-unit-runtime.js':()=>Boolean(global.LuminousGoblinUnitRuntime),
       'js/wolf-unit-runtime.js':()=>Boolean(global.LuminousWolfUnitRuntime),
+      'js/cave-sapphire-spider-runtime.js':()=>Boolean(global.LuminousCaveSapphireSpiderRuntime),
       'js/unit-catalog-beast-cr0.js':()=>Boolean(global.LuminousBeastCr0UnitCatalog),
       'js/unit-catalog-kobold-tier1.js':()=>Boolean(global.LuminousKoboldUnitCatalog),
       'js/unit-catalog-goblin.js':()=>Boolean(global.LuminousGoblinUnitCatalog),
       'js/unit-catalog-wolf.js':()=>Boolean(global.LuminousWolfUnitCatalog),
+      'js/unit-catalog-cave-sapphire-spiders.js':()=>Boolean(global.LuminousCaveSapphireSpiderUnitCatalog),
       'js/item-inventory-runtime.js':()=>Boolean(global.LuminousItemInventoryRuntime),
       'js/item-catalog-hp-healing.js':()=>Boolean(global.LuminousHpHealingCatalog),
       'js/item-catalog-culinary-staples.js':()=>Boolean(global.LuminousCulinaryStaplesCatalog),
@@ -87,7 +93,7 @@
       if(!existing){script.src=src + (src === 'js/unit-combat-instantiator.js' ? '?v=20261021-belongings-1' : '');script.async=false;global.document.head.appendChild(script);}else if(readyForScript(src)||existing.dataset?.loaded==='1'||existing.readyState==='complete')finish();
     });
   }
-  function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousProficiencyRuntime&&global.LuminousMovementSpeedRuntime&&global.LuminousBeastCr0SkillCatalog&&global.LuminousBeastCr0UnitCatalog&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog);}
+  function catalogsReady(){return Boolean(global.LuminousUniversalLibrary&&global.CombatSkillSchema&&global.LuminousProficiencyRuntime&&global.LuminousMovementSpeedRuntime&&global.LuminousBeastCr0SkillCatalog&&global.LuminousBeastCr0UnitCatalog&&global.LuminousKoboldUnitCatalog&&global.LuminousGoblinTier1SkillCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog&&global.LuminousCaveSapphireSpiderUnitCatalog&&global.LuminousCaveSapphireSpiderSkillCatalog&&global.LuminousCaveSapphireSpiderRuntime);}
   async function ensureCatalogs(){
     if(catalogsReady())return true;
     if(state.loading)return state.loading;
@@ -116,9 +122,9 @@
   }
   async function buildPayloads(){
     await ensureCatalogs();
-    const schema=global.CombatSkillSchema,beasts=global.LuminousBeastCr0UnitCatalog,kobolds=global.LuminousKoboldUnitCatalog,goblins=global.LuminousGoblinUnitCatalog,wolves=global.LuminousWolfUnitCatalog;
-    const units=mergePayloads(beasts.firebasePayload(),kobolds.firebasePayload(),goblins.firebasePayload(),wolves.firebasePayload());
-    const skills=mergePayloads(beasts.firebaseSkillPayload(schema),kobolds.firebaseSkillPayload(schema),goblins.firebaseSkillPayload(schema),wolves.firebaseSkillPayload(schema));
+    const schema=global.CombatSkillSchema,beasts=global.LuminousBeastCr0UnitCatalog,kobolds=global.LuminousKoboldUnitCatalog,goblins=global.LuminousGoblinUnitCatalog,wolves=global.LuminousWolfUnitCatalog,spiders=global.LuminousCaveSapphireSpiderUnitCatalog;
+    const units=mergePayloads(beasts.firebasePayload(),kobolds.firebasePayload(),goblins.firebasePayload(),wolves.firebasePayload(),spiders.firebasePayload());
+    const skills=mergePayloads(beasts.firebaseSkillPayload(schema),kobolds.firebaseSkillPayload(schema),goblins.firebaseSkillPayload(schema),wolves.firebaseSkillPayload(schema),spiders.firebaseSkillPayload(schema));
     state.localUnits=clone(units)||{};state.localSkills=clone(skills)||{};
     return{units,skills};
   }

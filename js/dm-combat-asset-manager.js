@@ -3,17 +3,25 @@
 if(global.LuminousDmCombatAssetManager)return;
 const ROOTS={players:'campaña/jugadores',actors:'campaña/actores',units:'campaña/base_datos_unidades',skills:'campaña/base_datos_skills',combatants:'campaña/combate/combatants',dmUid:'campaña/config/dm_uid'};
 const FALLBACK_DM_UID='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1';
-const CATALOG_SCRIPTS=['js/combat-skill-schema.js','js/skill-catalog-kobold-tier1.js','js/skill-catalog-wolf.js','js/unit-rank-runtime.js','js/universal-action-economy.js','js/universal-ranged-ammo-runtime.js','js/goblin-unit-runtime.js','js/wolf-unit-runtime.js','js/unit-catalog-kobold-tier1.js','js/unit-catalog-goblin.js','js/unit-catalog-wolf.js'];
 const state={db:null,players:{},actors:{},units:{},combatants:{},mounted:false,subs:[],selectedType:'unit',selectedId:'',spriteUrl:'',x:0,y:0,scale:1};
 const clean=v=>String(v??'').trim();
 const esc=v=>clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function nameFor(o={},fallback='Entry'){return clean(o.characterName||o.character_name||o.nombre||o.name||o.displayName||fallback)||fallback}
 function spriteFor(o={}){return clean(o.combatSprite||o.sprite_combate||o.combat_sprite||o.tokenImage||o.sprite||o.idle_sprite||o.portrait||o.icono||o.img||o.image||o.visual?.spriteUrl)}
 function loadScript(src){return new Promise((resolve,reject)=>{const old=document.querySelector(`script[src="${src}"]`);if(old){if(old.dataset.loaded==='1'||old.readyState==='complete')return resolve(old);old.addEventListener('load',()=>resolve(old),{once:true});old.addEventListener('error',reject,{once:true});return}const s=document.createElement('script');s.src=src;s.async=false;s.onload=()=>{s.dataset.loaded='1';resolve(s)};s.onerror=reject;document.head.appendChild(s)})}
-async function ensureCatalogs(){for(const src of CATALOG_SCRIPTS)await loadScript(src);return Boolean(global.LuminousKoboldUnitCatalog&&global.LuminousGoblinUnitCatalog&&global.LuminousWolfUnitCatalog&&global.CombatSkillSchema)}
 async function isDm(){const user=global.firebase?.auth?.().currentUser;if(!user)return false;const snap=await state.db.ref(ROOTS.dmUid).once('value');const dm=clean(snap.val())||FALLBACK_DM_UID;return user.uid===dm||user.uid===FALLBACK_DM_UID}
-function mergePayloads(...parts){const out={};for(const p of parts)for(const [id,v] of Object.entries(p||{})){if(Object.prototype.hasOwnProperty.call(out,id))throw new Error(`DUPLICATE_LIBRARY_ID:${id}`);out[id]=v}return out}
-async function syncUnitLibrary(){if(!(await isDm()))throw new Error('DM_ONLY');setMsg('Cargando catálogos canónicos…');if(!(await ensureCatalogs()))throw new Error('CATALOGS_NOT_READY');const schema=global.CombatSkillSchema,k=global.LuminousKoboldUnitCatalog,g=global.LuminousGoblinUnitCatalog,w=global.LuminousWolfUnitCatalog,ks=global.LuminousKoboldTier1SkillCatalog,ws=global.LuminousWolfSkillCatalog;const units=mergePayloads(k.firebasePayload(),g.firebasePayload(),w.firebasePayload());const skills=mergePayloads(k.firebaseSkillPayload(schema),w.firebaseSkillPayload(schema));await state.db.ref().update({[ROOTS.units]:{...(state.units||{}),...units},[ROOTS.skills]:skills});setMsg(`SYNC OK · ${Object.keys(units).length} Units · ${Object.keys(skills).length} Skills`);return{units:Object.keys(units).length,skills:Object.keys(skills).length}}
+async function syncUnitLibrary(){
+  if(!(await isDm()))throw new Error('DM_ONLY');
+  setMsg('Cargando biblioteca universal de Units y Skills…');
+  // The canonical Combat DM pipeline handles manifests and preserves
+  // customized unit sprites. No duplicate catalog seeder or whole-table writes.
+  if(!global.LuminousCombatUnitLibrarySync)await loadScript('js/combat-unit-library-sync.js');
+  const sync=global.LuminousCombatUnitLibrarySync;
+  if(!sync?.syncAll)throw new Error('UNIVERSAL_LIBRARY_SYNC_UNAVAILABLE');
+  const result=await sync.syncAll(state.db);
+  setMsg(`SYNC OK · ${result.unitCount} Units · ${result.skillCount} Skills`);
+  return{units:result.unitCount,skills:result.skillCount};
+}
 function collectionFor(type){return type==='player'?state.players:type==='actor'?state.actors:state.units}
 function canonicalPath(type,id){return type==='player'?`${ROOTS.players}/${id}`:type==='actor'?`${ROOTS.actors}/${id}`:`${ROOTS.units}/${id}`}
 function selected(){return collectionFor(state.selectedType)?.[state.selectedId]||null}

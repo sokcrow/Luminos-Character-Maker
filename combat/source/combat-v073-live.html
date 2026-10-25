@@ -3121,6 +3121,9 @@ function processConditionTurnStart(turnNumber=round){
     if(unitHasStatus(unit,'sleep'))setCombatantSP(unit.id,0);
     if(statusModifier(unit,'exhaustion')>=6)setCombatantHP(unit.id,0,{triggerStagger:false})
   });
+  Object.values(combatData).filter(isUnitTargetable).forEach(unit => {
+    window.LuminousCaveSapphireSpiderRuntime?.hasteOnTurnStart?.(unit, applyCombatStatus);
+  });
   processInvisibleAwarenessAtTurnStart(turnNumber);
   syncConditionVisuals()
 }
@@ -3156,7 +3159,8 @@ function statusDamagePercent(attacker,defender,skillData=null){
         grappleAssistPct=grappleAssistDamagePercent(attacker,defender),
         paralyzedPct=unitHasStatus(defender,'paralyzed')?10:0,
         sleepPct=skillData&&unitHasStatus(defender,'sleep')?15:0;
-  return attackerPct+defenderPct+conditionalPct+grappleAssistPct+paralyzedPct+sleepPct
+  return attackerPct+defenderPct+conditionalPct+grappleAssistPct+paralyzedPct+sleepPct+
+    (window.LuminousCaveSapphireSpiderRuntime?.speedDamagePercent?.(attacker,defender)||0)
 }
 function statusDamageMultiplier(attacker,defender,skillData=null){return Math.max(0,1+(statusDamagePercent(attacker,defender,skillData)/100))}
 function statusHealingMultiplier(unit){
@@ -3269,6 +3273,11 @@ function ensureEntryConcentration(entry){
   entry._concentrationId=state?.id||null;return state
 }
 function applySkillStatusEffects(entry,targetId,trigger,context={}){
+  if(trigger==='[On Evade]' && String(entry?.plan?.data?.id||'')==='sapphire_spiderling_skittering_evasion'){
+    const spiderling=combatData[entry.ownerId];
+    if(spiderling?.lastSpiderlingEvadeHasteRound===round)return;
+    if(spiderling)spiderling.lastSpiderlingEvadeHasteRound=round;
+  }
   window.LuminousCombatEventRuntime?.notify(trigger,combatData[entry?.ownerId],{target:combatData[targetId],...context});
   if(window.LuminousCombatEventRuntime&&['on_hit','clash_win'].includes(window.LuminousCombatEventRuntime.normalizeTrigger(trigger)))renderStatusEffects(entry.ownerId);
   const data=entry?.plan?.data||{},sourceType=data.sourceType||(isSpellSkill(data)||entry?.plan?.type==='spells'||data.kind==='spell'?'magic':'skill'),sourceElement=normalizeElement(data.element||'');
@@ -3298,6 +3307,10 @@ function applySkillStatusEffects(entry,targetId,trigger,context={}){
     if(String(effect.timing||'immediate').toLowerCase()==='next_turn')queuePendingStatus(resolvedTarget,effect.status,input);
     else applyCombatStatus(resolvedTarget,effect.status,input)
   })
+  window.LuminousCaveSapphireSpiderRuntime?.applyConditionalSkillEffects?.({
+    entry,targetId,trigger,context,units:combatData,
+    applyStatus:applyCombatStatus,queueStatus:queuePendingStatus
+  });
 }
 
 
@@ -5513,7 +5526,7 @@ function damageCombatant(id,amount,{damageType='NORMAL',ignoreResistance=false,i
         critChance=fixed?0:statusCritChance(attacker),
         poiseAutoCrit=!fixed&&attacker&&unitHasStatus(d,'paralyzed')&&statusPotency(attacker,'poise')>0&&statusModifier(attacker,'poise')>0,
         critical=!fixed&&(poiseAutoCrit||(critChance>0&&Math.random()*100<critChance)),
-        critMultiplier=critical?1.2:1,
+        critMultiplier=critical?(1.2+(window.LuminousCaveSapphireSpiderRuntime?.criticalDamageBonus?.(attacker,d,skillData)||0)):1,
         calculated=raw*effective.multiplier*dealtMultiplier*levelMultiplier*critMultiplier,
         finalDamage=calculated>0?Math.max(1,Math.floor(calculated)):0,
         hpBefore=Math.max(0,Number(d.hp)||0),
@@ -6943,6 +6956,8 @@ function combatStepRuntime(){
   const rules={data:clashData,unit:id=>combatData[id],
     rollSide:chance=>window.LuminousCoinEngine.rollSide(chance),coinSrc:side=>window.LuminousCoinEngine.coinSrc(side)};
   names.forEach(name=>{rules[name]=(...args)=>window[name](...args)});
+  rules.caveEvadeBonus=(unit,plan)=>window.LuminousCaveSapphireSpiderRuntime?.evadeBonus?.(unit,plan)||0;
+  rules.caveEvadePower=(unit,plan)=>window.LuminousCaveSapphireSpiderRuntime?.evadePower?.(unit,plan)||null;
   combatStepsInstance=window.LuminousCombatSteps.create({rules,
     publish:()=>window.LuminousCombatAuthority073?.publishPresentation?.(),
     schedulePresentation:()=>window.LuminousCombatPlaybackSync?.schedulePresentation?.(),
