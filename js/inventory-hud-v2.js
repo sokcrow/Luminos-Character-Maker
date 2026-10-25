@@ -559,6 +559,14 @@
     detailRight.appendChild(extra);
   }
 
+  function ensureItemDetailPortal() {
+    // Keep the artwork modal outside the scrolling inventory panels: no clipped
+    // overlay on narrow screens, and no secondary details sidebar.
+    const root = doc.getElementById("inventory-modal");
+    const overlay = doc.getElementById("inventory-v2-detail-overlay");
+    if (root && overlay && overlay.parentElement !== root) root.appendChild(overlay);
+  }
+
   function rethemeTabs() {
     const modal = doc.getElementById("inventory-modal");
     if (!modal) return;
@@ -943,14 +951,27 @@
         const image = icon.querySelector(".inventory-v2-eq-image");
         icon.style.backgroundImage = "none";
         if (image) {
-          image.onerror = () => { image.hidden = true; icon.classList.remove("has-icon"); };
-          if (image.getAttribute("src") !== url) {
+          image.onerror = () => {
+            const fallback = iconFromFamily("generic_item");
+            if (image.dataset.fallback !== "1" && fallback && image.getAttribute("src") !== fallback) {
+              image.dataset.fallback = "1";
+              image.src = fallback;
+            } else {
+              image.dataset.failed = "1";
+              image.hidden = true;
+              icon.classList.remove("has-icon");
+            }
+          };
+          if (image.dataset.requested !== url) {
+            image.dataset.requested = url;
+            image.dataset.fallback = "";
+            image.dataset.failed = "";
             if (url) image.src = url;
             else image.removeAttribute("src");
           }
-          image.hidden = !url;
+          image.hidden = !url || image.dataset.failed === "1";
         }
-        icon.classList.toggle("has-icon", Boolean(url));
+        icon.classList.toggle("has-icon", Boolean(url) && image?.hidden !== true);
       }
       const hint = button.querySelector(".inventory-v2-eq-hint");
       button.classList.toggle("is-filled", Boolean(item));
@@ -1055,19 +1076,24 @@
     const icon = doc.getElementById("detail-icon");
     if (icon) {
       const url = itemIcon(item);
-      icon.hidden = !url;
       icon.onerror = () => {
         const fallback = iconFromFamily("generic_item");
         if (icon.dataset.fallback !== "1" && fallback && icon.getAttribute("src") !== fallback) {
           icon.dataset.fallback = "1";
           icon.src = fallback;
-        } else icon.hidden = true;
+        } else {
+          icon.dataset.failed = "1";
+          icon.hidden = true;
+        }
       };
-      if (icon.getAttribute("src") !== url) {
+      if (icon.dataset.requested !== url) {
+        icon.dataset.requested = url;
         icon.dataset.fallback = "";
+        icon.dataset.failed = "";
         if (url) icon.src = url;
         else icon.removeAttribute("src");
       }
+      icon.hidden = !url || icon.dataset.failed === "1";
       icon.alt = itemName(item);
     }
     const tier = doc.getElementById("detail-tier-val");
@@ -1814,6 +1840,7 @@
   function boot() {
     if (!doc.getElementById("inventory-modal")) return false;
     ensureActiveLayout();
+    ensureItemDetailPortal();
     ensureDetailExtensions();
     rethemeTabs();
     bindModalControls();
