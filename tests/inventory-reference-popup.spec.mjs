@@ -14,40 +14,18 @@ const viewports = [
 ];
 // Exercise the actual canonical registry and disk asset, not a placeholder icon.
 const ORIGIN = "https://inventory.luminous.test";
-const html = `<!doctype html><html lang="es"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;background:#0b0908">
-<button id="btn-global-inventory" type="button">Inventario</button>
-<div id="inventory-modal" class="inventory-modal" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center">
-  <div class="inventory-modal-content" style="display:flex;flex-direction:column;position:relative">
-    <button id="inventory-modal-close" class="inventory-modal-close" type="button">×</button>
-    <div class="inventory-tabs">
-      <button type="button" class="inv-tab-btn active" data-tab="inv-active">Activos</button>
-      <button type="button" class="inv-tab-btn" data-tab="inv-stash">Alijo</button>
-      <button type="button" class="inv-tab-btn" data-tab="inv-sintesis">Síntesis</button>
-    </div>
-    <div class="inventory-body-wrapper" style="display:flex;flex:1;min-height:0">
-      <div class="inventory-left-panel">
-        <div id="inv-active" class="inventory-tab-content active"><div id="inv-active-grid" class="inv-grid"></div></div>
-        <div id="inv-stash" class="inventory-tab-content"><div class="inventory-toolbar"><div id="filtros-stash"></div></div><div id="inv-stash-grid" class="inv-grid"></div></div>
-        <div id="inv-sintesis" class="inventory-tab-content"></div>
-      </div>
-      <div id="inventory-v2-detail-overlay" class="inventory-v2-detail-overlay" hidden>
-        <section id="inventory-v2-detail-dialog" class="inventory-v2-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="detail-title" tabindex="-1">
-          <button type="button" id="inventory-v2-detail-close" class="inventory-v2-detail-close">×</button>
-          <div id="item-detail-card" class="item-detail-card">
-            <div class="detail-left"><div class="detail-icon-box"><img id="detail-icon" alt="" /></div></div>
-            <div class="detail-right">
-              <div id="detail-title" class="detail-title-badge"></div>
-              <div class="inventory-v2-detail-meta"><span class="detail-tier">Tier <b id="detail-tier-val"></b></span><span class="detail-cost">Valor <span class="currency-symbol">₳</span><b id="detail-cost-val"></b></span></div>
-              <div id="inventory-v2-detail-effects" hidden></div>
-              <div id="detail-desc" class="detail-desc"></div><div id="detail-tags-val" hidden></div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
-  </div>
-</div></body></html>`;
+// Isolate the actual inventory HTML from the production page. No duplicate
+// handcrafted modal exists in tests: a broken live DOM fails this acceptance.
+const sheet = await fs.readFile(asset("hoja_personaje.html"), "utf8");
+const startMarkup = sheet.indexOf("<!-- Inventory Modal -->");
+const endMarkup = sheet.indexOf("<!-- Toggle Button -->", startMarkup);
+if (startMarkup < 0 || endMarkup <= startMarkup) {
+  throw new Error("The production inventory markup could not be located");
+}
+const liveInventoryMarkup = sheet.slice(startMarkup, endMarkup);
+const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;background:#0b0908"><button type="button" id="btn-global-inventory">Inventario</button>
+${liveInventoryMarkup}</body></html>`
 
 test("inventory keeps character left, real icons and item popups across desktop and mobile", async ({ browser }) => {
   test.setTimeout(120000);
