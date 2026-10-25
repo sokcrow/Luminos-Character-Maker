@@ -8,6 +8,24 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - 'js/individual-goap-combat-ai.js'
+      - 'js/unit-ai-*.js'
+      - 'js/unit-action-economy-catalog.js'
+      - 'js/enemy-action-slot-allocator.js'
+      - 'js/unit-combat-instantiator.js'
+      - 'js/creature-type-catalog.js'
+      - 'js/spell-targeting-language.js'
+      - 'js/battle-viewer-enemy-planning-074.js'
+      - 'js/combat-action-resolver.js'
+      - 'js/combatEngine.js'
+      - 'tests/*goap*'
+      - 'tests/unit-ai-*.mjs'
+      - 'tests/enemy-action-slot-*.mjs'
+      - 'tests/battle-viewer-enemy-planning-074*.mjs'
+      - 'tests/unit-combat-instantiator-smoke.mjs'
+      - 'package.json'
+      - '.github/workflows/individual-goap-smoke.yml'
 
 jobs:
   individual-goap-smoke:
