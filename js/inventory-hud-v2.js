@@ -571,6 +571,35 @@
     if (synth) synth.textContent = "SYNTHESIS";
   }
 
+  let detailReturnFocus = null;
+  function detailIsOpen() {
+    const overlay = doc.getElementById("inventory-v2-detail-overlay");
+    return Boolean(overlay && !overlay.hidden);
+  }
+
+  function openItemDetail() {
+    const overlay = doc.getElementById("inventory-v2-detail-overlay");
+    const card = doc.getElementById("item-detail-card");
+    const dialog = doc.getElementById("inventory-v2-detail-dialog");
+    if (!overlay || !card || !dialog || !selectedItem()) return;
+    if (!detailIsOpen()) detailReturnFocus = doc.activeElement;
+    overlay.hidden = false;
+    overlay.classList.add("active");
+    card.classList.add("active");
+    dialog.focus({ preventScroll: true });
+  }
+
+  function closeItemDetail(restoreFocus = true) {
+    const overlay = doc.getElementById("inventory-v2-detail-overlay");
+    overlay?.classList.remove("active");
+    if (overlay) overlay.hidden = true;
+    doc.getElementById("item-detail-card")?.classList.remove("active");
+    if (restoreFocus && detailReturnFocus?.isConnected && typeof detailReturnFocus.focus === "function") {
+      detailReturnFocus.focus({ preventScroll: true });
+    }
+    detailReturnFocus = null;
+  }
+
   function bindModalControls() {
     const modal = doc.getElementById("inventory-modal");
     const open = doc.getElementById("btn-global-inventory");
@@ -601,6 +630,7 @@
     const closeInventory = (event) => {
       event?.preventDefault?.();
       event?.stopPropagation?.();
+      closeItemDetail(false);
       modal.classList.remove("active");
       suspendRealtime();
       emitVisibility(false);
@@ -611,9 +641,33 @@
     modal.addEventListener("click", (event) => {
       if (event.target === modal) closeInventory();
     });
-    doc.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && modal.classList.contains("active")) closeInventory(event);
+    const detailOverlay = doc.getElementById("inventory-v2-detail-overlay");
+    doc.getElementById("inventory-v2-detail-close")?.addEventListener("click", () => closeItemDetail());
+    detailOverlay?.addEventListener("click", (event) => {
+      if (event.target === detailOverlay) closeItemDetail();
     });
+    doc.addEventListener("keydown", (event) => {
+      if (!modal.classList.contains("active")) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (detailIsOpen()) closeItemDetail();
+        else closeInventory(event);
+        return;
+      }
+      if (event.key !== "Tab" || !detailIsOpen()) return;
+      const dialog = doc.getElementById("inventory-v2-detail-dialog");
+      const focusables = Array.from(dialog?.querySelectorAll(
+        'button:not([disabled]):not([hidden]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      ) || []).filter((el) => el.getClientRects().length > 0);
+      if (!focusables.length) { event.preventDefault(); dialog?.focus(); return; }
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (event.shiftKey && (doc.activeElement === first || doc.activeElement === dialog)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && doc.activeElement === last) {
+        event.preventDefault(); first.focus();
+      }
+    }, true);
 
     modal.querySelectorAll(".inv-tab-btn").forEach((button) => {
       button.addEventListener("click", () => {
@@ -970,13 +1024,13 @@
     decorateGrid("stash");
     renderEquipment();
     renderDetail();
-    if (options.focus !== false) doc.getElementById("item-detail-card")?.classList.add("active");
+    if (options.focus !== false) openItemDetail();
   }
 
   function clearSelection() {
     state.selected = null;
     state.selectedContainer = "active";
-    doc.getElementById("item-detail-card")?.classList.remove("active");
+    closeItemDetail(false);
     doc.querySelectorAll("#inv-active-grid .item-slot.active,#inv-stash-grid .item-slot.active").forEach((slot) => slot.classList.remove("active"));
     renderEquipment();
   }
@@ -987,10 +1041,10 @@
     const card = doc.getElementById("item-detail-card");
     if (!card) return;
     if (!item) {
-      card.classList.remove("active");
+      closeItemDetail(false);
       return;
     }
-    card.classList.add("active");
+    // Live data refresh updates details without reopening a dismissed popup.
 
     const condition = runtime()?.getCondition?.(item);
     const conditionPercent = condition?.percent ?? Math.max(0, Math.min(100, Math.round((Number(item.condition ?? 100) / Math.max(1, Number(item.conditionMax ?? 100))) * 100)));
@@ -1000,7 +1054,20 @@
 
     const icon = doc.getElementById("detail-icon");
     if (icon) {
-      icon.src = itemIcon(item);
+      const url = itemIcon(item);
+      icon.hidden = !url;
+      icon.onerror = () => {
+        const fallback = iconFromFamily("generic_item");
+        if (icon.dataset.fallback !== "1" && fallback && icon.getAttribute("src") !== fallback) {
+          icon.dataset.fallback = "1";
+          icon.src = fallback;
+        } else icon.hidden = true;
+      };
+      if (icon.getAttribute("src") !== url) {
+        icon.dataset.fallback = "";
+        if (url) icon.src = url;
+        else icon.removeAttribute("src");
+      }
       icon.alt = itemName(item);
     }
     const tier = doc.getElementById("detail-tier-val");
@@ -1532,6 +1599,7 @@
       state.selected = { key: itemId(current), item: current };
       renderEquipment();
       renderDetail();
+      openItemDetail();
       return;
     }
     if (state.selectedContainer === "active" && selectedItem()) equipSelectedTo(slotId);
@@ -1572,6 +1640,7 @@
     renderStashCount();
     renderEquipment();
     if (state.selected) renderDetail();
+    else if (detailIsOpen()) closeItemDetail(false);
   }
 
   function bindRealtime() {
