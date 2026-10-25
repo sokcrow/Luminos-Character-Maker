@@ -225,6 +225,9 @@
     const spellIds = spellIdsForDeployment(spellSource);
     const slots = slotsFor(source);
     const stats = baseStats(source);
+    const speedProfile = global.LuminousMovementSpeedRuntime?.combatRangeForEntity?.({ ...source, isPlayer: true });
+    const speedRange = speedProfile ? [speedProfile.min, speedProfile.max] :
+      global.LuminousCombatSpeedAuthority073?.rangeFor?.(source) || [1, 6];
     const id = `player:${safe(playerId, 'player')}`;
     const sprite = spriteFromSources([player, actor, unit], [unit, actor, player]);
     return {
@@ -253,6 +256,15 @@
       tokenImage: sprite || null,
       portrait: sprite || null,
       ...stats,
+      speedRange,
+      speedMin: speedRange[0],
+      speedMax: speedRange[1],
+      ...(speedProfile ? { speedRangeSource: speedProfile.source } : {}),
+      // Each deployment receives a new authoritative roll for this encounter.
+      speed: 0,
+      speedBaseRoll: 0,
+      speedRollTurn: 0,
+      speedTie: 0,
       actionSlots: slots,
       activeSlots: slots,
       actionSlotIndex: slotIndex(slots),
@@ -737,3 +749,4 @@
     actorForPlayer
   });
 })(window);
+

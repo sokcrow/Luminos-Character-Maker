@@ -36,8 +36,8 @@ assert.deepEqual(
   "Max Speed must never fall below 2 from movement penalties.",
 );
 
-assert.equal(speed.rangeFromFeet(30, "tiny").max, 8);
-assert.equal(speed.rangeFromFeet(30, "small").max, 8);
+assert.equal(speed.rangeFromFeet(30, "tiny").max, 7);
+assert.equal(speed.rangeFromFeet(30, "small").max, 7);
 assert.equal(speed.rangeFromFeet(30, "large").max, 5);
 assert.equal(speed.rangeFromFeet(30, "huge").max, 4);
 assert.equal(speed.rangeFromFeet(30, "gargantuan").max, 3);
@@ -58,13 +58,13 @@ const owl = {
 assert.equal(speed.rangeForEntity(owl).mode, "fly");
 assert.deepEqual(
   { min: speed.rangeForEntity(owl).min, max: speed.rangeForEntity(owl).max },
-  { min: 1, max: 14 },
+  { min: 1, max: 13 },
 );
 owl.flying = false;
 assert.equal(speed.rangeForEntity(owl).mode, "ground");
 assert.deepEqual(
   { min: speed.rangeForEntity(owl).min, max: speed.rangeForEntity(owl).max },
-  { min: 1, max: 4 },
+  { min: 1, max: 3 },
 );
 
 const octopus = {
@@ -78,7 +78,8 @@ octopus.encounterTags = ["underwater"];
 assert.equal(speed.rangeForEntity(octopus).mode, "swim");
 assert.deepEqual(
   { min: speed.rangeForEntity(octopus).min, max: speed.rangeForEntity(octopus).max },
-  { min: 1, max: 8 },
+  { min: 1, max: 7 },
 );
 
 console.log("movement Speed runtime smoke: ok");
+

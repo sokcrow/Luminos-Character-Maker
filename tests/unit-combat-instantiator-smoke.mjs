@@ -27,7 +27,7 @@ assert.ok(goblin.skillIds.length >= 6, 'canonical Goblin must deploy with its Ti
 assert.ok(goblin.skillIds.includes('goblin_scimitar_slash'));
 assert.ok(goblin.skillIds.includes('goblin_shortbow_shot'));
 assert.equal(goblin.runtimeDiagnostics.catalogResolved, true);
-assert.deepEqual(goblin.speedRange, [1, 8], 'canonical Goblin Warrior must derive Speed from 30 ft Small movement');
+assert.deepEqual(goblin.speedRange, [2, 8], 'canonical Goblin Warrior must derive Speed from 30 ft, Small size and DEX 15');
 assert.equal(goblin.runtimeDiagnostics.speedFallback, false);
 
 const customDefinition = {
@@ -90,3 +90,4 @@ assert.ok(bridgeSource.includes('LuminousCombatSession.deploy('), 'instantiated 
 assert.ok(!bridgeSource.includes('combatEngine.js'), 'Unit deployment bridge must not revive legacy CombatEngine');
 
 console.log('Unit Combat Instantiator smoke: OK');
+

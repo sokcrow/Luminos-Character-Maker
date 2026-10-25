@@ -126,9 +126,14 @@
   }
 
   function speedRangeFor(record = {}) {
+    const movementRuntime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
+    if (movementRuntime?.combatRangeForEntity &&
+        (movementRuntime.explicitMovementProfile(record) || record.speedRangeSource === 'movement-dex-size')) {
+      const derived = movementRuntime.combatRangeForEntity(record);
+      return [derived.min, derived.max];
+    }
     const explicit = parseRange(record.speedRange) || parseRange(record.mechanics?.speedRange);
     if (explicit) return explicit;
-    const movementRuntime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
     const derived = movementRuntime?.rangeForEntity?.(record) || null;
     if (derived) return [derived.min, derived.max];
     return ((finite(record.speedMin, null) != null || finite(record.speedMax, null) != null)
@@ -158,7 +163,9 @@
     let speedRange = speedRangeFor(material);
     let speedFallback = false;
     if (!speedRange) {
-      speedRange = [1, 6];
+      const runtime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
+      const profile = runtime?.combatRangeForEntity?.(material);
+      speedRange = profile ? [profile.min, profile.max] : [1, 6];
       speedFallback = true;
     }
     speedRange = [
@@ -183,6 +190,8 @@
       speedRange,
       speedMin: speedRange[0],
       speedMax: speedRange[1],
+      speedRangeSource: (global.LuminousMovementSpeedRuntime?.explicitMovementProfile?.(material) || speedFallback || material.speedRangeSource === 'movement-dex-size')
+        ? 'movement-dex-size' : 'authored-range',
       actionSlots,
       activeSlots: actionSlots,
       actionSlotIndex: Object.fromEntries(Array.from({ length: actionSlots }, (_, index) => [String(index), true])),
@@ -264,3 +273,4 @@
   global.LuminousUnitCombatInstantiator = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+
