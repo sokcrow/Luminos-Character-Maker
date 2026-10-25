@@ -12,6 +12,9 @@ on:
       - "js/item-inventory-runtime.js"
       - "js/dm-character-gear-*.js"
       - "tests/build-equipment-decks-smoke.mjs"
+      - "tests/battle-viewer-build-assets-smoke.mjs"
+      - "js/item-persistence-runtime.js"
+      - "Battle-viewer.html"
       - ".github/workflows/build-equipment-decks.yml"
   workflow_dispatch:
 jobs:
@@ -38,6 +41,8 @@ jobs:
         run: node tests/build-equipment-decks-smoke.mjs
       - name: Verify anatomically installed Augments and inventory ownership
         run: node tests/dm-character-gear-smoke.cjs
+      - name: Verify Battle Viewer scripts, XP and canonical anatomy
+        run: node tests/battle-viewer-build-assets-smoke.mjs
       - name: Verify existing equipment effects and planning
         run: |
           node tests/equipment-effects-standard-smoke.mjs
