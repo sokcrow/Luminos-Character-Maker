@@ -18,6 +18,7 @@
     playerRef: null,
     playerListener: null,
     skills: {},
+    players: {},
     units: {},
     selectedSpellIds: new Set(),
     spellContext: "all",
@@ -109,6 +110,18 @@
     skillRef.on("value", skillHandler);
     state.subscriptions.push(() => skillRef.off("value", skillHandler));
 
+    // Read canonical character Decks and owners; no duplicated preset storage.
+    const playersRef = state.db.ref(ROOTS.players);
+    const playersHandler = (snapshot) => {
+      // Do not discard an in-progress DM edit when an unrelated player changes.
+      const presetKey = () => JSON.stringify(presetEntries().map((row) => [row.id, row.label, row.deck]));
+      const before = presetKey();
+      state.players = snapshot.val() || {};
+      if (presetKey() !== before) render();
+    };
+    playersRef.on("value", playersHandler);
+    state.subscriptions.push(() => playersRef.off("value", playersHandler));
+
     const unitRef = state.db.ref(ROOTS.units);
     const unitHandler = (snapshot) => {
       state.units = snapshot.val() || {};
@@ -136,10 +149,22 @@
   }
 
   function presetEntries() {
+    const library = skillLibrary();
+    const players = { ...state.players };
+    if (state.playerId && state.player) players[state.playerId] = state.player;
     const signature = core()?.signaturePresets?.(global.LuminousPlayerSignatureSkillCatalog) || [];
+    const savedDecks = core()?.playerDeckPresets?.(players, library) || [];
+    const databaseDecks = core()?.databaseSkillPresets?.(state.skills, players, library) || [];
     const equipment = core()?.equipmentDeckPresets?.(global.LuminousBuildWeaponCatalog,
       global.LuminousBuildSkillCatalog) || [];
-    return [...signature, ...equipment];
+    const seen = new Set(signature.map((preset) => JSON.stringify(preset.deck)));
+    const custom = [...savedDecks, ...databaseDecks].filter((preset) => {
+      const key = JSON.stringify(preset.deck);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return [...signature, ...custom, ...equipment];
   }
 
   function skillEntries(tier) {
@@ -210,7 +235,8 @@
 
   function presetMarkup() {
     const presets = presetEntries();
-    const signatures = presets.filter(entry => entry.source !== "equipment");
+    const signatures = presets.filter(entry => !["equipment", "player", "library"].includes(entry.source));
+    const characters = presets.filter(entry => entry.source === "player" || entry.source === "library");
     const equipment = presets.filter(entry => entry.source === "equipment");
     const options = rows => rows.map(entry =>
       `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.label)}</option>`).join("");
@@ -221,6 +247,7 @@
           <select id="dm-loadout-preset-select">
             <option value="">— Ninguno / Manual —</option>
             ${signatures.length ? `<optgroup label="Personajes">${options(signatures)}</optgroup>` : ""}
+            ${characters.length ? `<optgroup label="Decks de la campaña">${options(characters)}</optgroup>` : ""}
             ${equipment.length ? `<optgroup label="Armas y modos de combate">${options(equipment)}</optgroup>` : ""}
           </select>
         </label>
@@ -580,7 +607,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.1.1",
+    version: "0.1.2",
     ROOTS,
     state,
     render,
