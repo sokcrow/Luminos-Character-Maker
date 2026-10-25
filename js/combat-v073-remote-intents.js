@@ -137,7 +137,12 @@
       plans[unit.id]={};(unit.autoPlans||[]).forEach((plan,index)=>{if(plan)plans[unit.id][index]=serialize(plan,unit.id,index);});
     }
     const row={round:Number(s.round)||1,signature:aiSignature(),plans};state.publishingAi=true;
-    try{await s.db.ref(AI_ROOT).set(row);state.planningAi=row;apply();return true;}
+    try{await s.db.ref(AI_ROOT).set(row);state.planningAi=row;apply();
+      // READY may have arrived before the AI catalog finished loading. Trigger
+      // one new eligibility check when AI preparation actually completes.
+      const authorityBridge=global.LuminousCombatAuthority073;
+      authorityBridge?.maybeAutoStart?.(authorityBridge.state?.readyRows||{});
+      return true;}
     catch(error){console.error('[Combat073 Planning AI]',error);return false;}
     finally{state.publishingAi=false;if(row.signature!==aiSignature())retryPlanningAi();}
   }
