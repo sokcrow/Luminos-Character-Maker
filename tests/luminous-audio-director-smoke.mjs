@@ -58,7 +58,7 @@ for (const kind of ["music", "ambience", "sfx"]) {
     assert.equal(asset.url.includes("example."), false, asset.id);
   }
 }
-for (const page of ["index.html", "hoja_personaje.html", "pantalla_dm.html", "combate.html"]) {
+for (const page of ["index.html", "hoja_personaje.html", "pantalla_dm.html", "hoja_de_DM.html", "combate.html"]) {
   const markup = read(page);
   assert.match(markup, /css\/luminous-audio-director\.css/);
   assert.match(markup, /js\/luminous-audio-director\.js/);
@@ -66,6 +66,7 @@ for (const page of ["index.html", "hoja_personaje.html", "pantalla_dm.html", "co
 const combatViewer = read("Battle-viewer.html");
 assert.match(combatViewer, /html=html\.replace\('<\/body>','<script src="js\/luminous-audio-director\.js/);
 
+assert.match(js, /isHostedInsideAudioShell/, "Combat iframe must not double up music");
 assert.match(css, /max-width:600px/);
 assert.match(css, /max-height:440px/);
 assert.match(css, /safe-area-inset-bottom/);
