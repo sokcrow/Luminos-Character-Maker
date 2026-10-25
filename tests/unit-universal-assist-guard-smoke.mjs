@@ -4,17 +4,17 @@ import vm from 'node:vm';
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const live=read('combat/source/combat-v073-live.html');
 for(const controlled of ['player','ai'])for(const mastermind of [false,true]){
- const c=vm.createContext({console,JSON,Map,Set,Promise});c.window=c;
- for(const name of ['unit-universal-action-policy','unit-universal-action-runtime','mastermind-archetype-runtime'])vm.runInContext(read('js/'+name+'.js'),c);
+ const c=vm.createContext({console,JSON,Map,Set,Promise,addEventListener(){}});c.window=c;
+ for(const name of ['status-library','status-engine','core-condition-runtime','unit-universal-action-policy','unit-universal-action-runtime','mastermind-archetype-runtime'])vm.runInContext(read('js/'+name+'.js'),c);
  const unit=(id,faction)=>({id,name:id,hp:40,maxHp:40,speed:1,battleActive:true,actionSlots:3,faction,statusEffects:{},autoPlans:[]});
  const actor={...unit('actor','enemy'),controlled},helper={...unit('helper','enemy'),speed:6},protectedUnit=unit('protected','ally'),guard=unit('guard','ally');
  if(mastermind){helper.classes=[{id:'rogue',level:65}];helper.characterBuild={archetypes:[{classId:'rogue',archetypeId:'mastermind'}]};}
  const plan={type:'granted',data:{id:'attack',kind:'skill',basePower:4,coinPower:4,coinAmount:3},targetId:protectedUnit.id,targetSlotIndex:0};
  const plans=[structuredClone(plan),structuredClone(plan),plan];
  Object.assign(c,{round:1,PLAYER_ID:'actor',plannedActions:controlled==='player'?plans:[],combatData:{actor,helper,protected:protectedUnit,guard},UNIT_KITS:{guard:{actions:[{id:'intercept',kind:'skill',basePower:4,coinPower:4,coinAmount:3}]}},
-   unitSlots:()=>[{}],isSkillOrSpellPlan:()=>true,sinInfo:()=>({color:'#fff'}),damageTypeLabel:()=> 'NORMAL'});
+   unitHasStatus:(unit,id)=>c.LuminousStatusEngine.hasStatus(unit,id),unitSlots:()=>[{}],isSkillOrSpellPlan:()=>true,sinInfo:()=>({color:'#fff'}),damageTypeLabel:()=> 'NORMAL'});
  if(controlled==='ai')actor.autoPlans=plans;
- for(const name of ['plansForUnit','universalHelpBonusForPlan','clashData','resolveNativeAssistGuard']){
+ for(const name of ['isStaggerEffectActive','unitActionBlocked','plansForUnit','universalHelpBonusForPlan','clashData','resolveNativeAssistGuard']){
    const match=live.match(new RegExp('(?:async )?function '+name+'\\([\\s\\S]*?\\n}'));assert.ok(match,name);vm.runInContext(match[0],c);
  }
  const r=c.LuminousUnitUniversalActionRuntime,m=c.LuminousMastermindArchetypeRuntime;
@@ -39,3 +39,39 @@ for(const controlled of ['player','ai'])for(const mastermind of [false,true]){
  assert.equal(c.universalHelpBonusForPlan(redirected),0);
 }
 console.log('Assist Guard: real Help/Mastermind → native interception → Clash retains bonus for Player/IA and isolates the original action.');
+
+for(const controlled of ['player','ai'])for(const condition of ['paralyzed','petrified','staggered','incapacitated','confusion_locked'])for(const fallback of [false,true]){
+ const c=vm.createContext({console,JSON,Map,Set,Promise,addEventListener(){}});c.window=c;
+ for(const name of ['status-library','status-engine','core-condition-runtime','unit-universal-action-policy','unit-universal-action-runtime','mastermind-archetype-runtime'])vm.runInContext(read('js/'+name+'.js'),c);
+ const unit=(id,faction)=>({id,name:id,controlled,hp:40,maxHp:40,battleActive:true,actionSlots:1,faction,statusEffects:{},autoPlans:[]});
+ const actor=unit('actor','enemy'),target=unit('target','ally'),blocked=unit('blocked','ally'),healthy=unit('healthy','ally');
+ if(condition==='staggered')Object.assign(blocked,{staggerStage:1,staggerActivatedRound:1,staggerUntilRound:1});
+ else if(condition==='confusion_locked')blocked.confusionTurnMode='locked';
+ else blocked.statusEffects[condition]={count:1};
+ const plan={type:'granted',data:{id:'attack',kind:'skill'},targetId:'target',targetSlotIndex:0};
+ const units={actor,target,blocked,...(fallback?{healthy}:{})};
+ const guardSkill={id:'intercept',kind:'skill',basePower:4,coinPower:4,coinAmount:1};
+ Object.assign(c,{round:1,PLAYER_ID:'actor',plannedActions:controlled==='player'?[plan]:[],combatData:units,UNIT_KITS:{blocked:{actions:[guardSkill]},healthy:{actions:[guardSkill]}},
+   unitHasStatus:(unit,id)=>c.LuminousStatusEngine.hasStatus(unit,id),unitSlots:()=>[{}],isSkillOrSpellPlan:()=>true});
+ if(controlled==='ai')actor.autoPlans=[plan];
+ for(const name of ['isStaggerEffectActive','unitActionBlocked','plansForUnit','resolveNativeAssistGuard']){
+   const match=live.match(new RegExp('(?:async )?function '+name+'\\([\\s\\S]*?\\n}'));assert.ok(match,name);vm.runInContext(match[0],c);
+ }
+ const m=c.LuminousMastermindArchetypeRuntime;
+ m.applyAssistGuard(blocked,target,1);if(fallback)m.applyAssistGuard(healthy,target,1);
+ const before=JSON.stringify(blocked),interceptions=[];
+ c.resolveSkillClash=async incoming=>interceptions.push(incoming.plan.targetId);
+ assert.equal(c.unitActionBlocked(blocked,1),true,'Actual production action gate blocks '+condition);
+ const result=await c.resolveNativeAssistGuard({ownerId:'actor',localIndex:0,plan});
+ assert.equal(result,fallback,controlled+' '+condition+' fallback='+fallback);
+ assert.deepEqual(interceptions,fallback?['healthy']:[],'Blocked guard cannot intercept or hide a valid later guard');
+ assert.equal(JSON.stringify(blocked),before,'Blocked guard keeps Assist Guard and does not consume its interception Skill');
+ assert.equal(plan.targetId,'target');
+ // When the blocker expires, the original guard can still use its preserved status.
+ blocked.statusEffects={...blocked.statusEffects};delete blocked.statusEffects[condition];
+ blocked.staggerStage=0;blocked.confusionTurnMode=null;
+ assert.equal(await c.resolveNativeAssistGuard({ownerId:'actor',localIndex:0,plan}),true);
+ assert.equal(interceptions.at(-1),'blocked');
+ assert.equal(m.assistGuardEntries(blocked).length,0);
+}
+console.log('Assist Guard availability: actual gate blocks Paralyzed/Petrified/Staggered/Incapacitated/locked Confusion, preserves status and finds valid later guardians for Player/IA.');

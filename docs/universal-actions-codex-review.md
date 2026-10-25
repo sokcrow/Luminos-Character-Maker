@@ -62,3 +62,9 @@ Ambas pruebas fallaron antes del fix y pasan después; se incorporan al workflow
 `targetPayloadFor` publica `actionKey` para universales. `runtimePlan` conserva también `actionData.actionKey` cuando falta el campo superior, para previews ya existentes. Se evita borrar la identidad de Help durante el round-trip online anterior a READY.
 
 La prueba extendida de intents publica el preview con `syncLiveTargets` real y confirma que aún no existen `plannedActions` completos ni READY. Prueba payload nuevo y anterior con solo el campo embebido, reconstrucción real, rechazo autoritativo de Quick Help al mismo aliado sin cambios de presupuesto/efectos y aceptación con otro aliado. Verifica además la preparación del payload completo posterior con las acciones destinatarias válidas. El procesamiento exitoso invalida normalmente la caché IA; la comprobación posterior utiliza las mismas acciones legales que esa caché regenerará. La reproducción falló antes del fix y pasa después.
+
+## P2: disponibilidad del guardián antes de Misdirection
+
+La selección nativa de Assist Guard filtra los candidatos por presencia activa y `unitActionBlocked(unit,round)` antes de consultar Skills, seleccionar guardián o consumir el estado. Un guardián impedido conserva Assist Guard y no oculta a un candidato válido posterior.
+
+La regresión ampliada de `unit-universal-assist-guard-smoke.mjs` carga StatusEngine/condiciones y el gate de producción. Para Player/IA prueba Paralyzed, Petrified, Staggered, Incapacitated y Confusion bloqueada, sin sustituto y con otro guardián válido detrás. Verifica ausencia de intercepción/consumo en el impedido, selección del válido y posibilidad de usar el estado conservado cuando desaparece el bloqueo. La reproducción falló antes del fix y pasa después; se mantiene la cobertura previa de Help y Mastermind en el Clash redirigido.
