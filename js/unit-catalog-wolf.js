@@ -82,6 +82,7 @@
   const DEFINITIONS = Object.freeze({
     wolf: Object.freeze({
       id: 'wolf', name: 'Wolf', species: 'wolf', variant: 'standard', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
+      challengeRating: 0.25, // Monster Manual (2025): CR 1/4, 50 XP
       naturalWorldLevel: Object.freeze({ min: 2, max: 4 }), baseLevel: Object.freeze({ min: 2, max: 4 }),
       scores: WOLF_SCORES, proficiencies: WOLF_PROFICIENCIES,
       creatureType: 'beast', size: 'medium',
@@ -107,11 +108,12 @@
         skills: Object.freeze(skillRefs('wolf')), staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneCaptainPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Wolf', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
-      schemaVersion: 3,
+      schemaVersion: 4,
     }),
 
     dire_wolf: Object.freeze({
       id: 'dire_wolf', name: 'Dire Wolf', species: 'dire_wolf', variant: 'dire', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
+      challengeRating: 1, // Monster Manual (2025): CR 1, 200 XP
       naturalWorldLevel: Object.freeze({ min: 5, max: 5 }), baseLevel: Object.freeze({ min: 5, max: 5 }),
       scores: DIRE_WOLF_SCORES, proficiencies: WOLF_PROFICIENCIES,
       creatureType: 'beast', size: 'large',
@@ -137,7 +139,7 @@
         skills: Object.freeze(skillRefs('dire_wolf')), staggerThresholds: STAGGER_THRESHOLDS,
       }),
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneLeaderPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Dire Wolf', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
-      schemaVersion: 3,
+      schemaVersion: 4,
     }),
   });
 

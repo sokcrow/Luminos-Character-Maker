@@ -232,6 +232,9 @@
       family: "beast_cr0",
       creatureType: "beast",
       challengeRating: 0,
+      // D&D CR 0 gives 10 XP when the stat block has attacks, otherwise 0.
+      // Luminos Seahorse has no attack Skills; all other 23 CR0 units do.
+      xpValue: skillIds.length ? 10 : 0,
       unitType: "beast",
       faction: "neutral",
       actorCategory: "npc",

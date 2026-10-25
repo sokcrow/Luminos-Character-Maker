@@ -490,9 +490,24 @@
       });
     }
 
-    if(!alreadyEnded)await session.commitEnd({db:state.db,uid:currentUid(),result:normalized,token:claimed.estado.ending.token});
+    // XP is delivered only for Victory, and only after loot is safely finalized.
+    // Each player receipt is an atomic Firebase transaction keyed by encounterId.
+    let xpAward = null;
+    if (!alreadyEnded && normalized === "victory") {
+      const xpRuntime = global.LuminousCombatXpRuntime;
+      if (!xpRuntime?.awardVictoryXp) throw Error("ENCOUNTER_XP_RUNTIME_REQUIRED");
+      xpAward = await xpRuntime.awardVictoryXp({ db: state.db, encounter: claimed });
+      appendLog("XP · VICTORY DISTRIBUTED", {
+        totalXp: xpAward.totalXp, participantCount: xpAward.participantCount,
+        xpPerParticipant: xpAward.xpPerParticipant,
+        missingCr: xpAward.missingCr,
+        newlyPaid: xpAward.awards.filter(row => row.awarded).length
+      });
+    }
 
-    global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now() });
+    if(!alreadyEnded)await session.commitEnd({db:state.db,uid:currentUid(),result:normalized,token:claimed.estado.ending.token,xpAward});
+
+    global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now(), xpAward });
     appendLog(`${label} · RESULT SEAL`, { result: normalized });
 
     const displayMs = options.displayMs == null ? (normalized === "cancelled" ? 900 : 1800) : options.displayMs;
@@ -506,6 +521,7 @@
       result: normalized,
       resolved: resolved?.result || null,
       lootFinalization,
+      xpAward,
       transition: "result",
       nextInstance: "teatro",
     };

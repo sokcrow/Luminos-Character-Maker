@@ -122,6 +122,8 @@
       if(raw.estado?.phase==='ENDING'){
         const ending=raw.estado.ending;
         if(ending?.uid!==uid)return;
+        // Never turn a partially paid Victory into Defeat/Cancelled on retry.
+        if(ending.result==='victory'&&result!=='victory')return;
         // Failed (and legacy) closing attempts can select another outcome.
         // Encounter-end effects are already committed and must not run twice.
         if(ending.result!==result&&ending.failed!==true&&ending.startedAt)return;
@@ -141,10 +143,39 @@
       return {...raw,estado:{...raw.estado,ending:{...raw.estado.ending,failed:true}}};
     });
   }
-  async function commitEnd({db,uid,result,token}){
+  async function commitEnd({db,uid,result,token,xpAward=null}){
+    if(result==='victory'){
+      const recipients=xpAward?.participantIds;
+      const validId=id=>typeof id==='string'&&id.length>0&&!['.','#','$','/','[',']'].some(char=>id.includes(char));
+      if(!global.LuminousCombatXpRuntime?.eligibleVictoryPlayers
+        || !validId(xpAward?.encounterId)
+        || !Array.isArray(recipients)
+        || recipients.length!==xpAward.participantCount
+        || recipients.some(id=>!validId(id))
+        || new Set(recipients).size!==recipients.length
+        || !Number.isSafeInteger(xpAward.xpPerParticipant)
+        || !Number.isFinite(xpAward.totalXp))
+        throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
+      // Verify durable per-player receipts, not merely a client-provided summary.
+      const receipts=await Promise.all(recipients.map(id=>
+        db.ref(`campaña/jugadores/${id}/encounterXpAwards/${xpAward.encounterId}`)
+          .once('value').then(snapshot=>snapshot.val())));
+      if(receipts.some(receipt=>!receipt
+        || receipt.xp!==xpAward.xpPerParticipant
+        || receipt.totalXp!==xpAward.totalXp
+        || receipt.participantCount!==xpAward.participantCount))
+        throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
+    }
     const response=await updateRoot(db,raw=>{
       if(raw?.estado?.phase!=='ENDING'||raw.estado.ending?.token!==token||raw.estado.ending?.uid!==uid||raw.estado.ending?.result!==result)return;
-      return {...raw,estado:{...raw.estado,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now()}};
+      if(result==='victory'){
+        const expected=global.LuminousCombatXpRuntime.eligibleVictoryPlayers(raw);
+        const actual=[...xpAward.participantIds].sort();
+        if(xpAward.encounterId!==raw.estado.encounterId
+          || expected.length!==actual.length
+          || expected.some((id,index)=>id!==actual[index]))return;
+      }
+      return {...raw,estado:{...raw.estado,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now(),...(result==='victory'?{xpAward:{encounterId:xpAward.encounterId,totalXp:xpAward.totalXp,participantCount:xpAward.participantCount,xpPerParticipant:xpAward.xpPerParticipant,remainderXp:xpAward.remainderXp,missingCr:xpAward.missingCr||[]}}:{})}};
     });
     if(!response.committed)throw Error('El encuentro cambió antes de confirmar el resultado.');
     return response.snapshot.val().estado;
