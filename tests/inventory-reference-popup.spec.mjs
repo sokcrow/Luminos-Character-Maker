@@ -29,6 +29,8 @@ ${liveInventoryMarkup}</body></html>`
 
 test("inventory keeps character left, real icons and item popups across desktop and mobile", async ({ browser }) => {
   test.setTimeout(120000);
+  const evidenceDir = asset("test-results/inventory-hud-artifacts");
+  await fs.mkdir(evidenceDir, { recursive: true });
   for (const { width, height, touch } of viewports) {
     const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
     // Serve the fixture and every canonical asset via Playwright interception:
@@ -89,11 +91,13 @@ test("inventory keeps character left, real icons and item popups across desktop 
       .evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
     await expect(page.locator("#inv-active-grid .item-name")).toBeHidden();
     await expect(page.locator("#inventory-v2-detail-overlay")).toBeHidden();
+    await page.screenshot({ path: path.join(evidenceDir, `${width}x${height}-inventory.png`) });
     await page.locator('#inv-active-grid [data-key="healing-1"]').click();
     await expect(page.locator("#inventory-v2-detail-overlay")).toBeVisible();
     await expect(page.locator("#detail-title")).toHaveText("Poción de curación");
     await expect(page.locator("#detail-cost-val")).toHaveText("120");
     await expect(page.locator("#detail-desc")).toContainText("Restaura una pequeña");
+    await page.screenshot({ path: path.join(evidenceDir, `${width}x${height}-popup.png`) });
     // Firebase-like replacement must preserve focus inside the modal actions.
     await page.evaluate(() => {
       const hud = window.LuminousInventoryHudV2;
