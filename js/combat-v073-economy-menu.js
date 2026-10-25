@@ -402,7 +402,12 @@
           {ok:false,reason:"SPELL_RUNTIME_NOT_READY"};
         const definition=loadout?.resolveSpellDefinition?.(id);
         const row=normalizeSpellForMenu(result.spell||definition?.spell||{id,name:id},id);
-        return result.ok?row:{...row,__spellUnavailableReason:spellUnavailableLabel(result.reason)};
+        // Carry the class actually resolved from the canonical combatant into
+        // the plan. The DM still revalidates ownership and class at seal time.
+        if(result.ok)return {...row,classId:result.classId};
+        if(result.reason==="SPELL_CLASS_AMBIGUOUS"&&Array.isArray(result.candidates)&&result.candidates.length)
+          return {...row,__spellClassCandidates:[...new Set(result.candidates.map(normalizeId).filter(Boolean))]};
+        return {...row,__spellUnavailableReason:spellUnavailableLabel(result.reason)};
       });
     }
     if(!isSpellcaster(unit))return [];
@@ -835,7 +840,46 @@
     if (!rows.length) { body.innerHTML = `<div class="combat-economy-empty">No ${tab.replaceAll("_", " ")} Spells available.</div>`; return; }
     const stack = global.document.createElement("div");
     stack.className = "skill-stack";
-    rows.forEach((row) => stack.appendChild(skillRowButton(row, "spell")));
+    rows.forEach((row) => {
+      if(!row.__spellClassCandidates?.length){
+        stack.appendChild(skillRowButton(row,"spell"));
+        return;
+      }
+      // Ambiguity is a choice, not an unusable Spell. Render only classes
+      // returned by the canonical resolver, and resolve again per choice.
+      const group=global.document.createElement("div");
+      group.className="spell-class-choice";
+      group.setAttribute("role","group");
+      group.setAttribute("aria-label",clean(row.name)+" · clase de lanzamiento");
+      const heading=global.document.createElement("div");
+      heading.className="spell-class-choice-title";
+      heading.textContent=clean(row.name)+" · Selecciona la clase de lanzamiento";
+      group.appendChild(heading);
+      const options=global.document.createElement("div");
+      options.className="spell-class-options";
+      row.__spellClassCandidates.forEach(classId=>{
+        const result=spellLoadoutRuntime()?.resolveSpellForCombatant?.(playerUnit()||{},row.spellId,{classId})||
+          {ok:false,reason:"SPELL_RUNTIME_NOT_READY"};
+        const permitted=result.ok&&normalizeId(result.classId)===classId;
+        const choice=permitted
+          ? {...normalizeSpellForMenu(result.spell,row.spellId),classId:result.classId}
+          : {...row,__spellUnavailableReason:spellUnavailableLabel(result.reason)};
+        const button=skillRowButton(choice,"spell");
+        button.type="button";
+        button.classList.add("spell-class-option");
+        const className=classId.replace(/(^|_)([a-z])/g,(_,space,letter)=>
+          (space?" ":"")+letter.toUpperCase());
+        const label=global.document.createElement("span");
+        label.className="spell-class-option-name";
+        label.textContent="Lanzar como "+className;
+        button.appendChild(label);
+        button.setAttribute("aria-label",clean(row.name)+" · Lanzar como "+className+
+          (permitted?"":": "+choice.__spellUnavailableReason));
+        options.appendChild(button);
+      });
+      group.appendChild(options);
+      stack.appendChild(group);
+    });
     body.appendChild(stack);
   }
 
