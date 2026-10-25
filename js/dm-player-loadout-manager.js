@@ -113,8 +113,11 @@
     // Read canonical character Decks and owners; no duplicated preset storage.
     const playersRef = state.db.ref(ROOTS.players);
     const playersHandler = (snapshot) => {
+      // Do not discard an in-progress DM edit when an unrelated player changes.
+      const presetKey = () => JSON.stringify(presetEntries().map((row) => [row.id, row.label, row.deck]));
+      const before = presetKey();
       state.players = snapshot.val() || {};
-      render();
+      if (presetKey() !== before) render();
     };
     playersRef.on("value", playersHandler);
     state.subscriptions.push(() => playersRef.off("value", playersHandler));
