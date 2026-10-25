@@ -606,11 +606,11 @@
   function rowsFor(menu, tab = state.tabByMenu[menu] || ECONOMY.ACTION) {
     if (menu === "global") {
       const traits = traitDefinitionsForPlayer().filter((row) => economyTabFor(row) === tab);
-      if (tab !== ECONOMY.ACTION) return traits;
       const contextual = lexical("contextualGlobalActions", null);
       const globals = [...asArray(permanent()?.global), ...asArray(typeof contextual === "function" ? contextual() : [])]
-        .filter((row) => economyTabFor(row) === ECONOMY.ACTION);
-      return [...globals, ...traits];
+        .map(row=>lexical('canonicalUniversalRow',value=>value)(row));
+      if(global.LuminousMastermindArchetypeRuntime?.hasMastermindLevel?.(playerUnit(),15)){const help=globals.find(row=>row.actionKey==='help');if(help)globals.push({...help,id:'help',name:'Help · Master of Tactics',universalVariant:'mastermind_quick',economyCost:'quick_action',targetSide:'ally',targeting:{allegiance:'ally',mode:'single'}})}
+      return [...globals.filter(row=>economyTabFor(row)===tab),...traits];
     }
     if (menu === "skills") {
       const deck=global.LuminousCombatSlotDeck073;
@@ -1262,6 +1262,7 @@
     if (allegiance === "self") return [unit];
     return Object.values(combatData()).filter((candidate) => {
       if (!candidate || candidate.dead || candidate.defeated || candidate.battleActive === false || Number(candidate.hp) <= 0) return false;
+      if(source.actionKey==='help'&&candidate.id===unit.id)return false;
       if (allegiance === "neutral") return candidate.id !== unit.id;
       return allegiance === "ally" ? candidate.faction === unit.faction : candidate.faction !== unit.faction;
     });
@@ -1374,17 +1375,19 @@
     if (/timeout|pending/.test(reason)) return "La habilidad sigue pendiente de confirmación del DM.";
     return "No se pudo usar la habilidad. Revisa sus requisitos e inténtalo de nuevo.";
   }
-  async function useQuickAction(sel, targetId = null) {
+  async function useQuickAction(sel, targetId = null, targetSlotIndex = null) {
     const unit = playerUnit(), independent = global.LuminousUnitIndependentActions;
     if (!unit || !independent) return false;
     const type = normalizeId(sel?.type === "items" ? "item" : sel?.type), source = sel?.data || {};
+    if(source.actionKey==='analyse'){lexical('goRoot',()=>{})();lexical('enterAnalyseMode',()=>{})();return true}
     const label = economyTabFor(source) === ECONOMY.FREE ? "FREE ACTION" : "QUICK ACTION";
     if (state.independentPending) return false;
     state.independentPending = true;
     lexical("setStatus", () => {})(`${label} · Confirmando ${source.name || "habilidad"}…`);
     try {
       const sync = global.LuminousCombatPlanSync073, online = global.LuminousCombatLiveAdapter073?.state?.db;
-      const result = online
+      const result = source.actionKey&&global.LuminousUnitUniversalActionPolicy?.definitionFor(source.actionKey)
+        ?await lexical('requestUniversalInstant',()=>({used:false}))(source.actionKey,{targetId:targetId||unit.id,targetSlotIndex,variant:source.universalVariant||null}):online
         ? await sync.requestIndependentAction({ unitId: unit.id, sourceId: clean(source.instanceId || source.id), sourceType: type,
           cost: independent.costOf(source), targetId: targetId || unit.id, round: roundNumber() })
         : independent.execute(unit, { sourceType: type, definition: source }, { round: roundNumber(), phase: "planning", target: combatData()?.[targetId] || unit, units: Object.values(combatData() || {}) });
@@ -1404,6 +1407,7 @@
 
   function beginQuickAction(sel) {
     const source = sel?.data || {};
+    if(source.actionKey==='analyse')return useQuickAction(sel,playerId());
     if (needsTarget(source)) return beginTargetPick(sel);
     return useQuickAction(sel, playerId());
   }
@@ -1538,8 +1542,9 @@
       const targetId = clean(token.id).replace(/^token-/, "");
       if (!state.pendingTarget.candidateIds.has(targetId)) return;
       event.preventDefault(); event.stopPropagation();
-      const pending = state.pendingTarget;
-      cancelEconomyTargeting(); useQuickAction(pending.sel, targetId);
+      const pending=state.pendingTarget,slot=event.target?.closest?.('.action-slot-wrapper');
+      if(pending.sel.data?.actionKey==='help'&&!slot){lexical('setStatus',()=>{})('Selecciona el Slot de la acción aliada que quieres ayudar.');return}
+      cancelEconomyTargeting();useQuickAction(pending.sel,targetId,slot?Number(slot.dataset.slotIndex):null);
     }, true);
     global.addEventListener?.("keydown", (event) => {
       if (event.key !== "Escape" || !state.pendingTarget) return;

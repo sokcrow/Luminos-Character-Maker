@@ -15,7 +15,7 @@
   const DEFINITIONS = Object.freeze({
     analyse: Object.freeze({ phase: PHASES.PLANNING, cost: 'free', timing: 'immediate' }),
     find: Object.freeze({ phase: PHASES.PLANNING, cost: 'free', timing: 'immediate' }),
-    help: Object.freeze({ phase: PHASES.COMBAT, cost: 'action', timing: 'before_target_action' }),
+    help: Object.freeze({ phase: PHASES.COMBAT, cost: 'action', timing: 'speed_order', timingRatified: false }),
     grapple: Object.freeze({ phase: PHASES.COMBAT, cost: 'action', timing: 'speed_order' }),
     calm: Object.freeze({ phase: PHASES.COMBAT, cost: 'action', timing: 'speed_order' }),
     liberate: Object.freeze({ phase: PHASES.COMBAT, cost: 'action', timing: 'speed_order' }),
@@ -33,6 +33,9 @@
   const unitObject = unit => unit && typeof unit === 'object' && !Array.isArray(unit);
   const slotOf = options => options?.slotId == null ? '' : String(options.slotId).trim();
   const targetOf = options => options?.targetId == null ? '' : String(options.targetId).trim();
+  const helpSlotOf = options => String(options?.targetHelpActionSlotId ?? options?.targetActionSlotId ?? '').trim();
+  const reservationIdOf = options => String(options?.reservationId ?? options?.intentId ?? '').trim();
+  const record = value => unitObject(value) ? value : {};
   const fail = reason => ({ ok: false, reason });
   const success = (additional = {}) => ({ ok: true, ...additional });
 
@@ -41,9 +44,12 @@
     let ledger = unit[STORE];
     if (ledger && Number(ledger.round) > round) return null; // fail closed on stale intents
     if (!ledger || Number(ledger.round) !== round) {
-      ledger = { round, reserved: {}, spent: {}, helpTargets: [] };
+      ledger = { round, reserved: {}, spent: {}, helpTargets: [], reservations: {}, serial: 0 };
       unit[STORE] = ledger;
     }
+    ledger.reserved=record(ledger.reserved);ledger.spent=record(ledger.spent);ledger.reservations=record(ledger.reservations);
+    ledger.helpTargets=[...new Set(Object.values(ledger.helpTargets||{}).filter(value=>typeof value==='string'))];
+    ledger.serial=Math.max(0,Math.trunc(Number(ledger.serial)||0));
     return ledger;
   }
 
@@ -65,6 +71,7 @@
       if (ledger.spent.mastermind_quick_help) return fail('mastermind_quick_help_spent');
       const targetId = targetOf(options);
       if (!targetId) return fail('help_target_required');
+      if(!helpSlotOf(options))return fail('help_target_slot_required');
       if (ledger.helpTargets.includes(targetId) ||
           (ledger.reserved[PHASES.COMBAT]?.actionKey === 'help' &&
            ledger.reserved[PHASES.COMBAT]?.targetId === targetId)) return fail('help_target_already_assisted');
@@ -75,6 +82,7 @@
     if (action === 'help') {
       const targetId = targetOf(options);
       if (!targetId) return fail('help_target_required');
+      if(!helpSlotOf(options))return fail('help_target_slot_required');
       if (ledger.helpTargets.includes(targetId)) return fail('help_target_already_assisted');
     }
     if (definition.phase !== PHASES.PLANNING) {
@@ -92,7 +100,11 @@
     if (!gate.ok) return gate;
     if (gate.cost !== 'action') return fail('instant_action_cannot_reserve');
     const ledger = ledgerFor(unit, roundOf(options));
-    const entry = { actionKey: gate.actionKey, phase: gate.phase, slotId: slotOf(options), targetId: targetOf(options) || null };
+    const requested=reservationIdOf(options);
+    if(requested&&!/^[a-zA-Z0-9:_-]{1,200}$/.test(requested))return fail('invalid_reservation_id');
+    if(requested&&(ledger.reservations[requested]||Object.values(ledger.reserved).some(row=>row.reservationId===requested)))return fail('reservation_id_reused');
+    const entry = { actionKey:gate.actionKey,phase:gate.phase,slotId:slotOf(options),targetId:targetOf(options)||null,reservationId:requested||`reservation:${roundOf(options)}:${++ledger.serial}`,
+      ...(gate.actionKey==='help'?{targetActionSlotId:helpSlotOf(options),targetActionId:String(options.targetActionId??'').trim()||null}:{}) };
     ledger.reserved[gate.phase] = entry;
     return success({ reservation: clone(entry) });
   }
@@ -105,6 +117,8 @@
     const phase = normalize(options.phase), entry = ledger.reserved[phase];
     if (!entry) return fail('reservation_missing');
     if (slotOf(options) !== entry.slotId) return fail('slot_mismatch');
+    if(!reservationIdOf(options)||reservationIdOf(options)!==entry.reservationId)return fail('reservation_mismatch');
+    ledger.reservations[entry.reservationId]='cancelled';
     delete ledger.reserved[phase];
     return success({ cancelled: clone(entry) });
   }
@@ -117,9 +131,11 @@
     const phase = normalize(options.phase), entry = ledger.reserved[phase];
     if (!entry) return fail('reservation_missing');
     if (entry.slotId !== slotOf(options)) return fail('slot_mismatch');
+    if(!reservationIdOf(options)||reservationIdOf(options)!==entry.reservationId)return fail('reservation_mismatch');
     if (ledger.spent[entry.actionKey] || ledger.spent['phase:' + phase]) return fail('already_spent');
     ledger.spent[entry.actionKey] = true;
     ledger.spent['phase:' + phase] = true;
+    ledger.reservations[entry.reservationId]='committed';
     if (entry.actionKey === 'help' && entry.targetId) ledger.helpTargets.push(entry.targetId);
     delete ledger.reserved[phase];
     return success({ committed: clone(entry) });
@@ -139,7 +155,7 @@
       ledger.helpTargets.push(targetOf(options));
     } else ledger.spent[action] = true;
     return success({ actionKey: action, phase: gate.phase, cost: gate.cost,
-      requiresExternalQuickBudget: Boolean(gate.requiresExternalQuickBudget) });
+      ...(action==='help'?{targetId:targetOf(options),targetActionSlotId:helpSlotOf(options),targetActionId:String(options.targetActionId??'').trim()||null}:{}),requiresExternalQuickBudget: Boolean(gate.requiresExternalQuickBudget) });
   }
 
   function snapshot(unit, options = {}) {

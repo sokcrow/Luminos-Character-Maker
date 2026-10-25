@@ -121,7 +121,7 @@
       ...(independentState?{combatIndependentActionState:independentState}:{}),
       ...(traitState?{combatTraitState:traitState}:{}),
       ...Object.fromEntries(['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion',
-        'combatEventState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
+        'universalActionPhaseLedger','mastermindAssistGuardState','universalHelpBuffs','observationKnown','observationLastCheck','analyseUsedRound','findUsedRound','detectedInvisibleIds','invisibleAwarenessRound','xpEligible','backupRecoveryRound','combatEventState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
         'deployedRound','deploymentState','replacementClaimed','equipmentEffectTurnLedger'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
       ...(unit.combatDeck?{combatDeck:global.LuminousCombatSlotDeck073?.compact(unit.combatDeck)||clone(unit.combatDeck),
         combatDeckModes:global.LuminousCombatSlotDeck073?.compactModeDecks?.(unit.combatDeckModes)||clone(unit.combatDeckModes||{})}:{}),
@@ -231,6 +231,7 @@
   function replaceLocalPlans(plans){const list=runtime()?.plans?.();if(!Array.isArray(list))return false;list.splice(0,list.length,...plans);global.renderAllPlannedSlots?.();return true;}
   function applyAuthority(data=state.current){
     const s=adapterState(),combat=runtime();if(!combat?.combatants||!s||Number(data?.round)!==Number(s.round))return false;const units=combat.combatants();if(!Object.keys(units).length)return false;
+    for(const [id,ledger]of Object.entries(data.universalActionLedgers||{}))if(units[id]&&Number(units[id].universalActionPhaseLedger?.round||0)<Number(data.round))units[id].universalActionPhaseLedger=clone(ledger);
     if(s.role==='player'&&s.playerId&&data.plans?.[s.playerId]){const own=Object.values(units).find(unit=>unit?.controlled==='player'||canonicalPlayerId(unit)===s.playerId);replaceLocalPlans(planRowsToArray(data.plans[s.playerId],own));}else if(s.role==='dm')replaceLocalPlans([]);
     for(const ownerRows of Object.values(data.plans||{})){const sample=Object.values(ownerRows||{})[0];if(!sample)continue;const unit=sample.unitId&&units[sample.unitId]?units[sample.unitId]:Object.values(units).find(row=>canonicalPlayerId(row)===clean(sample.scheduledBy));if(unit?.controlled==='remote')unit.autoPlans=planRowsToArray(ownerRows,unit);}
     for(const [unitId,rows] of Object.entries(data.aiPlans||{})){const unit=units[unitId];if(unit?.controlled==='ai')unit.autoPlans=planRowsToArray(rows,unit);}
@@ -256,7 +257,7 @@
     const combat=runtime(),units=combat?.combatants?.()||{};let changed=false;
     for(const [id,canonical] of Object.entries(snapshot||{})){const unit=units[id];if(!unit)continue;for(const [key,value] of Object.entries(canonical||{})){if(key==='actionSlots'||key==='activeSlots')continue;if(JSON.stringify(unit[key])!==JSON.stringify(value)){unit[key]=clone(value);changed=true;}}
       Object.assign(unit,clone(canonical.combatIndependentActionState?.runtimeFields||{}));
-      const economy=global.LuminousActionEconomy?.ensureState?.(unit);if(economy)economy.quickActionRemaining=Number(canonical.quickActionRemaining??economy.quickActionRemaining);
+      const economy=global.LuminousActionEconomy?.ensureState?.(unit);if(economy){economy.quickActionRemaining=Number(canonical.quickActionRemaining??economy.quickActionRemaining);economy.reactionRemaining=Number(canonical.reactionRemaining??economy.reactionRemaining);}
       const count=Math.max(1,Math.trunc(Number(canonical.actionSlots||canonical.activeSlots)||1));if(Number(unit.actionSlots)!==count){global.setUnitActionSlotCount?.(id,count);unit.actionSlots=count;unit.activeSlots=count;changed=true;}}
     if(changed){combat.render?.();global.LuminousCombatStepRuntime?.refreshPlayback?.();global.LuminousWebGL2Renderer?.requestRender?.(120);}return changed;
   }
@@ -313,6 +314,7 @@
   function patchExecuteQueueEntry(){
     const original=global.executeQueueEntry;if(typeof original!=='function')return false;if(original.__luminousAuthorityQueueEntry)return true;
     const wrapped=function(entry,...rest){
+      if(global.LuminousUnitUniversalActionPolicy?.definitionFor(entry?.plan?.data?.actionKey)?.phase==='on_turn_end'&&!entry._turnEnd)return Promise.resolve({deferred:true});
       const scope=this,adjusted=entry?.controller==='remote'&&entry?.plan?.type==='items'?{...entry,controller:'player'}:entry;
       const run=async()=>{
         if(state.executingGeneration)playback().assertOwner(state.current);
@@ -320,6 +322,7 @@
         try{
           const owner=runtime()?.combatants?.()?.[adjusted?.ownerId];
           if(!owner||owner.battleActive===false||owner.isBackup===true||owner.defeated===true||owner.dead===true||(Number.isFinite(Number(owner.hp))&&Number(owner.hp)<=0)){
+            if(owner)global.LuminousUnitUniversalActionRuntime?.cancelPending(owner,Number(state.current?.round)||Number(adapterState()?.round)||1);
             return {skipped:true,reason:'owner_not_in_field',ownerId:adjusted?.ownerId||null};
           }
           const result=adjusted?.controller==='ai_independent'

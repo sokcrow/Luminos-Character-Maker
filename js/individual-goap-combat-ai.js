@@ -350,6 +350,8 @@
   }
 
   function canUseCandidateThisTurn(candidate, state) {
+    const phase=row=>row.sourceType==='universal'?(global.LuminousUnitUniversalActionPolicy?.definitionFor(row.sourceId)?.phase||(['retreat','escape','wake_up'].includes(row.sourceId)?'on_turn_end':['help','grapple','calm','liberate'].includes(row.sourceId)?'combat_phase':null)):null;
+    if(phase(candidate)&&state.sequence.some(row=>phase(row)===phase(candidate)))return false;
     const used = state.sequence.filter((entry) => entry.key === candidate.key).length;
     return used < candidate.maxUsesPerTurn;
   }

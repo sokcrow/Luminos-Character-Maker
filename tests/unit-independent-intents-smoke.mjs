@@ -15,7 +15,7 @@ function setup(database){
   }}}};
   const context=vm.createContext({console:{log(){},warn(){},error(...args){errors.push(args)}},Math:Object.create(Math),Date,Promise,Map,Set,WeakMap,WeakSet,Uint32Array,JSON,
     addEventListener(){},setTimeout(){return 1},clearTimeout(){},LuminousCombatLiveAdapter073:{state:{role:'dm',isAuthority:true,round:1,encounterId:'test',combatState:'PRE_COMBAT_PLANNING',user:{},uid:'dm-uid',db,
-      players:{p1:{classes:[{classId:'barbarian',levels:1}]}},combatants:units}},
+      players:clone(database.players),combatants:units}},
     LuminousCombat073:{combatants:()=>units,kit:()=>({actions:[]}),render(){}},
     LuminousCombatSession:{async updatePath(_db,path,update){
       if(database.rejectInventory)throw Error('inventory write rejected');
@@ -30,7 +30,11 @@ function setup(database){
       const next=update(clone(database.raw));if(!next)return {committed:false};database.raw=next;database.writes++;return {committed:true};
     }}});
   context.window=context;
-  for(const file of ['status-library','status-engine','trait-engine','trait-catalog-core','archetype-engine','archetype-trait-catalog','universal-action-economy','item-runtime-engine','combat-event-runtime','unit-independent-actions','combat-v073-authority','combat-v073-remote-intents'])vm.runInContext(read(`js/${file}.js`),context,{filename:file});
+  for(const file of ['status-library','status-engine','trait-engine','trait-catalog-core','archetype-engine','archetype-trait-catalog','universal-action-economy','item-runtime-engine','combat-event-runtime','unit-independent-actions','unit-universal-action-policy','unit-universal-action-runtime','mastermind-archetype-runtime','combat-v073-authority','combat-v073-remote-intents'])vm.runInContext(read(`js/${file}.js`),context,{filename:file});
+  Object.assign(context,{combatData:units,round:1,OBSERVATION_META:{hp:{stat:'perception'},sp:{stat:'perception'}},CHECK_COIN_COUNT:5,CHECK_COIN_POWER:4,
+    unitHasStatus:(unit,key)=>Number(unit?.statusEffects?.[key]?.count||0)>0,getCombatStatus:(unit,key)=>unit?.statusEffects?.[key],invisibleDetectedBy:(actor,target)=>(actor.detectedInvisibleIds||[]).includes(target.id),conditionCheckThresholdPenalty:()=>0,normalizeSaveAbility:value=>value,unitAbilitySkillModifier:(unit,key)=>Number(unit.skillBonuses?.[key]||0),coinHeadsChanceForUnit:()=>100,LuminousCoinEngine:{rollSide:()=> 'head',coinSrc:()=>''}});
+  const source=read('combat/source/combat-v073-live.html');
+  for(const name of ['observationDifficulty','observationLinkedUnits','observationFactAvailable','observationStat','rollAbilitySkillCheck','resolveUniversalFreeDraft']){const match=source.match(new RegExp('function '+name+'\\([\\s\\S]*?\\n}'));assert.ok(match,name);vm.runInContext(match[0],context);}
   context.LuminousClassRuntimeBootstrap={async boot(){return {ok:true}}};
   return {context,units,remote:context.LuminousCombatRemoteIntents073,authority:context.LuminousCombatAuthority073,errors};
 }
@@ -110,3 +114,11 @@ const itemCompeting=itemDatabase();await Promise.all([setup(itemCompeting).remot
 assert.equal(itemCompeting.players.p1.inventario_activo['Potion-A'].quantity,1,'Two DM tabs deliver one inventory delta');
 assert.equal(itemCompeting.raw.combatants['player:p1'].hp,50);
 console.log('Canonical item inventory: real runtime and hydration, Quick/Free, stale combat quantities, two DM tabs, concurrent inventory edits and recovery at both persistence boundaries passed.');
+
+function universalDatabase(key='analyse',extra={}){const db=shared();db.raw.combatants.enemy={id:'enemy',faction:'enemy',hp:20,maxHp:20,actionSlots:3,battleActive:true,statusEffects:{},observationKnown:[]};db.raw.independentIntents.p1.once={...intent,sourceId:key,sourceType:'universal',cost:'free_action',targetId:'enemy',choice:'hp',...extra};return db;}
+const obs=universalDatabase(),oa=setup(obs),ob=setup(obs);await Promise.all([oa.remote.processIndependentIntents(obs.raw.independentIntents),ob.remote.processIndependentIntents(obs.raw.independentIntents)]);assert.equal(obs.writes,1);assert.deepEqual(obs.raw.combatants.enemy.observationKnown,['hp']);assert.equal(obs.raw.combatants['player:p1'].quickActionRemaining,1);
+const blind=universalDatabase();blind.raw.combatants['player:p1'].statusEffects={blinded:{count:1}};await setup(blind).remote.processIndependentIntents(blind.raw.independentIntents);assert.equal(blind.raw.independentReceipts.p1.once.result.success,false);assert.equal(blind.raw.combatants['player:p1'].universalActionPhaseLedger.spent.analyse,true);
+const find=universalDatabase('find',{targetId:'player:p1',choice:null});find.raw.combatants['player:p1'].invisibleAwarenessRound=1;find.raw.combatants.enemy.statusEffects={invisible:{count:1,detectThreshold:13}};await setup(find).remote.processIndependentIntents(find.raw.independentIntents);assert.deepEqual(find.raw.combatants['player:p1'].detectedInvisibleIds,['enemy']);
+const raceFree=universalDatabase();raceFree.conflict=raw=>{raw.readyPlayers={p1:{ready:true,round:1}}};await setup(raceFree).remote.processIndependentIntents(raceFree.raw.independentIntents);assert.equal(raceFree.raw.independentReceipts.p1.once.applied,false);
+const rollback=universalDatabase();rollback.reject=true;const rb=setup(rollback),beforeRollback=JSON.stringify(rb.units);await assert.rejects(rb.remote.processIndependentIntents(rollback.raw.independentIntents),/write rejected/);assert.equal(JSON.stringify(rb.units),beforeRollback);
+console.log('Production Free handlers: Analyse/Find, Blinded, shared reveal, concurrent authorities, READY race and failed-write rollback passed');
