@@ -668,8 +668,10 @@
     const firstQueued = state.retreatQueue[0] || null;
     if (firstQueued && firstQueued.key !== key && options.force !== true) return { returned: false, reason: "retreat_order", unit, nextUnit: firstQueued.unit };
     markAlive(unit);
-    unit.hp = Math.max(1, numberOr(snapshot.hp, 1));
-    unit.sp = numberOr(snapshot.sp, 0) < 0 ? 0 : numberOr(snapshot.sp, 0);
+    // Reserve recovery updates the live vitals; the departure snapshot is only
+    // a fallback for legacy records that do not carry their current HP/SP.
+    unit.hp = Math.max(1, numberOr(unit.hp, numberOr(snapshot.hp, 1)));
+    unit.sp = Math.max(0, numberOr(unit.sp, numberOr(snapshot.sp, 0)));
     const keptStatuses = clearRetreatEffects(unit);
     state.retreatQueue = state.retreatQueue.filter((entry) => entry.key !== key);
     emit("luminous:unit-returned-from-retreat", { unit, keptStatuses, options });

@@ -94,7 +94,7 @@ function incrementalContext() {
   evaluate('js/combat-v073-steps.js', c);
   for (const name of ['clearHpAnimation', 'setCombatantHP', 'damageCombatant', 'healCombatant', 'isUnitTargetable',
     'validTargetUnits', 'unitActionBlocked', 'backupReserveForFaction', 'vacantBattleUnits', 'prepareBackupDeployment',
-    'processDeathSavesRoundEnd', 'processTurnEndExitActions']) vm.runInContext(sourceFunction(name), c);
+    'processDeathSavesRoundEnd', 'processTurnEndExitActions', 'processBackupRecovery']) vm.runInContext(sourceFunction(name), c);
   return c;
 }
 function stepsFor(c, bleedOwner) {
@@ -181,23 +181,57 @@ for (const rank of ['captain', 'leader']) {
   assert.equal(c.prepareBackupDeployment('enemy').length, 1, 'only confirmed death creates a vacancy');
 }
 
-// Three real successful saves grant Retreat, then a later FIELD vacancy can
-// return that unit with a playable life state instead of permanently locking it.
+// Both return paths must preserve recovery earned while waiting in BACKUP.
+for (const rank of ['captain', 'leader']) {
+  for (const path of ['incremental', 'bridge']) {
+    const c = incrementalContext();c.combatData.b = { ...unit('b', rank, 3), sp: 20 };
+    c.setCombatantHP('b', 0);c.Math.random = () => 0;
+    for (const round of [1, 2, 3]) c.processDeathSavesRoundEnd(round);
+    assert.equal(c.combatData.b.lifeState, 'retreated');
+    assert.equal(c.combatData.b.incapacitated, false);
+    assert.equal(c.combatData.b.retreatSnapshot.hp, 5);
+    c.processTurnEndExitActions(3);
+    assert.equal(c.prepareBackupDeployment('enemy').length, 1);
+    assert.equal(c.isUnitTargetable(c.combatData.reserve), true);
+    assert.equal(c.combatData.b.isBackup, true);
+    c.processBackupRecovery();c.processBackupRecovery();
+    assert.equal(c.combatData.b.hp, 15, 'two reserve recovery ticks grant 10 HP');
+    assert.equal(c.combatData.b.sp, 14, 'SP changes in reserve are current state too');
+    assert.equal(c.combatData.b.retreatSnapshot.hp, 5, 'retreat snapshot remains historical');
+    let returned;
+    if (path === 'incremental') {
+      c.setCombatantHP('reserve', 0);
+      assert.equal(c.prepareBackupDeployment('enemy').length, 1);
+      returned = c.combatData.b;
+    } else {
+      c.LuminousCombat073 = { combatants: () => c.combatData };
+      const state = { role: 'dm', round: 5,
+        combatants: { a: copyUnit(c.combatData.a), reserve: copyUnit(c.combatData.reserve) },
+        db: { ref: () => ({ on() {}, off() {}, update: async () => {} }) } };
+      c.LuminousCombatLiveAdapter073 = { state, hydrateNow() {} };
+      evaluate('js/combat-v073-deployment-bridge.js', c);
+      const bridge = c.LuminousCombatDeploymentBridge073;
+      bridge.setReserveCache({ b: c.combatData.b });
+      const result = bridge.promoteNextBackup('enemy');
+      assert.equal(result.promoted, true);
+      returned = result.unit;
+      await bridge.state.writeChain;
+    }
+    assert.equal(returned.hp, 15, `${rank} ${path}: return preserves recovered HP`);
+    assert.equal(returned.sp, 14, `${rank} ${path}: return preserves current SP`);
+    assert.equal(returned.lifeState, 'alive');
+    assert.equal(returned.isBackup, false);
+    assert.equal(c.LuminousDeathSaveRuntime.canAct(returned), true);
+  }
+}
+function copyUnit(unit) { return JSON.parse(JSON.stringify(unit)); }
+// Legacy reserve records without current vitals still use the saved fallback.
 {
-  const c = incrementalContext();c.combatData.b = unit('b', 'leader', 3);
-  c.setCombatantHP('b', 0);c.Math.random = () => 0;
-  for (const round of [1, 2, 3]) c.processDeathSavesRoundEnd(round);
-  assert.equal(c.combatData.b.lifeState, 'retreated');
-  assert.equal(c.combatData.b.incapacitated, false);
-  c.processTurnEndExitActions(3);
-  assert.equal(c.prepareBackupDeployment('enemy').length, 1);
-  assert.equal(c.isUnitTargetable(c.combatData.reserve), true, 'promoted reserve becomes a valid FIELD target');
-  assert.equal(c.combatData.b.isBackup, true);
-  c.setCombatantHP('reserve', 0);
-  assert.equal(c.prepareBackupDeployment('enemy').length, 1);
-  assert.equal(c.combatData.b.lifeState, 'alive');
-  assert.equal(c.combatData.b.isBackup, false);
-  assert.equal(c.LuminousDeathSaveRuntime.canAct(c.combatData.b), true);
+  const c = incrementalContext(), legacy = { id: 'legacy', lifeState: 'retreated', isRetreated: true,
+    retreatSnapshot: { hp: 5, sp: -8 } };
+  assert.equal(c.LuminousDeathSaveRuntime.returnFromRetreat(legacy, { force: true }).returned, true);
+  assert.equal(legacy.hp, 5);
+  assert.equal(legacy.sp, 0);
 }
 
 // Compact/restore/persist the life state for all viewers and checkpoint recovery.
