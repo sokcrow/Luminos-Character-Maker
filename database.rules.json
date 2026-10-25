@@ -2,6 +2,18 @@
   "rules": {
     "campaña": {
       ".read": "auth != null",
+      "audio_director": {
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+        "music": {
+          ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('active').val() === true && newData.child('trackId').val() === 'lament') || (newData.child('active').val() === false && newData.child('trackId').val() === ''))"
+        },
+        "ambience": {
+          ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('active').val() === true && newData.child('trackId').val() === 'bus') || (newData.child('active').val() === false && newData.child('trackId').val() === ''))"
+        },
+        "cue": {
+          ".validate": "newData.hasChildren(['cueId', 'nonce', 'at']) && (newData.child('cueId').val() === 'coin-heads' || newData.child('cueId').val() === 'coin-tails') && newData.child('nonce').isString() && newData.child('at').isNumber()"
+        }
+      },
       "estado_mundo": {
         ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')"
       },
