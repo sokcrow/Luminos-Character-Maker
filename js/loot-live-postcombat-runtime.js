@@ -181,7 +181,17 @@
   }
   function isDefeated(unit = {}) {
     const state = normalizeId(unit.resolutionState ?? unit.deploymentState ?? unit.deployment);
-    return unit.defeated === true || unit.dead === true || unit.isDead === true || state === "defeated" || (unit.hp != null && Number(unit.hp)<=0 && unit.isBackup!==true && !['backup','reserve','reserves'].includes(state));
+    const lifeState = normalizeId(unit.lifeState);
+    // 0 HP is not a corpse for PCs, Captains or Leaders. Only actual death
+    // authorizes post-combat corpse loot; combat pickpocket is a separate flow.
+    if (lifeState === "downed" || unit.isDowned === true) return false;
+    const rank = normalizeId(unit.rank ?? unit.unitRank ?? unit.unit_rank ?? unit.enemyRank ?? unit.enemy_rank ?? unit.mechanics?.rank ?? unit.metadata?.unitRank);
+    const deathSaveCandidate = ["captain", "leader"].includes(rank) ||
+      unit.isCaptain === true || unit.isLeader === true || unit.isPlayer === true || unit.isPlayerCharacter === true;
+    const confirmedDead = unit.dead === true || unit.isDead === true || lifeState === "dead";
+    if (deathSaveCandidate && !confirmedDead) return false;
+    return confirmedDead || unit.defeated === true || state === "defeated" ||
+      (unit.hp != null && Number(unit.hp) <= 0 && unit.isBackup !== true && !["backup", "reserve", "reserves"].includes(state));
   }
   function isLootEligible(unit = {}) {
     return isEnemy(unit) && isDefeated(unit) && unit.lootEligible !== false && unit.escaped !== true && normalizeId(unit.resolutionState) !== "escaped";

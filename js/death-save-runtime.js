@@ -102,12 +102,18 @@
     return rank === "captain" || hasTag(unit, "captain");
   }
 
+  function isLeader(unit = {}) {
+    if (unit.isLeader === true || unit.leader === true || unit.enemyLeader === true) return true;
+    const rank = normalizeId(unit.rank || unit.unitRank || unit.unit_rank || unit.enemyRank || unit.enemy_rank || unit.mechanics?.rank || unit.metadata?.unitRank);
+    return rank === "leader" || hasTag(unit, "leader");
+  }
+
   function isSinner(unit = {}) {
     return unit.isSinner === true || traitIds(unit).has("sinner");
   }
 
   function usesDeathSaves(unit = {}) {
-    return isPlayerCharacter(unit) || isCaptain(unit);
+    return isPlayerCharacter(unit) || isCaptain(unit) || isLeader(unit);
   }
 
   function traitCharacterForUnit(unit = {}) {
@@ -775,6 +781,12 @@
         const downedBefore = isDowned(unit);
         const hpBefore = numberOr(unit?.hp, 0);
         const result = originalProcessStatusEffects.call(this, unit, triggerKey, context, ...rest);
+        // Some legacy status processors mutate hp directly, bypassing applyDamage.
+        // Apply the same 0 HP transition immediately rather than waiting for the next round.
+        if (!downedBefore && hpBefore > 0 && numberOr(unit?.hp, 0) <= 0 && !isDowned(unit) && !isDead(unit)) {
+          if (usesDeathSaves(unit)) enterDowned(unit, { sourceKind: "status", context });
+          else resolveDeath(unit, { reason: "hp_zero", sourceKind: "status", context });
+        }
         if (downedBefore && !isDead(unit) && numberOr(unit?.hp, 0) > hpBefore) {
           const healed = numberOr(unit?.hp, 0) - hpBefore;
           unit.hp = 0;
@@ -919,6 +931,7 @@
     dispatchDeathSaveTraitTrigger,
     isPlayerCharacter,
     isCaptain,
+    isLeader,
     isSinner,
     usesDeathSaves,
     ensureDeathState,

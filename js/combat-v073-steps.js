@@ -21,6 +21,20 @@
       notify(onEvent, event);
       return event;
     }
+    // Acting and targetability are distinct: Downed can be targeted but never acts.
+    function canOwnerAct(ownerId) {
+      const unit = r.unit(ownerId);
+      if (!unit) return false;
+      if (typeof r.canUnitAct === 'function') return Boolean(r.canUnitAct(unit));
+      const life = String(unit.lifeState || unit.deploymentState || '').toLowerCase();
+      if (unit.isDowned || unit.isDead || unit.dead || unit.isRetreated || unit.escaped ||
+        ['downed', 'dead', 'defeated', 'retreated', 'escaped', 'backup'].includes(life)) return false;
+      const hp = Number(unit.hp);
+      return !Number.isFinite(hp) || hp > 0;
+    }
+    function cancelOwner(entry, coinIndex) {
+      emit('ActionCancelled', entry, { reason: 'owner_unavailable', ...(coinIndex == null ? {} : { coinIndex }) });
+    }
     function mutate(type, entry, detail, callback) {
       assertActive();
       const before = copy(snapshot()), result = callback(), after = copy(snapshot());
@@ -35,7 +49,13 @@
           emit('StatusChanged', entry, { causeSequence: event.sequence, unitId: change.unitId,
             statusEffects: b.statusEffects || {}, pendingStatusEffects: b.pendingStatusEffects || [] });
         if (Number(b.staggerStage) > Number(a.staggerStage)) emit('UnitStaggered', entry, { causeSequence: event.sequence, unitId: change.unitId, stage: b.staggerStage });
-        if (Number(a.hp) > 0 && Number(b.hp) <= 0) emit('UnitDefeated', entry, { causeSequence: event.sequence, unitId: change.unitId });
+        if (Number(a.hp) > 0 && Number(b.hp) <= 0) {
+          const live = r.unit(change.unitId);
+          const downed = b.lifeState === 'downed' || b.isDowned === true ||
+            (live && (live.lifeState === 'downed' || live.isDowned === true ||
+              (global.LuminousDeathSaveRuntime?.usesDeathSaves?.(live) && live.isDead !== true && live.dead !== true)));
+          emit(downed ? 'UnitDowned' : 'UnitDefeated', entry, { causeSequence: event.sequence, unitId: change.unitId });
+        }
       }
       return result;
     }
@@ -91,14 +111,21 @@
     async function rollStates(states) {
       for (const state of states) await show('powerStart', state.entry, state.remaining, state.power);
       // Stable legacy timer order: A0, B0, A1, B1 ... even with unequal Coin counts.
+      const cancelledOwners = new Set();
       for (let index = 0; index < Math.max(...states.map(s => s.remaining)); index++) {
         const frames = [];
         for (const state of states) {
-          if (index >= state.remaining) continue;
+          if (index >= state.remaining || cancelledOwners.has(state.entry.ownerId)) continue;
+          if (!canOwnerAct(state.entry.ownerId)) {
+            cancelOwner(state.entry, index); cancelledOwners.add(state.entry.ownerId); continue;
+          }
           const coin = toss(state.entry, index, {
             attackCoin: !state.data.grappleCheck && !global.LuminousClashableDefenses073?.isClashableDefensePlan(state.entry.plan),
             paralysis: !state.data.grappleCheck
           });
+          if (!canOwnerAct(state.entry.ownerId)) {
+            cancelOwner(state.entry, index); cancelledOwners.add(state.entry.ownerId); continue;
+          }
           if (coin.side === 'head' && !coin.paralyzedHead) state.power += state.data.coinPower;
           state.coins.push(coin);
           frames.push([state, coin]);
@@ -113,6 +140,7 @@
     async function hits(entry, targetId, remaining, { heal = false, mitigationPenalty = 0 } = {}) {
       const data = r.data(entry.plan), target = r.unit(targetId);
       if (!target || remaining <= 0) return 0;
+      if (!canOwnerAct(entry.ownerId)) { cancelOwner(entry); return 0; }
       let power = Math.max(0, data.basePower + data.finalPowerBonus + (entry._counterReaction ?
         r.statusDefensePowerModifier(r.unit(entry.ownerId)) + r.conditionCounterPowerModifier(r.unit(entry.ownerId)) :
         r.statusAttackPowerModifier(r.unit(entry.ownerId))) + r.targetFinalPowerVulnerabilityBonus(target) - Math.max(0, Number(mitigationPenalty) || 0)), total = 0;
@@ -120,17 +148,23 @@
       await show('hitsStart', entry, remaining);
       for (let index = 0; index < remaining; index++) {
         const coinIndex = first + index;
+        if (!canOwnerAct(entry.ownerId)) { cancelOwner(entry, coinIndex); break; }
         if (!r.isUnitTargetable(r.unit(targetId))) {
           emit('ActionCancelled', entry, { reason: 'target_unavailable', coinIndex }); break;
         }
         await show('hitStart', entry, remaining, coinIndex, coins);
+        if (!canOwnerAct(entry.ownerId)) { cancelOwner(entry, coinIndex); break; }
         // Legacy hit path consumes Paralysis after the toss; no rules run in the intervening animation.
-        const coin = toss(entry, coinIndex, { paralysis: true }); coins.push(coin);
+        const coin = toss(entry, coinIndex, { paralysis: true });
+        if (!canOwnerAct(entry.ownerId)) { cancelOwner(entry, coinIndex); break; }
+        coins.push(coin);
         if (coin.side === 'head' && !coin.paralyzedHead) power += data.coinPower;
         const hit = Math.max(0, power);
         await show('hitCoin', entry, remaining, coinIndex, coins, hit);
+        if (!canOwnerAct(entry.ownerId)) { cancelOwner(entry, coinIndex); break; }
         if (!heal) {
           const evade = await r.resolveEvadeAgainstCoin(targetId, hit, entry, { coinIndex, side: coin.side });
+          if (!canOwnerAct(entry.ownerId)) { cancelOwner(entry, coinIndex); break; }
           if (evade?.evaded) { emit('HitEvaded', entry, { unitId: targetId, coinIndex, power: hit, evadePower: evade.power }); await show('wait', 'hitGap'); continue; }
         }
         // Damage is committed once here. Motion/impact callbacks only consume the result.
@@ -139,24 +173,27 @@
           const result = r.damageCombatant(targetId, hit, { damageType: data.damageType, attackerId: entry.ownerId, skillData: { ...(entry.plan?.data || {}), currentCoinIndex: coinIndex } });
           total += Number(result?.finalDamage) || 0;
           r.triggerGettingHitStatuses(targetId, entry);
-          if (result?.critical) r.applySkillStatusEffects(entry, targetId, '[On Crit]', { coinIndex, side: coin.side, damageResult: result });
-          if (entry.plan?.data?.tremorBurst) r.triggerTremorBurst(targetId, entry.ownerId);
-          r.applySkillStatusEffects(entry, targetId, '[On Hit]', { coinIndex, side: coin.side });
-          r.applySkillStatusEffects(entry, targetId, coin.side === 'head' ? '[Heads Hit]' : '[Tails Hit]', { coinIndex, side: coin.side });
+          if (result?.critical && canOwnerAct(entry.ownerId)) r.applySkillStatusEffects(entry, targetId, '[On Crit]', { coinIndex, side: coin.side, damageResult: result });
+          if (entry.plan?.data?.tremorBurst && canOwnerAct(entry.ownerId)) r.triggerTremorBurst(targetId, entry.ownerId);
+          if (canOwnerAct(entry.ownerId)) r.applySkillStatusEffects(entry, targetId, '[On Hit]', { coinIndex, side: coin.side });
+          if (canOwnerAct(entry.ownerId)) r.applySkillStatusEffects(entry, targetId, coin.side === 'head' ? '[Heads Hit]' : '[Tails Hit]', { coinIndex, side: coin.side });
           return result;
         });
         if (!heal) await show('hitMotion', entry, targetId, outcome);
         else await show('healingMotion', entry, targetId, outcome);
-        if (!heal) {
-          await r.triggerCounterAfterHit(targetId, entry.ownerId, entry);
-          if (!r.isUnitTargetable(r.unit(entry.ownerId))) { emit('ActionCancelled', entry, { reason: 'owner_unavailable', coinIndex }); break; }
-        }
+        if (!heal && canOwnerAct(entry.ownerId)) await r.triggerCounterAfterHit(targetId, entry.ownerId, entry);
+        if (!canOwnerAct(entry.ownerId)) { cancelOwner(entry, coinIndex); break; }
         await show('wait', 'hitGap');
       }
       await show('wait', 'totalHold');
       return total;
     }
     async function clash(a, b) {
+      if (!canOwnerAct(a.ownerId) || !canOwnerAct(b.ownerId)) {
+        if (!canOwnerAct(a.ownerId)) cancelOwner(a);
+        if (!canOwnerAct(b.ownerId)) cancelOwner(b);
+        return { winner: null, loser: null, cancelled: true, reason: 'clash_actor_unavailable', spGain: 0, remaining: 0 };
+      }
       const da = r.data(a.plan), db = r.data(b.plan);
       mutate('ActionStarted', a, {}, () => { r.processConditionRemovalTrigger(a.ownerId, 'attack'); r.processConditionRemovalTrigger(b.ownerId, 'attack'); r.markEntryStarted(a); });
       mutate('ActionStarted', b, {}, () => { r.markEntryStarted(b); });
@@ -164,9 +201,21 @@
       let remainingA = da.coinAmount, remainingB = db.coinAmount, clashCount = 0, ties = 0, lastExchange = null;
       await show('clashStart', a, b, remainingA, remainingB);
       while (remainingA > 0 && remainingB > 0) {
+        if (!canOwnerAct(a.ownerId) || !canOwnerAct(b.ownerId)) {
+          if (!canOwnerAct(a.ownerId)) cancelOwner(a);
+          if (!canOwnerAct(b.ownerId)) cancelOwner(b);
+          emit('ActionFinished', a); emit('ActionFinished', b);
+          return { winner: null, loser: null, cancelled: true, reason: 'clash_actor_unavailable', spGain: 0, remaining: 0 };
+        }
         clashCount++;
         await show('clashContact', a, b, clashCount);
         const [ra, rb] = await rollPair(a, remainingA, b, remainingB);
+        if (!canOwnerAct(a.ownerId) || !canOwnerAct(b.ownerId)) {
+          if (!canOwnerAct(a.ownerId)) cancelOwner(a);
+          if (!canOwnerAct(b.ownerId)) cancelOwner(b);
+          emit('ActionFinished', a); emit('ActionFinished', b);
+          return { winner: null, loser: null, cancelled: true, reason: 'clash_actor_unavailable', spGain: 0, remaining: 0 };
+        }
         lastExchange = { a: ra.power, b: rb.power };
         const winner = ra.power === rb.power ? 'tie' : ra.power > rb.power ? 'a' : 'b';
         if (winner === 'a') remainingB--; else if (winner === 'b') remainingA--;
@@ -188,15 +237,15 @@
       const winner = remainingA > 0 ? a : b, loser = winner === a ? b : a,
         remaining = winner === a ? remainingA : remainingB, spGain = 10 + clashCount;
       mutate('ClashFinished', winner, { loserId: loser.ownerId, clashCount, spGain }, () => {
-        r.applySkillStatusEffects(winner, loser.ownerId, '[Clash Win]', { clashCount });
-        r.applySkillStatusEffects(loser, winner.ownerId, '[Clash Lose]', { clashCount });
-        r.healCombatantSP(winner.ownerId, spGain);
+        if (canOwnerAct(winner.ownerId)) r.applySkillStatusEffects(winner, loser.ownerId, '[Clash Win]', { clashCount });
+        if (canOwnerAct(loser.ownerId)) r.applySkillStatusEffects(loser, winner.ownerId, '[Clash Lose]', { clashCount });
+        if (canOwnerAct(winner.ownerId)) r.healCombatantSP(winner.ownerId, spGain);
       });
       const defenses = global.LuminousClashableDefenses073;
       const winningPower = winner === a ? lastExchange?.a : lastExchange?.b;
       const losingPower = loser === a ? lastExchange?.a : lastExchange?.b;
       const defenseResult = defenses?.resultForClash(winner.plan, loser.plan, losingPower, winningPower);
-      if (defenseResult?.guardWin && defenseResult.guardTremorPower > 0) {
+      if (canOwnerAct(winner.ownerId) && defenseResult?.guardWin && defenseResult.guardTremorPower > 0) {
         mutate('ClashableGuardTremorApplied', winner, {
           targetId: loser.ownerId, power: defenseResult.guardTremorPower
         }, () => r.raiseRemainingStaggerThresholdByDamage(loser.ownerId, defenseResult.guardTremorPower));
@@ -205,7 +254,7 @@
       // Clashable Guard wins defensively, without dealing a normal attack.
       // When it loses, its last Clash Power mitigates every surviving attack Coin.
       // Clashable Counter wins as an attack with its surviving Coins.
-      if (defenseResult?.performHits !== false) {
+      if (canOwnerAct(winner.ownerId) && defenseResult?.performHits !== false) {
         await hits(defenseResult?.counterWin ? { ...winner, _counterReaction: true } : winner, loser.ownerId, remaining, {
           heal: false, mitigationPenalty: defenseResult?.guardMitigation || 0
         });
@@ -215,23 +264,27 @@
       return { winner, loser, clashCount, spGain, remaining };
     }
     async function guard(entry) {
+      if (!canOwnerAct(entry.ownerId)) { cancelOwner(entry); return 0; }
       const data = entry.plan?.data || {}, unit = r.unit(entry.ownerId),
         base = Math.max(0, (Number(data.basePower) || 0) + (Number(entry.plan?._helpFinalPowerBonus) || 0) + r.statusDefensePowerModifier(unit));
       await show('powerStart', entry, 1, base);
-      const coin = toss(entry, 0, { attackCoin: false }), shield = Math.max(0, base + (coin.side === 'head' ? Number(data.coinPower) || 0 : 0));
+      const coin = toss(entry, 0, { attackCoin: false });
+      if (!canOwnerAct(entry.ownerId)) { cancelOwner(entry, 0); return 0; }
+      const shield = Math.max(0, base + (coin.side === 'head' ? Number(data.coinPower) || 0 : 0));
       mutate('ShieldApplied', entry, { amount: shield }, () => r.addEphemeralShield(entry.ownerId, shield));
       await show('powerCoin', entry, coin, shield, 1); await show('powerEnd', entry, 1, shield, [coin]);
       await show('guardEnd', entry); return shield;
     }
     async function evade(defenderId, attackPower, attackerEntry, { coinIndex = 0, side = 'tail' } = {}) {
       const defender = r.unit(defenderId), state = defender?.reactiveDefense, armed = state?.turn === context().round ? state.evade : null;
-      if (!armed?.active) return { evaded: false, active: false };
+      if (!armed?.active || !canOwnerAct(defenderId)) return { evaded: false, active: false };
       if (r.unitReactionBlocked(defender)) { r.disarmEvade(defenderId, { broken: true }); return { evaded: false, active: false, blocked: true }; }
       const entry = armed.entry, data = entry.plan?.data || {}, scaled = r.caveEvadePower?.(defender, entry.plan), base = Math.max(0, (Number(scaled?.basePower ?? data.basePower) || 0) +
         (Number(entry.plan?._helpFinalPowerBonus) || 0) + r.statusDefensePowerModifier(defender) + r.conditionEvasionPowerModifier(defender) + (r.caveEvadeBonus?.(defender, entry.plan) || 0));
       await show('powerStart', entry, 1, base);
-      const coin = toss(entry, coinIndex, { attackCoin: false, paralysis: true }),
-        power = Math.max(0, base + (coin.side === 'head' && !coin.paralyzedHead ? Number(scaled?.coinPower ?? data.coinPower) || 0 : 0)), evaded = Number(attackPower) <= power;
+      const coin = toss(entry, coinIndex, { attackCoin: false, paralysis: true });
+      if (!canOwnerAct(defenderId)) { cancelOwner(entry, coinIndex); return { evaded: false, active: false }; }
+      const power = Math.max(0, base + (coin.side === 'head' && !coin.paralyzedHead ? Number(scaled?.coinPower ?? data.coinPower) || 0 : 0)), evaded = Number(attackPower) <= power;
       mutate('EvadeResolved', entry, { coinIndex, power, evaded }, () => {
         if (evaded) r.applySkillStatusEffects(entry, attackerEntry?.ownerId, '[On Evade]', { coinIndex, side });
         else r.disarmEvade(defenderId, { broken: true });
