@@ -386,7 +386,19 @@
     applyVolumes();
   });
 
+  function isHostedInsideAudioShell() {
+    // Live combat is embedded by the player/Director shell. Those pages own
+    // the music bus; a second one in the iframe would double the soundtrack.
+    try {
+      if (!global.parent || global.parent === global) return false;
+      return /(?:^|\/)(?:hoja_personaje|hoja_de_DM|pantalla_dm|combate)\.html$/i
+        .test(global.parent.location.pathname);
+    } catch (_) {
+      return false; // Standalone/cross-origin viewer remains independently usable.
+    }
+  }
   function init() {
+    if (isHostedInsideAudioShell()) return;
     buildPanel();
     // These are the actual login audio elements. Voice and bus share the effects bus.
     const introVoice = global.document.getElementById("audio-inicio");
