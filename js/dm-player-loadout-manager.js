@@ -49,7 +49,7 @@
     const link = doc.createElement("link");
     link.id = "dm-player-loadout-manager-style";
     link.rel = "stylesheet";
-    link.href = "css/dm-player-loadout-manager.css?v=20261022-unified-spells-1";
+    link.href = "css/dm-player-loadout-manager.css?v=20261024-deck-presets-1";
     doc.head?.appendChild(link);
   }
 
