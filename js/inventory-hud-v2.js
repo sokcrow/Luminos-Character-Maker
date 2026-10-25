@@ -255,22 +255,18 @@
 
   function itemIcon(item = {}) {
     const resolved = runtime()?.resolveItem?.(item) || item;
-    const candidates = [
-      item.iconFamily, item.icon_family,
-      resolved.iconFamily, resolved.icon_family,
-      inferredIconFamily(resolved),
-      inferredIconFamily(item),
-    ];
-    for (const family of candidates) {
+    // Registry identity precedes any inferred category, preserving dedicated art.
+    for (const family of [item.iconFamily, item.icon_family, resolved.iconFamily, resolved.icon_family]) {
       const icon = iconFromFamily(family);
       if (icon) return icon;
     }
-
-    const explicit = [item.icono, item.icon, item.image, item.img].map(localItemIconAsset).find(Boolean);
+    const explicit = [item.icono, item.icon, item.image, item.img, resolved.icono, resolved.icon, resolved.image, resolved.img]
+      .map(localItemIconAsset).find(Boolean);
     if (explicit) return explicit;
-    const resolvedExplicit = [resolved.icono, resolved.icon, resolved.image, resolved.img].map(localItemIconAsset).find(Boolean);
-    if (resolvedExplicit) return resolvedExplicit;
-
+    for (const family of [item.family, resolved.family, inferredIconFamily(resolved), inferredIconFamily(item)]) {
+      const icon = iconFromFamily(family);
+      if (icon) return icon;
+    }
     return String(iconRegistry()?.resolveIcon?.("generic_item", { fallback: false }) || "").trim();
   }
 
@@ -506,7 +502,7 @@
         ${slotSpecs.map((slot) => `
           <button type="button" class="inventory-v2-eq-slot ${slot.className}" data-equipment-slot="${slot.id}" aria-label="${slot.label}">
             <span class="inventory-v2-eq-label">${slot.label}</span>
-            <span class="inventory-v2-eq-icon" aria-hidden="true"></span>
+            <span class="inventory-v2-eq-icon" aria-hidden="true"><img class="inventory-v2-eq-image" alt="" hidden /></span>
             <span class="inventory-v2-eq-name">LIBRE</span>
             <span class="inventory-v2-eq-hint">${slot.hint}</span>
           </button>`).join("")}
@@ -714,7 +710,8 @@
     const effectCodes = activeCard ? activeEffectCodes(effectIndicators) : [];
     slot.setAttribute("aria-label", `${itemName(item)}, ${categoryLabel(category)}, quantity ${quantity}${effectCodes.length ? ", effects " + effectCodes.join(", ") : ""}`);
     const iconHtml = `
-      <span class="item-icon${icon ? " has-icon" : ""}"${icon ? ` style="background-image:url(&quot;${escapeHtml(icon)}&quot;)"` : ""}>
+      <span class="item-icon${icon ? " has-icon" : ""}">
+        ${icon ? `<img class="inventory-v2-item-image" src="${escapeHtml(icon)}" alt="" loading="lazy" decoding="async" />` : ""}
         <span class="inventory-v2-icon-fallback">${escapeHtml(categoryLabel(category).slice(0, 3))}</span>
         ${gemOverlayIcon ? `<span class="inventory-v2-gem-overlay" aria-hidden="true" style="background-image:url(&quot;${escapeHtml(gemOverlayIcon)}&quot;)"></span>` : ""}
       </span>`;
@@ -730,8 +727,19 @@
       </div>
       ${equipable && !activeCard ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
       ${activeCard ? "" : effectIndicatorHtml}
-      ${activeCard ? "" : `<div class="item-quantity">x${quantity}</div>`}`;
+      ${quantity > 1 ? `<div class="item-quantity">x${quantity}</div>` : ""}`;
 
+    const image = slot.querySelector(".inventory-v2-item-image");
+    image?.addEventListener("error", () => {
+      const fallback = iconFromFamily("generic_item");
+      if (image.dataset.fallback !== "1" && fallback && image.getAttribute("src") !== fallback) {
+        image.dataset.fallback = "1";
+        image.src = fallback;
+        return;
+      }
+      image.hidden = true;
+      image.closest(".item-icon")?.classList.remove("has-icon");
+    });
     if (containerType === "active") {
       slot.addEventListener("dragstart", (event) => {
         event.dataTransfer?.setData?.("text/plain", key);
@@ -878,7 +886,16 @@
       const icon = button.querySelector(".inventory-v2-eq-icon");
       const url = item ? itemIcon(item) : "";
       if (icon) {
-        icon.style.backgroundImage = url ? `url("${String(url).replace(/["\\]/g, "")}")` : "";
+        const image = icon.querySelector(".inventory-v2-eq-image");
+        icon.style.backgroundImage = "none";
+        if (image) {
+          image.onerror = () => { image.hidden = true; icon.classList.remove("has-icon"); };
+          if (image.getAttribute("src") !== url) {
+            if (url) image.src = url;
+            else image.removeAttribute("src");
+          }
+          image.hidden = !url;
+        }
         icon.classList.toggle("has-icon", Boolean(url));
       }
       const hint = button.querySelector(".inventory-v2-eq-hint");
