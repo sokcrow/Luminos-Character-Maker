@@ -1,0 +1,32 @@
+name: DM Item Creator Smoke
+
+on:
+  pull_request:
+    paths:
+      - "js/dm-item-creator*.js"
+      - "js/dm-local-item-manager-v3.js"
+      - "js/item-persistence-runtime.js"
+      - "js/item-equipment-effects-runtime.js"
+      - "js/item-icon-registry.js"
+      - "js/item-inventory-runtime.js"
+      - "css/dm-item-creator.css"
+      - "tests/dm-item-creator-smoke.cjs"
+      - ".github/workflows/dm-item-creator.yml"
+  workflow_dispatch:
+
+jobs:
+  creator-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check creator syntax
+        run: |
+          node --check js/dm-item-creator-core.js
+          node --check js/dm-item-creator.js
+          node --check js/dm-local-item-manager-v3.js
+          node --check js/item-persistence-runtime.js
+      - name: Validate item creation and persisted runtime
+        run: node tests/dm-item-creator-smoke.cjs

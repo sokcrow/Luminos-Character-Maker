@@ -1302,6 +1302,8 @@
     const qualityTier = Math.max(1, Math.min(5, intOr(doc.getElementById("dm-item-grant-quality")?.value, 2)));
     const target = normalizeListType(doc.getElementById("dm-item-grant-target")?.value);
     const source = clone(entry.definition) || {};
+    if (source.stackable === false && quantity !== 1)
+      return grantStatus("Este objeto no se apila. Entrégalo de uno en uno.", "error");
     source.id = definitionIdOf(source, entry.id) || entry.id;
     source.definitionId = entry.id;
     source.iconFamily = entry.iconFamily || source.iconFamily || source.icon_family || "generic_item";
