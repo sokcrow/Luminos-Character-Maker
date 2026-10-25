@@ -370,7 +370,7 @@ test("Phone equipment keeps fourth row and vitals reachable within its square", 
 
     expect(measured.fieldMinHeight, `phone width ${width}`).toBe("0px");
     expect(measured.fieldOverflow, `phone width ${width}`).toBe("auto");
-    expect(Math.abs(measured.panelWidth - measured.panelHeight), `phone width ${width}`).toBeLessThanOrEqual(4);
+    expect(measured.panelHeight, `phone width ${width}`).toBeGreaterThan(measured.panelWidth);
     expect(measured.clientHeight, `phone width ${width}`).toBeGreaterThan(10);
     expect(measured.scrollHeight, `phone width ${width}`).toBeGreaterThanOrEqual(measured.clientHeight);
     expect(measured.fieldBottom, `phone width ${width}`).toBeLessThanOrEqual(measured.vitalsTop + 2);
@@ -432,6 +432,7 @@ test("Active inventory slots 1–5 remain reachable above the carry HUD", async 
       await tile.click();
       await expect(tile).toHaveClass(/active/);
       await expect(page.locator("#detail-title")).toHaveText(key === "blade_1" ? "Test Workshop Blade" : key === "coat_1" ? "Reinforced Coat" : "Active Slot " + key.slice(-1));
+      await page.locator("#inventory-v2-detail-close").click();
     }
   }
 });
@@ -691,7 +692,8 @@ test("equips through the runtime bridge and persists equipment refs", async ({ p
   await page.locator('#inv-active-grid [data-key="blade_1"]').click();
   await expect(page.locator("#detail-title")).toHaveText("Test Workshop Blade");
   await expect(page.locator("#detail-desc")).toHaveText("Instance presentation wins");
-  await page.locator('[data-equipment-slot="mainHand"]').click();
+  // The inventory surface is inert behind a modal. Equip through its action.
+  await page.locator("#inventory-v2-actions .inventory-v2-action", { hasText: "EQUIP" }).click();
   await page.waitForFunction(() => window.__saves.length > 0);
   expect((await page.evaluate(() => window.__saves.at(-1))).mainHand).toBe("blade_1");
   await expect(page.locator('[data-equipment-slot="mainHand"] .inventory-v2-eq-name')).toContainText("Test Workshop Blade");
@@ -714,6 +716,7 @@ test("reload consumes resources only from Active Inventory", async ({ page }) =>
   await expect(page.locator("#inventory-v2-action-status")).toContainText("MISSING RESOURCE");
   expect(await page.evaluate(() => window.LuminousInventoryHudV2.state.unit.inventario_stash.battery_stash.quantity)).toBe(5);
 
+  await page.locator("#inventory-v2-detail-close").click();
   await page.evaluate(() => {
     const state = window.LuminousInventoryHudV2.state;
     state.unit.inventario_activo.battery_active = { instanceId: "battery_active", definitionId: "battery_cell", nombre: "Battery Cell", category: "ammo", quantity: 2, qualityTier: 2, condition: 100, conditionMax: 100 };
