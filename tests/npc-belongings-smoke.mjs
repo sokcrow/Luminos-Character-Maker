@@ -90,6 +90,7 @@ const context = vm.createContext({ window: { LuminousNpcBelongings: api, Luminou
   isSaveOnlySpellPlan: () => false, isSkillOrSpellPlan: () => false, isGuardPlan: () => false,
   isEvadePlan: () => false, isCounterPlan: () => false,
   planTargetRule: () => 'ally', setCombatantHP() {}, setCombatantSP() {}, console });
+for(const name of ['unit-universal-action-policy','unit-universal-action-runtime'])vm.runInContext(fs.readFileSync('js/'+name+'.js','utf8'),context);
 vm.runInContext(slice('function prepareAutoPlans(){', 'function preparePlayerGrapplePlan(){'), context);
 vm.runInContext(slice('function assignTargetIntents(){', 'function slotPoint('), context);
 // Load the production defense classifier alongside the extracted queue rules.
