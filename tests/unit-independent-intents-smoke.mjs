@@ -30,7 +30,7 @@ function setup(database){
       const next=update(clone(database.raw));if(!next)return {committed:false};database.raw=next;database.writes++;return {committed:true};
     }}});
   context.window=context;
-  for(const file of ['status-library','status-engine','trait-engine','trait-catalog-core','archetype-engine','archetype-trait-catalog','universal-action-economy','item-runtime-engine','combat-event-runtime','unit-independent-actions','unit-universal-action-policy','unit-universal-action-runtime','mastermind-archetype-runtime','combat-v073-authority','combat-v073-remote-intents'])vm.runInContext(read(`js/${file}.js`),context,{filename:file});
+  for(const file of ['status-library','status-engine','core-condition-runtime','trait-engine','trait-catalog-core','archetype-engine','archetype-trait-catalog','universal-action-economy','item-runtime-engine','combat-event-runtime','unit-independent-actions','unit-universal-action-policy','unit-universal-action-runtime','mastermind-archetype-runtime','combat-v073-authority','combat-v073-remote-intents'])vm.runInContext(read(`js/${file}.js`),context,{filename:file});
   Object.assign(context,{combatData:units,round:1,OBSERVATION_META:{hp:{stat:'perception'},sp:{stat:'perception'}},CHECK_COIN_COUNT:5,CHECK_COIN_POWER:4,
     unitHasStatus:(unit,key)=>Number(unit?.statusEffects?.[key]?.count||0)>0,getCombatStatus:(unit,key)=>unit?.statusEffects?.[key],invisibleDetectedBy:(actor,target)=>(actor.detectedInvisibleIds||[]).includes(target.id),conditionCheckThresholdPenalty:()=>0,normalizeSaveAbility:value=>value,unitAbilitySkillModifier:(unit,key)=>Number(unit.skillBonuses?.[key]||0),coinHeadsChanceForUnit:()=>100,LuminousCoinEngine:{rollSide:()=> 'head',coinSrc:()=>''}});
   const source=read('combat/source/combat-v073-live.html');
@@ -122,3 +122,30 @@ const find=universalDatabase('find',{targetId:'player:p1',choice:null});find.raw
 const raceFree=universalDatabase();raceFree.conflict=raw=>{raw.readyPlayers={p1:{ready:true,round:1}}};await setup(raceFree).remote.processIndependentIntents(raceFree.raw.independentIntents);assert.equal(raceFree.raw.independentReceipts.p1.once.applied,false);
 const rollback=universalDatabase();rollback.reject=true;const rb=setup(rollback),beforeRollback=JSON.stringify(rb.units);await assert.rejects(rb.remote.processIndependentIntents(rollback.raw.independentIntents),/write rejected/);assert.equal(JSON.stringify(rb.units),beforeRollback);
 console.log('Production Free handlers: Analyse/Find, Blinded, shared reveal, concurrent authorities, READY race and failed-write rollback passed');
+
+function quickHelpDatabase(condition){
+ const db=shared(),build={archetypes:[{classId:'rogue',archetypeId:'mastermind'}]},classes=[{classId:'rogue',levels:65}];
+ Object.assign(db.raw.combatants['player:p1'],{quickActionRemaining:1,classes,characterBuild:build,statusEffects:condition?{[condition]:{count:1}}:{}});
+ db.players.p1={classes,characterBuild:build};
+ db.raw.combatants.friend={id:'friend',name:'Friend',controlled:'ai',faction:'ally',hp:40,maxHp:40,battleActive:true,actionSlots:1};
+ db.raw.planningAi={round:1,plans:{friend:{0:{kind:'skill',planType:'auto',unitId:'friend',round:1,sourceSlotIndex:0,skillId:'strike',actionData:{id:'strike',kind:'skill',basePower:4},targetId:'enemy',targetSlotIndex:0}}}};
+ db.raw.independentIntents.p1.once={...intent,sourceId:'help',sourceType:'universal',cost:'quick_action',variant:'mastermind_quick',targetId:'friend',targetSlotIndex:0};
+ return db;
+}
+for(const condition of [null,'paralyzed','petrified','incapacitated','confusion']){
+ const db=quickHelpDatabase(condition),app=setup(db),before=JSON.stringify(db.raw.combatants);
+ const expected=app.context.LuminousConditionRuntime.actionAvailability(db.raw.combatants['player:p1'],'quick_action',{phase:'planning'});
+ await app.remote.processIndependentIntents(db.raw.independentIntents);
+ const receipt=db.raw.independentReceipts.p1.once;
+ assert.equal(receipt.applied,!condition,'Authoritative Quick Help '+(condition||'healthy'));
+ if(condition){
+  assert.equal(receipt.result.reason,expected.reason);
+  assert.equal(JSON.stringify(db.raw.combatants),before,'Rejected receipt never commits effects or budget');
+  const writes=db.writes;await app.remote.processIndependentIntents(db.raw.independentIntents);
+  assert.equal(db.writes,writes,'Rejected request remains idempotent');
+ }else{
+  assert.equal(db.raw.combatants['player:p1'].quickActionRemaining,0);
+  assert.ok(Object.values(db.raw.combatants.friend.universalHelpBuffs).length===1);
+ }
+}
+console.log('Authoritative Quick Help: real condition gate rejects four disabling Statuses, preserves budgets/effects and receipts remain idempotent.');

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import '../js/unit-universal-action-policy.js';
 import '../js/unit-universal-action-runtime.js';
 import '../js/mastermind-archetype-runtime.js';
+import '../js/core-condition-runtime.js';
 const p=globalThis.LuminousUnitUniversalActionPolicy,r=globalThis.LuminousUnitUniversalActionRuntime;
 const unit=(id,controlled='player')=>({id,name:id,controlled,hp:40,maxHp:40,battleActive:true,faction:'ally',actionSlots:3,speed:6,statusEffects:{}});
 const skill=id=>({type:'granted',data:{id,kind:'skill',basePower:4,coinPower:4,coinAmount:5},targetId:'enemy',targetSlotIndex:0});
@@ -25,3 +26,20 @@ for(const quickFirst of [false,true]){
  assert.equal(r.commitEntry({ownerId:'mind',localIndex:0,plan:plans.mind[0]},units,plans,1,'combat_phase').ok,true);r.applyHelp(actor,a,plans.a[2],2,1,units);assert.equal(r.helpBonus(a,plans.a[2],2,1,units),4);assert.ok(a.statusEffects.assist_guard_mind);
 }
 console.log('Universal runtime: Player/IA quotas, HP 0, exact Help target and real Mastermind/Misdirection passed');
+
+for(const controlled of ['player','ai','remote'])for(const condition of ['paralyzed','petrified','incapacitated','confusion']){
+ const actor={...unit('mind',controlled),quickActionRemaining:1,classes:[{id:'rogue',level:65}],characterBuild:{archetypes:[{classId:'rogue',archetypeId:'mastermind'}]},statusEffects:{[condition]:{count:1}}};
+ const friend=unit('friend'),units={mind:actor,friend},plans={friend:[skill('attack')]};
+ const options={round:1,variant:'mastermind_quick',phase:'planning',units,plans,target:friend,targetSlotIndex:0,targetActionSlotId:r.slotId(friend.id,0)};
+ const expected=globalThis.LuminousConditionRuntime.actionAvailability(actor,'quick_action',{phase:'planning'});
+ assert.equal(expected.available,false);
+ const before=JSON.stringify(units),result=r.useInstant(actor,'help',options);
+ assert.equal(result.used,false,controlled+' '+condition+' blocks Quick Help');
+ assert.equal(result.reason,expected.reason);
+ assert.equal(JSON.stringify(units),before,'Rejection preserves budget, ledgers, Help and Misdirection state');
+ delete actor.statusEffects[condition];
+ assert.equal(r.useInstant(actor,'help',options).used,true,'Removing condition permits the same valid selection');
+ assert.equal(actor.quickActionRemaining,0);
+ assert.equal(r.helpBonus(friend,plans.friend[0],0,1,units)>0,true);
+}
+console.log('Quick Help conditions: Player/IA/remote reject Paralyzed, Petrified, Incapacitated and Confusion without spending or applying buffs.');

@@ -34,3 +34,9 @@ Revisar efectos y presupuesto atómicos, reintentos concurrentes, ownership/READ
 Siguen pendientes la aceptación visual en los seis tamaños TX-01 y el despliegue/aceptación de reglas Firebase. Help conserva Speed; adelantarlo al aliado más rápido no está ratificado. No presentar estas validaciones pendientes como ejecutadas.
 
 Aplicar GH-01: publicar, solicitar review y terminar sin esperar checks ni una nueva revisión.
+
+## P2: condiciones de Help Quick
+
+`useInstant` consulta `LuminousConditionRuntime.actionAvailability` antes de preparar el presupuesto, tocar el ledger o aplicar efectos. Usa `quick_action` para la variante Mastermind y conserva la razón canónica del rechazo. Las Universal Actions Free pasan también por el gate con `universalAction:true`.
+
+La regresión falló antes del fix tanto en el runtime directo como en el procesamiento autoritativo real. Ahora se prueban Paralyzed, Petrified, Incapacitated y Confusion para Player/IA/remote: rechazo sin mutaciones de presupuesto/ledger, Help ni Misdirection; tras quitar el estado vuelve a ser válido. La prueba de intents confirma además receipt negativo idempotente y roster canónico intacto, con un caso sano de control que sí consume y aplica Help.
