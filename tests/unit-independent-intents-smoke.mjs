@@ -176,3 +176,41 @@ for(const duplicate of [true,false]){
  else assert.equal(db.raw.combatants['player:p1'].universalActionPhaseLedger.reserved.combat_phase.targetId,'friend','Accepting Quick retains the current normal reservation');
 }
 console.log('Online universal regressions: equipped Analyse modifier and shared normal/Quick Help ally validation passed.');
+
+async function publishNormalHelpPreview(db){
+ const state={role:'player',playerId:'p1',uid:'owner-uid',encounterId:'test',round:1,combatState:'PRE_COMBAT_PLANNING',combatants:db.raw.combatants,
+ db:{ref(path){return{async transaction(update){assert.equal(path,'campaña/combate/readyPlayers/p1');db.raw.readyPlayers||={};const row=update(db.raw.readyPlayers.p1||null);if(row)db.raw.readyPlayers.p1=clone(row);return{committed:!!row}}}}}};
+ const client=vm.createContext({console,JSON,Math,Promise,Map,Set,addEventListener(){},setTimeout(){return 1},clearTimeout(){},firebase:{database:{ServerValue:{TIMESTAMP:1}}},LuminousCombatLiveAdapter073:{state},LuminousCombat073:{uiState:()=>({round:1,ready:false})}});client.window=client;
+ for(const name of ['combat-participants','combat-v073-plan-sync'])vm.runInContext(read('js/'+name+'.js'),client);
+ const plan={type:'global',data:{kind:'global',id:'help',actionKey:'help'},targetId:'friend',targetSlotIndex:0};
+ const api=client.LuminousCombatPlanSync073;
+ assert.equal(await api.syncLiveTargets({round:1,ready:false,plans:[plan]}),true);
+ assert.equal(db.raw.readyPlayers.p1.ready,false);
+ assert.equal(db.raw.plannedActions,undefined,'Before READY there are only targetIntents, no full plans');
+ return{api,plan,state};
+}
+for(const legacyEmbedded of [false,true])for(const duplicate of [true,false]){
+ const db=quickHelpDatabase(null),published=await publishNormalHelpPreview(db),preview=db.raw.readyPlayers.p1.targetIntents[0];
+ assert.equal(preview.actionData.actionKey,'help');
+ if(legacyEmbedded)delete preview.actionKey;else assert.equal(preview.actionKey,'help','New previews publish canonical actionKey');
+ const app=setup(db),r=app.context.LuminousUnitUniversalActionRuntime;
+ assert.equal(app.remote.runtimePlan(preview,0,db.raw.combatants['player:p1']).data.actionKey,'help','Preview reconstruction preserves the universal identity, including older embedded-only payloads');
+ if(!duplicate){
+  db.raw.combatants.other={...clone(db.raw.combatants.friend),id:'other'};
+  db.raw.planningAi.plans.other={0:{...clone(db.raw.planningAi.plans.friend[0]),unitId:'other'}};
+  db.raw.independentIntents.p1.once.targetId='other';
+ }
+ const aiPlans=clone(db.raw.planningAi.plans),before=JSON.stringify(db.raw.combatants);
+ await app.remote.processIndependentIntents(db.raw.independentIntents);
+ const receipt=db.raw.independentReceipts.p1.once;
+ assert.equal(receipt.applied,!duplicate,'Quick Help respects preview-only normal Help before READY');
+ if(duplicate){assert.equal(receipt.result.reason,'help_target_already_assisted');assert.equal(JSON.stringify(db.raw.combatants),before,'Rejecting preview duplicate preserves Quick and effects');}
+ else assert.equal(db.raw.combatants['player:p1'].quickActionRemaining,0);
+ // Successful independent actions invalidate the cached AI preview. Keep the
+ // same legal recipient actions when checking the subsequent regenerated seal.
+ const plans=r.plansFromRaw({...db.raw,planningAi:{round:1,plans:aiPlans}});
+ assert.equal(r.prepare(db.raw.combatants,plans,{round:1}).ok,true,'Normal plans remain valid after the request');
+ const full=published.api.payloadFor(published.plan,0,'player:p1',published.state);
+ assert.equal(r.prepareSealed(db.raw,{round:1,plans:{p1:{0:full}},aiPlans}).ok,true,'The corresponding READY payload still passes seal preparation');
+}
+console.log('Before READY: actual preview publication/reconstruction preserves Help identity and prevents duplicate Quick Help for current and legacy payloads.');

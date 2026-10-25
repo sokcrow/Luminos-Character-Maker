@@ -48,7 +48,7 @@
       const itemId=clean(raw.itemId),itemType=clean(raw.itemType||embedded.itemType||embedded.item_type)||(targetSide==='ally'?'hp_healing':'offensive'),data={...embedded,kind:'item',itemId,id:itemId||clean(embedded.id),name:clean(raw.actionName||embedded.name||itemId),itemType,targetSide:targetSide||embedded.targetSide};return{...common,type:'items',data};
     }
     if(kind==='global'){
-      const actionKey=clean(raw.actionKey),data={...embedded,kind:'global',actionKey,id:actionKey||clean(embedded.id),name:clean(raw.actionName||embedded.name||actionKey),targetSide:targetSide||embedded.targetSide};return{...common,type:'global',data};
+      const actionKey=clean(raw.actionKey)||clean(embedded.actionKey),data={...embedded,kind:'global',actionKey,id:actionKey||clean(embedded.id),name:clean(raw.actionName||embedded.name||actionKey),targetSide:targetSide||embedded.targetSide};return{...common,type:'global',data};
     }
     if(kind==='trait'){
       const traitId=clean(raw.traitId),data={...embedded,kind:'trait',traitId,id:traitId||clean(embedded.id),name:clean(raw.actionName||embedded.name||traitId),targetSide:targetSide||embedded.targetSide};return{...common,type:'traits',data};

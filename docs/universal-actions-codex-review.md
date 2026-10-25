@@ -56,3 +56,9 @@ Ambas reproducciones fallaron antes de la corrección y pasaron después. El wor
 Misdirection conserva en la copia redirigida la identidad original de ronda/Unit/Slot/fingerprint. La consulta de Help verifica que el plan canónico siga siendo esa acción y que la copia solo haya cambiado el objetivo; conserva la elegibilidad actual del ayudante. `unit-universal-assist-guard-smoke.mjs` ejecuta Help real → Assist Guard real → dispatcher nativo → consulta de datos de Clash de producción para atacantes Player/IA, con +1 normal y +4 Mastermind. Comprueba aislamiento entre Slots con Skills idénticas, persistencia JSON, cambio de Skill/plan, ayudante caído y cambio de ronda.
 
 Ambas pruebas fallaron antes del fix y pasan después; se incorporan al workflow. La prueba aislada de caché NPC ahora carga el validador real antes de publicar sus planes authored.
+
+## P2: identidad de Help en previews anteriores a READY
+
+`targetPayloadFor` publica `actionKey` para universales. `runtimePlan` conserva también `actionData.actionKey` cuando falta el campo superior, para previews ya existentes. Se evita borrar la identidad de Help durante el round-trip online anterior a READY.
+
+La prueba extendida de intents publica el preview con `syncLiveTargets` real y confirma que aún no existen `plannedActions` completos ni READY. Prueba payload nuevo y anterior con solo el campo embebido, reconstrucción real, rechazo autoritativo de Quick Help al mismo aliado sin cambios de presupuesto/efectos y aceptación con otro aliado. Verifica además la preparación del payload completo posterior con las acciones destinatarias válidas. El procesamiento exitoso invalida normalmente la caché IA; la comprobación posterior utiliza las mismas acciones legales que esa caché regenerará. La reproducción falló antes del fix y pasa después.

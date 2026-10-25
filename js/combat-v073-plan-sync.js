@@ -59,7 +59,7 @@
     if(!plan)return null;const d=plan.data||{},targetId=clean(plan.targetId),additionalTargets=Array.isArray(plan.additionalTargets)?plan.additionalTargets.map(t=>({targetId:clean(t?.targetId),targetSlotIndex:Number.isInteger(Number(t?.targetSlotIndex))?Number(t.targetSlotIndex):0})).filter(t=>t.targetId):[];
     if(!targetId&&!additionalTargets.length)return null;
     const out={unitId,scheduledBy:s.playerId,round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:targetId||null,targetSlotIndex:plan.targetSlotIndex==null?null:Math.max(0,Number(plan.targetSlotIndex)||0)};
-    const targetSide=clean(d.targetSide||d.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(additionalTargets.length)out.additionalTargets=additionalTargets;Object.assign(out,{kind:kindOf(plan),planType:plan.type,actionData:clone(plan.data||{}),...(plan.drawId?{drawId:plan.drawId}:{})});return out;
+    const targetSide=clean(d.targetSide||d.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(additionalTargets.length)out.additionalTargets=additionalTargets;Object.assign(out,{kind:kindOf(plan),planType:plan.type,actionData:clone(plan.data||{}),...(plan.drawId?{drawId:plan.drawId}:{})});if(out.kind==='global')out.actionKey=idOf(plan,'global');return out;
   }
   function spellSelectionKeyFor(id,data,s){
     const selections=s?.players?.[s.playerId]?.characterBuild?.spellSelections||{};
