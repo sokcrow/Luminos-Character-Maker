@@ -114,8 +114,8 @@
 
   function skillDeckSlots(value = {}) {
     const source = value && typeof value === 'object' ? value : {};
-    if(Number(source.schemaVersion)>=2&&Array.isArray(source.entries))
-      return source.entries.map(row=>clean(row?.skillId||row?.id)).filter(Boolean);
+    if(Number(source.schemaVersion)>=2)
+      return Object.values(source.entries||{}).map(row=>clean(row?.skillId||row?.id)).filter(Boolean);
     const deck = {
       tier1: clean(source.tier1 ?? source.t1 ?? source['1'] ?? source.skill1),
       tier2: clean(source.tier2 ?? source.t2 ?? source['2'] ?? source.skill2),
@@ -132,7 +132,7 @@
   function loadoutSource(record = {}) {
     const rawDeck=record.characterBuild?.skillDeck||record.skillDeck||{};
     const canonicalDeck = skillDeckSlots(rawDeck);
-    if(Number(rawDeck.schemaVersion)>=2&&Array.isArray(rawDeck.entries))return canonicalDeck;
+    if(Number(rawDeck.schemaVersion)>=2)return canonicalDeck;
     if (canonicalDeck.length) return canonicalDeck;
     return record.skillSlotIds ?? record.skillIds ?? record.skill_ids ?? record.action_slots ?? record.mechanics?.skills ?? record.equippedSkills ?? [];
   }
@@ -155,7 +155,8 @@
         .map(([, value]) => clean(value?.id || value?.skillId || value))
         .filter(Boolean);
     }
-    if (!ids.length && record.equippedSkillIndex && typeof record.equippedSkillIndex === 'object') {
+    const selection=record.characterBuild?.skillDeck||record.skillDeck;
+    if (!ids.length && !(Number(selection?.schemaVersion)>=2) && record.equippedSkillIndex && typeof record.equippedSkillIndex === 'object') {
       ids = Object.keys(record.equippedSkillIndex).filter((id) => record.equippedSkillIndex[id] === true);
     }
     return ids;
@@ -753,4 +754,5 @@
     actorForPlayer
   });
 })(window);
+
 

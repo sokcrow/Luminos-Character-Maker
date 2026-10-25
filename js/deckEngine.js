@@ -39,6 +39,7 @@
 
     function isDeckEligible(skill = {}) {
         if (skill.deck?.enabled === false || skill.inDeck === false || skill.in_deck === false) return false;
+        if (skill.isDefense === true || normalizeId(skill.kind ?? skill.type) === "defense" || skill.defenseType || skill.defenseSubtype) return false;
         return !["granted", "free", "off_deck", "offdeck", "defensive", "defense"].includes(availabilityType(skill));
     }
 
@@ -416,3 +417,4 @@
     global.DeckEngine = DeckEngine;
     if (typeof module !== "undefined" && module.exports) module.exports = DeckEngine;
 })(typeof window !== "undefined" ? window : globalThis);
+

@@ -47,8 +47,8 @@
 
   function skillDeckSlots(value = {}) {
     const source = value && typeof value === "object" ? value : {};
-    if(Number(source.schemaVersion)>=2 && Array.isArray(source.entries))
-      return source.entries.map(row=>clean(row?.skillId||row?.id)).filter(Boolean);
+    if(Number(source.schemaVersion)>=2)
+      return Object.values(source.entries||{}).map(row=>clean(row?.skillId||row?.id)).filter(Boolean);
     const deck = {
       tier1: clean(source.tier1 ?? source.t1 ?? source["1"] ?? source.skill1),
       tier2: clean(source.tier2 ?? source.t2 ?? source["2"] ?? source.skill2),
@@ -67,7 +67,7 @@
     if (Array.isArray(equipmentDeck) && equipmentDeck.length) return equipmentDeck;
     const explicitDeck=source.characterBuild?.skillDeck||source.skillDeck||{};
     const canonicalDeck = skillDeckSlots(explicitDeck);
-    if(Number(explicitDeck.schemaVersion)>=2&&Array.isArray(explicitDeck.entries))return canonicalDeck;
+    if(Number(explicitDeck.schemaVersion)>=2)return canonicalDeck;
     if (canonicalDeck.length) return canonicalDeck;
     if (source.characterBuild?.skillSlotIds != null) return source.characterBuild.skillSlotIds;
     if (source.skillSlotIds != null) return source.skillSlotIds;
@@ -120,7 +120,7 @@
     const ids = skillSlotIdsFor(source);
     const index = source.characterBuild?.equippedSkillIndex || source.equippedSkillIndex;
     const v2=source.characterBuild?.skillDeck||source.skillDeck;
-    const base = !ids.length && !(Number(v2?.schemaVersion)>=2&&Array.isArray(v2?.entries)) && index && typeof index === "object"
+    const base = !ids.length && !(Number(v2?.schemaVersion)>=2) && index && typeof index === "object"
       ? Object.entries(index).filter(([,enabled]) => enabled === true).map(([id]) => clean(id)).filter(Boolean)
       : ids;
     return [...new Set([...base, ...grantedSkillIdsFor(source)])];
@@ -291,6 +291,8 @@
     // A mode-specific 3/2/1 deck owns its Skill slots while equipped. The
     // player's persistent learned/deck fields are deliberately not rewritten.
     if (equipmentDeck.length) return equipmentDeck.includes(id);
+    const selection=source.characterBuild?.skillDeck||source.skillDeck;
+    if(Number(selection?.schemaVersion)>=2)return skillSlotIdsFor(source).includes(id);
     if (source.equippedSkillIndex && typeof source.equippedSkillIndex === "object") return source.equippedSkillIndex[id] === true;
     return skillIdsFor(source).includes(id);
   }
@@ -365,3 +367,4 @@
     stop,
   });
 });
+

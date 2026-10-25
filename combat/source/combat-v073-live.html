@@ -4848,19 +4848,21 @@ function autoActionScore(unitId,entry){
 
   return expected+clashEndurance+spPressure+(Math.random()*.55)
 }
-function smartAutoPlanFor(unitId,defenseLock=null){
+function smartAutoPlanFor(unitId,defenseLock=null,slotIndex=0){
   const unit=combatData[unitId];
   if(!unit)return null;
 
   const library=getAutoActionLibrary(),
-        sourcePool=getUnitAutoActionPool(unitId,library),
+        sourcePool=getUnitAutoActionPool(unitId,library,slotIndex),
         ranked=sourcePool
           .map(entry=>({entry,score:autoActionScore(unitId,entry)}))
           .filter(row=>Number.isFinite(row.score))
           .sort((a,b)=>b.score-a.score);
 
   const chosen=ranked[0]?.entry||sourcePool[0]||null;
-  return chosen?{type:'auto',slotIndex:0,data:{...chosen},aiReason:'SP_CLASH_PRIORITY'}:null
+  return chosen?{type:chosen.__deckCard?'deck':'auto',slotIndex,sourceSlotIndex:slotIndex,
+    ...(chosen.__deckCard?{drawId:chosen.__deckCard.drawId}:{}),
+    data:{...chosen},aiReason:'SP_CLASH_PRIORITY'}:null
 }
 function prepareAutoPlans(){
   AUTO_UNIT_IDS.forEach(id=>{
@@ -4891,7 +4893,7 @@ function prepareAutoPlans(){
     let defenseLock=null;
     unit.autoPlans=slots.map((slot,index)=>{
       const itemPlan=index===0?window.LuminousNpcBelongings?.selectItemPlan(unit,Object.values(combatData)):null;
-      const plan=itemPlan||smartAutoPlanFor(id,defenseLock),
+      const plan=itemPlan||smartAutoPlanFor(id,defenseLock,index),
             defenseType=defenseTypeOfPlan(plan);
       if(defenseType&&!defenseLock)defenseLock=defenseType;
       slot.classList.add('has-plan');
@@ -5906,8 +5908,10 @@ function playerDeckForUnit(id){
   const actions=UNIT_KITS[id]?.actions?.filter(row=>row.kind==='skill'||row.kind==='spell')||[];
   return [...actions].sort((a,b)=>(Number(a.tier)||1)-(Number(b.tier)||1)).slice(0,3).map((row,index)=>({...row,tier:Number(row.tier)||index+1}));
 }
-function getUnitAutoActionPool(unitId,fallbackLibrary){
+function getUnitAutoActionPool(unitId,fallbackLibrary,slotIndex=0){
   const unit=combatData[unitId],kit=UNIT_KITS[unitId];
+  if(window.LuminousCombatLiveMode&&window.LuminousCombatSlotDeck073)
+    return window.LuminousCombatSlotDeck073.actionOptions(unitId,slotIndex,kit?.actions||[]);
   if(kit?.actions?.length)return kit.actions;
   return fallbackLibrary[unit?.faction==='enemy'?'enemy':'ally']||[]
 }
@@ -8788,3 +8792,4 @@ if(!window.LuminousCombatLiveMode)initializeCombatSurface();
 
 </body>
 </html>
+
