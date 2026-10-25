@@ -127,14 +127,22 @@
     if(applyPlanningAi())return true;
     // Wait until the authored skills are loaded; do not publish placeholder kits.
     const bridge=global.LuminousCombatLiveAdapter073;
-    for(const unit of Object.values(s.combatants||{}).filter(unit=>global.LuminousCombatParticipants?.isField(unit)))if(bridge?.skillIdsFor?.(unit).some(id=>!s.skills?.[id])){retryPlanningAi();return false;}
+    // AI preparation depends on AI kits, not on every Player's optional or
+    // class-granted Skill catalog entry. Six Players may already be READY while
+    // one Player Skill is still unavailable from the sparse library.
+    for(const unit of Object.values(s.combatants||{}).filter(unit=>global.LuminousCombatParticipants?.isField(unit)&&!global.LuminousCombatParticipants?.isPlayer(unit)))if(bridge?.skillIdsFor?.(unit).some(id=>!s.skills?.[id])){retryPlanningAi();return false;}
     const serialize=global.LuminousCombatAuthority073?.serializeRuntimePlan;if(!serialize){retryPlanningAi();return false;}
     const plans={};
     for(const unit of Object.values(runtime()?.combatants?.()||{}))if(unit.controlled==='ai'){
       plans[unit.id]={};(unit.autoPlans||[]).forEach((plan,index)=>{if(plan)plans[unit.id][index]=serialize(plan,unit.id,index);});
     }
     const row={round:Number(s.round)||1,signature:aiSignature(),plans};state.publishingAi=true;
-    try{await s.db.ref(AI_ROOT).set(row);state.planningAi=row;apply();return true;}
+    try{await s.db.ref(AI_ROOT).set(row);state.planningAi=row;apply();
+      // READY may have arrived before the AI catalog finished loading. Trigger
+      // one new eligibility check when AI preparation actually completes.
+      const authorityBridge=global.LuminousCombatAuthority073;
+      authorityBridge?.maybeAutoStart?.(authorityBridge.state?.readyRows||{});
+      return true;}
     catch(error){console.error('[Combat073 Planning AI]',error);return false;}
     finally{state.publishingAi=false;if(row.signature!==aiSignature())retryPlanningAi();}
   }

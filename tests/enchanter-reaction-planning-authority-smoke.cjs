@@ -21,7 +21,9 @@ assert.ok(menu.includes('const rowKey="enchantment_reaction:"+instanceId'),
   "Items REACTION tab uses the existing combat HUD");
 assert.ok(menu.includes("state.preparedReaction=null;"),
   "Enchantment reactions must bypass generic double-spend hooks");
-assert.ok(authority.includes("defensiveReactions=Object.fromEntries(activePlayerIds()"));
+assert.ok(authority.includes("const memberIds=members.map(member=>member.playerId)"));
+assert.ok(authority.includes("defensiveReactions=Object.fromEntries(memberIds"),
+  "Defensive reactions use the participants from the same canonical READY snapshot");
 assert.ok(authority.includes("bridge?.queueDefensiveReaction?.(unit,id)"));
 assert.ok(authority.includes("unit.__luminousEnchantmentReactionArmedRound===Number(data.round)"),
   "DM authority must not re-arm an already triggered Reaction on checkpoint updates");
