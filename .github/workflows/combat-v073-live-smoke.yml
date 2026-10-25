@@ -63,6 +63,7 @@ on:
       - 'js/goblin-unit-runtime.js'
       - 'js/dm-combat-tab-manager.js'
       - 'tests/combat-v073-live-cutover-smoke.mjs'
+      - 'tests/combat-v073-six-ready-start-smoke.mjs'
       - 'tests/combat-v073-dm-editor-smoke.mjs'
       - 'tests/dm-combat-live-viewer-smoke.mjs'
       - 'tests/dm-combat-unit-library-real-ui-smoke.mjs'
@@ -151,6 +152,8 @@ jobs:
           node --check js/dm-combat-tab-manager.js
       - name: Canonical v0.7.3 cutover contract
         run: node tests/combat-v073-live-cutover-smoke.mjs
+      - name: Six live Players READY and AI preparation regression
+        run: node tests/combat-v073-six-ready-start-smoke.mjs
       - name: DM Combat Library and field setup contract
         run: node tests/combat-v073-dm-editor-smoke.mjs
       - name: Real DM Battle visual parity contract
