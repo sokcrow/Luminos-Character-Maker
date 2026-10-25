@@ -321,6 +321,8 @@ test("Active icons stay inside minimal tiles and names appear only in popup", as
   await page.addStyleTag({ content: fs.readFileSync(SHEET_CSS, "utf8").replace(/@import[^;]+;/g, "") });
   await page.addStyleTag({ path: CSS });
   await page.addStyleTag({ path: GOTHIC_CSS });
+  // The new reference stylesheet must remain last in the real production cascade.
+  await page.addStyleTag({ path: REFERENCE_CSS });
   for (const viewport of [{ width: 1239, height: 694 }, { width: 1920, height: 1080 }, { width: 390, height: 800 }]) {
     await page.setViewportSize(viewport);
     const card = page.locator('#inv-active-grid [data-key="blade_1"]');
