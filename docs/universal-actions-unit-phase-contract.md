@@ -92,3 +92,7 @@ La política está conectada al seal autoritativo y a la ejecución del Battle V
 Pruebas locales ejecutadas: policy y runtime nuevos, reproducciones de Codex para Player/IA, Mastermind real, Team economy, protocolo independiente, transacciones concurrentes, rollback, Analyse/Find de producción, READY concurrente, carga del bundle, menú de economía y suite completa GOAP. El bundle se reconstruyó y verificó.
 
 Pendientes explícitos: aceptación visual en los seis tamaños TX-01 (workflow nuevo; Chromium no disponible localmente), validación con Firebase real/emulador y despliegue de las reglas actualizadas. No se afirma aprobación de CI. Help conserva Speed; la excepción para adelantarlo a una acción aliada más rápida sigue sin ratificar (`timingRatified:false`). No hacer merge automático. Los refinamientos P2 y la estrategia de selección adicional de IA siguen siendo trabajo posterior.
+
+## Corrección de conflictos y recuperación (PR 1043)
+
+Integrado main `1629ce7a`, conservando Death Saves/Downed y mazos V2. Los P1 de recuperación se corrigen mediante fase de cierre persistida y reconexión de los planes de cola a su Unit/Slot/fingerprint. La prueba `unit-universal-action-recovery-smoke.mjs` reproduce ambos fallos para Player/IA y verifica el cierre tras recarga sin repetir daño/decaimiento, concentración ni Death Saves.

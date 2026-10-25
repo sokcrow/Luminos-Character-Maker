@@ -83,6 +83,8 @@ on:
       - js/item-realtime-sync.js
       - js/player-ux-polish.js
       - css/inventory-hud-v2.css
+      - css/inventory-gothic-art.css
+      - css/inventory-hud-reference.css
       - css/dm-item-instance-editor.css
       - tests/item-icon-registry-smoke.cjs
       - tests/item-quality-engine-smoke.cjs
@@ -163,6 +165,8 @@ on:
       - tests/item-weapon-composition-smoke.cjs
       - tests/injury-narrative-speed-smoke.cjs
       - tests/inventory-runtime-cutover.spec.cjs
+      - tests/inventory-reference-popup.spec.mjs
+      - tests/inventory-hud-reference-smoke.mjs
       - tests/player-item-use-hydration-smoke.mjs
       - tests/item-description-engine-smoke.mjs
       - tests/item-effect-indicator-smoke.mjs
@@ -418,5 +422,7 @@ jobs:
         run: npm install --no-save @playwright/test@1.55.0
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Inventory runtime ownership tests
-        run: npx playwright test tests/inventory-runtime-cutover.spec.cjs tests/dm-item-instance-editor.spec.cjs tests/item-enchanter-ui.spec.cjs tests/enchanter-battle-viewer.spec.cjs --workers=1
+      - name: Production HUD HTML/CSS/icon registry contract
+        run: node tests/inventory-hud-reference-smoke.mjs
+      - name: Inventory runtime ownership + 6 viewport popup integration
+        run: npx playwright test tests/inventory-runtime-cutover.spec.cjs tests/dm-item-instance-editor.spec.cjs tests/item-enchanter-ui.spec.cjs tests/enchanter-battle-viewer.spec.cjs tests/inventory-reference-popup.spec.mjs --workers=1

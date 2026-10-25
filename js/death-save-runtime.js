@@ -102,12 +102,18 @@
     return rank === "captain" || hasTag(unit, "captain");
   }
 
+  function isLeader(unit = {}) {
+    if (unit.isLeader === true || unit.leader === true || unit.enemyLeader === true) return true;
+    const rank = normalizeId(unit.rank || unit.unitRank || unit.unit_rank || unit.enemyRank || unit.enemy_rank || unit.mechanics?.rank || unit.metadata?.unitRank);
+    return rank === "leader" || hasTag(unit, "leader");
+  }
+
   function isSinner(unit = {}) {
     return unit.isSinner === true || traitIds(unit).has("sinner");
   }
 
   function usesDeathSaves(unit = {}) {
-    return isPlayerCharacter(unit) || isCaptain(unit);
+    return isPlayerCharacter(unit) || isCaptain(unit) || isLeader(unit);
   }
 
   function traitCharacterForUnit(unit = {}) {
@@ -662,8 +668,10 @@
     const firstQueued = state.retreatQueue[0] || null;
     if (firstQueued && firstQueued.key !== key && options.force !== true) return { returned: false, reason: "retreat_order", unit, nextUnit: firstQueued.unit };
     markAlive(unit);
-    unit.hp = Math.max(1, numberOr(snapshot.hp, 1));
-    unit.sp = numberOr(snapshot.sp, 0) < 0 ? 0 : numberOr(snapshot.sp, 0);
+    // Reserve recovery updates the live vitals; the departure snapshot is only
+    // a fallback for legacy records that do not carry their current HP/SP.
+    unit.hp = Math.max(1, numberOr(unit.hp, numberOr(snapshot.hp, 1)));
+    unit.sp = Math.max(0, numberOr(unit.sp, numberOr(snapshot.sp, 0)));
     const keptStatuses = clearRetreatEffects(unit);
     state.retreatQueue = state.retreatQueue.filter((entry) => entry.key !== key);
     emit("luminous:unit-returned-from-retreat", { unit, keptStatuses, options });
@@ -775,6 +783,12 @@
         const downedBefore = isDowned(unit);
         const hpBefore = numberOr(unit?.hp, 0);
         const result = originalProcessStatusEffects.call(this, unit, triggerKey, context, ...rest);
+        // Some legacy status processors mutate hp directly, bypassing applyDamage.
+        // Apply the same 0 HP transition immediately rather than waiting for the next round.
+        if (!downedBefore && hpBefore > 0 && numberOr(unit?.hp, 0) <= 0 && !isDowned(unit) && !isDead(unit)) {
+          if (usesDeathSaves(unit)) enterDowned(unit, { sourceKind: "status", context });
+          else resolveDeath(unit, { reason: "hp_zero", sourceKind: "status", context });
+        }
         if (downedBefore && !isDead(unit) && numberOr(unit?.hp, 0) > hpBefore) {
           const healed = numberOr(unit?.hp, 0) - hpBefore;
           unit.hp = 0;
@@ -787,7 +801,7 @@
     if (originalTriggerEvent) {
       engine.triggerEvent = function (tag, context = {}, targetsHit = [], ...rest) {
         const targets = Array.isArray(targetsHit) && targetsHit.length ? targetsHit : [context?.defender || context?.currentTarget].filter(Boolean);
-        if (tag === "[On Kill]" && targets.some((target) => target?.__luminousDownedAttackProxy)) return;
+        if (["[On Kill]", "[On Crit Kill]", "[On Crit Kill Against Enemy]"].includes(tag) && !targets.some((target) => isDead(target))) return;
         const result = originalTriggerEvent.call(this, tag, context, targetsHit, ...rest);
         if (tag === "[On Hit]" && context?.skill) {
           targets.forEach((target) => {
@@ -919,6 +933,7 @@
     dispatchDeathSaveTraitTrigger,
     isPlayerCharacter,
     isCaptain,
+    isLeader,
     isSinner,
     usesDeathSaves,
     ensureDeathState,

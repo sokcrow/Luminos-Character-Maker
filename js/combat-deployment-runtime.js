@@ -115,7 +115,10 @@
   }
 
   function isDefeated(unit = {}) {
-    return deploymentState(unit) === "defeated" || (Number.isFinite(Number(unit.hp)) && Number(unit.hp) <= 0);
+    if (deploymentState(unit) === "defeated" || unit.lifeState === "dead") return true;
+    if (unit.isDowned === true || unit.lifeState === "downed") return false;
+    if (global.LuminousDeathSaveRuntime?.usesDeathSaves?.(unit)) return false;
+    return Number.isFinite(Number(unit.hp)) && Number(unit.hp) <= 0;
   }
 
   function isEscaped(unit = {}) {

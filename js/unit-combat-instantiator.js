@@ -51,6 +51,15 @@
   }
 
   function skillIdsFor(record = {}) {
+    const selection=record.characterBuild?.skillDeck||record.skillDeck;
+    if(selection){
+      const loadout=global.LuminousCombatSkillLoadout074;
+      if(loadout)return loadout.skillIdsFor(record);
+      if(Number(selection.schemaVersion)>=2)return [...new Set(Object.values(selection.entries||{})
+        .map(row=>clean(row?.skillId||row?.id)).filter(Boolean))];
+      const ids=[selection.tier1,selection.tier2,selection.tier3].map(clean).filter(Boolean);
+      if(ids.length)return [...new Set(ids)];
+    }
     const raw = record.action_slots ?? record.skillSlotIds ?? record.skillIds ?? record.skill_ids ?? record.mechanics?.skills ?? record.equippedSkills ?? [];
     let ids = [];
     if (Array.isArray(raw)) ids = raw.map((entry) => clean(entry?.id || entry?.skillId || entry)).filter(Boolean);
@@ -196,7 +205,8 @@
       activeSlots: actionSlots,
       actionSlotIndex: Object.fromEntries(Array.from({ length: actionSlots }, (_, index) => [String(index), true])),
       skillIds: skills,
-      skillSlotIds: skills,
+      skillSlotIds: (material.characterBuild?.skillDeck||material.skillDeck)
+        ? (global.LuminousCombatSkillLoadout074?.skillSlotIdsFor(material)||skills) : skills,
       action_slots: skills,
       ...(spellIds.length || spellSelections ? { spellIds } : {}),
       ...(material.mechanics?.skills ? { mechanics: {
@@ -273,4 +283,3 @@
   global.LuminousUnitCombatInstantiator = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
-

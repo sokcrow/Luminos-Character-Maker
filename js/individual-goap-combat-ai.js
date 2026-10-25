@@ -405,6 +405,15 @@
     const actor = input.actor || {};
     const actorId = actorIdOf(actor);
     if (!actorId) return { planned: false, reason: "actor_id_required", actions: [] };
+    // A sealed plan must not invent an Escape or consume slots for a downed unit.
+    const life = normalizeId(actor.lifeState || actor.deploymentState);
+    const hp = Number(actor.hp ?? actor.currentHp ?? actor.currentHP);
+    if (actor.isDowned === true || actor.isDead === true || actor.dead === true ||
+        actor.isRetreated === true || actor.escaped === true ||
+        ["downed", "dead", "retreated", "escaped", "defeated"].includes(life) ||
+        (Number.isFinite(hp) && hp <= 0)) {
+      return { planned: false, reason: "actor_unavailable", actorId, actions: [], sequence: [], slotsUsed: 0 };
+    }
     const slots = resolveSlots(input);
     if (!slots.length) return { planned: true, reason: "no_action_slots", actorId, actions: [], sequence: [], slotsRequested: 0, slotsUsed: 0, unusedSlots: 0 };
 

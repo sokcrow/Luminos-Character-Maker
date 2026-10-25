@@ -71,6 +71,25 @@
     return Boolean(statuses.staggered || statuses.stagger);
   }
 
+  function actorUnavailableReason(unit) {
+    if (!unit) return "actor_missing";
+    const life = normalizeId(unit.lifeState || unit.deploymentState);
+    if (unit.isDead === true || unit.dead === true || life === "dead" || life === "defeated") return "actor_dead";
+    if (unit.isDowned === true || life === "downed") return "actor_downed";
+    if (unit.isRetreated === true || unit.escaped === true || unit.removed === true ||
+      ["retreated", "escaped", "backup", "reserve"].includes(life)) return "actor_unavailable";
+    const hp = Number(unit.hp ?? unit.currentHp ?? unit.currentHP);
+    if (Number.isFinite(hp) && hp <= 0) return "actor_unavailable";
+    const runtime = global.LuminousDeathSaveRuntime;
+    if (runtime?.canAct && !runtime.canAct(unit)) return "actor_unavailable";
+    return null;
+  }
+
+  function cancelUnavailableAction(action, reason) {
+    const cancelled = schema.cancelCombatAction(action, { type: reason }).action;
+    return { resolved: false, cancelled: true, reason, action: cancelled, resolvedActionIds: [cancelled.id] };
+  }
+
   function terminal(action = {}) {
     return action.state === "resolved" || action.state === "cancelled";
   }
@@ -213,6 +232,8 @@
     let state = {};
     const results = [];
     for (let index = 0; index < coins.length; index++) {
+      const unavailable = actorUnavailableReason(actor);
+      if (unavailable) return { resolved: false, cancelled: true, partial: results.length > 0, reason: unavailable, results, remainingCoins: coins.length - index };
       if (isStaggered(actor)) {
         return { resolved: false, cancelled: true, partial: results.length > 0, reason: "stagger", results, remainingCoins: coins.length - index };
       }
@@ -249,6 +270,8 @@
       });
       results.push({ targetId: entityId(target), coinIndex: index, result });
 
+      const unavailableAfterHit = actorUnavailableReason(actor);
+      if (unavailableAfterHit) return { resolved: false, cancelled: true, partial: true, reason: unavailableAfterHit, results, remainingCoins: coins.length - index - 1 };
       if (isStaggered(actor)) {
         return { resolved: false, cancelled: true, partial: true, reason: "stagger", results, remainingCoins: coins.length - index - 1 };
       }
@@ -272,6 +295,8 @@
 
     const results = [];
     for (let index = 0; index < targets.length; index++) {
+      const unavailable = actorUnavailableReason(actor);
+      if (unavailable) return { resolved: false, cancelled: true, partial: results.length > 0, reason: unavailable, results };
       const target = targets[index];
       const skill = cloneAttackSkill(baseSkill);
       const result = engine.resolveUnilateralWithCounter(actor, skill, target, null, {
@@ -282,6 +307,8 @@
         combatants: context.units || Object.values(context.combatData || {}),
       });
       results.push({ targetId: entityId(target), result });
+      const unavailableAfterHit = actorUnavailableReason(actor);
+      if (unavailableAfterHit) return { resolved: false, cancelled: true, partial: true, reason: unavailableAfterHit, results };
       if (isStaggered(actor)) return { resolved: false, cancelled: true, partial: true, reason: "stagger", results };
     }
     return { resolved: true, results };
@@ -289,6 +316,8 @@
 
   function resolvePreparedUnopposed(action, actor, targets, context = {}, options = {}) {
     if (terminal(action)) return { resolved: action.state === "resolved", reason: "terminal_state", action };
+    const unavailable = actorUnavailableReason(actor);
+    if (unavailable) return cancelUnavailableAction(action, unavailable);
     if (isStaggered(actor)) {
       const cancelled = schema.cancelCombatAction(action, { type: "stagger" }).action;
       return { resolved: false, cancelled: true, reason: "stagger", action: cancelled, resolvedActionIds: [cancelled.id] };
@@ -302,6 +331,8 @@
 
     const resources = consumeResources(action, actor, context);
     if (!resources.consumed) return { resolved: false, reason: resources.reason, resources, economy, resourceGate, action };
+    const unavailableAfterResources = actorUnavailableReason(actor);
+    if (unavailableAfterResources) return { ...cancelUnavailableAction(action, unavailableAfterResources), resources, economy, resourceGate };
 
     action.state = "resolving";
     const attack = resolveDirectAttack(action, actor, targets, context, options);
@@ -333,6 +364,19 @@
     const unitA = unitById(context, actionA.actorId);
     const unitB = unitById(context, actionB.actorId);
     if (!unitA || !unitB) return { resolved: false, reason: "clash_actor_missing", actions: [actionA, actionB] };
+    const unavailableA = actorUnavailableReason(unitA);
+    if (unavailableA) {
+      const cancelled = schema.cancelCombatAction(actionA, { type: unavailableA }).action;
+      return { resolved: false, cancelled: true, reason: unavailableA, actions: [cancelled, actionB], resolvedActionIds: [cancelled.id] };
+    }
+    const unavailableB = actorUnavailableReason(unitB);
+    if (unavailableB) {
+      const cancelled = schema.cancelCombatAction(actionB, { type: unavailableB }).action;
+      const targetResolution = resolveTargets(actionA, context);
+      const targets = targetResolution.targets.length ? targetResolution.targets : [unitB];
+      const prepared = resolvePreparedUnopposed(actionA, unitA, targets, context, { skill: definitionForEngine(actionA, unitA) });
+      return { ...prepared, type: "unopposed", actions: [prepared.action || actionA, cancelled], resolvedActionIds: [...new Set([...(prepared.resolvedActionIds || []), cancelled.id])] };
+    }
 
     if (isStaggered(unitA)) {
       const cancelled = schema.cancelCombatAction(actionA, { type: "stagger" }).action;
@@ -408,7 +452,7 @@
       targets = targets.slice(0, Math.max(1, winningAction.targeting.attackWeight));
       const aoe = schema.resolveAoeOutcome(winningAction, true);
       // Winning Clashable Guard applies Tremor through CombatEngine, never damage.
-      if (aoe.allowed && winningDefenseType !== "clashableguard") {
+      if (aoe.allowed && winningDefenseType !== "clashableguard" && !actorUnavailableReason(winningUnit)) {
         attack = resolveDirectAttack(winningAction, winningUnit, targets, context, {
           skill: winningSkill,
           skipUseHooks: true,
@@ -454,7 +498,10 @@
     spell.statUsed = action.resolution.save?.abilityId;
     spell.saveDC = Number(action.resolution.save?.dc || 0);
     const saveAttackOnFailure = spell?.mechanics?.saveAttackOnFailure === true;
-    const results = targets.map((target, index) => {
+    const results = [];
+    for (const [index, target] of targets.entries()) {
+      const unavailable = actorUnavailableReason(actor);
+      if (unavailable) return { resolved: false, cancelled: true, partial: results.length > 0, reason: unavailable, results };
       const saveResult = engine.resolveSpell(spell, target, rollSaveHeads(engine, target, context));
       let attack = null;
       if (saveAttackOnFailure && saveResult?.isSuccess === false && typeof engine.resolveUnilateralWithCounter === "function") {
@@ -466,8 +513,8 @@
           combatants: context.units || Object.values(context.combatData || {}),
         });
       }
-      return { targetId: entityId(target), result: saveResult, attack };
-    });
+      results.push({ targetId: entityId(target), result: saveResult, attack });
+    }
     return { resolved: true, type: "save", results };
   }
 
@@ -487,6 +534,7 @@
   function applyAutomaticEffects(action, actor, targets, context = {}) {
     const results = [];
     for (const effect of action.effects || []) {
+      if (actorUnavailableReason(actor)) break;
       const type = normalizeId(effect.type);
       if (type === "modify_combat_action") {
         const actionMap = context.actionMap || {};
@@ -527,6 +575,8 @@
 
     const actor = unitById(context, action.actorId);
     if (!actor) return { resolved: false, reason: "actor_missing", action };
+    const unavailable = actorUnavailableReason(actor);
+    if (unavailable) return cancelUnavailableAction(action, unavailable);
     if (isStaggered(actor)) {
       const cancelled = schema.cancelCombatAction(action, { type: "stagger" });
       return { resolved: false, cancelled: true, reason: "stagger", action: cancelled.action, resolvedActionIds: [cancelled.action.id] };
@@ -542,6 +592,8 @@
     if (economy.consumed === false) return { resolved: false, reason: economy.reason || "economy_unavailable", economy, action };
     const resources = consumeResources(action, actor, context);
     if (!resources.consumed) return { resolved: false, reason: resources.reason, resources, economy, action };
+    const unavailableAfterResources = actorUnavailableReason(actor);
+    if (unavailableAfterResources) return { ...cancelUnavailableAction(action, unavailableAfterResources), resources, economy };
 
     action.state = "resolving";
     const targetResolution = resolveTargets(action, context);

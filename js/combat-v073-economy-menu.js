@@ -616,9 +616,8 @@
       const deck=global.LuminousCombatSlotDeck073;
       if(!deck)return liveActions("skill").filter((row)=>economyTabFor(row)===tab);
       const unit=playerUnit(),slot=selectedSlotIndex();
-      const hand=unit?deck.hand(unit.id,slot).map(card=>({...card.skill,__deckCard:{drawId:card.drawId,slotIndex:slot}})):[];
-      const granted=liveActions("skill").filter(row=>!deck.eligible(row));
-      return [...hand,...granted].filter(row=>economyTabFor(row)===tab);
+      return (unit?deck.actionOptions(unit.id,slot,liveActions("skill")):[])
+        .filter(row=>economyTabFor(row)===tab);
     }
     if (menu === "spells") {
       return spellRowsForPlayer().filter((row) => economyTabFor(row) === tab);
