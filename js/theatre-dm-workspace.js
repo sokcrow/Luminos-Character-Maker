@@ -116,6 +116,7 @@
     const originalPolicy = panel.querySelector("#theatre-render-policy");
     const originalStudio = panel.querySelector("#theatre-actor-studio-loader");
     const messagePolicy = composer.querySelector("#theatre-message-policy");
+    let lastTrigger = null;
 
     panel.insertBefore(intro, currentTitle?.nextSibling || panel.firstChild);
     intro.after(nav);
@@ -128,6 +129,13 @@
     voiceGrid.id = "dm-director-voice-grid";
     voices.appendChild(voiceGrid);
     voices.appendChild(button("Redactar mensaje", () => openComposer(), ICONS.speak));
+    const nextMessage = button("Siguiente intervención", () => {
+      const original = document.getElementById("btn-theatre-message-next");
+      if (original && !original.disabled) original.click();
+    }, "Assets/Images/Buttons/Foward.svg");
+    nextMessage.classList.add("dm-director-next");
+    nextMessage.disabled = true;
+    voices.appendChild(nextMessage);
 
     const cast = views.get("cast");
     cast.appendChild(el("h4", "dm-director-section-title", "Añadir personajes"));
@@ -162,7 +170,15 @@
     settings.appendChild(el("h4", "dm-director-section-title", "Presentación y ritmo"));
     if (originalPolicy) settings.appendChild(originalPolicy);
     if (!originalPolicy) settings.appendChild(el("p", "dm-director-hint", "Los ajustes de escena están cargando."));
-    settings.appendChild(el("p", "dm-director-hint", "La configuración de mensajes también está disponible al redactar."));
+    settings.appendChild(el("p", "dm-director-hint", "Controla cuánto permanece cada intervención en pantalla."));
+    if (messagePolicy) settings.appendChild(messagePolicy);
+    const realNext = document.getElementById("btn-theatre-message-next");
+    function updateNextButton() {
+      nextMessage.disabled = !realNext || realNext.disabled;
+      nextMessage.title = nextMessage.disabled ? "No hay una intervención esperando avance" : "Avanzar mensaje";
+    }
+    if (realNext) new MutationObserver(updateNextButton).observe(realNext, { attributes: true, attributeFilter: ["disabled"] });
+    updateNextButton();
 
     const modal = document.createElement("dialog");
     modal.id = "dm-theatre-composer-modal";
@@ -178,9 +194,13 @@
     modal.appendChild(composer);
     document.body.appendChild(modal);
     modal.addEventListener("click", e => { if (e.target === modal) modal.close(); });
-    modal.addEventListener("close", () => { navButtons.get("voices")?.focus({ preventScroll: true }); });
+    modal.addEventListener("close", () => {
+      const target = lastTrigger?.isConnected ? lastTrigger : navButtons.get(state.activeTab);
+      target?.focus({ preventScroll: true });
+    });
 
     function openComposer(actorId) {
+      lastTrigger = document.activeElement;
       if (actorId !== undefined && Array.from(speakerSelect.options).some(o => o.value === actorId)) {
         speakerSelect.value = actorId;
         speakerSelect.dispatchEvent(new Event("change", { bubbles: true }));
@@ -292,7 +312,6 @@
           more.appendChild(el("summary", "", "Identidad y presentación"));
           identity.parentNode.insertBefore(more, identity);
           more.appendChild(identity);
-          identity.style.removeProperty("display");
         }
       }
       if (!list.querySelector(".actor-control-card") && !list.querySelector(".dm-director-empty")) {
