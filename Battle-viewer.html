@@ -405,7 +405,7 @@ function smartTargetForPlan(owner,plan){
       'js/combat-v073-live-adapter.js','js/combat-v073-deployment-bridge.js']){
       const escaped=asset.replace(/[.]/g,'\\.');
       html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
-        asset+'?v=20261025-pr1042-1');
+        asset+'?v=20261025-pr1042-2');
     }
 
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');

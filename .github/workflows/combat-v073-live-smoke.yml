@@ -25,6 +25,7 @@ on:
       - 'tests/downed-lifecycle-and-interrupt-smoke.mjs'
       - 'tests/combat-v073-downed-interrupt-smoke.mjs'
       - 'tests/pr1042-real-downed-regression-smoke.mjs'
+      - 'tests/combat-death-save-authority-rng-smoke.mjs'
       - 'js/player-vitals-realtime-bridge.js'
       - 'js/player-vitals-hud.js'
       - 'js/player-stats-ability-bar.js'
@@ -229,6 +230,7 @@ jobs:
           node tests/downed-lifecycle-and-interrupt-smoke.mjs
           node tests/combat-v073-downed-interrupt-smoke.mjs
           node tests/pr1042-real-downed-regression-smoke.mjs
+          node tests/combat-death-save-authority-rng-smoke.mjs
       - name: FIELD and BACKUP lifecycle contract
         run: node tests/combat-backup-lifecycle-smoke.mjs
       - name: Unit rank and Backup command contract

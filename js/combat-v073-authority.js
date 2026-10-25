@@ -359,7 +359,7 @@
     };
     wrapped.__luminousAuthorityQueueEntry=true;wrapped.__luminousAuthorityQueueEntryOriginal=original;global.executeQueueEntry=wrapped;return true;
   }
-  function installHooks(){patchCoinEngine();patchExecutionQueue();patchExecuteQueueEntry();['beginConcentration','processConditionTurnStart','rollCriticalHit','randomIntInclusive','rollUnitSpeed','rollPower4Save','rollAbilitySkillCheck','damageCombatant','healCombatant','damageCombatantSP','healCombatantSP','applyCombatStatus','removeCombatStatus','consumeStatusCount','setUnitActionSlotCount','rollTurnSpeeds'].forEach(name=>wrapSyncMechanic(name));['smartTargetScore','assignTargetIntents','autoActionScore','shuffle'].forEach(name=>wrapSyncMechanic(name,{deterministic:false}));['resolveSkillClash','resolveUnopposedCoinAction','resolveSaveOnlySpell'].forEach(wrapAsyncMechanic);patchStartRound();return true;}
+  function installHooks(){patchCoinEngine();patchExecutionQueue();patchExecuteQueueEntry();['beginConcentration','processConditionTurnStart','processDeathSavesRoundEnd','rollCriticalHit','randomIntInclusive','rollUnitSpeed','rollPower4Save','rollAbilitySkillCheck','damageCombatant','healCombatant','damageCombatantSP','healCombatantSP','applyCombatStatus','removeCombatStatus','consumeStatusCount','setUnitActionSlotCount','rollTurnSpeeds'].forEach(name=>wrapSyncMechanic(name));['smartTargetScore','assignTargetIntents','autoActionScore','shuffle'].forEach(name=>wrapSyncMechanic(name,{deterministic:false}));['resolveSkillClash','resolveUnopposedCoinAction','resolveSaveOnlySpell'].forEach(wrapAsyncMechanic);patchStartRound();return true;}
 
   async function setRunning(current){
     const s=adapterState(),startedAt=serverTime(),updates={};
