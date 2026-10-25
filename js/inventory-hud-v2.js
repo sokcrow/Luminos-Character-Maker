@@ -419,10 +419,14 @@
   }
 
   function itemValue(item = {}) {
-    const explicit = item.valorBase ?? item.costo ?? item.cost ?? item.price ?? item.precio ?? item.productionValueAhn ?? item.totalValueAhn ?? item.unitValueAhn;
+    const explicit = item.valorBase ?? item.costo ?? item.cost ?? item.price ?? item.precio
+      ?? item.priceAhn ?? item.retailPriceAhn ?? item.valueAhn
+      ?? item.productionValueAhn ?? item.totalValueAhn ?? item.unitValueAhn;
     if (explicit != null) return Number(explicit) || 0;
     const resolved = runtime()?.resolveItem?.(item) || item;
-    return Number(resolved.valorBase ?? resolved.costo ?? resolved.cost ?? resolved.price ?? resolved.precio ?? resolved.productionValueAhn ?? resolved.totalValueAhn ?? resolved.unitValueAhn ?? 0) || 0;
+    return Number(resolved.valorBase ?? resolved.costo ?? resolved.cost ?? resolved.price ?? resolved.precio
+      ?? resolved.priceAhn ?? resolved.retailPriceAhn ?? resolved.valueAhn
+      ?? resolved.productionValueAhn ?? resolved.totalValueAhn ?? resolved.unitValueAhn ?? 0) || 0;
   }
 
   function manufacturerName(item = {}) {
