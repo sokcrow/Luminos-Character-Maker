@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'Battle-viewer.html'
+      - 'js/combat-target-feedback-073.js'
+      - 'css/combat-target-feedback-073.css'
+      - 'tests/combat-target-feedback-visual.spec.mjs'
       - 'combat/**'
       - 'js/combat-v073-economy-menu.js'
       - 'js/combat-v073-economy-review-fixes.js'
@@ -36,5 +39,7 @@ jobs:
           done
           cat /tmp/combat-player-http.log
           exit 1
+      - name: Target feedback at six touch and desktop sizes
+        run: npx playwright test tests/combat-target-feedback-visual.spec.mjs --reporter=line
       - name: Physical click path
         run: npx playwright test tests/combat-v073-player-menu-visual.spec.mjs --reporter=line --grep "internal Combat buttons"
