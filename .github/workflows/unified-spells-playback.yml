@@ -10,6 +10,7 @@ on:
       - 'Battle-viewer.html'
       - 'tests/*spell*'
       - 'tests/combat-playback-catchup-smoke.mjs'
+      - 'tests/combat-playback-six-viewers-recovery-smoke.mjs'
       - '.github/workflows/unified-spells-playback.yml'
   push:
     branches: ['codex/unified-spells-playback-catchup']
@@ -31,6 +32,7 @@ jobs:
           node tests/combat-universal-spells-sp01-smoke.mjs
           node tests/spell-catalog-sheet-idle-smoke.mjs
           node tests/combat-playback-catchup-smoke.mjs
+          node tests/combat-playback-six-viewers-recovery-smoke.mjs
           node tests/combat-shared-clock-smoke.mjs
           node tests/dm-player-loadout-manager-smoke.mjs
           node tests/combat-v074-player-entry-smoke.mjs
