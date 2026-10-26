@@ -9,12 +9,16 @@ const syncSource = fs.readFileSync('js/combat-v073-playback-sync.js', 'utf8');
 const combatants = { ally: { hp: 77 } };
 let authoritySnapshot = null;
 
-function viewer(index, { finalRepair = false } = {}) {
+function viewer(index, { finalRepair = false, repeatCancel = false } = {}) {
+  const retries = [];
+  let reads = 0;
   let handler = null;
   const events = [], applied = [], visual = [], finished = [], warnings = [], errors = [];
   const c = vm.createContext({
     Math, Date, JSON, Map, Set, WeakMap, Promise,
-    setTimeout(fn, delay) { return setTimeout(fn, finalRepair && delay === 10000 ? 25 : delay); },
+    setTimeout(fn, delay) {
+      if (repeatCancel && [350, 1000, 2500].includes(delay)) { retries.push(delay); return setTimeout(fn, 1); }
+      return setTimeout(fn, finalRepair && delay === 10000 ? 25 : delay); },
     clearTimeout, addEventListener() {},
     console: {
       log() {},
@@ -32,9 +36,11 @@ function viewer(index, { finalRepair = false } = {}) {
   const ref = path => ({
     orderByKey() { return this; },
     startAt() { return this; },
-    on(type, fn) { if (type === 'child_added') handler = fn; },
+    on(type, fn, cancel) { if (type === 'child_added') { handler = fn;
+      if (repeatCancel && reads < 5) queueMicrotask(() => cancel(new Error('listener cancelled')));
+    } },
     off(type, fn) { if (type === 'child_added' && handler === fn) handler = null; },
-    async once() { return { val: () => authoritySnapshot }; },
+    async once() { reads++; return { val: () => authoritySnapshot }; },
   });
   c.LuminousCombatLiveAdapter073 = {
     state: { role: 'player', hydratedOnce: true, db: { ref }, user: { getIdToken: async () => 'token' } },
@@ -60,7 +66,8 @@ function viewer(index, { finalRepair = false } = {}) {
     applySnapshot(snapshot) { applied.push(JSON.parse(JSON.stringify(snapshot))); },
   };
   return {
-    c, sync, events, applied, visual, finished, warnings, errors,
+    c, sync, events, applied, visual, finished, warnings, errors, retries,
+    restoreSubscription() { repeatCancel = false; },
     deliver(payload) { assert.ok(handler, 'viewer has an active batch subscription'); handler({ val: () => payload }); },
     async idle() { await sync.state.consumer.idle(); },
     close() { sync.stop(); },
@@ -168,3 +175,14 @@ await clock.drain();
 assert.equal(nextRendered, true);
 clock.stop();
 console.log('Six independent playback clients: thrown/hung visuals, invalid sequence rejoin, missing final batch and clock recovery passed.');
+
+const cancelled = viewer(9, { repeatCancel: true });
+await cancelled.sync.observe(round);
+await new Promise(resolve => setTimeout(resolve, 100));
+assert.deepEqual(cancelled.retries, [350, 1000, 2500], 'same-round retries are bounded and back off');
+assert.equal(cancelled.sync.state.viewerRecoveryAttempts, 3);
+cancelled.restoreSubscription();
+await cancelled.sync.observe({ ...round, id: 'next-generation' });
+assert.equal(cancelled.sync.state.viewerRecoveryAttempts, 0, 'a new round gets a fresh retry budget');
+cancelled.close();
+console.log('Repeated subscription cancellation: bounded backoff and new-generation reset passed.');

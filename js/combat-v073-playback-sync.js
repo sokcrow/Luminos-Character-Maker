@@ -222,7 +222,7 @@
         if (!latest?.playback) throw new Error('PLAYBACK_RECOVERY_NO_AUTHORITY');
         if (state.generation !== generation) return;
         disconnectConsumer();
-        await observe(latest);
+        await observe(latest, { recoveryGeneration: generation });
       } catch (error) {
         global.console?.warn?.('[Combat playback recovery]', reason, error);
         if (state.generation === generation) scheduleViewerRecovery(generation, error);
@@ -244,7 +244,7 @@
       }
     }, 10000);
   }
-  async function observe(data) {
+  async function observe(data, { recoveryGeneration = null } = {}) {
     const a = state.authority, s = adapter();
     refreshRecoveryControl(data);
     if (!enabled(data) || s?.role !== 'player' || s?.isAuthority || !surface() || !global.LuminousCombat073?.combatants?.() || !s.hydratedOnce) return;
@@ -258,7 +258,8 @@
     if (state.starting) return;
     state.starting = true;
     try {
-      const previousGeneration = state.generation;
+      // Disconnect clears generation; retain the retry budget for this round.
+      const previousGeneration = state.generation || recoveryGeneration;
       disconnectConsumer();
       if (previousGeneration !== data.id) state.viewerRecoveryAttempts = 0;
       state.generation = data.id;
