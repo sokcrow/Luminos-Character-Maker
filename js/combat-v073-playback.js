@@ -23,7 +23,7 @@
       const timeout = { timedOut: true };
       try {
         const outcome = await Promise.race([
-          Promise.resolve().then(render),
+          Promise.resolve(render()),
           new Promise(resolve => { deadline = setTimer(() => resolve(timeout), 8000); }),
         ]);
         if (outcome === timeout) global.console?.warn?.('[Combat visual timeout]', cue);
@@ -66,7 +66,7 @@
       let deadline = null;
       const timeout = { timedOut: true };
       try {
-        const operation = Promise.resolve().then(callback);
+        const operation = Promise.resolve(callback());
         if (typeof global.setTimeout !== 'function') return await operation;
         const outcome = await Promise.race([
           operation,
