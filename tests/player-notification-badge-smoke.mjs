@@ -64,7 +64,7 @@ function setupViewport(width, height, unreadBank = true) {
     };
 
     const api = new Function('window', 'document', 'unreadBank', 'unreadMail', 'unreadChat',
-        runtime + '\nreturn { update: window.updateNotifications, badges: notificationBadges };'
+        runtime + '\nreturn { update: window.updateNotifications, badges: notificationBadges, setUnreadBank: (value) => { unreadBank = value; } };'
     )(window, document, unreadBank, false, false);
 
     return {
@@ -88,7 +88,7 @@ test('badges float outside clipped controls at all TX-01 screen sizes', () => {
     }
 });
 
-test('unread dismissal restores the original accessible label', () => {
+test('hidden or offscreen controls hide the badge, and dismissal clears it', () => {
     const page = setupViewport(390, 844);
     page.update();
     page.flush();
@@ -102,6 +102,11 @@ test('unread dismissal restores the original accessible label', () => {
     page.update();
     page.flush();
     assert.equal(page.body.children[0].hidden, true, 'offscreen badge stays hidden');
+    page.setUnreadBank(false);
+    page.update();
+    page.flush();
+    assert.equal(page.body.children.length, 0, 'read notification removes the badge');
+    assert.equal(page.button.getAttribute('aria-label'), null, 'original accessible name is restored');
 });
 
 test('notification styles are independent of button clipping', () => {
