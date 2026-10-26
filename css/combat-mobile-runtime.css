@@ -170,3 +170,12 @@
     max-height: calc(100dvh - 148px - env(safe-area-inset-bottom)) !important;
   }
 }
+
+/* Shared Universal Action confirmation targets. */
+#category-body .description-actions button,
+#category-body .economy-action-detail button { min-height:44px;touch-action:manipulation; }
+.combat-economy-tabs { flex-wrap:wrap; }
+@media (max-width:900px),(max-height:500px) {
+ #game-container.analyse-mode .observation-ring.open { position:fixed!important;inset:auto 10px calc(10px + env(safe-area-inset-bottom))!important;width:auto!important;display:flex!important;flex-wrap:wrap;gap:6px;max-height:48dvh;overflow-y:auto;padding:6px;pointer-events:auto; }
+ #game-container.analyse-mode .observation-ring .observe-command { position:static!important;width:auto!important;flex:1 1 calc(50% - 6px);height:auto!important;min-height:44px!important;transform:none!important;touch-action:manipulation; }
+}

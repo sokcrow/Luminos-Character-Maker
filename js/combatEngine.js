@@ -547,6 +547,18 @@ const CombatEngine = {
         };
 
 
+        const canAttack = () => typeof this.canUnitAct === 'function'
+            ? this.canUnitAct(unitAttacker)
+            : Boolean(unitAttacker && !unitAttacker.isDowned && !unitAttacker.isDead && !unitAttacker.dead &&
+                !unitAttacker.isRetreated && !unitAttacker.escaped && unitAttacker.battleActive !== false &&
+                (!Number.isFinite(Number(unitAttacker.hp)) || Number(unitAttacker.hp) > 0));
+        const interrupt = () => {
+            result.cancelled = true;
+            result.reason = 'actor_unavailable';
+            return result;
+        };
+        if (!canAttack()) return interrupt();
+
         // Assume the attack hits unilaterally first.
         if (!attackSkill.coins) {
             attackSkill.coins = Array.from({length: attackSkill.coinAmount}, () => ({ type: attackSkill.coinType || 'standard', status: 'active', effects: [] }));
@@ -562,18 +574,23 @@ const CombatEngine = {
         // but if it's purely unilateral, we trigger them here.
         if (!options.skipUseHooks) {
             this.triggerEvent('[Before Use]', context, [unitDefender]);
+            if (!canAttack()) return interrupt();
             this.triggerEvent('[On Use]', context, [unitDefender]);
+            if (!canAttack()) return interrupt();
         }
 
         this.triggerEvent('[Before Attack]', context, [unitDefender]);
+        if (!canAttack()) return interrupt();
 
         if (!options.clashResult) {
             this.triggerEvent('[On Unopposed Attack]', context, [unitDefender]);
+            if (!canAttack()) return interrupt();
         }
 
         if (counterSkill) {
             let defContext = { engine: this, attacker: unitAttacker, defender: unitDefender, skill: counterSkill };
             this.triggerEvent('[Before Getting Hit]', defContext, [unitDefender]);
+            if (!canAttack()) return interrupt();
         }
 
         let activeAttackCoins = attackSkill.coins.filter(c => c.status === 'active' || c.status === 'cracked' || c.status === 'latent');
@@ -587,6 +604,7 @@ const CombatEngine = {
         let originalDefender = unitDefender;
 
         for (let i = 0; i < activeAttackCoins.length; i++) {
+            if (!canAttack()) return interrupt();
             let currentCoin = activeAttackCoins[i];
 
             // Check Target Alive Status
@@ -660,7 +678,9 @@ const CombatEngine = {
             }
 
             this.triggerEvent('[Coin Start]', context, [unitDefender]);
+            if (!canAttack()) return interrupt();
             this.processStatusEffects(unitAttacker, 'on_coin_flip', context);
+            if (!canAttack()) return interrupt();
 
             let attackPower;
             let isHeads = false;
@@ -682,10 +702,14 @@ const CombatEngine = {
             }
             if (isHeads) {
                 this.triggerEvent('[Heads]', context, [unitDefender]);
-            this.processStatusEffects(unitAttacker, 'on_heads', context);
+                if (!canAttack()) return interrupt();
+                this.processStatusEffects(unitAttacker, 'on_heads', context);
+                if (!canAttack()) return interrupt();
             } else {
                 this.triggerEvent('[Tails]', context, [unitDefender]);
-            this.processStatusEffects(unitAttacker, 'on_tails', context);
+                if (!canAttack()) return interrupt();
+                this.processStatusEffects(unitAttacker, 'on_tails', context);
+                if (!canAttack()) return interrupt();
             }
 
             result.attackLogs.push({
@@ -754,37 +778,56 @@ const CombatEngine = {
             } finally {
                 context.enchantmentPreDamageWindow = false;
             }
+            if (!canAttack()) return interrupt();
+            const defenderWasDead = unitDefender.isDead === true || unitDefender.lifeState === 'dead';
             let hpBeforeHit = unitDefender.hp;
+            context.isCritical = isCritical;
             let applyDmgResult = this.applyDamage(unitDefender, finalDamage, 'directo', isCritical, attackSkill);
+            if (!canAttack()) return interrupt();
             this.processStatusEffects(unitDefender, 'getting_hit', context);
+            if (!canAttack()) return interrupt();
             context.damageDealt = finalDamage;
 
             this.triggerEvent('[On Hit]', context, [unitDefender]);
+            if (!canAttack()) return interrupt();
 
             if (isHeads) {
                 this.triggerEvent('[Heads Hit]', context, [unitDefender]);
+                if (!canAttack()) return interrupt();
                 this.processStatusEffects(unitAttacker, 'on_heads', context);
+                if (!canAttack()) return interrupt();
             } else if (!isHeads && currentCoin.status !== 'latent') { // Latent has no toss, so it isn't tails
                 this.triggerEvent('[Tails Hit]', context, [unitDefender]);
+                if (!canAttack()) return interrupt();
                 this.processStatusEffects(unitAttacker, 'on_tails', context);
+                if (!canAttack()) return interrupt();
             }
 
             if (isCritical) {
                 this.triggerEvent('[On Crit]', context, [unitDefender]);
+                if (!canAttack()) return interrupt();
                 this.processStatusEffects(unitAttacker, 'on_crit', context);
+                if (!canAttack()) return interrupt();
                 if (isHeads) {
                     this.triggerEvent('[On Crit - Heads Hit]', context, [unitDefender]);
+                    if (!canAttack()) return interrupt();
                 } else if (!isHeads && currentCoin.status !== 'latent') {
                     this.triggerEvent('[On Crit - Tails Hit]', context, [unitDefender]);
+                    if (!canAttack()) return interrupt();
                 }
             }
 
-            if (hpBeforeHit > 0 && unitDefender.hp <= 0) {
+            const confirmedKill = unitDefender.isDead === true || unitDefender.lifeState === 'dead' ||
+                (!globalThis.LuminousDeathSaveRuntime && hpBeforeHit > 0 && unitDefender.hp <= 0);
+            if (!defenderWasDead && confirmedKill) {
                 this.triggerEvent('[On Kill]', context, [unitDefender]);
+                if (!canAttack()) return interrupt();
                 if (isCritical) {
                     this.triggerEvent('[On Crit Kill]', context, [unitDefender]);
+                    if (!canAttack()) return interrupt();
                     if (unitAttacker.faccion !== unitDefender.faccion) {
                         this.triggerEvent('[On Crit Kill Against Enemy]', context, [unitDefender]);
+                        if (!canAttack()) return interrupt();
                     }
                 }
             }
@@ -792,22 +835,28 @@ const CombatEngine = {
             // If they just won a clash
             if (options.clashResult === 'Win') {
                 this.triggerEvent('[On Clash Win]', context, [unitDefender]);
+                if (!canAttack()) return interrupt();
                 this.triggerEvent('[Hit after Clash Win]', context, [unitDefender]);
+                if (!canAttack()) return interrupt();
             } else if (options.clashResult === 'Lose') {
                 this.triggerEvent('[On Clash Lose]', context, [unitDefender]);
+                if (!canAttack()) return interrupt();
 
                 // Exclusivo para Monedas Rojas (Unbreakable)
                 if (currentCoin.type === 'unbreakable') {
                     this.triggerEvent('[Hit after Clash Lose]', context, [unitDefender]);
+                    if (!canAttack()) return interrupt();
                 }
             }
 
             // Exclusivo para Monedas Rojas sin romperse (status sigue 'active', no ha pasado a 'latent')
             if (currentCoin.type === 'unbreakable' && currentCoin.status === 'active') {
                 this.triggerEvent('[On Hit without Cracking]', context, [unitDefender]);
+                if (!canAttack()) return interrupt();
             }
 
             this.triggerEvent('[Current Coin Attack End]', context, [unitDefender]);
+            if (!canAttack()) return interrupt();
 
             if (unitDefender.isStaggered) {
                 result.defenderStaggered = true;
@@ -816,6 +865,7 @@ const CombatEngine = {
         }
 
         this.triggerEvent('[Attack End]', context, [unitDefender]);
+        if (!canAttack()) return interrupt();
 
         // Final Triggers strictly for 1-coin skills
         if (attackSkill.coins && attackSkill.coins.length === 1) {
@@ -834,14 +884,16 @@ const CombatEngine = {
 
                 if (finalTossIsHeads) {
                     this.triggerEvent('[Heads Attack End]', context, [unitDefender]);
+                    if (!canAttack()) return interrupt();
                 } else if (singleCoin.status !== 'latent') {
                     this.triggerEvent('[Tails Attack End]', context, [unitDefender]);
+                    if (!canAttack()) return interrupt();
                 }
             }
         }
 
 
-                if (counterSkill && !unitDefender.isStaggered) {
+                if (counterSkill && !unitDefender.isStaggered && (typeof this.canUnitAct === 'function' ? this.canUnitAct(unitDefender) : unitDefender.hp > 0)) {
             const economy = (typeof globalThis !== 'undefined') ? globalThis.LuminousActionEconomy : null;
             const reactionAvailable = !economy || economy.consumeCounterReaction(unitDefender, counterSkill, { phase: this.currentState });
             if (reactionAvailable) {

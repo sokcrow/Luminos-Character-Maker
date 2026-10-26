@@ -8687,6 +8687,23 @@ input:checked + .slider-toggle:before { transform: translateX(20px); background-
     pointer-events: none; /* No bloquear clics en los botones */
 }
 
+/* Floating badges sit above the original clipped control surfaces.
+   Button clip-path and menu overflow remain untouched. */
+.limbus-badge--floating {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 24px;
+    height: 24px;
+    box-sizing: border-box;
+    z-index: 19990; /* above the player command rail, below gameplay modals */
+    box-shadow: 0 0 0 2px rgba(0,0,0,.9), 0 3px 9px rgba(0,0,0,.85);
+}
+
+.limbus-badge--floating[hidden] {
+    display: none !important;
+}
+
 /* Ensure buttons holding badges have position relative */
 button.sheet-app-btn, button#btn-show-mail, button#btn-show-chat {
     position: relative;

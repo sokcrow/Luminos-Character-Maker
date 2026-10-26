@@ -59,16 +59,16 @@
       return ranks?.encounterCommandContext?.(this.teamActionEncounter) || null;
     };
 
-    engine.consumeTeamQuickAction = function consumeTeamQuickAction(side) {
+    engine.consumeTeamQuickAction = function consumeTeamQuickAction(unitOrId) {
       const api = director();
       if (!api || !this.teamActionEncounter) return { consumed: false, reason: "team_economy_unavailable" };
-      return api.consumeQuickAction(this.teamActionEncounter, side);
+      return api.consumeQuickAction(this.teamActionEncounter, unitOrId);
     };
 
-    engine.consumeTeamHelp = function consumeTeamHelp(side) {
+    engine.consumeTeamHelp = function consumeTeamHelp(unitOrId) {
       const api = director();
       if (!api || !this.teamActionEncounter) return { consumed: false, reason: "team_economy_unavailable" };
-      return api.consumeHelp(this.teamActionEncounter, side);
+      return api.consumeHelp(this.teamActionEncounter, unitOrId);
     };
 
     engine.lockTeamActionSlots = function lockTeamActionSlots(unitOrId, count = 1, reason = "status") {

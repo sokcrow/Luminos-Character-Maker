@@ -86,7 +86,7 @@ function spellPlanningFixture(classIds){
     LuminousCombatLiveAdapter073:{state:{playerId:"fixture",uid:"test",role:"player",players:{fixture:unit}}},
     firebase:{database:{ServerValue:{TIMESTAMP:1}}}};
   for(const path of ["js/spell-loadout-core.js","js/combat-spell-loadout-074.js",
-    "js/combat-v073-economy-menu.js","js/combat-v073-plan-sync.js","js/combat-v073-authority.js"]){
+    "js/combat-v073-economy-menu.js","js/combat-v073-plan-sync.js","js/combat-v073-remote-intents.js","js/combat-v073-authority.js"]){
     runInNewContext(read(path),{window:win,globalThis:win,console,Date,Promise,Math},{filename:path});
   }
   // Small product-DOM fixture: the actual renderSpells() builds accessible
@@ -143,3 +143,72 @@ for(const classes of [["wizard"],["wizard","sorcerer"]]){
 assert.match(read("js/combat-v073-economy-menu.js"),/__spellClassCandidates/);
 assert.match(read("css/combat-v073-spell-availability.css"),/min-height:48px/);
 console.log("Combat SP-01: real menu -> selected class -> plan -> authority regressions OK");
+
+// A valid ID must never carry client-authored damage/effects into execution.
+{
+  const {win,unit}=spellPlanningFixture(["wizard"]);
+  const payload=win.LuminousCombatPlanSync073.payloadFor({type:"spells",data:{
+    id:"fire_bolt",classId:"wizard",name:"Forged",damage:999999,
+    effects:[{type:"instant_kill"}],classIdOverride:"rogue"}},0,unit.id,
+    {playerId:"fixture",uid:"test",round:1,players:{fixture:unit}});
+  payload.data={damage:999999};
+  assert.equal(win.LuminousCombatAuthority073.validateSpellPlans({fixture:{0:payload}}),true);
+  assert.equal(payload.actionData.damage,undefined);
+  assert.equal(payload.actionData.effects,undefined);
+  assert.equal(payload.data,undefined);
+  const executed=win.LuminousCombatRemoteIntents073.runtimePlan(payload,0,unit);
+  assert.equal(executed.data.classId,"wizard");
+  assert.equal(executed.data.id,"fire_bolt");
+  assert.equal(executed.data.damage,undefined);
+  const invalid=structuredClone(payload);invalid.spellId="invented_spell";
+  assert.throws(()=>win.LuminousCombatAuthority073.validateSpellPlans({fixture:{0:invalid}}),/SPELL_NOT_SELECTED/);
+  const noActor=structuredClone(payload);noActor.unitId="missing";noActor.scheduledBy="missing";
+  assert.throws(()=>win.LuminousCombatAuthority073.validateSpellPlans({fixture:{0:noActor}}),/SPELL_ACTOR_NOT_FOUND/);
+  win.LuminousWizardClassRuntime={spellIdsForCombat:()=>["fire_bolt"]};
+  for(const empty of [{spellLoadout:{schemaVersion:1}}, {spellIds:[]}]){
+    const source={...unit,...empty};
+    if(empty.spellIds)delete source.spellLoadout;
+    assert.deepEqual([...win.LuminousCombatSpellLoadout074.rawSpellIdsFor(source)],[]);
+    assert.equal(win.LuminousCombatSpellLoadout074.resolveSpellForCombatant(source,"fire_bolt").ok,false);
+  }
+}
+
+// Browser scheduling contracts: existing script load event was already missed;
+// delayed globals still settle, failed runtime.ready never reports success.
+async function bootstrapFixture(installOk=true,missingSource=null){
+  const win={setTimeout,clearTimeout,console:{error(){}},addEventListener(){},
+    dispatchEvent(){},CustomEvent:class {}};
+  runInNewContext(loader,{window:win,globalThis:win,Date,Promise});
+  const api=win.LuminousCombatSpellBootstrap073;
+  const globals=["LuminousContentRegistry","LuminousContentRegistryBootstrap",
+    "LuminousSpellcastingRuntime","LuminousSpellcastingRuntime","LuminousSpellCatalog",
+    "LuminousRoleSpellCatalog","LuminousSpellLoadout","LuminousCombatSpellLoadout074",
+    "LuminousCombatAction","LuminousCombatActionAdapters","LuminousBattleViewerActionAdapter073",
+    "LuminousBattleViewerSpellAdapter074","LuminousPierreSpellBatchRuntime",
+    "LuminousWeaponCantripBatchRuntime","LuminousCantripBatchRuntime","LuminousBattleViewerSpellRuntime074"];
+  const scripts=[],appended=[];
+  const publish=index=>{
+    win[globals[index]]={...win[globals[index]]};
+    if(index===3)win.LuminousSpellcastingRuntime.__basicRulesV1=true;
+    if(index===11)win.LuminousBattleViewerSpellAdapter074.install=()=>{
+      win.LuminousBattleViewerActionAdapter073.__spellAdapter074=true;return true;};
+    if(index===15){win.LuminousBattleViewerSpellRuntime074.ready=Promise.resolve(installOk);
+      win.LuminousBattleViewerCombatHooks073={__spellRuntime074:true};}
+  };
+  // Catalog is already loading under another loader's ID.
+  scripts.push({getAttribute:()=>"js/spell-catalog-core.js?v=other",addEventListener(){},removeEventListener(){}});
+  win.document={scripts,getElementById:()=>null,createElement:()=>({addEventListener(name,fn){this[name]=fn;},removeEventListener(){}}),
+    head:{appendChild(node){const src=node.src.split("?")[0];appended.push(src);const i=api.MODULES.findIndex(row=>row[1]===src);
+      if(src===missingSource)queueMicrotask(()=>node.error());else publish(i);}}};
+  // Resolves by readiness polling without relying on another load event.
+  setTimeout(()=>publish(4),5);
+  const results=await Promise.all([api.boot(),api.boot()]);
+  assert.equal(results[0],installOk&&!missingSource);
+  assert.equal(api.state.ready,installOk&&!missingSource);
+  assert.equal(appended.includes("js/spell-catalog-core.js"),false);
+  assert.equal(new Set(appended).size,appended.length);
+}
+await bootstrapFixture();
+await bootstrapFixture(false);
+await bootstrapFixture(true,"js/spell-batch-cantrips-runtime.js");
+console.log("Combat SP-01: trusted execution payload, empty assignment, delayed/failed bootstrap OK");

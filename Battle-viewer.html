@@ -172,8 +172,8 @@ function smartTargetForPlan(owner,plan){
     html=html.replace(liveDeckNeedle,liveDeckPatch);
 
     stage('patch-speed-state','Preserving canonical Speed metadata while rebuilding Combatants');
-    const speedStateNeedle="autoPlans:[],speedRollTurn:0,speedTie:0,observationKnown:[]";
-    const speedStatePatch="autoPlans:[],speedBaseRoll:Number(d.speedBaseRoll??d.speed)||0,speedRollTurn:Number(d.speedRollTurn)||0,speedTie:Number(d.speedTie)||0,speedRolledAt:d.speedRolledAt??null,observationKnown:[]";
+    const speedStateNeedle="autoPlans:[],speedRollTurn:0,speedTie:0";
+    const speedStatePatch="autoPlans:[],speedBaseRoll:Number(d.speedBaseRoll??d.speed)||0,speedRollTurn:Number(d.speedRollTurn)||0,speedTie:Number(d.speedTie)||0,speedRolledAt:d.speedRolledAt??null";
     if(!html.includes(speedStateNeedle))throw new Error("COMBAT_CANONICAL_SPEED_STATE_PATCH_MISSING");
     html=html.replace(speedStateNeedle,speedStatePatch);
 
@@ -391,15 +391,32 @@ function smartTargetForPlan(owner,plan){
     // Packed HTML may cache older external scripts even when this wrapper is
     // fresh. Point all changed Combat consumers at the exact same Build release.
     for(const asset of [
-      'js/combat-skill-loadout-074.js','js/combat-v073-live-adapter.js',
-      'js/combat-v073-deck.js','js/combat-v073-authority.js',
+      'js/deckEngine.js','js/combat-skill-loadout-074.js','js/combat-v073-live-adapter.js',
+      'js/combat-v073-deck.js','js/combat-v073-authority.js','js/combat-v073-economy-menu.js',
       'js/battle-viewer-player-skill-planner-074.js','js/item-inventory-runtime.js'
     ]){
       const escaped=asset.replace(/[.]/g,'\\.');
       html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
-        asset+'?v=20261024-six-ready-2');
+        asset+'?v=20261025-universal-deck-v2-1');
     }
     html=html.replace("</body>",'<script src="js/combat-v073-spell-bootstrap.js?v=20261025-universal-spells-1"><\/script><script src="js/combat-event-runtime.js?v=20261023-encounter-start-1"><\/script><script src="js/spellcasting-runtime.js"><\/script><script src="js/item-runtime-engine.js"><\/script><script src="js/item-quality-engine.js"><\/script><script src="js/item-catalog-ore-ingot-gem.js"><\/script><script src="js/item-catalog-enchantments.js"><\/script><script src="js/item-enchantment-engine.js"><\/script><script src="js/item-inventory-runtime.js"><\/script><script src="js/item-catalog-hp-healing.js"><\/script><script src="js/item-catalog-culinary-staples.js"><\/script><script src="js/npc-belongings-runtime.js?v=20261021-1"><\/script><script src="js/item-persistence-runtime.js"><\/script><script src="js/item-magic-runtime.js"><\/script><script src="js/status-engine.js"><\/script><script src="js/item-enchantment-combat-runtime.js"><\/script><script src="js/item-enchantment-runtime.js"><\/script><script src="js/item-enchantment-combat-link.js"><\/script><script src="js/player-vitals-realtime-bridge.js"><\/script><script src="js/combat-encounter-lifecycle.js?v=20261021-p1-camera-hud-1"><\/script><script src="js/combat-v073-plan-sync.js?v=20261024-six-ready-2"><\/script><script src="js/combat-v073-remote-intents.js?v=20261024-six-ready-2"><\/script><script src="js/combat-v073-camera-controls.js?v=20261021-p1-camera-hud-1"><\/script><script src="js/combat-v073-dm-setup.js?v=20261025-speed-dex-size-1"><\/script><script src="js/movement-speed-runtime.js?v=20261025-speed-dex-size-1"><\/script><script src="js/encounter-modifier-runtime.js"><\/script><script src="js/combat-v073-speed-authority.js?v=20261025-speed-dex-size-1"><\/script><script src="js/loot-live-postcombat-runtime.js?v=20261024-anatomy-1"><\/script><script src="js/creature-compendium-ui.js?v=20261024-anatomy-2"><\/script><script src="js/combat-xp-runtime.js?v=20261024-victory-xp-1"><\/script><script src="js/battle-viewer-dm-console-074.js?v=20261021-p0-theatre-1"><\/script><script src="js/combat-v073-dm-observer.js"><\/script></body>');
+    // All lifecycle consumers must refresh together, including checkpoints.
+    for(const asset of ['js/death-save-runtime.js','js/combat-v073-steps.js',
+      'js/combat-v073-authority.js','js/combat-deployment-runtime.js',
+      'js/combat-v073-live-adapter.js','js/combat-v073-deployment-bridge.js']){
+      const escaped=asset.replace(/[.]/g,'\\.');
+      html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
+        asset+'?v=20261025-pr1042-3');
+    }
+
+    // Refresh the SP-01 consumers as one release after the lifecycle patches.
+    for(const asset of ['js/combat-v073-economy-menu.js','js/combat-v073-plan-sync.js',
+      'js/combat-v073-authority.js','js/combat-v073-live-adapter.js',
+      'js/combat-v073-remote-intents.js','js/combat-v073-spell-bootstrap.js']){
+      const escaped=asset.replace(/[.]/g,'\\.');
+      html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
+        asset+'?v=20261026-sp01-repair-1');
+    }
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();
@@ -414,4 +431,3 @@ function smartTargetForPlan(owner,plan){
 </script>
 </body>
 </html>
-

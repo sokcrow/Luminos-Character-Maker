@@ -2,7 +2,7 @@
 (function(global){
  "use strict";
  if(global.LuminousCombatSpellBootstrap073)return;
- const VERSION="0.7.3-universal-spells.1";
+ const VERSION="0.7.3-universal-spells.2";
  const MODULES=Object.freeze([
   ["spell073-registry","js/content-registry.js",()=>!!global.LuminousContentRegistry],
   ["spell073-registry-boot","js/content-registry-bootstrap.js",()=>!!global.LuminousContentRegistryBootstrap],
@@ -16,35 +16,41 @@
   ["spell073-action-adapters","js/combat-action-adapters.js",()=>!!global.LuminousCombatActionAdapters],
   ["spell073-base-adapter","js/battle-viewer-action-adapter-073.js",()=>!!global.LuminousBattleViewerActionAdapter073],
   ["spell073-canonical-adapter","js/battle-viewer-spell-adapter-074.js",()=>!!global.LuminousBattleViewerSpellAdapter074],
+  ["spell073-pierre-effects","js/spell-batch-pierre-runtime.js",()=>!!global.LuminousPierreSpellBatchRuntime],
+  ["spell073-weapon-effects","js/spell-batch-weapon-cantrips-runtime.js",()=>!!global.LuminousWeaponCantripBatchRuntime],
+  ["spell073-cantrip-effects","js/spell-batch-cantrips-runtime.js",()=>!!global.LuminousCantripBatchRuntime],
   ["spell073-runtime","js/battle-viewer-spell-runtime-074.js",()=>!!global.LuminousBattleViewerSpellRuntime074],
  ]);
  const state={phase:"idle",ready:false,error:null,modules:[]};
  let pending=null;
- function waitFor(ready,ms=12000){
-   return new Promise(resolve=>{
-     const started=Date.now();
-     const check=()=>{
-       try{if(ready())return resolve(true)}catch(_){}
-       if(Date.now()-started>=ms)return resolve(false);
-       global.setTimeout(check,40);
-     };check();
-   });
- }
+ // Other Viewer loaders use different IDs for the same scripts. Observe
+ // their in-flight element instead of evaluating the same module twice.
  function load(id,src,ready){
    if(ready())return Promise.resolve(true);
    if(!global.document?.head)return Promise.resolve(false);
    return new Promise(resolve=>{
-     let settled=false;
-     const timeout=global.setTimeout(()=>finish(false),12000);
-     function finish(value){if(settled)return;settled=true;global.clearTimeout?.(timeout);resolve(Boolean(value))}
-     let script=global.document.getElementById(id);
+     let settled=false,timer=null;
+     const started=Date.now();
+     function finish(value){
+       if(settled)return;settled=true;global.clearTimeout?.(timer);
+       script?.removeEventListener?.("error",failed);
+       resolve(Boolean(value));
+     }
+     const failed=()=>finish(false);
+     let script=global.document.getElementById(id)||
+       Array.from(global.document.scripts||[]).find(node=>
+         (node.getAttribute?.("src")||node.src||"").split("?")[0].endsWith(src));
      const original=Boolean(script);
-     if(!script){script=global.document.createElement("script");script.id=id;script.src=src;script.async=false}
-     script.addEventListener("load",()=>{waitFor(ready).then(finish)},{once:true});
-     script.addEventListener("error",()=>finish(false),{once:true});
+     if(!script){script=global.document.createElement("script");script.id=id;script.src=src+"?v=20261026-sp01-repair-1";script.async=false}
+     script.addEventListener("error",failed,{once:true});
      if(!original)global.document.head.appendChild(script);
-     else if(script.readyState==="complete"||script.readyState==="loaded")waitFor(ready).then(finish);
-     if(ready())finish(true);
+     // Poll the contract, including when load fired before this subscription.
+     const check=()=>{
+       if(settled)return;
+       try{if(ready())return finish(true)}catch(_){}
+       if(Date.now()-started>=12000)return finish(false);
+       timer=global.setTimeout(check,40);
+     };check();
    });
  }
  function notify(name){
@@ -61,6 +67,10 @@
        if(!ok){state.phase="unavailable";state.error="spell_dependency_unavailable:"+src;
          global.console?.error?.("[Combat Spell Bridge] Module unavailable",src);
          notify("luminous:combat073-spells-unavailable");return false}
+     }
+     if(await global.LuminousBattleViewerSpellRuntime074.ready!==true){
+       state.phase="unavailable";state.error="spell_runtime_install_failed";
+       notify("luminous:combat073-spells-unavailable");return false;
      }
      global.LuminousContentRegistryBootstrap?.registerAvailableCore?.();
      if(!global.LuminousBattleViewerSpellAdapter074?.install?.()||

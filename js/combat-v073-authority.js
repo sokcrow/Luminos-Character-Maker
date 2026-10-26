@@ -78,13 +78,24 @@
         const kind=norm(raw.kind||raw.actionData?.kind||raw.type);
         if(kind!=='spell'&&kind!=='spells')continue;
         const unit=raw.unitId&&units[raw.unitId]?units[raw.unitId]:Object.values(units).find(row=>canonicalPlayerId(row)===clean(raw.scheduledBy));
-        if(unit?.isPlayer===true){
+        if(!unit)throw new Error('SPELL_PLAN_REJECTED:SPELL_ACTOR_NOT_FOUND');
+        if(unit.isPlayer===true){
           if(!isSpellcaster(unit))throw new Error(`SPELL_PLAN_REJECTED_NON_CASTER:${canonicalPlayerId(unit)||unit.id||raw.unitId||'player'}`);
           const spellId=clean(raw.spellId||raw.actionData?.spellId||raw.actionData?.id||raw.data?.spellId||raw.data?.id);
           const resolver=global.LuminousCombatSpellLoadout074;
           if(!resolver?.resolveSpellForCombatant)throw new Error('SPELL_RUNTIME_NOT_READY');
           const result=resolver.resolveSpellForCombatant(unit,spellId,{classId:raw.classId||raw.actionData?.classId||null});
           if(!result.ok)throw new Error(`SPELL_PLAN_REJECTED:${result.reason||'SPELL_UNAVAILABLE'}`);
+          // Only targeting and casting choices come from the Player. Definitions
+          // used by the sealed executor must come from the DM's own catalog.
+          const definition=clone(result.spell);
+          raw.spellId=definition.spellId||definition.id||spellId;
+          raw.classId=result.classId;
+          raw.actionName=definition.name;
+          raw.actionData={...definition,id:raw.spellId,spellId:raw.spellId,
+            kind:'spell',sourceType:'spell',classId:result.classId};
+          delete raw.data;
+
         }
       }
     }
@@ -128,8 +139,9 @@
       ...(independentState?{combatIndependentActionState:independentState}:{}),
       ...(traitState?{combatTraitState:traitState}:{}),
       ...Object.fromEntries(['inventario_activo','inventario_stash','itemEquipmentRefs','attunedItemInstanceIds','itemInventorySchemaVersion',
-        'combatEventState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
-        'deployedRound','deploymentState','replacementClaimed','equipmentEffectTurnLedger'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
+        'universalActionPhaseLedger','mastermindAssistGuardState','universalHelpBuffs','observationKnown','observationLastCheck','analyseUsedRound','findUsedRound','detectedInvisibleIds','invisibleAwarenessRound','xpEligible','backupRecoveryRound','combatEventState','statusProtections','superiorityCount','spellcastingState','classResources','traitUses','resources','wakePendingRound','retreatVacancy','escapeVacancy','defeated','dead',
+        'deployedRound','deploymentState','replacementClaimed','equipmentEffectTurnLedger',
+        'lifeState','isDowned','isDead','isRetreated','isStable','deathSaves','deathSavePower','deathSaveThreshold','deathSaveCheck','deathSaveRound','retreat','retreatSnapshot'].filter(key=>unit[key]!==undefined).map(key=>[key,clone(unit[key])])),
       ...(unit.combatDeck?{combatDeck:global.LuminousCombatSlotDeck073?.compact(unit.combatDeck)||clone(unit.combatDeck),
         combatDeckModes:global.LuminousCombatSlotDeck073?.compactModeDecks?.(unit.combatDeckModes)||clone(unit.combatDeckModes||{})}:{}),
       hp:Math.max(0,finite(unit.hp,0)),maxHp:Math.max(1,finite(unit.maxHp,1)),sp:finite(unit.sp,0),
@@ -222,7 +234,9 @@
     const defensiveReactions=Object.fromEntries(memberIds
       .map(playerId=>[playerId,clean(ready?.[playerId]?.enchantmentReactionItemInstanceId)])
       .filter(([,id])=>id));
-    const seed=makeSeed(round);let payload={schemaVersion:1,engineVersion:'0.7.3-authority.9-step-rng',round,phase:'sealed',seed,authorityUid:s.uid,planningWitness,plans:clone(plans||{}),aiPlans:collectAiPlans(),defensiveReactions,createdAt:serverTime(),checkpoint:null};
+    const aiPlans=collectAiPlans();
+    global.LuminousCombatSlotDeck073?.validatePlans(aiPlans);
+    const seed=makeSeed(round);let payload={schemaVersion:1,engineVersion:'0.7.3-authority.9-step-rng',round,phase:'sealed',seed,authorityUid:s.uid,planningWitness,plans:clone(plans||{}),aiPlans,defensiveReactions,createdAt:serverTime(),checkpoint:null};
     if(playback()?.negotiate(ready,memberIds))payload=await playback().seal(payload,{timeline:playback().canSchedule?.(ready,memberIds)===true});
     if(!payload.playback){
       const sealed=await global.LuminousCombatSession.updateRoot(s.db,raw=>{
@@ -238,6 +252,7 @@
   function replaceLocalPlans(plans){const list=runtime()?.plans?.();if(!Array.isArray(list))return false;list.splice(0,list.length,...plans);global.renderAllPlannedSlots?.();return true;}
   function applyAuthority(data=state.current){
     const s=adapterState(),combat=runtime();if(!combat?.combatants||!s||Number(data?.round)!==Number(s.round))return false;const units=combat.combatants();if(!Object.keys(units).length)return false;
+    for(const [id,ledger]of Object.entries(data.universalActionLedgers||{}))if(units[id]&&Number(units[id].universalActionPhaseLedger?.round||0)<Number(data.round))units[id].universalActionPhaseLedger=clone(ledger);
     if(s.role==='player'&&s.playerId&&data.plans?.[s.playerId]){const own=Object.values(units).find(unit=>unit?.controlled==='player'||canonicalPlayerId(unit)===s.playerId);replaceLocalPlans(planRowsToArray(data.plans[s.playerId],own));}else if(s.role==='dm')replaceLocalPlans([]);
     for(const ownerRows of Object.values(data.plans||{})){const sample=Object.values(ownerRows||{})[0];if(!sample)continue;const unit=sample.unitId&&units[sample.unitId]?units[sample.unitId]:Object.values(units).find(row=>canonicalPlayerId(row)===clean(sample.scheduledBy));if(unit?.controlled==='remote')unit.autoPlans=planRowsToArray(ownerRows,unit);}
     for(const [unitId,rows] of Object.entries(data.aiPlans||{})){const unit=units[unitId];if(unit?.controlled==='ai')unit.autoPlans=planRowsToArray(rows,unit);}
@@ -263,7 +278,7 @@
     const combat=runtime(),units=combat?.combatants?.()||{};let changed=false;
     for(const [id,canonical] of Object.entries(snapshot||{})){const unit=units[id];if(!unit)continue;for(const [key,value] of Object.entries(canonical||{})){if(key==='actionSlots'||key==='activeSlots')continue;if(JSON.stringify(unit[key])!==JSON.stringify(value)){unit[key]=clone(value);changed=true;}}
       Object.assign(unit,clone(canonical.combatIndependentActionState?.runtimeFields||{}));
-      const economy=global.LuminousActionEconomy?.ensureState?.(unit);if(economy)economy.quickActionRemaining=Number(canonical.quickActionRemaining??economy.quickActionRemaining);
+      const economy=global.LuminousActionEconomy?.ensureState?.(unit);if(economy){economy.quickActionRemaining=Number(canonical.quickActionRemaining??economy.quickActionRemaining);economy.reactionRemaining=Number(canonical.reactionRemaining??economy.reactionRemaining);}
       const count=Math.max(1,Math.trunc(Number(canonical.actionSlots||canonical.activeSlots)||1));if(Number(unit.actionSlots)!==count){global.setUnitActionSlotCount?.(id,count);unit.actionSlots=count;unit.activeSlots=count;changed=true;}}
     if(changed){combat.render?.();global.LuminousCombatStepRuntime?.refreshPlayback?.();global.LuminousWebGL2Renderer?.requestRender?.(120);}return changed;
   }
@@ -320,6 +335,7 @@
   function patchExecuteQueueEntry(){
     const original=global.executeQueueEntry;if(typeof original!=='function')return false;if(original.__luminousAuthorityQueueEntry)return true;
     const wrapped=function(entry,...rest){
+      if(global.LuminousUnitUniversalActionPolicy?.definitionFor(entry?.plan?.data?.actionKey)?.phase==='on_turn_end'&&!entry._turnEnd)return Promise.resolve({deferred:true});
       const scope=this,adjusted=entry?.controller==='remote'&&entry?.plan?.type==='items'?{...entry,controller:'player'}:entry;
       const run=async()=>{
         if(state.executingGeneration)playback().assertOwner(state.current);
@@ -327,6 +343,7 @@
         try{
           const owner=runtime()?.combatants?.()?.[adjusted?.ownerId];
           if(!owner||owner.battleActive===false||owner.isBackup===true||owner.defeated===true||owner.dead===true||(Number.isFinite(Number(owner.hp))&&Number(owner.hp)<=0)){
+            if(owner)global.LuminousUnitUniversalActionRuntime?.cancelPending(owner,Number(state.current?.round)||Number(adapterState()?.round)||1);
             return {skipped:true,reason:'owner_not_in_field',ownerId:adjusted?.ownerId||null};
           }
           const result=adjusted?.controller==='ai_independent'
@@ -363,7 +380,7 @@
     };
     wrapped.__luminousAuthorityQueueEntry=true;wrapped.__luminousAuthorityQueueEntryOriginal=original;global.executeQueueEntry=wrapped;return true;
   }
-  function installHooks(){patchCoinEngine();patchExecutionQueue();patchExecuteQueueEntry();['beginConcentration','processConditionTurnStart','rollCriticalHit','randomIntInclusive','rollUnitSpeed','rollPower4Save','rollAbilitySkillCheck','damageCombatant','healCombatant','damageCombatantSP','healCombatantSP','applyCombatStatus','removeCombatStatus','consumeStatusCount','setUnitActionSlotCount','rollTurnSpeeds'].forEach(name=>wrapSyncMechanic(name));['smartTargetScore','assignTargetIntents','autoActionScore','shuffle'].forEach(name=>wrapSyncMechanic(name,{deterministic:false}));['resolveSkillClash','resolveUnopposedCoinAction','resolveSaveOnlySpell'].forEach(wrapAsyncMechanic);patchStartRound();return true;}
+  function installHooks(){patchCoinEngine();patchExecutionQueue();patchExecuteQueueEntry();['beginConcentration','processConditionTurnStart','processDeathSavesRoundEnd','rollCriticalHit','randomIntInclusive','rollUnitSpeed','rollPower4Save','rollAbilitySkillCheck','damageCombatant','healCombatant','damageCombatantSP','healCombatantSP','applyCombatStatus','removeCombatStatus','consumeStatusCount','setUnitActionSlotCount','rollTurnSpeeds'].forEach(name=>wrapSyncMechanic(name));['smartTargetScore','assignTargetIntents','autoActionScore','shuffle'].forEach(name=>wrapSyncMechanic(name,{deterministic:false}));['resolveSkillClash','resolveUnopposedCoinAction','resolveSaveOnlySpell'].forEach(wrapAsyncMechanic);patchStartRound();return true;}
 
   async function setRunning(current){
     const s=adapterState(),startedAt=serverTime(),updates={};

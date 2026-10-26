@@ -35,3 +35,20 @@ multiplayer playback; integration tests must prove actual execution.
 9. Check touchscreen viewports 360×800, 390×844, 844×390, 768×1024 and desktop 1280×720, 1920×1080; do not expose debug UI.
 
 CI is delegated to GitHub; no waiting for Actions or Codex after the review request.
+
+## PR #1044 repair (2026-10-26)
+- Merged current `main`, retaining its downed lifecycle, universal actions and deck fixes alongside the Spell bootstrap. Refreshed the affected Viewer asset URLs together.
+- Bootstrap observes existing in-flight script elements by source, including missed load events; supplemental effect batches are required dependencies. A false `runtime.ready` result cannot advertise ready. No second Viewer authority is started.
+- Player plans are re-resolved by the DM and their embedded action definition is replaced with the canonical catalog definition before sealing; the raw planning witness remains unchanged for transaction checks. Unknown actors fail closed. The remote plan converter preserves the resolved casting class.
+- Explicit empty assignments also override Wizard fallback lists. This does not introduce a V2 preparation/grant writer or authorize DM exceptions.
+- Fixed invalid regex escaping in the mobile boot smoke test.
+
+Validation: the SP-01 integration smoke and all 14 Node regressions from
+`unified-spells-playback.yml` pass locally, plus the real PR1042 downed regression.
+The SP-01 smoke covers real packed document injection, single/multiclass menu
+selection, trusted sealed definitions, forged ID/class rejection, empty Wizard
+assignment, concurrent bootstrap calls, late globals and dependency failure.
+Browser validation was attempted, but Chromium is absent and its download failed
+with an invalid/truncated ZIP. The six-viewport browser check remains pending CI;
+no live Firebase session or actual sealed-round Spell cast was verified.
+The SP-04 execution bridge and SP-02/SP-03 preparation/resource work remain open.

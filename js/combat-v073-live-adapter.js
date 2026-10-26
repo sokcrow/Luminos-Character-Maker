@@ -380,16 +380,24 @@
     const kits = {};
     for (const unit of combatants) {
       const source = unit;
-      const library = { ...(state.skills || {}), ...(global.LuminousPlayerSignatureSkillCatalog?.DEFINITIONS || {}),
+      const embeddedSkills=Array.isArray(source.resolvedSkills)?source.resolvedSkills:[];
+      const library = { ...Object.fromEntries(embeddedSkills.filter(row=>row?.id).map(row=>[row.id,row])),
+        ...(state.skills || {}), ...(global.LuminousPlayerSignatureSkillCatalog?.DEFINITIONS || {}),
         ...(global.LuminousBuildSkillCatalog?.DEFINITIONS || {}) };
-      const equippedGrants = new Set(global.LuminousEquipmentEffects?.grantedSkillIds?.(unit) || []);
+      const equippedGrants = new Set(global.LuminousCombatSkillLoadout074?.grantedSkillIdsFor?.(unit) ||
+        global.LuminousEquipmentEffects?.grantedSkillIds?.(unit) || []);
+      const deckIds=new Set(global.LuminousCombatSkillLoadout074?.skillSlotIdsFor?.(unit)||[]);
+      const selection=unit.characterBuild?.skillDeck||unit.skillDeck;
+      const explicit=Number(selection?.schemaVersion)>=2;
       const actions = [...new Set(skillIdsFor(unit))].map((skillId) => {
         if (!library[skillId]) return null;
-        return normalizeSkill(skillId, library[skillId]);
+        const skill=normalizeSkill(skillId, library[skillId]);
+        return equippedGrants.has(skillId)&&!deckIds.has(skillId)
+          ?{...skill,inDeck:false,availability:{type:'granted'},deck:{enabled:false}}:skill;
       }).filter(Boolean);
       const embedded = Array.isArray(source.actions) ? source.actions.map((row, index) => normalizeSkill(clean(row?.id || `${unit.id}:action:${index}`), row || {})) : [];
       // Resolve the ordinary kit first: a grant must never suppress embedded attacks.
-      const combined = [...(actions.length ? actions : embedded)];
+      const combined = [...(actions.length||explicit ? actions : embedded)];
       const seen = new Set(combined.map(skill => skill.id));
       for (const skillId of equippedGrants) {
         if (seen.has(skillId) || !library[skillId]) continue;
@@ -432,6 +440,7 @@
       unit.actionSlots,
       unit.img,
       unit.battleActive,
+      unit.lifeState,unit.isDowned,unit.isDead,unit.isRetreated,unit.isStable,unit.deathSaves,
       unit.statusEffects,
       unit.combatDeck,
       unit.combatDeckModes,

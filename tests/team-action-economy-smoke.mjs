@@ -38,13 +38,14 @@ assert.equal(snapshot.allies.usable - snapshot.enemies.usable, 1);
 assert.equal(snapshot.allies.active.filter((entry) => entry.current === 3).length, 2);
 assert.equal(snapshot.allies.active.filter((entry) => entry.current > 3).length, 0);
 
-// Quick Action and Help are team resources, not one per Unit.
-assert.equal(economy.consumeQuickAction(encounter, 'allies').consumed, true);
-assert.equal(economy.consumeQuickAction(encounter, 'allies').consumed, false);
-assert.equal(economy.consumeQuickAction(encounter, 'enemies').consumed, true);
-assert.equal(economy.consumeHelp(encounter, 'allies').consumed, true);
-assert.equal(economy.consumeHelp(encounter, 'allies').consumed, false);
+// Quick/Help are Unit resources.
+assert.equal(economy.consumeQuickAction(encounter, 'ally_1').consumed, true);
+assert.equal(economy.consumeQuickAction(encounter, 'ally_1').consumed, false);
+assert.equal(economy.consumeQuickAction(encounter, 'boss').consumed, true);
+assert.equal(economy.consumeHelp(encounter, 'ally_1').consumed, true);
+assert.equal(economy.consumeHelp(encounter, 'ally_1').consumed, false);
 
+assert.equal(economy.consumeQuickAction(encounter,'ally_2').consumed,true);assert.equal(economy.consumeHelp(encounter,'ally_2').consumed,true);
 // Grapple/Stagger-style slot locks reduce usable Actions without redistributing them.
 const lock = economy.lockUnitSlots(encounter, 'ally_1', 1, 'grapple');
 assert.equal(lock.locked, true);
@@ -64,8 +65,8 @@ const ended = economy.endRound(encounter, { escape: () => ({ escaped: true }) })
 assert.equal(ended.ended, true);
 assert.equal(encounter.round, 2);
 assert.equal(encounter.phase, economy.PHASES.PLANNING_PLAYER);
-assert.equal(encounter.allies.quickActionRemaining, 1);
-assert.equal(encounter.allies.helpRemaining, 1);
+assert.equal(encounter.allies.active[0].unit.quickActionRemaining, 1);
+assert.equal(Boolean(encounter.allies.active[0].unit.universalActionPhaseLedger.spent.help),false);
 
 // Enemy Action economy grows by at most +1 per round toward individual maxima.
 const growthEncounter = economy.createEncounter({
@@ -120,7 +121,7 @@ const bridgeSnapshot = engine.createTeamEconomyEncounter({
 });
 assert.equal(engine.currentState, 'PRE_COMBAT_PLANNING');
 assert.equal(bridgeSnapshot.phase, economy.PHASES.PLANNING_PLAYER);
-assert.equal(engine.consumeTeamQuickAction('allies').consumed, true);
+assert.equal(engine.consumeTeamQuickAction('bridge_a').consumed, true);
 const ready = engine.markPlayerPlanningReady({ aiPlanner: () => ({ planned: true }) });
 assert.equal(ready.aiResult.planned, true);
 assert.equal(engine.currentState, 'COMBAT_ACTIVE');

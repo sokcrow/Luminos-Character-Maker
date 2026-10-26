@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<script src="js/unit-universal-action-policy.js?v=20261025-2"></script>
+<script src="js/unit-universal-action-runtime.js?v=20261025-2"></script>
+<script id="combat-action-schema-script" src="js/combat-action-schema.js"></script>
+<script id="combat-action-adapters-script" src="js/combat-action-adapters.js"></script>
+<script id="individual-goap-combat-ai-script" src="js/individual-goap-combat-ai.js"></script>
+<script id="unit-ai-kit-adapter-script" src="js/unit-ai-kit-adapter.js"></script>
+<script id="unit-ai-universal-actions-script" src="js/unit-ai-universal-actions.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Luminous Combat Command Menu — alpha v0.7.3 Combat Engine</title>
@@ -2446,6 +2453,7 @@
 <script src="js/combat-context.js?v=20261021-encounter-3"></script>
 <script src="js/status-library.js"></script>
 <script src="js/status-engine.js"></script>
+<script id="death-save-runtime-script" src="js/death-save-runtime.js?v=20261025-pr1042-1"></script>
 <script src="js/deckEngine.js"></script>
 <script src="js/combat-v073-deck.js?v=20261020-roundtrip-1"></script>
 <script src="js/skill-catalog-player-signature.js"></script>
@@ -2511,6 +2519,7 @@
 <script src="js/combat-v073-animation-profiles.js"></script>
 <script src="js/combat-v073-audiovisual.js"></script>
 <script>
+let roundEndProgress={round:1,phase:"actions"};
 let combatData={},round=1,selectedSlotIndex=0,navState='root',activeMenu=null,selected=null,focusedIndex=0,transitionToken=0,plannedActions=[],planReady=false,roundRunning=false,viewModeActive=false,analyseModeActive=false,targetingModeActive=false,pendingTargetPlan=null,pendingTargetSlotIndex=-1,selectedObservationEnemy=null,observationUsedTurn=0,observationRolling=false,clashChoiceSerial=0,clashConfirmationActive=false,pendingClashConfirmation=null,activeGrapples=[],grappleSerial=0,timelineResolutionActive=false;
 const PLAYER_SCORES={
         perception:{score:10,mod:0,checks:0,successes:0},
@@ -3811,7 +3820,7 @@ function renderObservationRing(enemyId){
 
   selectedObservationEnemy=enemyId;
   ring.innerHTML='';
-  const used=observationUsedTurn===round,
+  const used=analyseUsedThisTurn(),
         lv=observationLevel(unit),
         rolling=observationRolling;
 
@@ -3844,71 +3853,31 @@ function renderObservationRing(enemyId){
   requestAnimationFrame(()=>layoutObservationRing(enemyId))
 }
 async function performObservation(enemyId,fact){
-  const unit=combatData[enemyId];
-  if(unitHasStatus(combatData[PLAYER_ID],'blinded')){observationUsedTurn=round;setStatus('BLINDED · ANALYSE AUTOMATICALLY FAILS');return{success:false,forcedFail:true,reason:'blinded'}}
-  if(!unit||unit.faction!=='enemy'||observationRolling||observationUsedTurn===round||observationKnown(unit,fact)||!observationFactAvailable(unit,fact))return;
-
-  const meta=OBSERVATION_META[fact],
-        stat=PLAYER_SCORES[meta.stat]||PLAYER_SCORES.perception,
-        difficulty=observationDifficulty(unit,fact),
-        threshold=observationThreshold(unit,fact),
-        modifier=observationModifier(meta.stat),
-        headsChance=coinHeadsChanceForUnit(PLAYER_ID);
-
-  observationUsedTurn=round;
-  observationRolling=true;
-  stat.checks=(Number(stat.checks)||0)+1;
-  unit.observationLastCheck={turn:round,fact,statKey:meta.stat,modifier,difficulty,threshold,headsChance,phase:'rolling'};
-  renderObservationRing(enemyId);
-  setStatus(`OBSERVATION · ${unit.name} · ${meta.label} · 5 Coin Check...`);
-
-  const engine=window.LuminousCoinEngine,
-        container=$('observation-coin-engine'),
-        totalNode=$('observation-coin-total');
-
-  let result;
-  try{
-    result=await engine.runAnimatedRoll({
-      document,
-      container,
-      totalNode,
-      coinCount:CHECK_COIN_COUNT,
-      base:modifier,
-      headsChance,
-      intervalMs:600,
-      auto:true,
-      silent:true
-    })
-  }catch(_){
-    const coins=Array.from({length:CHECK_COIN_COUNT},(_,index)=>{
-      const side=Math.random()<(headsChance/100)?'head':'tail';
-      return{index,side,src:engine.coinSrc(side)}
-    });
-    const heads=coins.filter(coin=>coin.side==='head').length;
-    result={base:modifier,total:modifier+heads*CHECK_COIN_POWER,heads,coinCount:CHECK_COIN_COUNT,headBonus:CHECK_COIN_POWER,coins}
-  }
-
-  const success=Number(result.total)>=threshold,
-        coinPower=Number(result.heads)*CHECK_COIN_POWER;
-  if(success)stat.successes=(Number(stat.successes)||0)+1;
-
-  unit.observationLastCheck={
-    turn:round,fact,statKey:meta.stat,modifier,difficulty,threshold,headsChance,
-    heads:result.heads,coinPower,total:result.total,coins:result.coins,
-    success,phase:'resolved'
-  };
-
-  observationRolling=false;
-  if(success){
-    const revealedUnits=revealObservationFact(unit,fact),
-          revealNames=revealedUnits.map(target=>target.name).join(' · '),
-          lv=observationLevel(unit),
-          sharedSuffix=revealedUnits.length>1?` · SHARED ${revealNames}`:'';
-    setStatus(`OBSERVATION · ${unit.name} · ${meta.label} · ${result.heads}/5 HEADS · ${result.total}/${threshold} · SUCCESS · LV ${lv}/5${sharedSuffix}`)
-  }else{
-    setStatus(`OBSERVATION · ${unit.name} · ${meta.label} · ${result.heads}/5 HEADS · ${result.total}/${threshold} · FAILED`)
-  }
-  renderObservationRing(enemyId)
+  if(roundRunning||planReady||observationRolling)return;
+  observationRolling=true;try{const result=await requestUniversalInstant('analyse',{targetId:enemyId,choice:fact});if(result?.used){observationUsedTurn=round;setStatus(result.success?'ANALYSE · Información revelada para el grupo.':'ANALYSE · La observación falló.')}else setStatus('No puedes analizar ese objetivo ahora.');renderObservationRing(enemyId);return result}finally{observationRolling=false}
+}
+function resolveUniversalFreeDraft(actor,key,options={}){
+  const live=combatData;combatData=options.units;
+  try{const target=options.target;
+    if(key==='analyse'){
+      const fact=String(options.choice||'');if(!target||target.faction===actor.faction||!OBSERVATION_META[fact]||!observationFactAvailable(target,fact)||(target.observationKnown||[]).includes(fact))return{attempted:false,reason:'invalid_observation'};
+      const stat=observationStat(fact),threshold=8+observationDifficulty(target,fact)+(Number(window.LuminousEquipmentEffects?.checkThresholdAdjustment?.(actor,'analyze'))||0),blinded=unitHasStatus(actor,'blinded'),result=blinded?{success:false,total:0,heads:0,coins:[],forcedFail:true,threshold}:rollAbilitySkillCheck(actor.id,{ability:stat,skill:stat,threshold,random:options.random});
+      actor.analyseUsedRound=round;target.observationLastCheck={...result,turn:round,fact,statKey:stat,phase:'resolved'};
+      if(result.success)observationLinkedUnits(target).forEach(unit=>{unit.observationKnown=[...new Set([...(unit.observationKnown||[]),fact])]});return{attempted:true,...result,fact,targetId:target.id};
+    }
+    if(key==='find'){
+      if(Number(actor.invisibleAwarenessRound)!==round)return{attempted:false,reason:'invisible_presence_required'};
+      const targets=Object.values(combatData).filter(unit=>unit.id!==actor.id&&window.LuminousUnitUniversalActionRuntime.active(unit)&&unitHasStatus(unit,'invisible')&&!invisibleDetectedBy(actor,unit));if(!targets.length)return{attempted:false,reason:'no_invisible_target'};
+      let found=0;for(const unit of targets){const threshold=Math.max(1,Number(getCombatStatus(unit,'invisible')?.detectThreshold)||13),result=rollAbilitySkillCheck(actor.id,{ability:'perception',skill:'perception',threshold,random:options.random});if(result.success&&!unitHasStatus(actor,'blinded')){actor.detectedInvisibleIds=[...new Set([...(actor.detectedInvisibleIds||[]),unit.id])];found++}}
+      actor.findUsedRound=round;return{attempted:true,success:found>0,found};
+    }return{attempted:false,reason:'unknown_universal_action'};
+  }finally{combatData=live}
+}
+async function requestUniversalInstant(actionKey,{targetId=PLAYER_ID,choice=null,targetSlotIndex=null,variant=null}={}){
+  if(planReady||roundRunning)return{used:false,reason:'turn_closed'};
+  const actor=combatData[PLAYER_ID],online=window.LuminousCombatLiveAdapter073?.state?.db;
+  const result=online?await window.LuminousCombatPlanSync073.requestIndependentAction({unitId:actor.id,sourceId:actionKey,sourceType:'universal',cost:variant?'quick_action':'free_action',targetId,choice,targetSlotIndex,variant,round}):window.LuminousUnitUniversalActionRuntime.useInstant(actor,actionKey,{round,phase:'planning',variant,target:combatData[targetId],choice,targetSlotIndex,targetActionSlotId:targetSlotIndex==null?null:`${targetId}_slot_${targetSlotIndex}`,units:combatData,plans:universalPlansByUnit(),resolve:resolveUniversalFreeDraft});
+  syncAllUnitVisibility();syncConditionVisuals();renderTargetArrows();return result;
 }
 // SAVES — automatic Power-4 Coin check plus the unit's modifier.
 // The generic resolver reads explicit Save modifiers first, then ability modifiers, so
@@ -3956,7 +3925,7 @@ function rollPower4Save(unitId,saveSpec={}){
         engine=window.LuminousCoinEngine,
         forcedFail=unitHasStatus(unit,'paralyzed')&&['strength','dexterity'].includes(ability);
   const coins=forcedFail?[]:Array.from({length:coinCount},(_,index)=>{
-    const side=engine?.rollSide?engine.rollSide(headsChance):((Math.random()*100)<headsChance?'head':'tail');
+    const side=engine?.rollSide?engine.rollSide(headsChance,random):(((random||Math.random)()*100)<headsChance?'head':'tail');
     return{index,side,src:engine?.coinSrc?engine.coinSrc(side):''}
   });
   const heads=coins.filter(coin=>coin.side==='head').length,
@@ -3977,13 +3946,13 @@ function unitAbilitySkillModifier(unit,abilityOrSkill){
   for(const v of values){const n=Number(v);if(Number.isFinite(n))return n}
   return 0
 }
-function rollAbilitySkillCheck(unitId,{ability='perception',skill=null,threshold=0,targetId=null,special=false}={}){
+function rollAbilitySkillCheck(unitId,{ability='perception',skill=null,threshold=0,targetId=null,special=false,random}={}){
   const unit=combatData[unitId];if(!unit)return null;
   const key=String(skill||ability||'perception').toLowerCase(),saveAbility=normalizeSaveAbility(ability),
         forcedFail=unitHasStatus(unit,'sleep')&&['strength','dexterity'].includes(saveAbility),
         baseThreshold=Math.max(0,Math.floor(Number(threshold)||0)),
         effectiveThreshold=baseThreshold+conditionCheckThresholdPenalty(unit,{ability:saveAbility,skill:Boolean(skill),special}),
-        modifier=unitAbilitySkillModifier(unit,key)+(targetId?charmedCheckBonus(unit,combatData[targetId],saveAbility):0),
+        modifier=unitAbilitySkillModifier(unit,key)+(Number(window.LuminousEquipmentEffects?.skillCheckBonus?.(unit,key))||0)+(targetId?charmedCheckBonus(unit,combatData[targetId],saveAbility):0),
         coinCount=CHECK_COIN_COUNT,coinPower=CHECK_COIN_POWER,headsChance=coinHeadsChanceForUnit(unitId),engine=window.LuminousCoinEngine,
         coins=forcedFail?[]:Array.from({length:coinCount},(_,index)=>{const side=engine?.rollSide?engine.rollSide(headsChance):((Math.random()*100)<headsChance?'head':'tail');return{index,side,src:engine?.coinSrc?engine.coinSrc(side):''}}),
         heads=coins.filter(c=>c.side==='head').length,total=forcedFail?0:modifier+(heads*coinPower),success=!forcedFail&&total>=effectiveThreshold,
@@ -4037,7 +4006,9 @@ function planTargetRule(plan,owner){
   return'enemy'
 }
 function isUnitTargetable(unit){
-  return Boolean(unit&&unit.battleActive!==false&&!unit.incapacitated&&(Number(unit.hp)||0)>0)
+  if(!unit||unit.battleActive===false||unit.escaped||unit.isBackup)return false;
+  const life=window.LuminousDeathSaveRuntime;
+  return life?life.isTargetable(unit):Boolean(!unit.incapacitated&&(Number(unit.hp)||0)>0)
 }
 function validTargetUnits(owner,rule,plan=null){
   if(!owner||rule==='none'||!isUnitTargetable(owner))return[];
@@ -4536,6 +4507,7 @@ function choosePlayerTarget(slot){
   plan.targetId=slot.dataset.ownerId;
   plan.targetSlotIndex=Number(slot.dataset.slotIndex)||0;
   plan.sourceSlotIndex=completedIndex;
+  if(!universalPlanPreview(plannedActions).ok){plan.targetId=null;plan.targetSlotIndex=null;setStatus('No puedes repetir Help sobre ese aliado ni otra universal de la misma fase.');return}
   configureAtkWeightTargets(plan,PLAYER_ID);
   configurePlayerClashChoice(plan,completedIndex);
   targetingModeActive=false;
@@ -4599,9 +4571,9 @@ function exitViewMode(){
   setTimeout(layoutRadialCommands,480);
   setStatus(`TURN ${round} · ${combatData[PLAYER_ID]?.name||'Player'} focus · Slot ${selectedSlotIndex+1}`)
 }
+function analyseUsedThisTurn(){const unit=combatData[PLAYER_ID];return observationUsedTurn===round||Number(unit?.analyseUsedRound)===round||(Number(unit?.universalActionPhaseLedger?.round)===round&&unit?.universalActionPhaseLedger?.spent?.analyse===true)}
 function enterAnalyseMode(){
   if(roundRunning||viewModeActive)return;
-  if(unitHasStatus(combatData[PLAYER_ID],'blinded')){setStatus('BLINDED · ANALYSE automatically fails');return}
   hideClashForecast();
   if(navState!=='root')goRoot();
   analyseModeActive=true;
@@ -4610,7 +4582,7 @@ function enterAnalyseMode(){
   $('game-container').classList.add('analyse-mode');
   $('view-return').textContent=`BACK TO ${combatData[PLAYER_ID]?.name||'PLAYER'}`;
   setCameraFocus('enemy',true);
-  setStatus(`ANALYSE · Click an enemy · Observation ${observationUsedTurn===round?'USED':'READY'} · Free 1/Turn`)
+  setStatus(`ANALYSE · Click an enemy · Observation ${analyseUsedThisTurn()?'USED':'READY'} · Free 1/Turn`)
 }
 function exitAnalyseMode(){
   analyseModeActive=false;
@@ -4848,19 +4820,21 @@ function autoActionScore(unitId,entry){
 
   return expected+clashEndurance+spPressure+(Math.random()*.55)
 }
-function smartAutoPlanFor(unitId,defenseLock=null){
+function smartAutoPlanFor(unitId,defenseLock=null,slotIndex=0){
   const unit=combatData[unitId];
   if(!unit)return null;
 
   const library=getAutoActionLibrary(),
-        sourcePool=getUnitAutoActionPool(unitId,library),
+        sourcePool=getUnitAutoActionPool(unitId,library,slotIndex),
         ranked=sourcePool
           .map(entry=>({entry,score:autoActionScore(unitId,entry)}))
           .filter(row=>Number.isFinite(row.score))
           .sort((a,b)=>b.score-a.score);
 
   const chosen=ranked[0]?.entry||sourcePool[0]||null;
-  return chosen?{type:'auto',slotIndex:0,data:{...chosen},aiReason:'SP_CLASH_PRIORITY'}:null
+  return chosen?{type:chosen.__deckCard?'deck':'auto',slotIndex,sourceSlotIndex:slotIndex,
+    ...(chosen.__deckCard?{drawId:chosen.__deckCard.drawId}:{}),
+    data:{...chosen},aiReason:'SP_CLASH_PRIORITY'}:null
 }
 function prepareAutoPlans(){
   AUTO_UNIT_IDS.forEach(id=>{
@@ -4891,7 +4865,7 @@ function prepareAutoPlans(){
     let defenseLock=null;
     unit.autoPlans=slots.map((slot,index)=>{
       const itemPlan=index===0?window.LuminousNpcBelongings?.selectItemPlan(unit,Object.values(combatData)):null;
-      const plan=itemPlan||smartAutoPlanFor(id,defenseLock),
+      const plan=itemPlan||smartAutoPlanFor(id,defenseLock,index),
             defenseType=defenseTypeOfPlan(plan);
       if(defenseType&&!defenseLock)defenseLock=defenseType;
       slot.classList.add('has-plan');
@@ -4911,6 +4885,7 @@ function preparePlayerGrapplePlan(){
   return true
 }
 function beginPlanningPhase(turnNumber){
+  Object.values(combatData).forEach(unit=>{window.LuminousUnitUniversalActionPolicy.snapshot(unit,{round:turnNumber});unit.universalHelpBuffs=Object.values(unit.universalHelpBuffs||{}).filter(buff=>Number(buff.round)>=turnNumber)});
   preparePlayerGrapplePlan();
   prepareAutoPlans();
   assignTargetIntents();
@@ -4984,7 +4959,7 @@ function isStaggerEffectActive(unit,turnNumber=round){
   return activated>0&&turnNumber>=activated&&turnNumber<=until
 }
 function unitActionBlocked(unit,turnNumber=round){
-  return Boolean(unit&&(unit.battleActive===false||unit.incapacitated||isStaggerEffectActive(unit,turnNumber)||unitHasStatus(unit,'paralyzed')||unitHasStatus(unit,'petrified')||unitHasStatus(unit,'incapacitated')||unit?.confusionTurnMode==='locked'))
+  return Boolean(unit&&(unit.battleActive===false||unit.incapacitated||window.LuminousDeathSaveRuntime?.canAct(unit)===false||isStaggerEffectActive(unit,turnNumber)||unitHasStatus(unit,'paralyzed')||unitHasStatus(unit,'petrified')||unitHasStatus(unit,'incapacitated')||unit?.confusionTurnMode==='locked'))
 }
 function normalizeDamageType(value){
   const raw=String(value||'NORMAL').trim().toUpperCase();
@@ -5358,7 +5333,7 @@ function clearHpAnimation(d){
   (d._hpTimers||[]).forEach(clearTimeout);
   d._hpTimers=[]
 }
-function setCombatantHP(id,nextHp,{triggerStagger=true}={}){
+function setCombatantHP(id,nextHp,{triggerStagger=true,sourceKind='direct'}={}){
   const d=combatData[id],
         token=$(`token-${id}`);
   if(!d)return false;
@@ -5369,13 +5344,19 @@ function setCombatantHP(id,nextHp,{triggerStagger=true}={}){
         number=token?.querySelector('.hp-number');
 
   clearHpAnimation(d);
-  const oldHp=Math.max(0,Math.min(d.maxHp,Number(d.hp)||0)),
-        hp=Math.max(0,Math.min(d.maxHp,Number(nextHp)||0)),
-        oldPct=combatantHpPct(d,oldHp),
+  const oldHp=Math.max(0,Math.min(d.maxHp,Number(d.hp)||0)),life=window.LuminousDeathSaveRuntime;
+  let hp=Math.max(0,Math.min(d.maxHp,Number(nextHp)||0));
+  if(life?.isDead(d)&&hp>0)hp=oldHp;
+  if(life?.isDowned(d)&&hp>0){life.heal(d,hp,{source:'external'});hp=d.hp}
+  const oldPct=combatantHpPct(d,oldHp),
         newPct=combatantHpPct(d,hp),
         animToken=(d._hpAnimToken||0)+1;
   d._hpAnimToken=animToken;
   d.hp=hp;
+  if(life&&hp<=0&&!life.isDead(d)&&!life.isDowned(d)){
+    life.enterDowned(d,{sourceKind});
+    d.retreatPendingRound=0;d.escapePendingRound=0;
+  }
   if(hp<=0&&concentrationState(d))loseConcentration(id,'UNIT DOWN');
   const wasIncapacitated=Boolean(d.incapacitated);
   d.incapacitated=hp<=0;
@@ -5383,7 +5364,7 @@ function setCombatantHP(id,nextHp,{triggerStagger=true}={}){
   if(d.faction==='enemy')syncUnitVisibility(id);
   if(d.incapacitated&&!wasIncapacitated){
     cancelUnitActions(id,'INCAPACITATED');
-    clearIncomingTargets(id)
+    if(!isUnitTargetable(d))clearIncomingTargets(id)
   }else if(!d.incapacitated&&wasIncapacitated){
     syncUnitActionState(id)
   }
@@ -5538,7 +5519,13 @@ function damageCombatant(id,amount,{damageType='NORMAL',ignoreResistance=false,i
   if(critical&&attackerId&&!poiseAutoCrit){consumeStatusCount(attackerId,'poise',1);pulseStatusIcon(attackerId,'poise')}
   showFloatingDamage(id,finalDamage,damageType,damageIconUrl);
 
-  if(shieldResult.remaining>0)setCombatantHP(id,hpBefore-shieldResult.remaining,{triggerStagger:!ignoreStaggerThreshold});
+  const life=window.LuminousDeathSaveRuntime;
+  if(shieldResult.remaining>0){
+    if(life?.isDowned(d)){
+      if(sourceStatus||(!skillData&&fixed))life.addFailure(d,{reason:'status_damage_while_downed'});
+      else if(skillData)life.noteSkillHitOnDowned(d,skillData,{__luminousDeathSaveSkillToken:skillData.__luminousDeathSaveSkillToken});
+    }else setCombatantHP(id,hpBefore-shieldResult.remaining,{triggerStagger:!ignoreStaggerThreshold,sourceKind:sourceStatus||(!skillData&&fixed)?'status':'skill'});
+  }
 
   const hpAfter=Math.max(0,Number(d.hp)||0),hpDamage=Math.max(0,hpBefore-hpAfter),actualTaken=Math.max(0,hpDamage+shieldResult.absorbed);
   d.damageTakenThisRound=Math.max(0,Number(d.damageTakenThisRound)||0)+actualTaken;
@@ -5587,7 +5574,7 @@ function spawnCombatant(d){
         slots=Array.from({length:d.actionSlots}).map((_,i)=>`<div class="action-slot-wrapper" id="${d.id}_slot_${i}" data-slot-index="${i}" data-owner-id="${d.id}" data-controller="${controlled}" data-faction="${faction}"><svg class="action-slot-svg" viewBox="0 0 100 100"><polygon class="slot-heptagon-bg" points="50,95 15,78 6,40 30,9 70,9 94,40 85,78"/><line class="slot-center-line" x1="25" y1="50" x2="75" y2="50"/></svg></div>`).join(''),
         h=generateHeptagonPoints(85),
         c=document.createElement('div');
-  combatData[d.id]={...d,level:Number(d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,offensiveLevel:Number(d.offensiveLevel??d.offensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,defensiveLevel:Number(d.defensiveLevel??d.defensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,faction,controlled,focusMenu,isBackup:Boolean(d.isBackup),battleActive:d.battleActive!==false&&!d.isBackup,replacementClaimed:false,deployedRound:d.isBackup?0:round,resistances:d.resistances||'Slash NORMAL · Pierce NORMAL · Blunt NORMAL',staggerThresholds:thresholds,triggeredStaggerThresholds:Array.isArray(d.triggeredStaggerThresholds)?[...d.triggeredStaggerThresholds]:[],staggerStage:Number(d.staggerStage)||0,staggerActivatedRound:Number(d.staggerActivatedRound)||0,staggerUntilRound:Number(d.staggerUntilRound)||0,incapacitated:Boolean(d.incapacitated)||(Number(d.hp)||0)<=0,shieldPools:{ephemeral:Math.max(0,Number(d.ephemeralShield)||0),frozen:Math.max(0,Number(d.frozenShield)||0)},autoPlans:[],speedRollTurn:0,speedTie:0,observationKnown:[],observationLastCheck:null,statusEffects:{...(d.statusEffects||{})},pendingStatusEffects:[],abilityMods:{...(d.abilityMods||{})},saveMods:{...(d.saveMods||{})},lastSaveCheck:null,lastAbilityCheck:null,reactiveDefense:{turn:0,evade:null,counters:[]},xpEligible:d.xpEligible!==false,escaped:false,retreatPendingRound:0,escapePendingRound:0,wakePendingRound:0,damageTakenThisRound:0,concentration:null,detectedInvisibleIds:[],invisibleAwarenessRound:0,confusionTurnMode:null,proneSpeedRound:0,originalMaxHp:Math.max(1,Number(d.originalMaxHp||d.maxHp)||1),baseStaggerThresholds:[...thresholds],size:window.LuminousCombatDeploymentRuntime?.sizeOf(d)||d.size||d.unitSize||'medium',elementResistances:{...(d.elementResistances||{})},conditionImmunities:[...(d.conditionImmunities||[])],conditionSourceImmunities:[...(d.conditionSourceImmunities||[])],sourceImmunities:[...(d.sourceImmunities||[])]};
+  combatData[d.id]={...d,level:Number(d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,offensiveLevel:Number(d.offensiveLevel??d.offensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,defensiveLevel:Number(d.defensiveLevel??d.defensive_level??d.level??TEST_COMBAT_LEVEL)||TEST_COMBAT_LEVEL,faction,controlled,focusMenu,isBackup:Boolean(d.isBackup),battleActive:d.battleActive!==false&&!d.isBackup,replacementClaimed:false,deployedRound:d.isBackup?0:round,resistances:d.resistances||'Slash NORMAL · Pierce NORMAL · Blunt NORMAL',staggerThresholds:thresholds,triggeredStaggerThresholds:Array.isArray(d.triggeredStaggerThresholds)?[...d.triggeredStaggerThresholds]:[],staggerStage:Number(d.staggerStage)||0,staggerActivatedRound:Number(d.staggerActivatedRound)||0,staggerUntilRound:Number(d.staggerUntilRound)||0,incapacitated:Boolean(d.incapacitated)||(Number(d.hp)||0)<=0,shieldPools:{ephemeral:Math.max(0,Number(d.ephemeralShield)||0),frozen:Math.max(0,Number(d.frozenShield)||0)},autoPlans:[],speedRollTurn:0,speedTie:0,observationKnown:Object.values(d.observationKnown||{}),observationLastCheck:d.observationLastCheck||null,statusEffects:{...(d.statusEffects||{})},pendingStatusEffects:[],abilityMods:{...(d.abilityMods||{})},saveMods:{...(d.saveMods||{})},lastSaveCheck:null,lastAbilityCheck:null,reactiveDefense:{turn:0,evade:null,counters:[]},xpEligible:d.xpEligible!==false,escaped:d.escaped===true,retreatPendingRound:Number(d.retreatPendingRound)||0,escapePendingRound:Number(d.escapePendingRound)||0,wakePendingRound:Number(d.wakePendingRound)||0,damageTakenThisRound:0,concentration:null,detectedInvisibleIds:Object.values(d.detectedInvisibleIds||{}),invisibleAwarenessRound:Number(d.invisibleAwarenessRound)||0,confusionTurnMode:null,proneSpeedRound:0,originalMaxHp:Math.max(1,Number(d.originalMaxHp||d.maxHp)||1),baseStaggerThresholds:[...thresholds],size:window.LuminousCombatDeploymentRuntime?.sizeOf(d)||d.size||d.unitSize||'medium',elementResistances:{...(d.elementResistances||{})},conditionImmunities:[...(d.conditionImmunities||[])],conditionSourceImmunities:[...(d.conditionSourceImmunities||[])],sourceImmunities:[...(d.sourceImmunities||[])]};
   const spawnedUnit=combatData[d.id],initialHpPct=(Math.max(0,Number(spawnedUnit.hp)||0)/Math.max(1,Number(spawnedUnit.maxHp)||1))*100,
         startConsumed=thresholds.map((threshold,index)=>({threshold,index})).filter(row=>initialHpPct<=row.threshold).map(row=>row.index);
   spawnedUnit.triggeredStaggerThresholds=[...new Set([...(spawnedUnit.triggeredStaggerThresholds||[]),...startConsumed])].sort((a,b)=>a-b);
@@ -5622,10 +5609,23 @@ function backupReserveForFaction(faction){
   return Object.values(combatData).filter(unit=>unit.faction===faction&&unit.isBackup&&unit.battleActive===false&&!unit.incapacitated&&!unit.replacementClaimed&&!unit.escaped)
 }
 function vacantBattleUnits(faction){
-  return Object.values(combatData).filter(unit=>unit.faction===faction&&!unit.replacementClaimed&&((unit.battleActive!==false&&unit.incapacitated)||unit.retreatVacancy||unit.escapeVacancy))
+  return Object.values(combatData).filter(unit=>unit.faction===faction&&!unit.replacementClaimed&&((unit.battleActive!==false&&unit.incapacitated&&!window.LuminousDeathSaveRuntime?.isDowned(unit))||unit.retreatVacancy||unit.escapeVacancy))
+}
+function processDeathSavesRoundEnd(turnNumber=round){
+  const life=window.LuminousDeathSaveRuntime;if(!life)return;
+  Object.values(combatData).filter(unit=>unit.battleActive!==false&&!unit.isBackup&&!unit.escaped).forEach(unit=>{
+    if(life.isDowned(unit)&&!life.isDead(unit)&&!life.isStable(unit)&&unit.deathSaveRound!==turnNumber){
+      unit.deathSaveRound=turnNumber;life.resolveDeathSave(unit);
+    }
+    if(unit.retreat?.pending&&!life.isDead(unit)){
+      life.resolveRetreat(unit,{units:Object.values(combatData)});unit.retreatPendingRound=turnNumber;
+    }
+    unit.incapacitated=life.isDowned(unit)||life.isDead(unit);syncUnitActionState(unit.id);syncCombatantVitalNumber(unit.id);
+  })
 }
 function processTurnEndExitActions(turnNumber=round){
   Object.values(combatData).forEach(unit=>{
+    if(!window.LuminousUnitUniversalActionRuntime.active(unit)){unit.escapePendingRound=unit.retreatPendingRound=0;return}
     if(Number(unit.escapePendingRound)===turnNumber){
       unit.escapePendingRound=0;unit.retreatPendingRound=0;unit.escapeVacancy=true;unit.xpEligible=false;
       const state=activeGrappleForUnit(unit.id);if(state)state.releaseAfterRound=true
@@ -5637,6 +5637,7 @@ function processTurnEndExitActions(turnNumber=round){
 }
 function processBackupRecovery(){
   Object.values(combatData).filter(unit=>unit.isBackup&&unit.battleActive===false&&!unit.incapacitated&&!unit.escaped).forEach(unit=>{
+    if(Number(unit.backupRecoveryRound)===round)return;unit.backupRecoveryRound=round;
     const cap=Math.max(0,Math.floor(Number(unit.offBattleRecoveryCapHp)||((Number(unit.maxHp)||0)*(Number(unit.offBattleRecoveryCapPct)||100)/100))),
           beforeHp=Math.max(0,Number(unit.hp)||0),beforeSp=Number(unit.sp)||0,
           nextHp=Math.min(cap,Math.floor(beforeHp+5)),nextSp=Math.max(0,Math.floor(beforeSp-3));
@@ -5679,7 +5680,8 @@ function prepareBackupDeployment(faction='enemy'){
     fallen.battleActive=false;
     if(wasRetreat){fallen.isBackup=true;fallen.retreatVacancy=false;fallen.replacementClaimed=false}
     if(wasEscape){fallen.escapeVacancy=false;fallen.escaped=true;fallen.xpEligible=false;fallen.isBackup=false}
-    backup.battleActive=true;
+    backup.battleActive=true;backup.isBackup=false;backup.deploymentState='field';
+    if(window.LuminousDeathSaveRuntime?.isRetreated(backup))window.LuminousDeathSaveRuntime.returnFromRetreat(backup,{force:true});
     backup.deployedRound=round;
     backup.replacementClaimed=false;
     backup._backupEntry={fallenId:fallen.id,fromX,fromY};
@@ -5906,8 +5908,10 @@ function playerDeckForUnit(id){
   const actions=UNIT_KITS[id]?.actions?.filter(row=>row.kind==='skill'||row.kind==='spell')||[];
   return [...actions].sort((a,b)=>(Number(a.tier)||1)-(Number(b.tier)||1)).slice(0,3).map((row,index)=>({...row,tier:Number(row.tier)||index+1}));
 }
-function getUnitAutoActionPool(unitId,fallbackLibrary){
+function getUnitAutoActionPool(unitId,fallbackLibrary,slotIndex=0){
   const unit=combatData[unitId],kit=UNIT_KITS[unitId];
+  if(window.LuminousCombatLiveMode&&window.LuminousCombatSlotDeck073)
+    return window.LuminousCombatSlotDeck073.actionOptions(unitId,slotIndex,kit?.actions||[]);
   if(kit?.actions?.length)return kit.actions;
   return fallbackLibrary[unit?.faction==='enemy'?'enemy':'ally']||[]
 }
@@ -5958,7 +5962,8 @@ function contextualGlobalActions(){
   if(Number(player.invisibleAwarenessRound)===round&&Number(player.findUsedRound)!==round)rows.push({name:'Find',tag:'Free Action · Invisible',actionKey:'find',iconUrl:COMBAT_ICONS.observe,description:'Disponible tras detectar una presencia Invisible con Arcana.<br>Perception Check contra la dificultad guardada del efecto.<br>[On Pass] La unidad Invisible queda targetable con baja opacidad.',cost:'Free · 1/Round'});
   return rows
 }
-function menuItemsForActiveMenu(){return activeMenu==='global'?[...permanent.global,...contextualGlobalActions()]:(permanent[activeMenu]||[])}
+function canonicalUniversalRow(row){const def=window.LuminousUnitUniversalActionPolicy.definitionFor(row.actionKey);return def?{...row,id:row.actionKey,economyCost:def.cost==='free'?'free_action':def.cost,executionPhase:def.phase,...(row.actionKey==='find'?{targetSide:'self',targeting:{mode:'self',allegiance:'self'}}:{})}:row}
+function menuItemsForActiveMenu(){return activeMenu==='global'?[...permanent.global,...contextualGlobalActions()].map(canonicalUniversalRow):(permanent[activeMenu]||[])}
 const fallback={slots:{},serial:0};
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function templates(){const out=[];deckSkills.forEach(s=>{const n=s.tier===1?3:s.tier===2?2:1;for(let i=0;i<n;i++)out.push({skill:s,tier:s.tier})});return out}
@@ -6109,6 +6114,8 @@ function plannedDefenseType(plans,ignoreIndex=-1){
   }
   return null
 }
+function universalPlansByUnit(){return Object.fromEntries(Object.values(combatData).map(unit=>[unit.id,plansForUnit(unit.id)]))}
+function universalPlanPreview(rows){return window.LuminousUnitUniversalActionRuntime.reservePlans(combatData[PLAYER_ID],rows,{round,strictTargets:false,units:combatData,plans:{...universalPlansByUnit(),[PLAYER_ID]:rows}})}
 function assignSelectedToSlot(){
   if(playerGrapplePlanningLocked()){setStatus('GRAPPLE · el Check automático ocupa el único Slot');return}
   if(planReady||roundRunning||targetingModeActive||!selected)return;
@@ -6136,6 +6143,8 @@ function assignSelectedToSlot(){
     targetId:null,
     targetSlotIndex:null
   };
+  const gate=universalPlanPreview({...plannedActions,[assignedSlot]:plan});
+  if(!gate.ok){setStatus('Esta unidad ya reservó una acción universal de esa fase. Cambia la acción anterior.');return}
   plannedActions[assignedSlot]=plan;
   renderPlannedSlot(assignedSlot);
   goRoot();
@@ -6469,6 +6478,18 @@ function damageTypeLabel(data){
   // SPELL is not a resistance type. Spells may explicitly deal a physical or Sin damage type.
   return 'NORMAL'
 }
+function universalHelpBonusForPlan(plan){
+  const runtime=window.LuminousUnitUniversalActionRuntime,origin=plan?._universalHelpOrigin;
+  if(origin){
+    const unit=combatData[origin.ownerId],index=Number(origin.slotIndex),original=unit&&plansForUnit(unit.id)[index];
+    if(Number(origin.round)!==round||!Number.isInteger(index)||index<0||!original||runtime.fingerprint(original)!==origin.actionId)return 0;
+    // Only targeting was redirected. Changing the Skill/card must not transfer
+    // the original action's Help, including Mastermind bonuses.
+    if(runtime.fingerprint({...plan,targetId:original.targetId,targetSlotIndex:original.targetSlotIndex})!==origin.actionId)return 0;
+    return runtime.helpBonus(unit,original,index,round,combatData)
+  }
+  for(const unit of Object.values(combatData)){const index=plansForUnit(unit.id).indexOf(plan);if(index>=0)return runtime.helpBonus(unit,plan,index,round,combatData)}return 0
+}
 function clashData(plan){
   const data=plan?.data||{};
   return{
@@ -6476,7 +6497,7 @@ function clashData(plan){
     basePower:Number(data.basePower)||0,
     coinPower:Number(data.coinPower)||0,
     coinAmount:Math.max(1,Math.trunc(Number(data.coinAmount)||1)),
-    finalPowerBonus:Number(plan?._helpFinalPowerBonus||plan?.finalPowerBonus)||0,
+    finalPowerBonus:(Number(plan?.finalPowerBonus)||0)+universalHelpBonusForPlan(plan),
     grappleCheck:Boolean(data.grappleCheck),
     heal:data?.spellEffect==='heal_hp',
     sinColor:sinInfo(data).color,
@@ -6954,6 +6975,8 @@ function combatStepRuntime(){
     'triggerCounterAfterHit','resolveEvadeAgainstCoin','processConditionRemovalTrigger','markEntryStarted',
     'healCombatantSP','addEphemeralShield','unitReactionBlocked','disarmEvade'];
   const rules={data:clashData,unit:id=>combatData[id],
+    canUnitAct:unit=>!unitActionBlocked(unit,round)&&(window.LuminousDeathSaveRuntime?.canAct(unit)??((Number(unit?.hp)||0)>0)),
+    unopposedTargetId:entry=>validTargetUnits(combatData[entry.ownerId],planTargetRule(entry.plan,combatData[entry.ownerId]),entry.plan)[0]?.id,
     rollSide:chance=>window.LuminousCoinEngine.rollSide(chance),coinSrc:side=>window.LuminousCoinEngine.coinSrc(side)};
   names.forEach(name=>{rules[name]=(...args)=>window[name](...args)});
   rules.caveEvadeBonus=(unit,plan)=>window.LuminousCaveSapphireSpiderRuntime?.evadeBonus?.(unit,plan)||0;
@@ -6972,7 +6995,8 @@ function combatStepRuntime(){
       encounterId:a?.current?.encounterId??window.LuminousCombatLiveAdapter073?.state?.encounterId??null,round,
       roundId:a?.current?.id??`${round}:${a?.seed||0}`,seed:a?.seed||0,rngCursor:a?.cursor??null}},
     snapshot:()=>window.LuminousCombatAuthority073?.snapshotRuntime?.()||Object.fromEntries(Object.entries(combatData).map(([id,u])=>[id,{
-      hp:u.hp,sp:u.sp,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],
+      hp:u.hp,sp:u.sp,lifeState:u.lifeState,isDowned:u.isDowned,isDead:u.isDead,deathSaves:u.deathSaves,
+      statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],
       shieldPools:u.shieldPools||{},staggerStage:u.staggerStage||0}])),
     presentation:{
       wait:key=>wait(COMBAT_PACE[key]),
@@ -7337,6 +7361,7 @@ function settleClashUnits(...entries){
   if(!timelineResolutionActive&&entries.some(entry=>entry.ownerId===PLAYER_ID))focusCombatCameraOnPlayer()
 }
 function markEntryStarted(entry){
+  if(entry?.plan)entry.plan._universalStartedRound=round;
   if(window.LuminousCombatLiveMode&&window.LuminousCombatSlotDeck073)window.LuminousCombatSlotDeck073.mark(entry);
   else if(entry.controller==='player'&&entry.plan.type==='deck')markUsed(entry.localIndex,entry.plan.drawId);
   if(!entry._onUseStatusApplied){
@@ -7420,7 +7445,9 @@ async function resolveGrappleTurnCheck(state){
 async function resolveHelpAction(entry){
   const plan=entry?.plan,targetPlan=plannedActionAt(plan?.targetId,plan?.targetSlotIndex);
   if(!targetPlan){setStatus(`HELP · ${combatData[entry.ownerId]?.name||entry.ownerId} · target Slot sin Action`);await wait(260);return false}
-  targetPlan._helpFinalPowerBonus=(Number(targetPlan._helpFinalPowerBonus)||0)+1;
+  const actor=combatData[entry.ownerId],target=combatData[plan.targetId];
+  if(!window.LuminousUnitUniversalActionRuntime.active(actor)||!window.LuminousUnitUniversalActionRuntime.active(target))return false;
+  window.LuminousUnitUniversalActionRuntime.applyHelp(actor,target,targetPlan,Number(plan.targetSlotIndex),round,combatData);
   setStatus(`HELP · ${combatData[entry.ownerId]?.name||entry.ownerId} → ${combatData[plan.targetId]?.name||plan.targetId} Slot ${Number(plan.targetSlotIndex)+1} · +1 Final Power`);
   await wait(340);
   return true
@@ -7435,7 +7462,7 @@ async function resolveCalmAction(entry){
 }
 async function resolveWakeUpAction(entry){
   const target=combatData[entry?.plan?.targetId];if(!target||!unitHasStatus(target,'sleep')){await wait(140);return false}
-  target.wakePendingRound=round;setStatus(`WAKE UP · ${target.name} · Sleep will be removed On Turn End`);await wait(220);return true
+  removeCombatStatus(target.id,'sleep');target.wakePendingRound=0;setStatus(`WAKE UP · ${target.name} · Sleep will be removed On Turn End`);await wait(220);return true
 }
 function performLiberateCheck(actorId,targetId,method='sleight_of_hand',{inCombat=true}={}){
   const actor=combatData[actorId],target=combatData[targetId],count=statusModifier(target,'restrained');
@@ -7455,22 +7482,7 @@ async function resolveLiberateAction(entry){
   else setStatus(`LIBERATE · ${method.replaceAll('_',' ').toUpperCase()} ${result?.total||0}/${result?.threshold||'?'} FAIL`);
   await wait(320);return Boolean(result?.success)
 }
-function executeFindFreeAction(){
-  const player=combatData[PLAYER_ID];
-  if(!player||Number(player.invisibleAwarenessRound)!==round||Number(player.findUsedRound)===round){setStatus('FIND · no detectable invisible presence this Round');return false}
-  player.findUsedRound=round;
-  const targets=Object.values(combatData).filter(unit=>unit.id!==PLAYER_ID&&isUnitTargetable(unit)&&unitHasStatus(unit,'invisible')&&!invisibleDetectedBy(player,unit));
-  let found=0,best=null;
-  targets.forEach(target=>{
-    const inv=getCombatStatus(target,'invisible'),threshold=Math.max(1,Number(inv?.detectThreshold)||13),result=rollAbilitySkillCheck(PLAYER_ID,{ability:'perception',skill:'perception',threshold});
-    if(!best||Number(result?.total)>Number(best?.total))best=result;
-    if(result?.success){player.detectedInvisibleIds=player.detectedInvisibleIds||[];if(!player.detectedInvisibleIds.includes(target.id))player.detectedInvisibleIds.push(target.id);found++}
-  });
-  syncConditionVisuals();renderTargetArrows();
-  setStatus(found?`FIND · PERCEPTION PASS · ${found} Invisible unit${found===1?'':'s'} located`:`FIND · PERCEPTION ${best?.total||0}/${best?.threshold||'?'} FAIL`);
-  if(activeMenu==='global')renderCategory();
-  return found>0
-}
+async function executeFindFreeAction(){const result=await requestUniversalInstant('find');setStatus(result.used?(result.success?'FIND · Presencia invisible localizada.':'FIND · No logras localizar la presencia.'):'FIND · No hay una presencia invisible que puedas buscar.');if(activeMenu==='global')renderCategory();return result}
 function markRetreatAction(entry){
   const unit=combatData[entry?.ownerId];if(!unit)return false;
   unit.retreatPendingRound=round;unit.escapePendingRound=0;
@@ -7634,7 +7646,17 @@ function isGuardPlan(plan){
 async function resolveGuardAction(entry){
   return combatStepRuntime().guard(entry)
 }
+async function resolveNativeAssistGuard(entry){
+  const m=window.LuminousMastermindArchetypeRuntime,actor=combatData[entry.ownerId],target=combatData[entry.plan?.targetId];if(!m||!actor||!target||actor.faction===target.faction||!isSkillOrSpellPlan(entry.plan))return false;
+  const actionMap=Object.fromEntries(Object.values(combatData).flatMap(unit=>plansForUnit(unit.id).map((plan,index)=>[`${unit.id}_slot_${index}`,{actorId:unit.id,source:{type:plan?.data?.kind==='spell'?'spell':'skill',id:plan?.data?.id||plan?.data?.skillId},state:'planned'}])));
+  const context={units:Object.values(combatData).filter(unit=>window.LuminousUnitUniversalActionRuntime.active(unit)&&!unitActionBlocked(unit,round)),actionMap,getAvailableAssistGuardSkills:unit=>(UNIT_KITS[unit.id]?.actions||[]).filter(skill=>skill.kind==='skill'),isAssistGuardSkillAvailable:({guard,skill})=>Number(guard.mastermindAssistGuardState?.round)!==round||!(guard.mastermindAssistGuardState?.usedSkills||[]).includes(skill.id||skill.skillId)};
+  const found=m.findAssistGuard(target,actor,{actorId:actor.id},context);if(!found||!window.LuminousUnitUniversalActionRuntime.active(found.guard)||!m.consumeAssistGuard(found.guard,found.statusId)?.consumed)return false;
+  if(Number(found.guard.mastermindAssistGuardState?.round)!==round)found.guard.mastermindAssistGuardState={round,usedSkills:[]};found.guard.mastermindAssistGuardState.usedSkills.push(found.skill.id||found.skill.skillId);
+  const origin=entry.plan._universalHelpOrigin||{round,ownerId:entry.ownerId,slotIndex:entry.localIndex,actionId:window.LuminousUnitUniversalActionRuntime.fingerprint(entry.plan)};
+  await resolveSkillClash({...entry,plan:{...entry.plan,_universalHelpOrigin:origin,targetId:found.guard.id,targetSlotIndex:null}},{ownerId:found.guard.id,ownerName:found.guard.name,controller:found.guard.controlled,localIndex:0,slot:unitSlots(found.guard.id)[0],plan:{type:'granted',data:found.skill,targetId:actor.id,targetSlotIndex:entry.localIndex}});return true;
+}
 async function executeQueueEntry(entry,queue,resolvedKeys){
+  if(window.LuminousUnitUniversalActionPolicy.definitionFor(entry.plan?.data?.actionKey)?.phase==='on_turn_end'&&!entry._turnEnd)return;
   const steps=combatStepRuntime(),before=resolvedKeys.has(entryKey(entry));
   if(before)return;
   steps.emit('QueueEntryStarted',entry);
@@ -7646,7 +7668,10 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
   if(!entry?.plan||!entry.slot)return;
   const key=entryKey(entry);
   if(resolvedKeys.has(key))return;
-  const ownerUnit=combatData[entry.ownerId];
+  const ownerUnit=combatData[entry.ownerId],universal=window.LuminousUnitUniversalActionRuntime,definition=window.LuminousUnitUniversalActionPolicy.definitionFor(entry.plan.data?.actionKey);
+  if(definition?.phase==='on_turn_end'&&!entry._turnEnd)return;
+  if(!universal.active(ownerUnit)){if(ownerUnit)universal.cancelPending(ownerUnit,round);resolvedKeys.add(key);return}
+  if(definition){const gate=universal.commitEntry(entry,combatData,universalPlansByUnit(),round,entry._turnEnd?'on_turn_end':'combat_phase');if(!gate.ok){resolvedKeys.add(key);combatStepRuntime().emit('ActionCancelled',entry,{reason:gate.reason});setStatus('La acción universal se canceló porque su objetivo ya no está disponible.');return}}
   if(unitActionBlocked(ownerUnit,round)){
     combatStepRuntime().emit('ActionCancelled',entry,{reason:'owner_blocked'});
     resolvedKeys.add(key);
@@ -7732,6 +7757,7 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
     return
   }
 
+  if(isSkillOrSpellPlan(plan)&&await resolveNativeAssistGuard(entry)){resolvedKeys.add(key);setExecutingSlot(slot,false);return}
   if(isClashableDefensePlan(plan)){
     // The defensive Action Slot waits for an incoming attack. If no attacker
     // selects it, the unused defense simply expires at the end of the Turn.
@@ -7792,6 +7818,27 @@ function applyEquipmentTurnStart(turnNumber=round){
   }
   return true
 }
+async function finishRoundExecution(queue,resolvedKeys){
+  if(roundEndProgress.round!==round)roundEndProgress={round,phase:'actions'};
+  if(roundEndProgress.phase==='actions'){
+    // This synchronous mutation and its phase marker are captured together in
+    // every subsequent action checkpoint. A recovered Turn End never reruns it.
+    window.LuminousUnitIndependentActions?.runAiPhase('after_actions',{round,units:Object.values(combatData),mutate:combatStepRuntime().mutate});
+    combatStepRuntime().mutate('RoundEndEffects',null,{},()=>{
+      processConcentrationChecks(round);
+      processStatusRoundEnd(round);
+      processDeathSavesRoundEnd(round);
+      roundEndProgress={round,phase:'turn_end'}
+    });
+  }
+  if(roundEndProgress.phase==='turn_end'){
+    for(const entry of queue)if(!resolvedKeys.has(entryKey(entry))&&window.LuminousUnitUniversalActionPolicy.definitionFor(entry.plan?.data?.actionKey)?.phase==='on_turn_end')await executeQueueEntry({...entry,_turnEnd:true},queue,resolvedKeys);
+    combatStepRuntime().mutate('UniversalTurnEndResolved',null,{},()=>{
+      processWakeUpTurnEnd(round);processTurnEndExitActions(round);
+      roundEndProgress={round,phase:'complete'}
+    });
+  }
+}
 async function startRound(){
   if(roundRunning)return;
   hideClashForecast();
@@ -7820,16 +7867,17 @@ async function startRound(){
   await wait(COMBAT_PACE.cameraSettle);
 
   if(!recovered?.eventCursor)window.LuminousUnitIndependentActions?.runAiPhase('before_actions',{round,units:Object.values(combatData),mutate:combatStepRuntime().mutate});
+  if(!recovered){const prepared=window.LuminousUnitUniversalActionRuntime.prepare(combatData,universalPlansByUnit(),{round});if(!prepared.ok)throw new Error('Las acciones universales del turno no son válidas. Revisa las acciones y sus objetivos.');for(const [id,ledger]of Object.entries(prepared.ledgers))combatData[id].universalActionPhaseLedger=ledger;}
   const queue=buildExecutionQueue(),
         resolvedKeys=new Set();
   if(recovered){
     window.LuminousCombatStepRuntime.restoreExecution(queue,resolvedKeys,recovered);
     if(!recovered.queue?.length)armReactiveDefenses(queue)
-  }else armReactiveDefenses(queue);
+  }else{roundEndProgress={round,phase:"actions"};armReactiveDefenses(queue)}
   // Recovery restores HP and the persisted ledger before any turn-start effect.
-  applyEquipmentTurnStart(round);
+  if(roundEndProgress.phase==='actions')applyEquipmentTurnStart(round);
   try{
-    await executeCombatTimeline(queue,resolvedKeys)
+    if(roundEndProgress.phase==='actions')await executeCombatTimeline(queue,resolvedKeys)
   }finally{
     timelineResolutionActive=false
   }
@@ -7838,14 +7886,7 @@ async function startRound(){
   // Any Evade that was never broken expires here; unused Counter Slots also
   // expire. Reactive defenses never carry across Turns.
   clearReactiveDefenses();
-  // Concentration only sees damage taken during the active Round. Turn-End Status
-  // damage resolves afterwards and therefore never raises this Round's DC.
-  window.LuminousUnitIndependentActions?.runAiPhase('after_actions',{round,units:Object.values(combatData),mutate:combatStepRuntime().mutate});
-  combatStepRuntime().mutate('RoundEndEffects',null,{},()=>{
-    processConcentrationChecks(round);
-    processStatusRoundEnd(round);
-    processTurnEndExitActions(round)
-  });
+  await finishRoundExecution(queue,resolvedKeys);
   combatStepRuntime().emit('RoundFinished');
   activeGrapples.filter(state=>state?.active).forEach(state=>{
     const a=combatData[state.attackerId],b=combatData[state.defenderId];
@@ -7856,6 +7897,7 @@ async function startRound(){
   await wait(COMBAT_PACE.turnEnd);
 
   round++;
+  roundEndProgress={round,phase:'actions'};
   activatePendingStatuses(round);
   refreshRoundUnitStates(round);
   resolvePendingGrappleReleases();
@@ -8107,7 +8149,9 @@ function skillRulesMarkup(data){
 function selectAction(sel){if(sel?.data?.actionKey==='analyse'){goRoot();setTimeout(enterAnalyseMode,190);return}if(sel?.data?.actionKey==='find'){executeFindFreeAction();return}selected=sel;navState='action';if(activeMenu==='skills'||activeMenu==='spells'||activeMenu==='defense'){const d=sel.data,body=$('category-body'),sin=sinInfo(d),cp=Number(d.coinPower)||0,range=skillPowerRange(d),spell=isSpellSkill(d)||activeMenu==='spells',defense=isDefenseSkill(d)||activeMenu==='defense',prose=(spell||defense)&&d.description?`<div class="description-text">${d.description}${d.evolution?`<br><br>${d.evolution}`:''}</div>`:'';const detailHeptAccent=defense?menuMeta.defense.accent:sin.color,
           detailHeptContent=defense&&d?.iconUrl?`<img src="${d.iconUrl}" alt="${htmlEscape(d.name)}">`:sinIconMarkup(sin);
     const saveOnly=Boolean(d?.saveOnly&&d?.save),detailPower=saveOnly?`${saveAbilityLabel(d.save.ability)} SAVE · TH ${Math.max(0,Number(d.save.threshold)||0)}`:`${range.min} - ${range.max}${combatLevelMarkup(d)}`,detailCoins=saveOnly?`<div class="skill-detail-coin-power">SAVE</div>`:`<div class="skill-detail-coins">${skillCoinMarkup(d,true)}</div><div class="skill-detail-coin-power">${cp>=0?'+':''}${cp}</div>`;
-    body.innerHTML=`<div class="description-box skill-detail-card" style="--detail-sin:${detailHeptAccent}"><div class="description-kicker">${sel.type==='deck'?'DECK SKILL':d.tag||'SKILL'}</div><div class="description-name">${d.name}</div><div class="skill-detail-stats"><div class="skill-detail-sin${defense?' defense-skill-hept':''}" style="--detail-sin:${detailHeptAccent}">${detailHeptContent}</div><div class="skill-detail-power"><img class="skill-type-icon" src="${combatTypeIcon(d)}" alt="${defense?'Defense':isSpellSkill(d)?'Spell':'Attack'}"> ${detailPower}</div><div class="skill-detail-coins-wrap">${detailCoins}</div></div>${prose}${skillRulesMarkup(d)}<div class="description-cost">${d.cost||'1 Action Slot'}</div><div class="description-actions"><button class="confirm" id="action-confirm">CONFIRMAR</button></div></div>`;body.scrollTop=0;$('action-confirm').onclick=assignSelectedToSlot;requestAnimationFrame(layoutCategory)}else renderCleanList();setStatus(`ACTION · ${sel.data.name} · Slot ${sel.slotIndex+1}`)}
+    body.innerHTML=`<div class="description-box skill-detail-card" style="--detail-sin:${detailHeptAccent}"><div class="description-kicker">${sel.type==='deck'?'DECK SKILL':d.tag||'SKILL'}</div><div class="description-name">${d.name}</div><div class="skill-detail-stats"><div class="skill-detail-sin${defense?' defense-skill-hept':''}" style="--detail-sin:${detailHeptAccent}">${detailHeptContent}</div><div class="skill-detail-power"><img class="skill-type-icon" src="${combatTypeIcon(d)}" alt="${defense?'Defense':isSpellSkill(d)?'Spell':'Attack'}"> ${detailPower}</div><div class="skill-detail-coins-wrap">${detailCoins}</div></div>${prose}${skillRulesMarkup(d)}<div class="description-cost">${d.cost||'1 Action Slot'}</div><div class="description-actions"><button class="confirm" id="action-confirm">CONFIRMAR</button></div></div>`;body.scrollTop=0;$('action-confirm').onclick=assignSelectedToSlot;requestAnimationFrame(layoutCategory)}else if(activeMenu==='global'){
+    const d=sel.data,body=$('category-body');body.innerHTML=`<div class="description-box"><div class="description-kicker">${htmlEscape(d.tag||'Action')}</div><div class="description-name">${htmlEscape(d.name)}</div><div class="description-text">${d.description||''}</div><div class="description-cost">${htmlEscape(d.cost||'1 Action Slot')}</div><div class="description-actions"><button class="confirm" id="action-confirm">CONFIRMAR</button></div></div>`;body.scrollTop=0;$('action-confirm').onclick=assignSelectedToSlot;requestAnimationFrame(layoutCategory)
+  }else renderCleanList();setStatus(`ACTION · ${sel.data.name} · Slot ${sel.slotIndex+1}`)}
 function goRoot(){const surface=$('category-surface'),ring=$('command-ring'),back=$('back');transitionToken++;navState='root';activeMenu=null;selected=null;syncReadyControl();back.classList.remove('open');surface.classList.remove('open');setTimeout(()=>{surface.classList.remove('left-side','right-side');back.classList.remove('left-side');ring.style.visibility='';ring.classList.remove('leaving');ring.classList.add('entering');layoutRadialCommands();setTimeout(()=>ring.classList.remove('entering'),260)},150);setStatus(`ROOT · Slot ${selectedSlotIndex+1}`)}
 function goBack(){if(navState==='action'){navState='category';selected=null;renderCategory();setStatus(`CATEGORY · ${activeMenu.toUpperCase()} · Slot ${selectedSlotIndex+1}`)}else if(navState==='category')goRoot()}
 function selectSlot(i){
@@ -8327,9 +8371,10 @@ window.LuminousCombatStepRuntime=Object.freeze({
   acceptEvent:event=>combatStepRuntime().acceptEvent(event),
   resetJournal:cursor=>combatStepRuntime().resetJournal(cursor),
   captureExecution(queue,resolvedKeys){
+    if(Number(roundEndProgress.round)!==round)roundEndProgress={round,phase:'actions'};
     const domain=value=>JSON.parse(JSON.stringify(value,(key,value)=>
       (key==='slot'&&value?.classList)||key.startsWith('_hp')||value?.nodeType||typeof value==='function'?undefined:key==='combatDeck'&&window.LuminousCombatSlotDeck073?window.LuminousCombatSlotDeck073.compact(value):value));
-    return domain({units:combatData,queue,resolvedKeys:[...resolvedKeys],activeGrapples,grappleSerial})
+    return domain({units:combatData,plansByUnit:universalPlansByUnit(),roundEndProgress,queue,resolvedKeys:[...resolvedKeys],activeGrapples,grappleSerial})
   },
   restoreExecution(queue,resolvedKeys,saved){
     const attach=value=>{
@@ -8346,7 +8391,20 @@ window.LuminousCombatStepRuntime=Object.freeze({
       // A pre-effect snapshot must also clear a newer in-memory ledger.
       combatData[id].equipmentEffectTurnLedger=attach(unit.equipmentEffectTurnLedger||{});
     }
+    roundEndProgress=Number(saved.roundEndProgress?.round)===round?attach(saved.roundEndProgress):{round,phase:'actions'};
     if(saved.queue?.length)queue.splice(0,queue.length,...attach(saved.queue));
+    // JSON duplicates queue plans and roster plans. Reattach by Unit and Slot,
+    // preserving the action fingerprint checked by Help rather than searching
+    // structurally equal Skills across Units or Slots.
+    for(const [id,plans]of Object.entries(saved.plansByUnit||{})){
+      if(id===PLAYER_ID&&combatData[id]?.controlled==='player')plannedActions=attach(plans);
+      else if(combatData[id])combatData[id].autoPlans=attach(plans);
+    }
+    for(const entry of queue){
+      const plans=plansForUnit(entry.ownerId),index=entry.localIndex??0;
+      const canonical=plans[index];
+      if(canonical&&window.LuminousUnitUniversalActionRuntime.fingerprint(canonical)===window.LuminousUnitUniversalActionRuntime.fingerprint(entry.plan))entry.plan=canonical;
+    }
     for(const key of saved.resolvedKeys||[])resolvedKeys.add(key);
     activeGrapples=attach(saved.activeGrapples||[]);grappleSerial=Number(saved.grappleSerial)||0
   },
