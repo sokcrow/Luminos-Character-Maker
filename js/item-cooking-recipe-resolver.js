@@ -65,6 +65,8 @@
     brew_base: alias({ anyTags:["brewed"], anyForms:["brew_base"] }),
     broth_base: alias({ anyTags:["stock","broth","broth_base"], anyForms:["stock","broth"] }),
     cheese: alias({ anyTags:["cheese"], anyForms:["cheese"] }),
+    chocolate: alias({ anyTags:["chocolate"], anyForms:["chocolate"], processedOnly:true }),
+    chocolate_chips: alias({ anyTags:["chocolate_chips"], anyForms:["chocolate_chips"], processedOnly:true }),
     coating: alias({ anyTags:["coating"], anyForms:["coating"] }),
     corn_dough: alias({ anyTags:["corn_dough"], anyForms:["corn_dough"] }),
     cream: alias({ anyTags:["cream"], anyForms:["cream"] }),

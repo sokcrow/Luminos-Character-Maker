@@ -4,7 +4,7 @@
     if (typeof module !== "undefined" && module.exports) module.exports = global.LuminousItemIconRegistry;
     return;
   }
-  const VERSION = 35;
+  const VERSION = 36;
   const DEFAULT_GROUP = "generic_item";
   function family(id, label, labelEs, domain, icon) { return Object.freeze({ id, label, labelEs, domain, icon }); }
   const FAMILY_ROWS = Object.freeze([
@@ -31,6 +31,8 @@
     ["culinary_stock","Culinary Stock","Caldo base","material","Assets/Icons/items/material/culinary_stock.png"],
     ["culinary_sauce","Culinary Sauce","Salsa culinaria","material","Assets/Icons/items/material/culinary_sauce.png"],
     ["culinary_culture","Culinary Culture","Cultivo culinario","material","Assets/Icons/items/material/culinary_culture.png"],
+    ["chocolate","Chocolate","Chocolate","material","Assets/Icons/items/material/chocolate.png"],
+    ["chocolate_chips","Chocolate Chips","Chispas de chocolate","material","Assets/Icons/items/material/chocolate_chips.png"],
     ["food_bread","Bread","Pan","consumable","Assets/Icons/items/consumable/food_bread.png"],
     ["food_meal","Meal","Plato","consumable","Assets/Icons/items/consumable/food_meal.png"],
     ["food_soup","Soup","Sopa","consumable","Assets/Icons/items/consumable/food_soup.png"],
@@ -122,6 +124,14 @@
     ["strawberry_muffin","Strawberry Muffin","Muffin de fresa","consumable","Assets/Icons/items/consumable/strawberry_muffin.png"],
     ["lemon_muffin","Lemon Muffin","Muffin de limón","consumable","Assets/Icons/items/consumable/lemon_muffin.png"],
     ["coconut_muffin","Coconut Muffin","Muffin de coco","consumable","Assets/Icons/items/consumable/coconut_muffin.png"],
+    ["donut","Donut","Dona","consumable","Assets/Icons/items/consumable/donut.png"],
+    ["glazed_donut","Glazed Donut","Dona glaseada","consumable","Assets/Icons/items/consumable/glazed_donut.png"],
+    ["sugar_donut","Sugar Donut","Dona de azúcar","consumable","Assets/Icons/items/consumable/sugar_donut.png"],
+    ["chocolate_donut","Chocolate Donut","Dona de chocolate","consumable","Assets/Icons/items/consumable/chocolate_donut.png"],
+    ["cinnamon_donut","Cinnamon Donut","Dona de canela","consumable","Assets/Icons/items/consumable/cinnamon_donut.png"],
+    ["jam_filled_donut","Jam-Filled Donut","Dona rellena de mermelada","consumable","Assets/Icons/items/consumable/jam_filled_donut.png"],
+    ["cream_filled_donut","Cream-Filled Donut","Dona rellena de crema","consumable","Assets/Icons/items/consumable/cream_filled_donut.png"],
+    ["chocolate_filled_donut","Chocolate-Filled Donut","Dona rellena de chocolate","consumable","Assets/Icons/items/consumable/chocolate_filled_donut.png"],
     ["ration_field","Field Ration","Ración de campo","consumable","Assets/Icons/items/consumable/ration_field.png"],
     ["ration_preserved","Preserved Ration","Ración preservada","consumable","Assets/Icons/items/consumable/ration_preserved.png"],
     ["ration_canned","Canned Ration","Ración enlatada","consumable","Assets/Icons/items/consumable/ration_canned.png"],
