@@ -255,22 +255,18 @@
 
   function itemIcon(item = {}) {
     const resolved = runtime()?.resolveItem?.(item) || item;
-    const candidates = [
-      item.iconFamily, item.icon_family,
-      resolved.iconFamily, resolved.icon_family,
-      inferredIconFamily(resolved),
-      inferredIconFamily(item),
-    ];
-    for (const family of candidates) {
+    // Registry identity precedes any inferred category, preserving dedicated art.
+    for (const family of [item.iconFamily, item.icon_family, resolved.iconFamily, resolved.icon_family]) {
       const icon = iconFromFamily(family);
       if (icon) return icon;
     }
-
-    const explicit = [item.icono, item.icon, item.image, item.img].map(localItemIconAsset).find(Boolean);
+    const explicit = [item.icono, item.icon, item.image, item.img, resolved.icono, resolved.icon, resolved.image, resolved.img]
+      .map(localItemIconAsset).find(Boolean);
     if (explicit) return explicit;
-    const resolvedExplicit = [resolved.icono, resolved.icon, resolved.image, resolved.img].map(localItemIconAsset).find(Boolean);
-    if (resolvedExplicit) return resolvedExplicit;
-
+    for (const family of [item.family, resolved.family, inferredIconFamily(resolved), inferredIconFamily(item)]) {
+      const icon = iconFromFamily(family);
+      if (icon) return icon;
+    }
     return String(iconRegistry()?.resolveIcon?.("generic_item", { fallback: false }) || "").trim();
   }
 
@@ -423,10 +419,14 @@
   }
 
   function itemValue(item = {}) {
-    const explicit = item.valorBase ?? item.costo ?? item.cost ?? item.price ?? item.precio ?? item.productionValueAhn ?? item.totalValueAhn ?? item.unitValueAhn;
+    const explicit = item.valorBase ?? item.costo ?? item.cost ?? item.price ?? item.precio
+      ?? item.priceAhn ?? item.retailPriceAhn ?? item.valueAhn
+      ?? item.productionValueAhn ?? item.totalValueAhn ?? item.unitValueAhn;
     if (explicit != null) return Number(explicit) || 0;
     const resolved = runtime()?.resolveItem?.(item) || item;
-    return Number(resolved.valorBase ?? resolved.costo ?? resolved.cost ?? resolved.price ?? resolved.precio ?? resolved.productionValueAhn ?? resolved.totalValueAhn ?? resolved.unitValueAhn ?? 0) || 0;
+    return Number(resolved.valorBase ?? resolved.costo ?? resolved.cost ?? resolved.price ?? resolved.precio
+      ?? resolved.priceAhn ?? resolved.retailPriceAhn ?? resolved.valueAhn
+      ?? resolved.productionValueAhn ?? resolved.totalValueAhn ?? resolved.unitValueAhn ?? 0) || 0;
   }
 
   function manufacturerName(item = {}) {
@@ -506,7 +506,7 @@
         ${slotSpecs.map((slot) => `
           <button type="button" class="inventory-v2-eq-slot ${slot.className}" data-equipment-slot="${slot.id}" aria-label="${slot.label}">
             <span class="inventory-v2-eq-label">${slot.label}</span>
-            <span class="inventory-v2-eq-icon" aria-hidden="true"></span>
+            <span class="inventory-v2-eq-icon" aria-hidden="true"><img class="inventory-v2-eq-image" alt="" hidden /></span>
             <span class="inventory-v2-eq-name">LIBRE</span>
             <span class="inventory-v2-eq-hint">${slot.hint}</span>
           </button>`).join("")}
@@ -563,6 +563,14 @@
     detailRight.appendChild(extra);
   }
 
+  function ensureItemDetailPortal() {
+    // Keep the artwork modal outside the scrolling inventory panels: no clipped
+    // overlay on narrow screens, and no secondary details sidebar.
+    const root = doc.getElementById("inventory-modal");
+    const overlay = doc.getElementById("inventory-v2-detail-overlay");
+    if (root && overlay && overlay.parentElement !== root) root.appendChild(overlay);
+  }
+
   function rethemeTabs() {
     const modal = doc.getElementById("inventory-modal");
     if (!modal) return;
@@ -573,6 +581,49 @@
     if (active) active.textContent = "LOADOUT";
     if (stash) stash.textContent = "STASH / ALIJO";
     if (synth) synth.textContent = "SYNTHESIS";
+  }
+
+  let detailReturnFocus = null;
+  function detailIsOpen() {
+    const overlay = doc.getElementById("inventory-v2-detail-overlay");
+    return Boolean(overlay && !overlay.hidden);
+  }
+
+  function openItemDetail() {
+    const overlay = doc.getElementById("inventory-v2-detail-overlay");
+    const card = doc.getElementById("item-detail-card");
+    const dialog = doc.getElementById("inventory-v2-detail-dialog");
+    if (!overlay || !card || !dialog || !selectedItem()) return;
+    if (!detailIsOpen()) detailReturnFocus = doc.activeElement;
+    overlay.hidden = false;
+    overlay.classList.add("active");
+    card.classList.add("active");
+    // Mark the inventory shell inert while the independent popup is open.
+    // This prevents pointer and keyboard interaction behind aria-modal.
+    const shell = doc.querySelector("#inventory-modal > .inventory-modal-content");
+    if (shell) shell.inert = true;
+    dialog.focus({ preventScroll: true });
+  }
+
+  function closeItemDetail(restoreFocus = true) {
+    const overlay = doc.getElementById("inventory-v2-detail-overlay");
+    overlay?.classList.remove("active");
+    if (overlay) overlay.hidden = true;
+    doc.getElementById("item-detail-card")?.classList.remove("active");
+    const shell = doc.querySelector("#inventory-modal > .inventory-modal-content");
+    if (shell) shell.inert = false;
+    if (restoreFocus) {
+      // Inventory refreshes replace grid buttons; use their stable container/key
+      // if the exact origin element has been detached by Firebase updates.
+      let target = detailReturnFocus?.isConnected ? detailReturnFocus : null;
+      if (!target && state.selected) {
+        const selector = state.selectedContainer === "stash" ? "#inv-stash-grid" : "#inv-active-grid";
+        target = Array.from(doc.querySelectorAll(selector + " [data-key]"))
+          .find((button) => button.dataset.key === state.selected.key) || null;
+      }
+      (target || doc.getElementById("inventory-modal-close"))?.focus?.({ preventScroll: true });
+    }
+    detailReturnFocus = null;
   }
 
   function bindModalControls() {
@@ -605,6 +656,7 @@
     const closeInventory = (event) => {
       event?.preventDefault?.();
       event?.stopPropagation?.();
+      closeItemDetail(false);
       modal.classList.remove("active");
       suspendRealtime();
       emitVisibility(false);
@@ -615,9 +667,36 @@
     modal.addEventListener("click", (event) => {
       if (event.target === modal) closeInventory();
     });
-    doc.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && modal.classList.contains("active")) closeInventory(event);
+    const detailOverlay = doc.getElementById("inventory-v2-detail-overlay");
+    doc.getElementById("inventory-v2-detail-close")?.addEventListener("click", () => closeItemDetail());
+    detailOverlay?.addEventListener("click", (event) => {
+      if (event.target === detailOverlay) closeItemDetail();
     });
+    doc.addEventListener("keydown", (event) => {
+      if (!modal.classList.contains("active")) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (detailIsOpen()) closeItemDetail();
+        else closeInventory(event);
+        return;
+      }
+      if (event.key !== "Tab" || !detailIsOpen()) return;
+      const dialog = doc.getElementById("inventory-v2-detail-dialog");
+      const focusables = Array.from(dialog?.querySelectorAll(
+        'button:not([disabled]):not([hidden]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      ) || []).filter((el) => el.getClientRects().length > 0);
+      if (!focusables.length) { event.preventDefault(); dialog?.focus(); return; }
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (!dialog?.contains(doc.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && (doc.activeElement === first || doc.activeElement === dialog)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && doc.activeElement === last) {
+        event.preventDefault(); first.focus();
+      }
+    }, true);
 
     modal.querySelectorAll(".inv-tab-btn").forEach((button) => {
       button.addEventListener("click", () => {
@@ -714,7 +793,8 @@
     const effectCodes = activeCard ? activeEffectCodes(effectIndicators) : [];
     slot.setAttribute("aria-label", `${itemName(item)}, ${categoryLabel(category)}, quantity ${quantity}${effectCodes.length ? ", effects " + effectCodes.join(", ") : ""}`);
     const iconHtml = `
-      <span class="item-icon${icon ? " has-icon" : ""}"${icon ? ` style="background-image:url(&quot;${escapeHtml(icon)}&quot;)"` : ""}>
+      <span class="item-icon${icon ? " has-icon" : ""}">
+        ${icon ? `<img class="inventory-v2-item-image" src="${escapeHtml(icon)}" alt="" loading="lazy" decoding="async" />` : ""}
         <span class="inventory-v2-icon-fallback">${escapeHtml(categoryLabel(category).slice(0, 3))}</span>
         ${gemOverlayIcon ? `<span class="inventory-v2-gem-overlay" aria-hidden="true" style="background-image:url(&quot;${escapeHtml(gemOverlayIcon)}&quot;)"></span>` : ""}
       </span>`;
@@ -731,8 +811,19 @@
       </div>
       ${equipable && !activeCard ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
       ${activeCard ? "" : effectIndicatorHtml}
-      ${activeCard ? "" : `<div class="item-quantity">x${quantity}</div>`}`;
+      ${quantity > 1 ? `<div class="item-quantity">x${quantity}</div>` : ""}`;
 
+    const image = slot.querySelector(".inventory-v2-item-image");
+    image?.addEventListener("error", () => {
+      const fallback = iconFromFamily("generic_item");
+      if (image.dataset.fallback !== "1" && fallback && image.getAttribute("src") !== fallback) {
+        image.dataset.fallback = "1";
+        image.src = fallback;
+        return;
+      }
+      image.hidden = true;
+      image.closest(".item-icon")?.classList.remove("has-icon");
+    });
     if (containerType === "active") {
       slot.addEventListener("dragstart", (event) => {
         event.dataTransfer?.setData?.("text/plain", key);
@@ -879,8 +970,30 @@
       const icon = button.querySelector(".inventory-v2-eq-icon");
       const url = item ? itemIcon(item) : "";
       if (icon) {
-        icon.style.backgroundImage = url ? `url("${String(url).replace(/["\\]/g, "")}")` : "";
-        icon.classList.toggle("has-icon", Boolean(url));
+        const image = icon.querySelector(".inventory-v2-eq-image");
+        icon.style.backgroundImage = "none";
+        if (image) {
+          image.onerror = () => {
+            const fallback = iconFromFamily("generic_item");
+            if (image.dataset.fallback !== "1" && fallback && image.getAttribute("src") !== fallback) {
+              image.dataset.fallback = "1";
+              image.src = fallback;
+            } else {
+              image.dataset.failed = "1";
+              image.hidden = true;
+              icon.classList.remove("has-icon");
+            }
+          };
+          if (image.dataset.requested !== url) {
+            image.dataset.requested = url;
+            image.dataset.fallback = "";
+            image.dataset.failed = "";
+            if (url) image.src = url;
+            else image.removeAttribute("src");
+          }
+          image.hidden = !url || image.dataset.failed === "1";
+        }
+        icon.classList.toggle("has-icon", Boolean(url) && image?.hidden !== true);
       }
       const hint = button.querySelector(".inventory-v2-eq-hint");
       button.classList.toggle("is-filled", Boolean(item));
@@ -954,13 +1067,13 @@
     decorateGrid("stash");
     renderEquipment();
     renderDetail();
-    if (options.focus !== false) doc.getElementById("item-detail-card")?.classList.add("active");
+    if (options.focus !== false) openItemDetail();
   }
 
   function clearSelection() {
     state.selected = null;
     state.selectedContainer = "active";
-    doc.getElementById("item-detail-card")?.classList.remove("active");
+    closeItemDetail(false);
     doc.querySelectorAll("#inv-active-grid .item-slot.active,#inv-stash-grid .item-slot.active").forEach((slot) => slot.classList.remove("active"));
     renderEquipment();
   }
@@ -971,10 +1084,10 @@
     const card = doc.getElementById("item-detail-card");
     if (!card) return;
     if (!item) {
-      card.classList.remove("active");
+      closeItemDetail(false);
       return;
     }
-    card.classList.add("active");
+    // Live data refresh updates details without reopening a dismissed popup.
 
     const condition = runtime()?.getCondition?.(item);
     const conditionPercent = condition?.percent ?? Math.max(0, Math.min(100, Math.round((Number(item.condition ?? 100) / Math.max(1, Number(item.conditionMax ?? 100))) * 100)));
@@ -984,7 +1097,25 @@
 
     const icon = doc.getElementById("detail-icon");
     if (icon) {
-      icon.src = itemIcon(item);
+      const url = itemIcon(item);
+      icon.onerror = () => {
+        const fallback = iconFromFamily("generic_item");
+        if (icon.dataset.fallback !== "1" && fallback && icon.getAttribute("src") !== fallback) {
+          icon.dataset.fallback = "1";
+          icon.src = fallback;
+        } else {
+          icon.dataset.failed = "1";
+          icon.hidden = true;
+        }
+      };
+      if (icon.dataset.requested !== url) {
+        icon.dataset.requested = url;
+        icon.dataset.fallback = "";
+        icon.dataset.failed = "";
+        if (url) icon.src = url;
+        else icon.removeAttribute("src");
+      }
+      icon.hidden = !url || icon.dataset.failed === "1";
       icon.alt = itemName(item);
     }
     const tier = doc.getElementById("detail-tier-val");
@@ -1351,6 +1482,21 @@
   function renderActions(item, equippedSlot) {
     const host = doc.getElementById("inventory-v2-actions");
     if (!host) return;
+    const dialog = doc.getElementById("inventory-v2-detail-dialog");
+    const activeAction = detailIsOpen() && host.contains(doc.activeElement) ? doc.activeElement : null;
+    const actionLabel = activeAction?.textContent || "";
+    const activeIndex = activeAction ? Array.from(host.querySelectorAll("button")).indexOf(activeAction) : -1;
+    const restoreActionFocus = () => {
+      if (!detailIsOpen()) return;
+      if (activeAction) {
+        const enabled = Array.from(host.querySelectorAll("button:not([disabled])"));
+        (enabled.find((button) => button.textContent === actionLabel)
+          || enabled[Math.max(0, Math.min(activeIndex, enabled.length - 1))]
+          || doc.getElementById("inventory-v2-detail-close"))?.focus?.({ preventScroll: true });
+      } else if (dialog && !dialog.contains(doc.activeElement)) {
+        dialog.focus({ preventScroll: true });
+      }
+    };
     host.innerHTML = "";
     const magical = magicRuntime()?.isMagicItem?.(item) === true;
     const presentation = magical ? magicPresentation(item) : null;
@@ -1365,12 +1511,14 @@
       addAction(host, "UNEQUIP", unequipSelected, "primary");
       appendAttunementAction(host, item);
       if (canStudy) addAction(host, "STUDY ARCANA · 1 SP", studySelectedArcana);
+      restoreActionFocus();
       return;
     }
     if (state.selectedContainer === "stash") {
       addAction(host, "CARRY / LLEVAR", () => moveSelected("stash", "active"), "primary", !state.stashUnlocked);
       if (canStudy) addAction(host, "STUDY ARCANA · 1 SP", studySelectedArcana, "", !state.stashUnlocked);
       if (foodRest()?.isFood?.(item)) addAction(host, "EAT / DRINK", eatDrinkSelected, "primary", !state.stashUnlocked);
+      restoreActionFocus();
       return;
     }
 
@@ -1385,6 +1533,7 @@
     if (canUse) addAction(host, "USE", useSelected);
     if (reloadProfile(item)) addAction(host, "RELOAD", reloadSelected);
     if (canStudy) addAction(host, "STUDY ARCANA · 1 SP", studySelectedArcana);
+    restoreActionFocus();
   }
 
   async function equipSelectedTo(slotId) {
@@ -1516,6 +1665,7 @@
       state.selected = { key: itemId(current), item: current };
       renderEquipment();
       renderDetail();
+      openItemDetail();
       return;
     }
     if (state.selectedContainer === "active" && selectedItem()) equipSelectedTo(slotId);
@@ -1556,6 +1706,7 @@
     renderStashCount();
     renderEquipment();
     if (state.selected) renderDetail();
+    else if (detailIsOpen()) closeItemDetail(false);
   }
 
   function bindRealtime() {
@@ -1729,6 +1880,7 @@
   function boot() {
     if (!doc.getElementById("inventory-modal")) return false;
     ensureActiveLayout();
+    ensureItemDetailPortal();
     ensureDetailExtensions();
     rethemeTabs();
     bindModalControls();

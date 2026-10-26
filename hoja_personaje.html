@@ -22,10 +22,11 @@
     <link rel="stylesheet" href="css/economy-contracts.css" />
     <link id="player-progression-tree-stylesheet" rel="stylesheet" href="css/player-progression-tree.css" />
     <link id="player-skills-hud-stylesheet" rel="stylesheet" href="css/player-skills-hud.css?v=20261005-player-menu-40px-force-1&skills=35px-1" />
-    <link rel="stylesheet" href="css/player-skill-deck-manager.css?v=20261022-skill-deck-1" />
+    <link rel="stylesheet" href="css/player-skill-deck-manager.css?v=20261025-deck-v2" />
     <link rel="stylesheet" href="css/player-terminal-fullscreen.css?v=20261006-cellphone-context-1" />
     <link rel="stylesheet" href="css/player-mobile-runtime.css?v=20261006-mobile-runtime-6" />
     <link rel="stylesheet" href="css/inventory-gothic-art.css?v=20261026-four-column-items-1" />
+    <link rel="stylesheet" href="css/inventory-hud-reference.css?v=20261025-popup-square-1" />
 
     <style>
       #system-loading-overlay {
@@ -12132,7 +12133,7 @@
     <!-- Inventory Modal -->
     <div id="inventory-modal" class="inventory-modal">
       <div class="inventory-modal-content">
-        <button id="inventory-modal-close" class="inventory-modal-close">
+        <button type="button" id="inventory-modal-close" class="inventory-modal-close" aria-label="Cerrar inventario">
           ×
         </button>
         <div class="inventory-tabs">
@@ -12262,8 +12263,11 @@
           </div>
           <!-- End of inventory-left-panel -->
 
-          <!-- Player item detail: compact gameplay information only -->
-          <div class="item-detail-card" id="item-detail-card">
+          <!-- Ficha de objeto: modal central independiente, siempre encima del inventario. -->
+          <div class="inventory-v2-detail-overlay" id="inventory-v2-detail-overlay" hidden>
+            <section class="inventory-v2-detail-dialog" id="inventory-v2-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="detail-title" tabindex="-1">
+              <button type="button" class="inventory-v2-detail-close" id="inventory-v2-detail-close" aria-label="Cerrar información del objeto">×</button>
+              <div class="item-detail-card" id="item-detail-card">
             <div class="detail-left">
               <div class="detail-icon-box">
                 <img id="detail-icon" src="" alt="Icono" />
@@ -12284,6 +12288,8 @@
               <div class="detail-tags" id="detail-tags-val" hidden></div>
               <div id="detail-vinculo-info" hidden></div>
             </div>
+              </div>
+            </section>
           </div>
         </div>
       </div>
@@ -13355,6 +13361,8 @@
     <script src="js/item-magic-runtime.js"></script>
     <script src="js/shop-item-purchase-runtime.js"></script>
     <script src="js/item-equipment-bridge.js"></script>
+    <script src="js/build-equipment-catalog.js?v=20261024-builds-1"></script>
+    <script src="js/equipment-loadout-runtime.js?v=20261024-builds-1"></script>
     <!-- Shared weapon/Skill compatibility: identical rules in Theatre HUD and Combat Master. -->
     <script src="js/item-enchantment-combat-link.js"></script>
     <script src="js/item-persistence-runtime.js"></script>
@@ -13424,7 +13432,8 @@
     <script src="js/player-trait-runtime.js"></script>
     <script src="js/skill-trait-breakdown-patch.js"></script>
     <script src="js/player-skills-hud.js"></script>
-    <script src="js/player-skill-deck-manager.js?v=20261022-skill-deck-1"></script>
+    <script src="js/skill-deck-rules-v2.js?v=20261025-deck-v2"></script>
+    <script src="js/player-skill-deck-manager.js?v=20261025-deck-v2"></script>
     <script src="js/economy-contracts-core.js"></script>
     <script src="js/player-contracts-runtime.js"></script>
     <script src="js/player-vitals-hud.js"></script>
