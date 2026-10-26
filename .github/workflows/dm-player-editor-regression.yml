@@ -1,0 +1,26 @@
+name: DM Player Editor Regression
+
+on:
+  pull_request:
+    paths:
+      - "pantalla_dm.html"
+      - "tests/dm-player-editor-regression-smoke.mjs"
+      - ".github/workflows/dm-player-editor-regression.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "pantalla_dm.html"
+      - "tests/dm-player-editor-regression-smoke.mjs"
+      - ".github/workflows/dm-player-editor-regression.yml"
+
+jobs:
+  protect-dm-player-editor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Assert permanent DM player editor controls
+        run: node tests/dm-player-editor-regression-smoke.mjs

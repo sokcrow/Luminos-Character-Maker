@@ -1,0 +1,41 @@
+name: Trait Family Icons Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'Assets/Icons/trait-families/**'
+      - 'js/trait-family-catalog.js'
+      - 'js/trait-player-tray.js'
+      - 'js/player-progression-tree.js'
+      - 'css/player-trait-tabs.css'
+      - 'css/player-progression-mystic.css'
+      - 'hoja_personaje.html'
+      - 'tests/trait-family-icons-smoke.mjs'
+      - '.github/workflows/trait-family-icons-smoke.yml'
+  push:
+    branches:
+      - feat/trait-family-icons
+    paths:
+      - 'js/trait-family-catalog.js'
+      - 'js/trait-player-tray.js'
+      - 'js/player-progression-tree.js'
+      - 'tests/trait-family-icons-smoke.mjs'
+      - '.github/workflows/trait-family-icons-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JS syntax
+        run: |
+          node --check js/trait-family-catalog.js
+          node --check js/trait-player-tray.js
+          node --check js/player-progression-tree.js
+          node --check tests/trait-family-icons-smoke.mjs
+      - name: Validate PNG files and functional UI
+        run: node tests/trait-family-icons-smoke.mjs

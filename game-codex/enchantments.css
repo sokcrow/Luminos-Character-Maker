@@ -1,0 +1,25 @@
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#090b11;color:#e5dbef}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 85% 0,#292039 0,transparent 42%),#090b11;font-size:15px}
+.enchanted-compendium{max-width:1140px;margin:0 auto;padding:28px 22px 52px}
+.hero{border:1px solid #5b446b;background:linear-gradient(125deg,#24182e,#100e18);padding:29px;border-radius:16px}
+.kicker{color:#bda0da;letter-spacing:.2em;font-weight:700;font-size:11px}.hero h1{font-size:clamp(32px,5vw,54px);margin:10px 0;color:#f0d8ff}
+.hero p{color:#c9bad1;max-width:770px;line-height:1.7}.hero nav{display:flex;flex-wrap:wrap;gap:16px;margin-top:24px}
+a{color:#e0bafa;text-underline-offset:4px}.intro{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0 34px}
+article{border:1px solid #42334f;background:#17131d;padding:19px;border-radius:12px}
+article h2{margin:0 0 10px;font-size:17px;color:#eccbfa}
+article p,.rules li,.catalog p{line-height:1.62;color:#c4b6cc}
+.catalog,.calculadora,.rules{margin:31px 0}.catalog h2,.calculadora h2,.rules h2{font-size:24px;color:#e8d1f1}
+.family-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.family{padding:16px;background:#16111d;border:1px solid #4c3860;border-radius:10px}
+.family h3{margin:0 0 10px;color:#e1b9fa}.family small{color:#a98cbf;display:block;margin-bottom:9px}
+.channel{display:inline-flex;border:1px solid #5a4b67;background:#261a31;border-radius:6px;padding:6px 8px;margin:3px;color:#e5c5f7;font-size:12px}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:18px;background:#16111d;border:1px solid #493758;border-radius:12px}
+.filters label{display:flex;flex-direction:column;gap:8px;color:#baa2c7;font-size:12px;font-weight:700}
+.filters select,.filters input{background:#0e0a14;border:1px solid #6f5681;color:#f2e6f8;border-radius:8px;padding:11px;font:inherit;width:100%}
+.filters :focus-visible{outline:2px solid #c3a0e1;outline-offset:2px}
+.quote{margin-top:12px;border-radius:12px;background:#21182b;border:1px solid #685379;padding:20px;min-height:130px}
+.quote h3{color:#eed2ff;margin:0 0 10px}.quote p{line-height:1.65;color:#dbcae6}
+.quote dl{display:grid;grid-template-columns:1fr auto;max-width:660px;gap:9px}.quote dt{color:#bca5cb}.quote dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+.quote ul{padding-left:20px;line-height:1.8}.quote li{color:#d8c3e3}.quote .notice{font-size:12px;color:#a79aad}
+.rules{border-top:1px solid #483651;padding-top:15px}.rules li{margin-bottom:11px}footer{color:#907f9d;font-size:12px;margin-top:26px}
+@media(max-width:700px){.intro{grid-template-columns:1fr}.enchanted-compendium{padding:14px}.hero{padding:22px}.quote dl{grid-template-columns:1fr auto}}

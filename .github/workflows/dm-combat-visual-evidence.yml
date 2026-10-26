@@ -1,0 +1,51 @@
+name: DM Combat Visual Evidence
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pantalla_dm.html'
+      - 'Battle-viewer.html'
+      - 'combat/**'
+      - 'js/utils.js'
+      - 'js/dm-combat-live-viewer.js'
+      - 'js/combat-v073-live-adapter.js'
+      - 'js/combat-v073-dm-observer.js'
+      - 'tests/dm-combat-visual.spec.mjs'
+      - '.github/workflows/dm-combat-visual-evidence.yml'
+
+jobs:
+  dm-visual-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install visual-test browser
+        run: |
+          npm install --no-save @playwright/test@1.55.0 pngjs@7.0.0
+          npx playwright install --with-deps chromium
+      - name: Serve repository
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/luminous-dm-visual-http.log 2>&1 &
+          echo $! > /tmp/luminous-dm-visual-http.pid
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/pantalla_dm.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/luminous-dm-visual-http.log
+          exit 1
+      - name: Capture real DM Combat visual proof
+        run: npx playwright test tests/dm-combat-visual.spec.mjs --reporter=line
+      - name: Upload DM Combat screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dm-combat-visual-evidence
+          path: |
+            artifacts/dm-combat-visual/*.png
+            test-results/**/*.png
+          if-no-files-found: warn
+          retention-days: 14

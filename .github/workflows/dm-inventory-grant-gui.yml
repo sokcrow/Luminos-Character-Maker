@@ -1,0 +1,95 @@
+name: DM Inventory Grant GUI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'hoja_personaje.html'
+      - 'hoja_personaje.js'
+      - 'pantalla_dm.html'
+      - 'js/dm-item-instance-editor.js'
+      - 'js/dm-item-catalog-core.js'
+      - 'js/dm-local-item-manager-v3.js'
+      - 'js/dm-tab-runtime-v2.js'
+      - 'js/dm-loot-studio.js'
+      - 'js/loot-instance-runtime.js'
+      - 'js/loot-encounter-context.js'
+      - 'js/corpse-harvest-runtime.js'
+      - 'js/item-content-registry.js'
+      - 'js/item-catalog-tools.js'
+      - 'js/item-catalog-chemical-processed.js'
+      - 'js/item-catalog-medicinal-processed.js'
+      - 'js/item-chemistry-recipe-catalog.js'
+      - 'js/item-medicine-crafting-engine.js'
+      - 'js/item-chemistry-crafting-engine.js'
+      - 'js/item-quality-engine.js'
+      - 'js/item-cooking-recipe-catalog.js'
+      - 'js/item-cooking-recipe-resolver.js'
+      - 'js/item-cooking-equipment-engine.js'
+      - 'js/item-cooking-v2-engine.js'
+      - 'js/item-medicine-recipe-catalog.js'
+      - 'js/item-processing-recipe-data.js'
+      - 'js/item-processing-engine.js'
+      - 'js/item-throwable-recipe-catalog.js'
+      - 'js/inventory-hud-v2.js'
+      - 'js/item-icon-registry.js'
+      - 'js/item-inventory-runtime.js'
+      - 'js/shop-item-purchase-runtime.js'
+      - 'js/shop-runtime.js'
+      - 'js/item-persistence-runtime.js'
+      - 'css/dm-item-instance-editor.css'
+      - 'css/dm-item-catalog-v2.css'
+      - 'css/dm-limbus-shell.css'
+      - 'css/dm-limbus-shell-fixes.css'
+      - 'tests/dm-item-instance-editor.spec.cjs'
+      - 'tests/dm-item-catalog-core.spec.cjs'
+      - 'tests/dm-local-item-manager-v3.spec.cjs'
+      - 'tests/inventory-runtime-cutover.spec.cjs'
+      - 'tests/dm-loot-studio-smoke.mjs'
+      - 'tests/shop-item-purchase-runtime-smoke.mjs'
+      - 'tests/shop-runtime-smoke.cjs'
+      - '.github/workflows/dm-inventory-grant-gui.yml'
+
+jobs:
+  grant-gui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          node --check js/dm-item-instance-editor.js
+          node --check js/dm-item-catalog-core.js
+          node --check js/dm-local-item-manager-v3.js
+          node --check js/dm-tab-runtime-v2.js
+          node --check js/dm-loot-studio.js
+          node --check js/item-content-registry.js
+          node --check js/item-catalog-chemical-processed.js
+          node --check js/item-catalog-medicinal-processed.js
+          node --check js/item-cooking-v2-engine.js
+          node --check js/item-chemistry-crafting-engine.js
+          node --check js/item-medicine-crafting-engine.js
+          node --check hoja_personaje.js
+          node tests/dm-item-catalog-core.spec.cjs
+          node --check js/inventory-hud-v2.js
+          node --check js/item-inventory-runtime.js
+          node --check js/shop-item-purchase-runtime.js
+          node --check js/shop-runtime.js
+          node --check js/item-persistence-runtime.js
+      - name: DM Loot Studio smoke
+        run: node tests/dm-loot-studio-smoke.mjs
+      - name: Local item icon registry
+        run: node tests/item-icon-registry-smoke.cjs
+      - name: Shop runtime smoke
+        run: |
+          node tests/shop-runtime-smoke.cjs
+          node tests/shop-item-purchase-runtime-smoke.mjs
+      - name: Install Playwright
+        run: |
+          npm install --no-save @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Browser proof for DM and Player inventory tooling
+        run: npx playwright test tests/dm-local-item-manager-v3.spec.cjs tests/dm-item-instance-editor.spec.cjs tests/inventory-runtime-cutover.spec.cjs --workers=1 --reporter=line

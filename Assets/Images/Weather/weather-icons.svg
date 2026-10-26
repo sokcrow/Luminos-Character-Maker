@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>.w{fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}</style>
+
+    <symbol id="sun" viewBox="0 0 64 64">
+      <circle class="w" cx="32" cy="32" r="11"/>
+      <path class="w" d="M32 6v8M32 50v8M6 32h8M50 32h8M13.6 13.6l5.7 5.7M44.7 44.7l5.7 5.7M50.4 13.6l-5.7 5.7M19.3 44.7l-5.7 5.7"/>
+    </symbol>
+
+    <symbol id="cloudy" viewBox="0 0 64 64">
+      <path class="w" d="M18 47h28a10 10 0 0 0 1.5-19.9A16 16 0 0 0 17 24.5 11.5 11.5 0 0 0 18 47Z"/>
+    </symbol>
+
+    <symbol id="partly-cloudy" viewBox="0 0 64 64">
+      <circle class="w" cx="23" cy="22" r="9"/>
+      <path class="w" d="M23 5v5M8 22h5M12.5 11.5l3.5 3.5M33.5 11.5 30 15"/>
+      <path class="w" d="M20 49h28a9 9 0 0 0 1.1-17.9A14 14 0 0 0 22 29a10 10 0 0 0-2 20Z"/>
+    </symbol>
+
+    <symbol id="drizzle" viewBox="0 0 64 64">
+      <path class="w" d="M16 38h31a9 9 0 0 0 .8-17.9A15 15 0 0 0 19 18.5 10.5 10.5 0 0 0 16 38Z"/>
+      <path class="w" d="M22 46v5M32 44v5M42 46v5"/>
+    </symbol>
+
+    <symbol id="rain" viewBox="0 0 64 64">
+      <path class="w" d="M16 37h31a9 9 0 0 0 .8-17.9A15 15 0 0 0 19 17.5 10.5 10.5 0 0 0 16 37Z"/>
+      <path class="w" d="m22 44-3 8M33 44l-3 8M44 44l-3 8"/>
+    </symbol>
+
+    <symbol id="storm" viewBox="0 0 64 64">
+      <path class="w" d="M16 35h31a9 9 0 0 0 .8-17.9A15 15 0 0 0 19 15.5 10.5 10.5 0 0 0 16 35Z"/>
+      <path class="w" d="M32 39h9l-7 8h6L27 59l4-9h-7Z"/>
+    </symbol>
+
+    <symbol id="fog" viewBox="0 0 64 64">
+      <path class="w" d="M17 33h30a8.5 8.5 0 0 0 .7-16.9A14 14 0 0 0 20 15a10 10 0 0 0-3 18Z"/>
+      <path class="w" d="M12 42h40M17 49h30M22 56h20"/>
+    </symbol>
+
+    <symbol id="snow" viewBox="0 0 64 64">
+      <path class="w" d="M16 35h31a9 9 0 0 0 .8-17.9A15 15 0 0 0 19 15.5 10.5 10.5 0 0 0 16 35Z"/>
+      <path class="w" d="M23 43v10M18.7 45.5l8.6 5M27.3 45.5l-8.6 5M41 43v10M36.7 45.5l8.6 5M45.3 45.5l-8.6 5"/>
+    </symbol>
+
+    <symbol id="snow-heavy" viewBox="0 0 64 64">
+      <path class="w" d="M14 32h34a9 9 0 0 0 .5-18A16 16 0 0 0 18 13 11 11 0 0 0 14 32Z"/>
+      <path class="w" d="M18 39v9M14.1 41.2l7.8 4.6M21.9 41.2l-7.8 4.6M32 38v11M27.2 40.7l9.6 5.6M36.8 40.7l-9.6 5.6M47 39v9M43.1 41.2l7.8 4.6M50.9 41.2l-7.8 4.6"/>
+    </symbol>
+
+    <symbol id="hail" viewBox="0 0 64 64">
+      <path class="w" d="M16 35h31a9 9 0 0 0 .8-17.9A15 15 0 0 0 19 15.5 10.5 10.5 0 0 0 16 35Z"/>
+      <circle class="w" cx="21" cy="47" r="2.5"/><circle class="w" cx="33" cy="44" r="2.5"/><circle class="w" cx="44" cy="49" r="2.5"/><circle class="w" cx="30" cy="55" r="2.5"/>
+    </symbol>
+
+    <symbol id="temperature" viewBox="0 0 64 64">
+      <path class="w" d="M28 12a6 6 0 0 1 12 0v27a12 12 0 1 1-12 0Z"/>
+      <path class="w" d="M34 18v27"/><circle class="w" cx="34" cy="48" r="5"/>
+    </symbol>
+
+    <symbol id="humidity" viewBox="0 0 64 64">
+      <path class="w" d="M32 7S16 27 16 39a16 16 0 0 0 32 0C48 27 32 7 32 7Z"/>
+      <path class="w" d="M24 40a9 9 0 0 0 9 9"/>
+    </symbol>
+
+    <symbol id="wind" viewBox="0 0 64 64">
+      <path class="w" d="M7 22h34c7 0 7-10 1-10-4 0-6 2-6 5M7 32h44c8 0 8 12 0 12-4 0-6-2-6-5M7 42h25"/>
+    </symbol>
+
+    <symbol id="visibility" viewBox="0 0 64 64">
+      <path class="w" d="M6 32s9-15 26-15 26 15 26 15-9 15-26 15S6 32 6 32Z"/>
+      <circle class="w" cx="32" cy="32" r="7"/>
+    </symbol>
+
+    <symbol id="spring" viewBox="0 0 64 64">
+      <path class="w" d="M32 55V28M32 38c-8-1-14-7-14-15 8 0 14 5 14 13M32 31c8-1 14-7 14-15-8 0-14 5-14 13"/>
+      <path class="w" d="M20 55h24"/>
+    </symbol>
+
+    <symbol id="summer" viewBox="0 0 64 64"><circle class="w" cx="32" cy="32" r="11"/><path class="w" d="M32 6v8M32 50v8M6 32h8M50 32h8M13.6 13.6l5.7 5.7M44.7 44.7l5.7 5.7M50.4 13.6l-5.7 5.7M19.3 44.7l-5.7 5.7"/></symbol>
+
+    <symbol id="autumn" viewBox="0 0 64 64">
+      <path class="w" d="M49 12C28 12 15 25 16 47c21 1 34-12 33-35Z"/>
+      <path class="w" d="M16 49c9-12 19-21 31-31M27 37l-1-10M34 31l10 1"/>
+    </symbol>
+
+    <symbol id="winter" viewBox="0 0 64 64">
+      <path class="w" d="M32 7v50M10.5 19.5l43 25M10.5 44.5l43-25M32 7l-5 6M32 7l5 6M32 57l-5-6M32 57l5-6M10.5 19.5l8 .5M10.5 19.5l3.5 7M53.5 44.5l-8-.5M53.5 44.5l-3.5-7"/>
+    </symbol>
+  </defs>
+</svg>

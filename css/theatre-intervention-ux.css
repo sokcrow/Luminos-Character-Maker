@@ -1,0 +1,44 @@
+#theatre-log-container .dialogue-row.is-centered-log-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+  align-items: center;
+}
+
+#theatre-log-container .dialogue-row.is-centered-log-entry .character-col {
+  display: none !important;
+}
+
+#theatre-log-container .dialogue-row.is-centered-log-entry .text-col {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-left: 18px;
+  padding-right: 18px;
+  text-align: center;
+}
+
+#theatre-log-container .dialogue-row.is-centered-log-entry .text-col p {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+#theatre-log-container .dialogue-row.is-action .text-col p {
+  font-style: italic;
+  letter-spacing: .02em;
+}
+
+#theatre-log-container .dialogue-row.is-thought .text-col p {
+  font-style: italic;
+}
+
+#theatre-log-container .dialogue-row.is-narration .text-col,
+#theatre-log-container .dialogue-row.is-system .text-col {
+  opacity: .9;
+}
+
+#theatre-log-container .dialogue-row .hex-portrait img[data-actor-icon="canonical"],
+#theatre-log-container .dialogue-row .hex-portrait img[data-actor-icon="initials"] {
+  object-fit: cover;
+}

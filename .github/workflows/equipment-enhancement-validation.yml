@@ -1,0 +1,41 @@
+name: Equipment Enhancement Validation
+
+on:
+  push:
+    paths:
+      - 'js/item-equipment-enhancement-contract.js'
+      - 'js/item-armor-composition-engine.js'
+      - 'js/item-catalog-weapons.js'
+      - 'js/item-weapon-composition-engine.js'
+      - 'js/item-shield-composition-engine.js'
+      - 'tests/item-equipment-enhancement-smoke.cjs'
+      - 'docs/item-equipment-enhancement-handoff.md'
+      - '.github/workflows/equipment-enhancement-validation.yml'
+  pull_request:
+    paths:
+      - 'js/item-equipment-enhancement-contract.js'
+      - 'js/item-armor-composition-engine.js'
+      - 'js/item-catalog-weapons.js'
+      - 'js/item-weapon-composition-engine.js'
+      - 'js/item-shield-composition-engine.js'
+      - 'tests/item-equipment-enhancement-smoke.cjs'
+      - 'docs/item-equipment-enhancement-handoff.md'
+      - '.github/workflows/equipment-enhancement-validation.yml'
+
+jobs:
+  enhancement-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: |
+          node --check js/item-equipment-enhancement-contract.js
+          node --check js/item-armor-composition-engine.js
+          node --check js/item-catalog-weapons.js
+          node --check js/item-weapon-composition-engine.js
+          node --check js/item-shield-composition-engine.js
+      - name: Enhancement contract smoke
+        run: node tests/item-equipment-enhancement-smoke.cjs

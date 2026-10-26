@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luminous · Combat Library Manager</title>
+<style>
+:root{color-scheme:dark;--bg:#080808;--panel:#12110e;--line:#453b2b;--gold:#d5ad5d;--text:#eee6d7;--muted:#8c8477}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -20%,#252016 0,#0b0b0c 42%,#050506 100%);color:var(--text);font:14px system-ui,sans-serif;min-height:100vh}.shell{max-width:1100px;margin:0 auto;padding:28px}.hero{border:1px solid var(--line);background:rgba(18,17,14,.94);padding:20px;box-shadow:0 18px 45px #000}.hero h1{margin:0;color:var(--gold);font-size:24px}.hero p{margin:8px 0 0;color:var(--muted);line-height:1.5}.routes{margin-top:14px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.route{border:1px solid #302a20;background:#0a0a0b;padding:10px;color:#cdb98b}.route b{display:block;color:#ead39c;margin-bottom:4px}#combat-library-manager-mount{margin-top:18px;min-height:540px}.hint{margin-top:14px;color:#847d70;font-size:12px}@media(max-width:760px){.routes{grid-template-columns:1fr}.shell{padding:14px}}
+</style>
+</head>
+<body class="on-game-dashboard">
+<main class="shell">
+<section class="hero">
+<h1>Combat Library Manager</h1>
+<p>Sincroniza la Unit Library canónica y prepara el Combat Sprite antes de entrar al combate. El mock battlefield sirve para ajustar posición y tamaño sin abrir una pelea real.</p>
+<div class="routes">
+<div class="route"><b>UNIT LIBRARY</b>Kobold · Goblin · Wolf → <code>campaña/base_datos_unidades</code></div>
+<div class="route"><b>COMBAT SPRITE</b>Player · NPC Actor · Enemy Unit</div>
+<div class="route"><b>FIELD PROPAGATION</b>Los cambios se reflejan también en combatientes ya desplegados.</div>
+</div>
+</section>
+<div id="combat-library-manager-mount"></div>
+<p class="hint">Requiere sesión DM autenticada. El sync usa los catálogos canónicos del repo; no crea placeholders del alpha ni borra otras Units.</p>
+</main>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script>
+const firebaseConfig={apiKey:"AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",authDomain:"luminous-system.firebaseapp.com",databaseURL:"https://luminous-system-default-rtdb.firebaseio.com",projectId:"luminous-system",storageBucket:"luminous-system.firebasestorage.app",messagingSenderId:"330473029689",appId:"1:330473029689:web:44a05e870d493a3b294de8"};
+if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+</script>
+<script src="js/dm-combat-asset-manager.js"></script>
+<script>
+(function boot(){
+  const manager=window.LuminousDmCombatAssetManager;
+  if(!manager){setTimeout(boot,50);return;}
+  manager.init({db:firebase.database()});
+  const panel=document.getElementById('dm-combat-asset-manager');
+  const mount=document.getElementById('combat-library-manager-mount');
+  if(panel&&mount){
+    panel.open=true;
+    panel.style.position='relative';
+    panel.style.left='auto';
+    panel.style.bottom='auto';
+    panel.style.zIndex='1';
+    panel.style.width='100%';
+    panel.style.maxHeight='none';
+    mount.appendChild(panel);
+  }
+})();
+</script>
+</body>
+</html>

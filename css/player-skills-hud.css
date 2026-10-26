@@ -1,0 +1,602 @@
+/* Player Combat Skills HUD — fixed logical game surface. */
+body:not(.on-game-dashboard) #skills-modal{
+  --player-skills-hud-scale:1;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  padding:0!important;
+  overflow:hidden!important;
+}
+body:not(.on-game-dashboard) #skills-modal[style*="display: block"],
+body:not(.on-game-dashboard) #skills-modal.active,
+body:not(.on-game-dashboard) input.sheet-state-hud-modal[value="skills"] ~ #skills-modal{
+  display:flex!important;
+  animation:playerSkillsModalFadeIn .18s ease!important;
+}
+@keyframes playerSkillsModalFadeIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+body:not(.on-game-dashboard) #skills-modal .hud-modal-content{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  width:1600px!important;
+  min-width:1600px!important;
+  max-width:none!important;
+  height:920px!important;
+  min-height:920px!important;
+  max-height:none!important;
+  padding:0!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+  border:2px solid rgba(153,124,74,.58)!important;
+  border-radius:0!important;
+  background:#080706!important;
+  box-shadow:inset 0 0 42px rgba(0,0,0,.82),0 18px 60px rgba(0,0,0,.9)!important;
+  transform:translate(-50%,-50%) scale(var(--player-skills-hud-scale))!important;
+  transform-origin:center center!important;
+}
+body:not(.on-game-dashboard) #skills-modal .hud-modal-body{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+body:not(.on-game-dashboard) #skills-modal .hud-modal-close{
+  position:absolute!important;
+  z-index:150!important;
+  left:25px!important;
+  right:auto!important;
+  top:20px!important;
+  width:62px!important;
+  height:62px!important;
+  display:grid!important;
+  place-items:center!important;
+  padding:0!important;
+  border:3px solid #a99672!important;
+  border-radius:9px!important;
+  background:linear-gradient(145deg,#2c2a27,#080808)!important;
+  color:#e4dac5!important;
+  font:32px/1 Georgia,"Times New Roman",serif!important;
+  box-shadow:0 0 0 2px #080808,inset 0 0 12px #000,0 5px 10px rgba(0,0,0,.8)!important;
+}
+body:not(.on-game-dashboard) #skills-modal .hud-modal-close:hover{
+  border-color:#e7aa37!important;
+  color:#ffc94c!important;
+  transform:translateX(5px);
+}
+
+.player-combat-skills-console{
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+  display:grid;
+  grid-template-rows:126px minmax(0,1fr);
+  color:#ddd;
+  background:
+    radial-gradient(ellipse at 70% 0%,rgba(111,79,35,.2),transparent 42%),
+    linear-gradient(180deg,#14110e,#080706);
+  font-family:Arial,Helvetica,sans-serif;
+  overflow:hidden;
+}
+.player-skills-header{
+  min-width:0;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 600px;
+  align-items:center;
+  gap:30px;
+  padding:20px 42px 18px 112px;
+  border-bottom:2px solid #4c3926;
+  background:linear-gradient(90deg,#0b0907,#18120c 54%,#0a0907);
+}
+.player-skills-title{min-width:0;display:flex;flex-direction:column;gap:6px}
+.player-skills-title>span{
+  color:#8c7c66;
+  font:700 10px "Share Tech Mono",monospace;
+  letter-spacing:.2em;
+}
+.player-skills-title>strong{
+  min-width:0;
+  overflow:hidden;
+  color:#ead8b6;
+  font:700 32px Georgia,"Times New Roman",serif;
+  letter-spacing:.05em;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.player-skills-metrics{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+.player-skills-metrics>div{
+  min-width:0;
+  height:66px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:flex-end;
+  padding:7px 12px;
+  border:1px solid #443625;
+  background:linear-gradient(180deg,#191510,#0d0b08);
+}
+.player-skills-metrics span{
+  color:#766b5d;
+  font:8px "Share Tech Mono",monospace;
+  letter-spacing:.14em;
+}
+.player-skills-metrics b{
+  max-width:100%;
+  overflow:hidden;
+  color:#dba74e;
+  font:700 21px Georgia,"Times New Roman",serif;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.player-skills-metrics .is-caster{
+  border-color:#46577c;
+  background:linear-gradient(180deg,#111827,#0b101a);
+}
+.player-skills-metrics .is-caster b{color:#9fc6ff}
+
+.player-skills-main{
+  min-width:0;
+  min-height:0;
+  display:grid;
+  grid-template-columns:360px minmax(0,1fr) 430px;
+  overflow:hidden;
+}
+.player-skills-deck-panel,
+.player-skills-library-panel,
+.player-skills-detail-panel{
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+}
+.player-skills-deck-panel{
+  display:grid;
+  grid-template-rows:84px minmax(0,1fr) 108px;
+  border-right:2px solid #3f3022;
+  background:linear-gradient(180deg,#100d0a,#090806);
+}
+.player-skills-deck-panel>header{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:4px;
+  padding:0 24px;
+  border-bottom:1px solid #3a2d20;
+}
+.player-skills-deck-panel>header span,
+.player-skills-library-toolbar>div span,
+.player-skills-detail-header>span,
+.player-skills-detail-description>span{
+  color:#746a5d;
+  font:8px "Share Tech Mono",monospace;
+  letter-spacing:.16em;
+}
+.player-skills-deck-panel>header strong,
+.player-skills-library-toolbar>div strong{
+  color:#d6b87e;
+  font:700 18px Georgia,"Times New Roman",serif;
+  letter-spacing:.08em;
+}
+.player-skills-deck{
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:18px 20px;
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:#5a4530 #0b0907;
+}
+.player-skills-deck-slot{
+  appearance:none;
+  min-height:108px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-rows:auto 1fr;
+  gap:6px 12px;
+  padding:14px 15px;
+  border:1px solid #473725;
+  border-left:4px solid #9d7130;
+  border-radius:0;
+  background:linear-gradient(145deg,#19130c,#0b0907);
+  color:#cdbd9f;
+  text-align:left;
+  cursor:pointer;
+}
+.player-skills-deck-slot:hover{border-color:#d39c43;background:linear-gradient(145deg,#21170d,#0d0a07)}
+.player-skills-deck-slot>span{grid-column:1/2;color:#776a5a;font:8px "Share Tech Mono",monospace;letter-spacing:.15em}
+.player-skills-deck-slot>strong{
+  grid-column:1/2;
+  align-self:center;
+  overflow:hidden;
+  color:#ead7b2;
+  font:700 17px Georgia,"Times New Roman",serif;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.player-skills-deck-slot>b{
+  grid-column:2/3;
+  grid-row:1/3;
+  align-self:center;
+  color:#e0a343;
+  font:700 26px Georgia,"Times New Roman",serif;
+}
+.player-skills-deck-slot.is-empty{opacity:.42;border-left-color:#443b31;cursor:default}
+.player-skills-source-note{
+  padding:17px 20px;
+  border-top:1px solid #352a1e;
+  background:#0b0907;
+}
+.player-skills-source-note b{display:block;color:#846b44;font:8px "Share Tech Mono",monospace;letter-spacing:.13em}
+.player-skills-source-note span{display:block;margin-top:6px;color:#70685e;font-size:10px;line-height:1.45}
+
+.player-skills-library-panel{
+  display:grid;
+  grid-template-rows:84px minmax(0,1fr);
+  background:linear-gradient(180deg,#12100d,#0c0a08);
+}
+.player-skills-library-toolbar{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  padding:12px 22px;
+  border-bottom:1px solid #423321;
+}
+.player-skills-library-toolbar>div{min-width:0;display:flex;flex-direction:column;gap:4px}
+.player-skills-library-toolbar nav{display:flex;gap:5px;flex:0 0 auto}
+.player-skills-library-toolbar button{
+  appearance:none;
+  height:34px;
+  padding:0 12px;
+  border:1px solid #3d3329;
+  border-radius:0;
+  background:#0c0a08;
+  color:#81786d;
+  font:700 8px "Share Tech Mono",monospace;
+  letter-spacing:.1em;
+  cursor:pointer;
+}
+.player-skills-library-toolbar button:hover,
+.player-skills-library-toolbar button.is-active{
+  border-color:#d49a38;
+  color:#f3c66f;
+  background:#1a130b;
+}
+.player-skills-list{
+  min-height:0;
+  padding:14px 18px 22px;
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  scrollbar-width:thin;
+  scrollbar-color:#5a4530 #0b0907;
+}
+.player-skills-row{
+  appearance:none;
+  width:100%;
+  min-height:78px;
+  display:grid;
+  grid-template-columns:52px minmax(0,1fr) 130px 170px;
+  align-items:center;
+  gap:12px;
+  margin:0 0 8px;
+  padding:7px 12px;
+  border:1px solid #362c23;
+  border-radius:0;
+  background:linear-gradient(90deg,#0d0b09,#15110d);
+  color:#cabca7;
+  text-align:left;
+  cursor:pointer;
+}
+.player-skills-row:hover,
+.player-skills-row.is-selected{
+  border-color:#9e7336;
+  box-shadow:inset 4px 0 #d49a38;
+  background:linear-gradient(90deg,#1b130a,#15110d);
+}
+.player-skills-row-tier{
+  display:grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  border:1px solid #4b3b29;
+  color:#d8a64f;
+  font:700 13px "Share Tech Mono",monospace;
+}
+.player-skills-row-name{min-width:0;display:flex;flex-direction:column;gap:4px}
+.player-skills-row-name strong{overflow:hidden;color:#dfd0b9;font:700 17px Georgia,"Times New Roman",serif;text-overflow:ellipsis;white-space:nowrap}
+.player-skills-row-name small{overflow:hidden;color:#665f56;font:8px "Share Tech Mono",monospace;text-overflow:ellipsis;white-space:nowrap}
+.player-skills-row-power{text-align:right;color:#c79a52;font:700 13px "Share Tech Mono",monospace}
+.player-skills-row-badges,
+.player-skills-detail-badges{display:flex;justify-content:flex-end;gap:5px;flex-wrap:wrap}
+.player-skills-row-badges span,
+.player-skills-detail-badges span{
+  padding:4px 6px;
+  border:1px solid #4a3e31;
+  font:700 7px "Share Tech Mono",monospace;
+  letter-spacing:.06em;
+}
+.player-skills-row-badges .is-assigned,
+.player-skills-detail-badges .is-assigned{border-color:#9d7130;color:#e5ac4d;background:#1b1309}
+.player-skills-row-badges .is-learned,
+.player-skills-detail-badges .is-learned{border-color:#527056;color:#a8c38c;background:#0d160e}
+
+.player-skills-detail-panel{
+  display:flex;
+  flex-direction:column;
+  padding:24px;
+  border-left:2px solid #3f3022;
+  background:
+    radial-gradient(circle at 50% 0%,rgba(70,86,124,.13),transparent 38%),
+    linear-gradient(180deg,#100f0e,#090806);
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+.player-skills-detail-header{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  padding-bottom:18px;
+  border-bottom:1px solid #403224;
+}
+.player-skills-detail-header>strong{
+  color:#ead8b8;
+  font:700 27px Georgia,"Times New Roman",serif;
+  line-height:1.1;
+}
+.player-skills-detail-header>small{color:#6c645b;font:8px "Share Tech Mono",monospace}
+.player-skills-detail-badges{justify-content:flex-start;margin-top:4px}
+.player-skills-detail-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+  margin-top:18px;
+}
+.player-skills-detail-grid>div{
+  min-width:0;
+  min-height:66px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:5px;
+  padding:9px 10px;
+  border:1px solid #332a21;
+  background:#0b0907;
+}
+.player-skills-detail-grid span{color:#6c645a;font:7px "Share Tech Mono",monospace;letter-spacing:.1em}
+.player-skills-detail-grid b{overflow:hidden;color:#cdbb9f;font:700 14px Georgia,"Times New Roman",serif;text-overflow:ellipsis;white-space:nowrap}
+.player-skills-detail-description{
+  margin-top:16px;
+  padding:14px;
+  border-top:1px solid #392d21;
+  border-bottom:1px solid #392d21;
+}
+.player-skills-detail-description p{margin:8px 0 0;color:#918678;font-size:11px;line-height:1.55}
+.player-skills-detail-empty,
+.player-skills-empty{
+  min-height:180px;
+  display:grid;
+  place-content:center;
+  gap:8px;
+  padding:24px;
+  text-align:center;
+  color:#6b6359;
+}
+.player-skills-detail-empty>span{font:8px "Share Tech Mono",monospace;letter-spacing:.14em}
+.player-skills-detail-empty>strong,
+.player-skills-empty>strong{color:#a89576;font:700 18px Georgia,"Times New Roman",serif;letter-spacing:.08em}
+.player-skills-detail-empty p,
+.player-skills-empty>span{margin:0;color:#6f675e;font-size:10px;line-height:1.45}
+.player-skills-detail-empty em{color:#8fa9d6;font-size:10px;font-style:normal}
+
+.hud-menu-item .hud-menu-local-icon{
+  width:40px!important;
+  height:40px!important;
+  min-width:40px!important;
+  min-height:40px!important;
+  max-width:40px!important;
+  max-height:40px!important;
+  flex:0 0 40px!important;
+  object-fit:contain;
+  display:block;
+}
+
+.hud-menu-item [data-player-skills-menu-icon]{
+  width:35px!important;
+  height:35px!important;
+  min-width:35px!important;
+  min-height:35px!important;
+  max-width:35px!important;
+  max-height:35px!important;
+  flex:0 0 35px!important;
+}
+
+@media (prefers-reduced-motion:reduce){
+  body:not(.on-game-dashboard) #skills-modal .hud-modal-close,
+  .player-skills-deck-slot,
+  .player-skills-row{transition:none!important}
+}
+
+/* Player-facing Skill Coins and named status-effect cards. */
+.player-skills-power-panel{display:flex;align-items:stretch;gap:10px;margin-top:17px}
+.player-skills-power-total,.player-skills-coins{padding:12px;background:#130e09;border:1px solid #4f3420}
+.player-skills-power-total{min-width:86px;display:flex;flex-direction:column;justify-content:space-between}
+.player-skills-power-total span,.player-skills-coins>span{color:#b39a74;font-size:9px;letter-spacing:.08em}
+.player-skills-power-total b{font:700 38px Georgia,serif;color:#ffe2a2}
+.player-skills-coins{min-width:0;flex:1;display:flex;flex-direction:column;gap:7px}
+.player-skills-coins>b{font-size:11px;color:#eed0a0}
+.player-skills-coin-track{display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-height:27px}
+.player-skills-coin{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;border:2px solid #e7c085;background:radial-gradient(circle,#bf9a4e 0%,#5b3518 75%);color:#f5d59d;font-size:13px}
+.player-skills-coin-track>small{color:#e7c085}
+.player-skills-effects-panel{margin-top:16px;border-top:1px solid #392d21;padding-top:12px}
+.player-skills-effects-panel>strong{display:block;color:#d6b47b;font-size:11px;letter-spacing:.07em}
+.player-skills-effects-panel>p{color:#8d8171;font-size:11px}
+.player-skills-status-chip{margin-top:8px;padding:9px 10px;border:1px solid #56432a;background:#131008;display:flex;flex-direction:column;gap:5px}
+.player-skills-status-chip>b{color:#eed7ae;font-size:12px}
+.player-skills-status-chip>small{color:#a79a87;font-size:10px;line-height:1.35}
+.player-skills-row-power small{display:block;margin-top:4px;color:#bb9657;font-size:10px;letter-spacing:2px}
+@media(max-width:480px){.player-skills-power-panel{flex-direction:column}.player-skills-power-total{min-width:0}}
+
+.player-skills-status-chip{flex-direction:row;align-items:flex-start;gap:10px}
+.player-skills-status-chip>div{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.player-skills-status-icon{width:32px;height:32px;object-fit:contain;flex:0 0 32px}
+
+/* Compact player sheet is real responsive UI, not a 1600px technical canvas
+   shrunk to 20% size. This protects text legibility and touch targets. */
+@media (max-width:900px) {
+  body:not(.on-game-dashboard) #skills-modal{
+    padding:8px!important;
+    align-items:stretch!important;
+    justify-content:stretch!important;
+  }
+  body:not(.on-game-dashboard) #skills-modal .hud-modal-content{
+    width:calc(100vw - 16px)!important;
+    min-width:0!important;
+    max-width:calc(100vw - 16px)!important;
+    height:calc(100dvh - 16px)!important;
+    min-height:0!important;
+    max-height:calc(100dvh - 16px)!important;
+    transform:translate(-50%,-50%)!important;
+    overflow:hidden!important;
+  }
+  body:not(.on-game-dashboard) #skills-modal .hud-modal-close{
+    left:10px!important;top:10px!important;
+    width:42px!important;height:42px!important;
+    font-size:23px!important;border-width:2px!important;
+  }
+  .player-combat-skills-console{
+    grid-template-rows:auto minmax(0,1fr);
+  }
+  .player-skills-header{
+    display:block;
+    padding:14px 12px 14px 62px;
+    min-height:70px;
+  }
+  .player-skills-title>span{font-size:10px;letter-spacing:.08em}
+  .player-skills-title>strong{font-size:22px;white-space:normal}
+  .player-skills-metrics{display:none}
+  .player-skills-main{
+    display:block;
+    min-height:0;
+    height:100%;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+  .player-skills-deck-panel{
+    display:flex;
+    flex-direction:column;
+    border-right:0;
+    border-bottom:1px solid #4a3826;
+  }
+  .player-skills-deck-panel>header{min-height:47px;padding:9px 12px}
+  .player-skills-deck-panel>header strong{font-size:15px}
+  .player-skills-deck{
+    display:flex;
+    flex-direction:row;
+    align-items:stretch;
+    gap:8px;
+    padding:8px 10px 13px;
+    overflow-x:auto;
+    overflow-y:hidden;
+  }
+  .player-skills-deck-slot{
+    min-width:152px;
+    max-width:180px;
+    min-height:88px;
+    padding:9px;
+  }
+  .player-skills-deck-slot>span{font-size:10px}
+  .player-skills-deck-slot>strong{font-size:14px;white-space:normal;overflow-wrap:anywhere}
+  .player-skills-deck-slot>b{font-size:22px}
+  .player-skills-library-panel{display:block}
+  .player-skills-library-toolbar{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:9px;
+    padding:12px 10px;
+  }
+  .player-skills-library-toolbar>div strong{font-size:17px}
+  .player-skills-library-toolbar nav{
+    display:flex;
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    width:100%;
+    gap:6px;
+  }
+  .player-skills-library-toolbar button{
+    flex-shrink:0;
+    min-height:42px;
+    height:42px;
+    font-size:11px;
+  }
+  .player-skills-list{
+    min-height:0;
+    overflow:visible;
+    padding:10px;
+  }
+  .player-skills-row{
+    grid-template-columns:38px minmax(0,1fr) auto;
+    min-height:65px;
+    gap:8px;
+    padding:8px;
+  }
+  .player-skills-row-tier{width:36px;height:36px;font-size:12px}
+  .player-skills-row-name strong{font-size:15px;white-space:normal;overflow-wrap:anywhere}
+  .player-skills-row-name small{font-size:10px}
+  .player-skills-row-power{font-size:13px;white-space:nowrap}
+  .player-skills-row-badges{display:none}
+  .player-skills-detail-panel{
+    display:block;
+    border-left:0;
+    border-top:2px solid #4a3826;
+    overflow:visible;
+    min-height:280px;
+    padding:16px 12px 30px;
+  }
+  .player-skills-detail-header>strong{font-size:23px}
+  .player-skills-detail-grid span{font-size:10px}
+  .player-skills-detail-grid b{font-size:13px}
+  .player-skills-effects-panel>strong{font-size:12px}
+  .player-skills-detail-description p{font-size:13px;line-height:1.5}
+  .player-skills-status-chip>div>small{font-size:11px}
+}
+
+/* Canonical Limbus tooltip rhythm: skill title / combat math / [trigger] / Coin I-II-III. */
+.limbus-skill-tooltip{color:#e4ded3;font:15px/1.5 Arial,Helvetica,sans-serif;text-align:left}
+.limbus-skill-heading{padding:6px 0 12px;border-bottom:1px solid #503b23}
+.limbus-skill-top-coins{display:flex;gap:4px;margin:0 0 10px;padding-left:10px}
+.limbus-coin-top{display:grid;place-items:center;width:25px;height:27px;color:#d4af65;background:#59401c;clip-path:polygon(50% 0,90% 25%,90% 75%,50% 100%,10% 75%,10% 25%);font-size:21px}
+.limbus-skill-name{display:flex;align-items:center;gap:9px;padding:9px 12px 9px 0;background:linear-gradient(95deg,#e36d12,#a33d08 82%,transparent);color:#fff}
+.limbus-skill-name strong{font:700 23px Georgia,serif;overflow-wrap:anywhere}
+.limbus-skill-tier{font:700 12px Arial,sans-serif;padding:5px 7px;background:#25140e;color:#ffb875}
+.limbus-skill-stats{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:10px 0;color:#d2bb8b;font-size:14px}
+.limbus-skill-stats span:first-child{color:#f2ece0;font-weight:700}
+.limbus-skill-power{display:flex;align-items:center;gap:14px;color:#e1d9ca;font-weight:700}
+.limbus-skill-power>b{font-size:21px;color:#e7ae79}.limbus-skill-power span:last-child{color:#edab4a}
+.limbus-skill-effect-sections{padding:12px 0 6px}
+.limbus-effect-line{display:flex;align-items:baseline;gap:6px;margin:4px 0;color:#e0dbd6;overflow-wrap:anywhere}
+.limbus-effect-trigger{flex:0 0 auto;color:#54b1e0;font-weight:700}
+.limbus-coin-section .limbus-effect-trigger{color:#8dc771}
+.limbus-effect-description{display:inline;min-width:0}
+.limbus-effect-icon{width:21px;height:21px;object-fit:contain;vertical-align:-5px;margin-right:4px}
+.limbus-coin-section{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:9px;align-items:start;padding:10px 0}
+.limbus-coin-emblem{display:grid;place-items:center;width:36px;height:36px;border:2px solid #b8b9b8;border-radius:50%;background:#0a0b0b;box-shadow:inset 0 0 0 3px #363839;color:#eee;font:700 17px Georgia,serif}
+.limbus-effect-empty{color:#797269}.limbus-skill-description{border-top:1px solid #463829;padding:13px 0;color:#b2a48e}
+@media(max-width:900px){.limbus-skill-tooltip{font-size:14px}.limbus-skill-name strong{font-size:20px}.limbus-effect-line{flex-wrap:wrap;gap:2px 6px}.limbus-coin-section{grid-template-columns:34px minmax(0,1fr);gap:6px}.limbus-coin-emblem{width:31px;height:31px;font-size:14px}}
+
+/* Shared equipment compatibility: an unavailable technique remains learned. */
+.player-skills-row-badges .is-weapon-incompatible{display:inline-flex;align-items:center;max-width:100%;overflow-wrap:anywhere;color:#ffb2a1;border:1px solid #a95e4a;background:#381d18;padding:3px 6px;font-size:10px;line-height:1.35;border-radius:3px}

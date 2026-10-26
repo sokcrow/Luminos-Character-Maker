@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Combate · Luminous</title>
+  <link rel="stylesheet" href="css/combat-entry.css">
+</head>
+<body>
+  <header id="combat-entry-bar" hidden>
+    <strong>COMBATE</strong><span id="combat-entry-identity"></span>
+    <details id="combat-entry-menu"><summary>Encuentro</summary><nav aria-label="Opciones del encuentro">
+      <button id="combat-entry-start" type="button" hidden>Abrir encuentro</button>
+      <label id="combat-entry-presentation-label" hidden>Presentación<select id="combat-entry-presentation"><option value="full">Completa</option><option value="simple">Sencilla</option></select></label>
+      <button id="combat-entry-end" type="button" hidden>Finalizar encuentro</button>
+      <a href="mirror.html">Encuentro separado</a>
+      <a id="combat-entry-sheet" href="hoja_personaje.html">Mi ficha</a>
+      <button id="combat-entry-signout" type="button">Cerrar sesión</button>
+    </nav></details>
+  </header>
+  <main id="combat-entry-main">
+    <section id="combat-entry-card" aria-labelledby="combat-entry-title">
+      <p class="eyebrow">LUMINOUS</p><h1 id="combat-entry-title">Entra al combate</h1>
+      <p id="combat-entry-message" role="status" aria-live="polite">Restaurando tu sesión…</p>
+      <form id="combat-entry-login" hidden>
+        <label>Correo<input id="combat-entry-email" type="email" autocomplete="username" required></label>
+        <label>Contraseña<input id="combat-entry-password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Entrar</button>
+      </form>
+      <button id="combat-entry-open" type="button" hidden>Abrir encuentro</button>
+      <a href="index.html">Volver al inicio</a>
+    </section>
+  </main>
+  <dialog id="combat-entry-end-dialog" aria-labelledby="combat-entry-end-title">
+    <form method="dialog"><h2 id="combat-entry-end-title">Finalizar encuentro</h2>
+      <p>Se conservarán los resultados confirmados y los jugadores volverán a la espera.</p>
+      <label>Resultado<select id="combat-entry-result"><option value="victory">Victoria</option><option value="defeat">Derrota</option><option value="cancelled">Cancelado</option></select></label>
+      <div class="dialog-actions"><button value="cancel">Volver</button><button id="combat-entry-confirm-end" type="button">Finalizar</button></div>
+    </form>
+  </dialog>
+  <script src="js/combat-firebase-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="js/combat-participants.js"></script>
+  <script src="js/combat-session-lifecycle.js?v=20261021-dm-start-button-1"></script>
+  <script src="js/loot-live-postcombat-runtime.js?v=20261024-anatomy-1"></script>
+  <script src="js/player-postcombat-loot.js?v=20261024-anatomy-1"></script><script src="js/creature-compendium-ui.js?v=20261024-anatomy-2"></script>
+  <script src="js/combat-entry.js?v=20261022-auth-entry-1"></script>
+</body>
+</html>

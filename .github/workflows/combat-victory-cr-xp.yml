@@ -1,0 +1,35 @@
+name: Combat Victory CR and XP
+
+on:
+  pull_request:
+    paths:
+      - "js/combat-xp-runtime.js"
+      - "js/combat-session-lifecycle.js"
+      - "js/battle-viewer-dm-console-074.js"
+      - "js/combat-encounter-lifecycle.js"
+      - "js/unit-catalog-*.js"
+      - "Battle-viewer.html"
+      - "tests/combat-victory-cr-xp-delivery-smoke.mjs"
+      - ".github/workflows/combat-victory-cr-xp.yml"
+  push:
+    branches:
+      - feat/encounter-victory-cr-xp-awards-20261024
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Existing CR and XP resolver
+        run: node tests/combat-xp-runtime-smoke.mjs
+      - name: CR for all canonical Units and Victory XP delivery
+        run: node tests/combat-victory-cr-xp-delivery-smoke.mjs
+      - name: Combat session syntax
+        run: node --check js/combat-session-lifecycle.js
+      - name: Combat result UX syntax
+        run: node --check js/combat-encounter-lifecycle.js
+      - name: DM reward integration syntax
+        run: node --check js/battle-viewer-dm-console-074.js

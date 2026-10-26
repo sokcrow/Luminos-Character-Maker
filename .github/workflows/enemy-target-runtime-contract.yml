@@ -1,0 +1,22 @@
+name: Enemy Target Runtime Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'combat/**'
+      - 'Battle-viewer.html'
+      - 'tests/enemy-target-runtime-contract.mjs'
+      - '.github/workflows/enemy-target-runtime-contract.yml'
+
+jobs:
+  runtime-target-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Inspect real compressed Battle targeting
+        run: node tests/enemy-target-runtime-contract.mjs

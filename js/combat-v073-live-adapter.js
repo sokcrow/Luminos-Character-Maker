@@ -1,0 +1,674 @@
+(function (global) {
+  "use strict";
+
+  if (global.LuminousCombatLiveAdapter073) return;
+  global.LuminousCombatLiveMode = true;
+
+  const VERSION = "0.7.3-live.7-pinned-positions";
+  const ROOTS = Object.freeze({
+    dmUid: "campaña/config/dm_uid",
+    players: "campaña/jugadores",
+    combatants: "campaña/combate/combatants",
+    state: "campaña/combate/estado",
+    skills: "campaña/base_datos_skills",
+    plannedActions: "campaña/combate/plannedActions",
+  });
+  const FALLBACK_DM_UID = "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
+  const FIREBASE_CONFIG = global.LuminousCombatFirebaseConfig || Object.freeze({
+    apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
+    authDomain: "luminous-system.firebaseapp.com",
+    databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
+    projectId: "luminous-system",
+    storageBucket: "luminous-system.firebasestorage.app",
+    messagingSenderId: "330473029689",
+    appId: "1:330473029689:web:44a05e870d493a3b294de8",
+  });
+
+  const state = {
+    started: false,
+    runtimeReady: false,
+    firebaseReady: false,
+    auth: null,
+    db: null,
+    user: null,
+    uid: null,
+    role: null,
+    playerId: null,
+    dmUid: FALLBACK_DM_UID,
+    players: {},
+    combatants: {},
+    skills: {},
+    combatState: "PRE_COMBAT_PLANNING",
+    round: 1,
+    encounterId: null,
+    presentation: 'full',
+    unsubscribers: [],
+    hydrateTimer: null,
+    hydratedOnce: false,
+    lastSignature: "",
+  };
+
+  const clean = (value) => String(value ?? "").trim();
+  const finite = (value, fallback = null) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
+  const normalizeId = (value) => clean(value).toLowerCase().replace(/[\s-]+/g, "_");
+
+  function setStatus(message, stageName="runtime-status") {
+    try {
+      const node = global.document?.getElementById?.("status");
+      if (node) node.textContent = message;
+      global.LuminousCombatBootstrapStage?.(stageName, message);
+    } catch (_) {}
+  }
+
+  function ensureFirebase() {
+    const firebase = global.firebase;
+    if (!firebase?.initializeApp || !firebase?.auth || !firebase?.database) return false;
+    try {
+      if (!Array.isArray(firebase.apps) || firebase.apps.length === 0) firebase.initializeApp(FIREBASE_CONFIG);
+      state.auth = firebase.auth();
+      state.db = firebase.database();
+      return Boolean(state.auth && state.db?.ref);
+    } catch (error) {
+      console.error("[Combat073] Firebase initialization failed", error);
+      setStatus("COMBAT · FIREBASE INIT FAILED");
+      return false;
+    }
+  }
+
+  function playerUid(player = {}) {
+    return clean(player.uid || player.vinculado_a || player.vinculo_jugador);
+  }
+
+  function resolveIdentity() {
+    const uid = clean(state.uid);
+    if (!uid) return { role: null, playerId: null };
+    const matches = Object.entries(state.players || {}).filter(([, player]) => playerUid(player || {}) === uid);
+    if(global.LuminousCombatContext?.isolated&&uid===state.dmUid&&matches.length===1)return {role:'player',playerId:matches[0][0],isAuthority:true};
+    if (uid === state.dmUid || uid === FALLBACK_DM_UID) return { role: "dm", playerId: null };
+    if (matches.length !== 1) return { role: null, playerId: null };
+    return { role: "player", playerId: matches[0][0] };
+  }
+
+  function canonicalPlayerId(unit = {}) {
+    return clean(unit.canonicalPlayerKey || unit.ownerPlayerId || unit.playerId || unit.characterLink?.playerId);
+  }
+
+  function canonicalOwnerUid(unit = {}) {
+    return clean(unit.canonicalOwnerUid || unit.ownerUid || unit.characterLink?.uid);
+  }
+
+  function isPlayerUnit(unit = {}) {
+    const category = normalizeId(unit.actorCategory || unit.category || unit.type);
+    return unit.isPlayer === true || category === "player" || normalizeId(unit.canonicalScope) === "player";
+  }
+
+  function playerRecordFor(unit = {}) {
+    if (!isPlayerUnit(unit)) return null;
+    const playerId = canonicalPlayerId(unit);
+    if (!playerId) return null;
+    const player = state.players?.[playerId];
+    return player && typeof player === "object" ? player : null;
+  }
+
+  function activeInventoryContainer(source = {}) {
+    const player = playerRecordFor(source);
+    if (player) return player.inventario_activo || player.activeInventory || player.inventory || {};
+    return source.inventario_activo || source.activeInventory || source.inventory || {};
+  }
+
+  function isFieldCombatant(unit = {}) {
+    return global.LuminousCombatParticipants?.isField(unit)===true;
+  }
+
+  function playerCombatantEntry() {
+    if (!state.playerId) return null;
+    const canonicalKey = `player:${state.playerId.replace(/[.#$\[\]\/]/g, "_")}`;
+    if (state.combatants?.[canonicalKey] && isFieldCombatant(state.combatants[canonicalKey])) return [canonicalKey, state.combatants[canonicalKey]];
+    return Object.entries(state.combatants || {}).find(([, unit]) => isFieldCombatant(unit) && isPlayerUnit(unit) && canonicalPlayerId(unit) === state.playerId) || null;
+  }
+
+  function dmFocusEntry() {
+    const entries = Object.entries(state.combatants || {}).filter(([, unit]) => isFieldCombatant(unit));
+    return entries.find(([, unit]) => isPlayerUnit(unit)) || entries[0] || null;
+  }
+
+  function phaseAndRound(raw) {
+    if (raw && typeof raw === "object") {
+      return {
+        phase: clean(raw.phase || raw.state || raw.status || "PRE_COMBAT_PLANNING") || "PRE_COMBAT_PLANNING",
+        round: Math.max(1, Math.trunc(finite(raw.round ?? raw.turn, 1))),
+      };
+    }
+    return { phase: clean(raw || "PRE_COMBAT_PLANNING") || "PRE_COMBAT_PLANNING", round: 1 };
+  }
+
+  function factionFor(unit = {}) {
+    const explicit = normalizeId(unit.faction || unit.faccion || unit.side || unit.team);
+    if (["ally", "allies", "player", "jugador", "aliado"].includes(explicit)) return "ally";
+    if (["enemy", "enemies", "enemigo", "hostile"].includes(explicit)) return "enemy";
+    if (isPlayerUnit(unit)) return "ally";
+    const category = normalizeId(unit.actorCategory || unit.category || unit.type || unit.alignment || unit.alineamiento);
+    return ["enemy", "enemigo", "hostile"].includes(category) ? "enemy" : "ally";
+  }
+
+  function spriteFor(unit = {}) {
+    return clean(
+      unit.combatSprite || unit.sprite_combate || unit.combat_sprite || unit.tokenImage || unit.sprite ||
+      unit.idle_sprite || unit.portrait || unit.icono || unit.img || unit.image ||
+      unit.visual?.spriteUrl || unit.combatVisual?.spriteUrl
+    );
+  }
+
+  function maxHpFor(unit = {}) {
+    return Math.max(1, finite(unit.maxHp ?? unit.maxHP ?? unit.hp_max ?? unit.mechanics?.maxHp ?? unit.mechanics?.hp ?? unit.combatStats?.hp_max, finite(unit.hp, 1)) || 1);
+  }
+
+  function hpFor(unit = {}, maxHp) {
+    return Math.max(0, finite(unit.hp ?? unit.currentHp ?? unit.currentHP ?? unit.hp_actual ?? unit.combatStats?.hp_actual, maxHp) ?? maxHp);
+  }
+
+  function spFor(unit = {}) {
+    return finite(unit.sp ?? unit.currentSp ?? unit.currentSP ?? unit.sp_actual ?? unit.combatStats?.sp_actual, 0) || 0;
+  }
+
+  function actionSlotsFor(unit = {}) {
+    return Math.max(1, Math.trunc(finite(unit.activeSlots ?? unit.actionSlots ?? unit.action_slots_count, 1) || 1));
+  }
+
+  function defaultPosition(faction, index) {
+    const row = index % 2;
+    const column = Math.floor(index / 2);
+    return faction === "enemy"
+      ? { x: Math.max(58, 90 - column * 9), y: row ? 42 : 18 }
+      : { x: Math.min(42, 10 + column * 9), y: row ? 42 : 18 };
+  }
+
+  function planningPhase() {
+    const raw = state.combatState && typeof state.combatState === "object"
+      ? (state.combatState.phase || state.combatState.state || state.combatState.status)
+      : state.combatState;
+    const phase = String(raw || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+    return phase === "pre_combat_planning" || phase === "planning";
+  }
+
+  function explicitBattlePosition(unit = {}) {
+    return unit.positionPinned === true || unit.positionLocked === true || unit.manualPosition === true ||
+      unit.combatPosition?.pinned === true || unit.combatPosition?.locked === true ||
+      unit.positionAuthority === "manual" || unit.positionAuthority === "dm";
+  }
+
+  function enchantmentCombatLink() {
+    return global.LuminousEnchantmentCombatLink || null;
+  }
+
+  function normalizedCombatants() {
+    const sideIndex = { ally: 0, enemy: 0 };
+    const result = [];
+    const deployment = global.LuminousCombatDeploymentRuntime;
+    const fieldUnits = Object.entries(state.combatants || {}).filter(([, unit]) => isFieldCombatant(unit || {}))
+      .map(([key, unit]) => ({ ...unit, id: clean(unit.id || unit.combatId || unit.unitId || key) }));
+    const formation = Object.assign({}, ...['ally', 'enemy'].map(side =>
+      deployment?.formationPoints(fieldUnits.filter(unit => factionFor(unit) === side), side) || {}));
+    for (const [key, rawValue] of Object.entries(state.combatants || {})) {
+      const raw = rawValue || {};
+      if (!isFieldCombatant(raw)) continue;
+      const id = clean(raw.id || raw.combatId || raw.unitId || key) || key;
+      const faction = factionFor(raw);
+      const pos = formation[id] || defaultPosition(faction, sideIndex[faction]);
+      sideIndex[faction]++;
+      const maxHp = maxHpFor(raw);
+      const humanPlayer = isPlayerUnit(raw);
+      const liveActiveInventory = activeInventoryContainer(raw);
+      const authoritativePlayer = playerRecordFor(raw);
+      const linkedEquipment = humanPlayer
+        ? enchantmentCombatLink()?.resolveEquipment?.(raw, authoritativePlayer, liveActiveInventory)
+        : null;
+      const playerOwned = state.role === "player" && humanPlayer && canonicalPlayerId(raw) === state.playerId && (!canonicalOwnerUid(raw) || canonicalOwnerUid(raw) === state.uid);
+      const controller = playerOwned ? "player" : (humanPlayer ? "remote" : "ai");
+      const useFormationSpawn = planningPhase() && !explicitBattlePosition(raw);
+      const x = useFormationSpawn ? pos.x : finite(raw.x ?? raw.position?.x ?? raw.combatPosition?.x, pos.x);
+      const y = useFormationSpawn ? pos.y : finite(raw.y ?? raw.position?.y ?? raw.combatPosition?.y, pos.y);
+      result.push({
+        ...clone(raw),
+        ...(global.LuminousSpellLoadout?.hasSelection(authoritativePlayer || {}) ? {
+          spellLoadout: clone(global.LuminousSpellLoadout.canonical(authoritativePlayer))||
+            {schemaVersion:1,spellIds:global.LuminousSpellLoadout.selectedIds(authoritativePlayer)},
+          spellCastOverrides: clone(authoritativePlayer.spellCastOverrides || authoritativePlayer.characterBuild?.spellCastOverrides || {})
+        } : {}),
+        inventario_activo: clone(liveActiveInventory),
+        equipment: global.LuminousEquipmentLoadouts?.hydratedEquipment?.(
+          { ...raw, equipment: linkedEquipment?.equipment || raw.equipment || {} },
+          authoritativePlayer || raw
+        ) || (linkedEquipment ? clone(linkedEquipment.equipment) : clone(raw.equipment || {})),
+        activeEquipmentModes: clone(authoritativePlayer?.activeEquipmentModes || raw.activeEquipmentModes || {}),
+        // Prefer the authoritative Player anatomy (including an explicit empty
+        // list after DM extraction); stale Combat copies must not revive implants.
+        augmentations: clone(
+          authoritativePlayer?.augmentations ?? authoritativePlayer?.augments ??
+          authoritativePlayer?.bodyAugmentations ??
+          raw.augmentations ?? raw.augments ?? raw.bodyAugmentations ?? []
+        ),
+        attunedItemInstanceIds: linkedEquipment
+          ? clone(linkedEquipment.attunedItemInstanceIds)
+          : clone(raw.attunedItemInstanceIds || []),
+        id,
+        name: clean(raw.characterName || raw.character_name || raw.nombre || raw.name || id) || id,
+        faction,
+        controlled: controller,
+        focusMenu: playerOwned,
+        speed: finite(raw.speed, 0) || 0,
+        speedTie: finite(raw.speedTie, 0) || 0,
+        speedRollTurn: finite(raw.speedRollTurn, 0) || 0,
+        speedRange: Array.isArray(raw.speedRange) ? raw.speedRange.slice(0, 2) : [finite(raw.speedMin, 1) || 1, finite(raw.speedMax, 6) || 6],
+        hp: hpFor(raw, maxHp),
+        maxHp,
+        sp: spFor(raw),
+        minSp: finite(raw.minSp, -45),
+        maxSp: finite(raw.maxSp, 45),
+        actionSlots: actionSlotsFor(raw),
+        img: spriteFor(raw),
+        x,
+        y,
+        formationRow: pos.y === 42 ? 1 : 0,
+        formationColumn: Math.max(0, Math.floor((sideIndex[faction] - 1) / 2)),
+        positionPinned: explicitBattlePosition(raw),
+        formationSource: useFormationSpawn ? "pre_combat_zigzag" : "runtime_position",
+        size: deployment?.sizeOf(raw) || raw.size || raw.unitSize || raw.mechanics?.size || "medium",
+        scale: finite(raw.scale ?? raw.visualScale ?? raw.escala ?? raw.combatVisual?.scale, 1) || 1,
+        spriteX: finite(raw.spriteX ?? raw.combatVisual?.x, 0) || 0,
+        spriteY: finite(raw.spriteY ?? raw.combatVisual?.y, 0) || 0,
+        staggerThresholds: Array.isArray(raw.staggerThresholds) && raw.staggerThresholds.length ? raw.staggerThresholds : [75, 50, 25],
+        isBackup: raw.isBackup === true || raw.battleActive === false,
+        battleActive: raw.battleActive !== false,
+        level: finite(raw.level ?? raw.characterBuild?.calculatedAtLevel, 1) || 1,
+        offensiveLevel: finite(raw.offensiveLevel ?? raw.offensive_level ?? raw.level, 1) || 1,
+        defensiveLevel: finite(raw.defensiveLevel ?? raw.defensive_level ?? raw.level, 1) || 1,
+        statusEffects: clone(raw.statusEffects || {}),
+      });
+    }
+    for (const unit of result) Object.assign(unit, clone(unit.combatIndependentActionState?.runtimeFields || {}));
+    return result;
+  }
+
+  function coinAmount(skill = {}) {
+    if (Array.isArray(skill.coins) && skill.coins.length) return skill.coins.length;
+    return Math.max(1, Math.trunc(finite(skill.coinAmount ?? skill.coin_amount ?? skill.coinCount ?? skill.coin_count ?? (typeof skill.coins === 'number' ? skill.coins : null), 1) || 1));
+  }
+
+  function normalizeSkill(id, skill = {}) {
+    const kindRaw = normalizeId(skill.kind || skill.type || skill.actionType || "skill");
+    const defenseTypes = new Set(["defense", "guard", "evade", "counter", "clashableguard", "clashablecounter"]);
+    const kind = defenseTypes.has(kindRaw) ? "defense" : (kindRaw.includes("spell") ? "spell" : "skill");
+    const affinity = normalizeId(skill.sinAffinity || skill.affinity || skill.sin || "sinless") || "sinless";
+    const result = {
+      ...clone(skill),
+      id: clean(id),
+      skillId: clean(id),
+      libraryKey: clean(id),
+      definitionId: clean(skill.id || id),
+      name: clean(skill.name || skill.nombre || id) || id,
+      kind,
+      basePower: finite(skill.basePower ?? skill.base_power, 0) || 0,
+      coinPower: finite(skill.coinPower ?? skill.coin_power, 0) || 0,
+      coinAmount: coinAmount(skill),
+      coinType: clean(skill.coinType || skill.coin_type || "positive") || "positive",
+      sinAffinity: affinity,
+      damageType: clean(skill.damageType || skill.damage_type || skill.physicalType || "Blunt") || "Blunt",
+      description: clean(skill.description || skill.descripcion || ""),
+      effects: clone(skill.effects || []),
+      coins: clone(skill.coins || []),
+      cost: clean(skill.cost || "1 Action Slot"),
+    };
+    if (kind === "defense") result.defenseType = normalizeId(skill.defenseType || skill.defenseSubtype || skill.type || "guard");
+    if (skill.range === true || skill.isRanged === true || finite(skill.skillRange, 1) > 1) result.range = true;
+    return result;
+  }
+
+  function skillIdsFor(unit = {}) {
+    if (global.LuminousCombatSkillLoadout074) return global.LuminousCombatSkillLoadout074.skillIdsFor(unit);
+    if (Array.isArray(unit.skillIds)) return unit.skillIds.map(clean).filter(Boolean);
+    if (Array.isArray(unit.skillSlotIds)) return unit.skillSlotIds.map(clean).filter(Boolean);
+    if (Array.isArray(unit.equippedSkills)) return unit.equippedSkills.map((row) => clean(row?.id || row)).filter(Boolean);
+    if (unit.equippedSkillIndex && typeof unit.equippedSkillIndex === "object") return Object.keys(unit.equippedSkillIndex).filter((id) => unit.equippedSkillIndex[id] === true);
+    return [];
+  }
+
+  function inventoryEntries(container) {
+    if (Array.isArray(container)) return container.map((item, index) => [String(index), item]);
+    return container && typeof container === "object" ? Object.entries(container) : [];
+  }
+
+  function inventoryQuantity(item = {}) {
+    const value = Number(item.quantity ?? item.qty ?? item.cantidad ?? item.stack ?? item.count ?? 1);
+    return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+  }
+
+  function activeInventoryItems(source = {}) {
+    const container = activeInventoryContainer(source);
+    return inventoryEntries(container).map(([key, item]) => {
+      if (!item || typeof item !== "object" || inventoryQuantity(item) <= 0) return null;
+      const instanceId = clean(item.instanceId || item.instance_id || key);
+      const definitionId = clean(item.definitionId || item.definition_id || item.canonicalId || item.itemId || item.item_id || item.id || key);
+      return {
+        ...clone(item),
+        id: instanceId || definitionId,
+        itemId: instanceId || definitionId,
+        instanceId: instanceId || null,
+        definitionId: definitionId || null,
+        kind: "item",
+        inventoryContainer: "inventario_activo",
+      };
+    }).filter(Boolean);
+  }
+
+  function inventoryHydrationSignature(unit = {}) {
+    return activeInventoryItems(unit).map((item) => [
+      item.instanceId || item.id,
+      item.definitionId || null,
+      inventoryQuantity(item),
+      Number(item.chargesCurrent ?? item.charges_current ?? item.carga_actual ?? 0) || 0,
+      Number(item.chargesMax ?? item.charges_max ?? item.carga_max ?? item.carga_maxima ?? 0) || 0,
+      item.condition ?? item.currentCondition ?? item.durability ?? null,
+      item.enhancementLevel ?? 0,
+      item.enhancementSource ?? null,
+      item.enchantment ?? null,
+    ]);
+  }
+
+  function kitsFor(combatants) {
+    const kits = {};
+    for (const unit of combatants) {
+      const source = unit;
+      const embeddedSkills=Array.isArray(source.resolvedSkills)?source.resolvedSkills:[];
+      const library = { ...Object.fromEntries(embeddedSkills.filter(row=>row?.id).map(row=>[row.id,row])),
+        ...(state.skills || {}), ...(global.LuminousPlayerSignatureSkillCatalog?.DEFINITIONS || {}),
+        ...(global.LuminousBuildSkillCatalog?.DEFINITIONS || {}) };
+      const equippedGrants = new Set(global.LuminousCombatSkillLoadout074?.grantedSkillIdsFor?.(unit) ||
+        global.LuminousEquipmentEffects?.grantedSkillIds?.(unit) || []);
+      const deckIds=new Set(global.LuminousCombatSkillLoadout074?.skillSlotIdsFor?.(unit)||[]);
+      const selection=unit.characterBuild?.skillDeck||unit.skillDeck;
+      const explicit=Number(selection?.schemaVersion)>=2;
+      const actions = [...new Set(skillIdsFor(unit))].map((skillId) => {
+        if (!library[skillId]) return null;
+        const skill=normalizeSkill(skillId, library[skillId]);
+        return equippedGrants.has(skillId)&&!deckIds.has(skillId)
+          ?{...skill,inDeck:false,availability:{type:'granted'},deck:{enabled:false}}:skill;
+      }).filter(Boolean);
+      const embedded = Array.isArray(source.actions) ? source.actions.map((row, index) => normalizeSkill(clean(row?.id || `${unit.id}:action:${index}`), row || {})) : [];
+      // Resolve the ordinary kit first: a grant must never suppress embedded attacks.
+      const combined = [...(actions.length||explicit ? actions : embedded)];
+      const seen = new Set(combined.map(skill => skill.id));
+      for (const skillId of equippedGrants) {
+        if (seen.has(skillId) || !library[skillId]) continue;
+        const skill = normalizeSkill(skillId, library[skillId]);
+        // Only equipment-only Skills stay outside the offensive 3/2/1 deck.
+        combined.push({ ...skill, inDeck: false, availability: { type: "granted" }, deck: { enabled: false } });
+        seen.add(skillId);
+      }
+      kits[unit.id] = {
+        role: clean(source.buildRole || source.combatRole || source.role || ""),
+        actions: combined,
+        items: activeInventoryItems(source),
+        inventorySource: "inventario_activo",
+      };
+    }
+    return kits;
+  }
+
+  function hydrationSignature(combatants, playerId) {
+    const summary = combatants.map((unit) => [
+      unit.id,
+      unit.controlled,
+      unit.hp,
+      unit.maxHp,
+      unit.sp,
+      // Speed is synchronized in-place by LuminousCombatSpeedAuthority073.
+      // Excluding its canonical roll fields prevents a speed-only Firebase
+      // update from rebuilding Combat and resetting Player planning/menu state.
+      unit.x,
+      unit.y,
+      unit.positionPinned,
+      unit.scale,
+      unit.size,
+      unit.isSummon,
+      unit.isBackgroundUnit,
+      unit.kind,
+      unit.unitType,
+      unit.spriteX,
+      unit.spriteY,
+      unit.actionSlots,
+      unit.img,
+      unit.battleActive,
+      unit.lifeState,unit.isDowned,unit.isDead,unit.isRetreated,unit.isStable,unit.deathSaves,
+      unit.statusEffects,
+      unit.combatDeck,
+      unit.combatDeckModes,
+      unit.proneSpeedRound,
+      unit.confusionTurnMode,
+      unit.equipment,
+      unit.activeEquipmentModes,
+      unit.augmentations,
+      unit.equipmentInactive,
+      unit.scores,unit.abilityScores,unit.stats,unit.attributes,
+      skillIdsFor(unit),
+      unit.spellLoadout || unit.spellIds || unit.spellSelections || unit.characterBuild?.spellSelections || null,
+      unit.spellCastOverrides || unit.characterBuild?.spellCastOverrides || null,
+      inventoryHydrationSignature(unit),
+      playerRecordFor(unit)?.itemEquipmentRefs || unit.itemEquipmentRefs || null,
+      playerRecordFor(unit)?.attunedItemInstanceIds || unit.attunedItemInstanceIds || null
+    ]);
+    const skillRevision = Object.entries(state.skills || {}).map(([id, skill]) => [id, skill?.updatedAt || skill?.revision || skill?.version || null]);
+    return JSON.stringify([state.role, playerId, state.combatState, state.round, state.encounterId, summary, skillRevision]);
+  }
+
+  function setRoleUi() {
+    const host = global.document?.getElementById?.("game-container");
+    if (!host) return;
+    host.dataset.viewerRole = state.role || "unknown";
+    const styleId = "combat073-live-role-style";
+    let style = global.document.getElementById(styleId);
+    if (!style) {
+      style = global.document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        #game-container[data-viewer-role="dm"] .command-ring,
+        #game-container[data-viewer-role="dm"] .category-surface,
+        #game-container[data-viewer-role="dm"] .category-back,
+        #game-container[data-viewer-role="dm"] .player-ready-control,
+        #game-container[data-viewer-role="dm"] .quick-badge { display:none!important; }
+        #game-container[data-viewer-role="player"] .prototype-controls,
+        #game-container[data-viewer-role="dm"] .prototype-controls { display:none!important; }
+      `;
+      global.document.head.appendChild(style);
+    }
+  }
+
+  function dispatchHydrated(focusId, combatants) {
+    global.dispatchEvent(new CustomEvent("luminous:combat073-hydrated", {
+      detail: {
+        version: VERSION,
+        role: state.role,
+        playerId: state.playerId,
+        focusId,
+        round: state.round,
+        combatants: combatants.map((unit) => ({ id: unit.id, controlled: unit.controlled }))
+      }
+    }));
+  }
+
+  function hydrateNow() {
+    state.hydrateTimer = null;
+    if (!state.runtimeReady || !state.firebaseReady || !global.LuminousCombat073) return false;
+    // Rebuilding during playback resets live combatants, plans and the local
+    // round. Authority schedules the deferred refresh when execution settles.
+    if (global.LuminousCombatAuthority073?.state?.runningLocal) return false;
+    const identity = resolveIdentity();
+    state.role = identity.role;
+    state.isAuthority = identity.isAuthority===true || identity.role==='dm';
+    state.playerId = identity.playerId;
+    if (!state.role) {
+      setStatus("COMBAT · AUTHENTICATED USER IS NOT THE DM OR A LINKED CAMPAIGN PLAYER","identity-unresolved");
+      return false;
+    }
+    global.LuminousCombatBootstrapStage?.(`identity-${state.role}`,state.role==="dm"?"Canonical DM identity confirmed":`Player identity confirmed · ${state.playerId||"unknown"}`);
+    setRoleUi();
+    const focusEntry = state.role === "player" ? playerCombatantEntry() : dmFocusEntry();
+    if (!focusEntry) {
+      global.LuminousCombat073.reset();
+      setStatus(state.role === 'dm' ? 'Abre Encuentro para añadir personajes y enemigos.' : 'Esperando a que el DM añada a tu personaje.',"waiting-field");
+      return false;
+    }
+    const [focusKey, focusUnit] = focusEntry;
+    const focusId = clean(focusUnit?.id || focusUnit?.combatId || focusKey) || focusKey;
+    const combatants = normalizedCombatants();
+    const signature = hydrationSignature(combatants, focusId);
+    if (signature === state.lastSignature) return true;
+    state.lastSignature = signature;
+    global.LuminousCombat073.hydrate({
+      playerId: focusId,
+      viewerRole: state.role,
+      combatants,
+      kits: kitsFor(combatants),
+      round: state.round,
+      playIntro: !state.hydratedOnce && state.role === "player",
+    });
+    state.hydratedOnce = true;
+    if (state.role === "dm") {
+      global.LuminousCombat073.camera("full", false);
+      setStatus(`TURN ${state.round} · DM VIEW · ${combatants.length} COMBATANTS`);
+    } else {
+      const phase = normalizeId(state.combatState);
+      const planning = phase === "pre_combat_planning" || phase === "planning";
+      const host = global.document?.getElementById?.("game-container");
+      host?.classList.toggle("ready-menu-visible", planning);
+      setStatus(`TURN ${state.round} · ${planning ? "PLANNING" : state.combatState} · ${focusUnit?.name || focusUnit?.characterName || state.playerId}`);
+    }
+    dispatchHydrated(focusId, combatants);
+    return true;
+  }
+
+  function scheduleHydrate() {
+    if (state.hydrateTimer) return;
+    state.hydrateTimer = global.setTimeout(() => hydrateNow(), 40);
+  }
+
+  function subscribe(path, assign) {
+    const ref = state.db.ref(path);
+    const uid = state.uid;
+    let closed = false;
+    let retried = false;
+    let retryTimer = null;
+    const handler = (snapshot) => { assign(snapshot.val()); scheduleHydrate(); };
+    const failed = () => setStatus("COMBAT · CONNECTION FAILED · REOPEN COMBAT", "realtime-error");
+    const onCancel = (error) => {
+      // A listen opened during Auth restoration can be rejected before the
+      // token reaches RTDB. Cancelled Firebase listens do not resume themselves.
+      if (closed || retried || error?.code !== "PERMISSION_DENIED" || !state.user || state.uid !== uid) {
+        if (!closed) failed();
+        return;
+      }
+      retried = true;
+      Promise.resolve().then(() => state.user.getIdToken?.(true)).then(() => {
+        if (closed || state.uid !== uid) return;
+        retryTimer = global.setTimeout(() => {
+          retryTimer = null;
+          if (!closed && state.uid === uid) ref.on("value", handler, onCancel);
+        }, 250);
+      }).catch(() => { if (!closed) failed(); });
+    };
+    ref.on("value", handler, onCancel);
+    state.unsubscribers.push(() => {
+      closed = true;
+      if (retryTimer) global.clearTimeout(retryTimer);
+      ref.off("value", handler);
+    });
+  }
+
+  function bindRealtime() {
+    if (!state.db?.ref || state.firebaseReady) return;
+    state.firebaseReady = true;
+    subscribe(ROOTS.players, (value) => { state.players = value && typeof value === "object" ? value : {}; });
+    subscribe(ROOTS.combatants, (value) => { state.combatants = value && typeof value === "object" ? value : {}; });
+    // Skills are loaded sparsely by LuminousCombatLibraryClient073 for FIELD Units only.
+    subscribe(ROOTS.state, (value) => {
+      const parsed = phaseAndRound(value);
+      state.combatState = parsed.phase;
+      state.round = parsed.round;
+      state.encounterId = value?.encounterId || null;
+      state.presentation = value?.presentation === 'simple' ? 'simple' : 'full';
+      global.LuminousCombatHudMotion073?.applyPreference?.();
+    });
+    state.db.ref(ROOTS.dmUid).once("value").then((snapshot) => {
+      state.dmUid = clean(snapshot.val()) || FALLBACK_DM_UID;
+      global.LuminousCombatBootstrapStage?.("dm-identity-config","Campaign DM identity loaded");
+      scheduleHydrate();
+    }).catch((error) => {
+      global.LuminousCombatBootstrapStage?.("dm-identity-config-error",error?.code||error?.message||"DM identity read failed",error?.code||error?.message||"DM identity read failed");
+      scheduleHydrate();
+    });
+  }
+
+  function onAuth(user) {
+    state.user = user || null;
+    state.uid = clean(user?.uid) || null;
+    if (!user) {
+      setStatus("COMBAT · AUTH REQUIRED","auth-required");
+      return;
+    }
+    global.LuminousCombatBootstrapStage?.("auth-ready","Firebase user authenticated");
+    bindRealtime();
+    scheduleHydrate();
+  }
+
+  function start() {
+    if (state.started) return true;
+    state.started = true;
+    if (!ensureFirebase()) return false;
+    state.auth.onAuthStateChanged(onAuth, (error) => {
+      console.error("[Combat073] auth state failed", error);
+      setStatus("COMBAT · AUTH ERROR");
+    });
+    return true;
+  }
+
+  function stop() {
+    state.unsubscribers.splice(0).forEach((unsubscribe) => { try { unsubscribe(); } catch (_) {} });
+    if (state.hydrateTimer) global.clearTimeout(state.hydrateTimer);
+    state.hydrateTimer = null;
+    state.firebaseReady = false;
+    state.started = false;
+  }
+
+  global.addEventListener("luminous:combat073-runtime-ready", () => {
+    state.runtimeReady = true;
+    scheduleHydrate();
+  });
+  global.addEventListener("beforeunload", stop, { once: true });
+
+  global.LuminousCombatLiveAdapter073 = Object.freeze({
+    version: VERSION,
+    ROOTS,
+    state,
+    start,
+    stop,
+    hydrateNow,
+    scheduleHydrate,
+    normalizeSkill,
+    isFieldCombatant,
+    playerRecordFor,
+    canonicalPlayerId,
+    skillIdsFor,
+    activeInventoryContainer,
+    normalizedCombatants,
+    defaultPosition,
+    planningPhase,
+    explicitBattlePosition,
+    kitsFor,
+    activeInventoryItems,
+    inventoryHydrationSignature,
+    hydrationSignature,
+  });
+
+  start();
+})(window);

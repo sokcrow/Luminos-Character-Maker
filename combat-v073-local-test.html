@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Luminous Combat v0.7.3 · Local Test</title>
+  <style>
+    :root{color-scheme:dark}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;background:#07050d;color:#eee;font-family:system-ui,sans-serif}
+    body{display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+    header{padding:12px 14px;border-bottom:1px solid #2d2638;background:#0d0914;display:grid;gap:10px}
+    .top{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+    h1{font-size:15px;margin:0 12px 0 0;font-weight:700}
+    button,a{appearance:none;border:1px solid #4b3e5d;background:#171020;color:#f4eefb;border-radius:7px;padding:7px 10px;font:inherit;text-decoration:none;cursor:pointer}
+    button:hover,a:hover{background:#241831}
+    .grid{display:grid;grid-template-columns:repeat(8,minmax(90px,1fr));gap:6px}
+    .card{background:#120d19;border:1px solid #2c2338;border-radius:7px;padding:7px 9px;min-width:0}
+    .label{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#9e91ac}
+    .value{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+    .ok{color:#8ee6a8}.warn{color:#ffd27e}.bad{color:#ff8c8c}
+    main{display:grid;grid-template-columns:minmax(0,1fr) 330px;min-height:0}
+    iframe{width:100%;height:100%;border:0;background:#050010}
+    aside{border-left:1px solid #2d2638;background:#0b0811;padding:10px;overflow:auto}
+    pre{white-space:pre-wrap;word-break:break-word;font-size:11px;line-height:1.4;background:#110c18;border:1px solid #2b2237;border-radius:7px;padding:9px;min-height:180px}
+    .note{font-size:11px;color:#b5aabd;line-height:1.45}
+    @media(max-width:900px){main{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}aside{display:none}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Luminous Combat v0.7.3 · Local Test</h1>
+    <button id="reload">Reload Viewer</button>
+    <button id="snapshot">Snapshot</button>
+    <a href="Battle-viewer.html" target="_blank" rel="noopener">Open Viewer</a>
+    <a href="hoja_de_DM.html" target="_blank" rel="noopener">Open DM</a>
+  </div>
+  <div class="grid">
+    <div class="card"><div class="label">Runtime</div><div id="runtime" class="value">…</div></div>
+    <div class="card"><div class="label">Adapter</div><div id="adapter" class="value">…</div></div>
+    <div class="card"><div class="label">Firebase</div><div id="firebase" class="value">…</div></div>
+    <div class="card"><div class="label">Role</div><div id="role" class="value">…</div></div>
+    <div class="card"><div class="label">Player</div><div id="player" class="value">…</div></div>
+    <div class="card"><div class="label">Round</div><div id="round" class="value">…</div></div>
+    <div class="card"><div class="label">Phase</div><div id="phase" class="value">…</div></div>
+    <div class="card"><div class="label">Combatants</div><div id="combatants" class="value">…</div></div>
+  </div>
+</header>
+<main>
+  <iframe id="viewer" src="Battle-viewer.html" title="Luminous Combat v0.7.3"></iframe>
+  <aside>
+    <div class="note">Este harness no escribe datos. Usa el Battle Viewer real y solo inspecciona su runtime desde el mismo origen.</div>
+    <pre id="log">Esperando al runtime…</pre>
+  </aside>
+</main>
+<script>
+(()=>{
+  const iframe=document.getElementById('viewer');
+  const $=id=>document.getElementById(id);
+  const set=(id,value,state='')=>{const n=$(id);n.textContent=value??'—';n.className=`value ${state}`};
+  function inspect(){
+    let w;
+    try{w=iframe.contentWindow}catch(_){return}
+    if(!w)return;
+    const runtime=w.LuminousCombat073;
+    const adapter=w.LuminousCombatLiveAdapter073;
+    const s=adapter?.state;
+    set('runtime',runtime?'v0.7.3 ready':'waiting',runtime?'ok':'warn');
+    set('adapter',adapter?.version||'waiting',adapter?'ok':'warn');
+    set('firebase',s?.firebaseReady?'connected':(s?.started?'starting':'waiting'),s?.firebaseReady?'ok':'warn');
+    set('role',s?.role||'—',s?.role?'ok':'warn');
+    set('player',s?.playerId||'—',s?.playerId?'ok':'');
+    set('round',s?.round??'—');
+    set('phase',typeof s?.combatState==='object'?JSON.stringify(s.combatState):s?.combatState||'—');
+    set('combatants',s?.combatants?Object.keys(s.combatants).length:'—');
+  }
+  function snapshot(){
+    try{
+      const w=iframe.contentWindow;
+      const a=w?.LuminousCombatLiveAdapter073;
+      const s=a?.state;
+      const data={
+        href:w?.location?.href,
+        runtime:Boolean(w?.LuminousCombat073),
+        adapterVersion:a?.version||null,
+        firebaseReady:Boolean(s?.firebaseReady),
+        uid:s?.uid||null,
+        role:s?.role||null,
+        playerId:s?.playerId||null,
+        round:s?.round||null,
+        combatState:s?.combatState||null,
+        combatantIds:Object.keys(s?.combatants||{}),
+        skillCount:Object.keys(s?.skills||{}).length,
+        hydratedOnce:Boolean(s?.hydratedOnce)
+      };
+      $('log').textContent=JSON.stringify(data,null,2);
+    }catch(error){$('log').textContent=String(error?.stack||error)}
+  }
+  $('reload').addEventListener('click',()=>iframe.contentWindow.location.reload());
+  $('snapshot').addEventListener('click',snapshot);
+  iframe.addEventListener('load',()=>{setTimeout(inspect,100);setTimeout(snapshot,700)});
+  setInterval(inspect,500);
+})();
+</script>
+</body>
+</html>

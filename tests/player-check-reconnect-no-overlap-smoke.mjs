@@ -1,0 +1,235 @@
+import fs from "node:fs";
+import vm from "node:vm";
+import assert from "node:assert/strict";
+
+const coordinatorCode = fs.readFileSync("js/theatre-check-coordinator.js", "utf8");
+const opposedCode = fs.readFileSync("js/theatre-opposed-checks.js", "utf8");
+const css = fs.readFileSync("css/theatre-check-coordinator.css", "utf8");
+const html = fs.readFileSync("hoja_personaje.html", "utf8");
+new vm.Script(coordinatorCode, { filename: "js/theatre-check-coordinator.js" });
+new vm.Script(opposedCode, { filename: "js/theatre-opposed-checks.js" });
+
+assert.match(css, /#theatre-check-front-layer \.theatre-check-player-notice[\s\S]*?pointer-events: none !important;/,
+  "Notices must not intercept clicks");
+assert.match(css, /#theatre-check-front-layer \.theatre-check-result-stack[\s\S]*?display: flex;/,
+  "Recent results must have a dedicated layout");
+assert.match(css, /#theatre-check-front-layer\.has-check-command-prompt \.theatre-check-result-stack/,
+  "Results must not cover a pending Check");
+assert.match(coordinatorCode, /RESULT_NOTICE_MAX_AGE_MS = 25 \* 1000/,
+  "Rejoining must not replay 10 minutes of result notifications");
+assert.match(coordinatorCode, /state\.queuedCommandKeys\.has\(snapshot\.key\)/,
+  "Firebase replay must not enqueue duplicate commands");
+assert.match(opposedCode, /state\.opposedCommands\.get\(prompt\.dataset\.commandKey\)/,
+  "VS prompts must bind by exact command key");
+assert.ok(html.includes("v=20261009-check-reconnect-2"),
+  "Player must receive fresh Check assets, not cached versions");
+assert.match(coordinatorCode, /statusRef\.on\("value", onAcknowledged/,
+  "Completed live telemetry must be retained until the DM acknowledges the command");
+assert.ok(coordinatorCode.indexOf('liveRef.remove()') > coordinatorCode.indexOf('if (snapshot.val() !== "completed") return;'),
+  "Completed live telemetry may only be deleted in the post-acknowledgement branch");
+assert.match(coordinatorCode, /live\.status !== "complete" && age > LIVE_MAX_AGE_MS/,
+  "DM must resolve completed telemetry regardless of how long it was offline");
+
+function element(tagName) {
+  const classes = new Set();
+  return {
+    tagName: tagName.toUpperCase(), id: "", dataset: {}, children: [], parentElement: null,
+    textContent: "", listeners: {}, style: {},
+    classList: {
+      contains(name) { return classes.has(name); },
+      add(...names) { names.forEach((name) => classes.add(name)); },
+      remove(...names) { names.forEach((name) => classes.delete(name)); },
+    },
+    setAttribute() {},
+    appendChild(child) {
+      if (child.parentElement) child.remove();
+      child.parentElement = this;
+      this.children.push(child);
+      return child;
+    },
+    append(...children) { children.forEach((child) => this.appendChild(child)); },
+    replaceChildren(...children) {
+      this.children.forEach((child) => { child.parentElement = null; });
+      this.children = [];
+      this.append(...children);
+    },
+    remove() {
+      if (this.parentElement) {
+        const siblings = this.parentElement.children;
+        const index = siblings.indexOf(this);
+        if (index >= 0) siblings.splice(index, 1);
+      }
+      this.parentElement = null;
+    },
+    get isConnected() { return !!this.parentElement; },
+    querySelectorAll() { return []; },
+    querySelector() { return null; },
+    addEventListener(type, listener) { this.listeners[type] = listener; },
+  };
+}
+
+const body = element("body");
+body.classList.add("player-instance-theatre");
+const theatre = element("main");
+theatre.id = "theatre-view-player";
+body.appendChild(theatre);
+const find = (root, id) => root.id === id ? root :
+  root.children.map((child) => find(child, id)).find(Boolean) || null;
+const document = {
+  readyState: "loading", body, createElement: element,
+  addEventListener() {}, querySelector() { return null; },
+  getElementById(id) { return find(body, id); },
+};
+
+const listeners = new Map();
+const seen = new Map([
+  ["luminousTheatreCheck:interrupted-1", "done"],
+  ["luminousTheatreCheck:completed-1", "done"],
+  ["luminousTheatreCheck:missing-1", "done"],
+  ["luminousTheatreCheck:acked-1", "done"],
+  ["luminousTheatreCheck:unreadable-1", "done"],
+]);
+const liveRecords = new Map([
+  ["theatre_check_live/player-1/interrupted-1", { status: "rolling" }],
+  ["theatre_check_live/player-1/completed-1", { status: "complete" }],
+  ["theatre_check_live/player-1/acked-1", { status: "rolling" }],
+  ["theatre_check_live/player-1/unreadable-1", { status: "rolling" }],
+]);
+const commandStatus = new Map([["acked-1", "completed"]]);
+const sessionStorage = {
+  getItem(key) { return seen.get(key) ?? null; },
+  setItem(key, value) { seen.set(key, value); },
+  removeItem(key) { seen.delete(key); },
+};
+const refs = (path = "") => ({
+  limitToLast() { return this; },
+  on(type, listener) { listeners.set(`${path}:${type}`, listener); },
+  once: async () => {
+    if (path === "theatre_check_live/player-1/unreadable-1") {
+      throw new Error("simulated Firebase permission/network failure");
+    }
+    const key = path.split("/")[2];
+    return {
+      val: () => path.endsWith("/status") ? (commandStatus.get(key) || "issued")
+        : (liveRecords.get(path) || null),
+    };
+  },
+});
+const database = () => ({ ref: refs });
+database.ServerValue = { TIMESTAMP: 1 };
+const window = {
+  document, sessionStorage, console,
+  setTimeout: () => 1, clearTimeout() {},
+  firebase: { database, auth: () => ({ currentUser: { uid: "player-1" } }) },
+};
+window.window = window;
+vm.runInNewContext(coordinatorCode, window);
+window.LuminousTheatreCheckCoordinator.bindAuthorizedData();
+
+const serverOffsetListener = listeners.get(".info/serverTimeOffset:value");
+assert.equal(typeof serverOffsetListener, "function",
+  "Firebase offset must be subscribed before result replay");
+assert.equal(listeners.has("theatre_check_results/player-1:child_added"), false,
+  "The first result replay must wait for a known Firebase server offset");
+const visibleResult = () => document.getElementById("theatre-check-player-notice");
+const useOffset = (offset) => serverOffsetListener({ val: () => offset });
+
+// Player clock is 60 seconds BEHIND Firebase. A result from 90 seconds ago
+// must not appear on reconnect simply because Date.now() is inaccurate.
+useOffset(60_000);
+const resultListener = listeners.get("theatre_check_results/player-1:child_added");
+assert.equal(typeof resultListener, "function");
+const notifyResult = (data) => resultListener({ val: () => ({
+  roomKey: "default", label: "Hidden Threshold Check",
+  outcome: "passed", total: 17, ...data,
+}) });
+const serverNow = () => Date.now() + 60_000;
+notifyResult({
+  completedAt: serverNow() - 90_000,
+  clientCompletedAt: Date.now() - 1_000,
+});
+assert.equal(visibleResult(), null,
+  "Player clock behind Firebase must not replay an already expired outcome");
+notifyResult({
+  completedAt: serverNow() - 2_000,
+  clientCompletedAt: Date.now() - 80_000,
+});
+assert.match(visibleResult()?.textContent || visibleResult()?.children[0]?.textContent || "", /CHECK SUPERADO/,
+  "Fresh authoritative result must appear even when the DM clock was behind");
+visibleResult().remove();
+
+// Server offset updates must be used dynamically without re-registering
+// duplicate result listeners.
+useOffset(-60_000);
+const aheadServerNow = () => Date.now() - 60_000;
+assert.equal(listeners.get("theatre_check_results/player-1:child_added"), resultListener,
+  "Clock updates must not duplicate the Firebase result subscription");
+notifyResult({
+  completedAt: aheadServerNow() - 90_000,
+  clientCompletedAt: Date.now() - 1_000,
+});
+assert.equal(visibleResult(), null, "Expired results must stay hidden when the player's clock is ahead");
+notifyResult({
+  completedAt: aheadServerNow() - 2_000,
+  clientCompletedAt: Date.now() - 80_000,
+});
+assert.ok(visibleResult(), "Fresh server results must appear when the player's clock is ahead");
+visibleResult().remove();
+
+useOffset(0);
+notifyResult({
+  completedAt: null,
+  clientCompletedAt: Date.now() - 1_000,
+});
+assert.ok(visibleResult(),
+  "Older records without a valid completedAt must still use clientCompletedAt");
+visibleResult().remove();
+notifyResult({
+  completedAt: undefined,
+  clientCompletedAt: Date.now() - 90_000,
+});
+assert.equal(visibleResult(), null,
+  "Stale records without server timestamps must remain filtered");
+
+const commandListener = listeners.get("theatre_check_commands/player-1:child_added");
+assert.equal(typeof commandListener, "function");
+
+const interrupted = {
+  status: "issued", targetUid: "player-1", roomKey: "default",
+  clientIssuedAt: Date.now(), rollSpec: { kind: "skill", abilityId: "wis", skillId: "perception", label: "Perception" },
+  check: { thresholdRaw: 18, hiddenThreshold: false },
+};
+for (const key of ["completed-1", "missing-1", "acked-1", "unreadable-1"]) {
+  await commandListener({ key, val: () => interrupted });
+  assert.equal(sessionStorage.getItem(`luminousTheatreCheck:${key}`), "done",
+    "Never erase a completion marker without positive evidence of an incomplete roll: " + key);
+  assert.equal(document.getElementById("theatre-check-command-prompt"), null,
+    "Never offer a second roll for completed, missing, acknowledged or unreadable telemetry: " + key);
+}
+
+const snapshot = { key: "interrupted-1", val: () => interrupted };
+await commandListener(snapshot);
+assert.equal(sessionStorage.getItem("luminousTheatreCheck:interrupted-1"), null,
+  "An interrupted roll must be recoverable even when the last tab marked it done");
+
+let prompt = document.getElementById("theatre-check-command-prompt");
+assert.ok(prompt, "The recovered command must display TIRAR again");
+assert.match(prompt.children[0].textContent, /INTERRUMPIDO/);
+const button = prompt.children.find((child) => child.tagName === "BUTTON");
+assert.equal(button.textContent, "TIRAR");
+await commandListener(snapshot);
+assert.equal(body.children.filter((child) => child.id === "theatre-check-front-layer").length, 1);
+assert.equal(document.getElementById("theatre-check-front-layer").children
+  .filter((child) => child.id === "theatre-check-command-prompt").length, 1,
+  "Command replay must not stack a second prompt over the first");
+
+button.listeners.click();
+await new Promise((resolve) => setImmediate(resolve));
+prompt = document.getElementById("theatre-check-command-prompt");
+assert.ok(prompt, "A missing Stats roll target must not silently discard the Check");
+assert.equal(button.disabled, false, "TIRAR must unlock after a recoverable error");
+assert.equal(button.textContent, "REINTENTAR");
+assert.ok(document.getElementById("theatre-check-front-layer")
+  .classList.contains("has-check-command-prompt"), "The prompt must retain priority while retrying");
+
+console.log("Player Check reconnect and no-overlap regression: OK");

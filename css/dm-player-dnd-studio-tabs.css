@@ -1,0 +1,86 @@
+#dm-player-dnd-studio .dm-player-dnd-tabs{
+  position:sticky;
+  top:0;
+  z-index:12;
+  display:flex;
+  gap:6px;
+  padding:10px 0;
+  background:linear-gradient(180deg,#11150f 0%,#11150f 72%,rgba(17,21,15,.94) 100%);
+  border-bottom:1px solid #3b4138;
+  overflow-x:auto;
+}
+
+#dm-player-dnd-studio .dm-player-dnd-tab{
+  flex:0 0 auto;
+  min-height:34px;
+  padding:7px 12px;
+  color:#8f8a7c;
+  background:#090c09;
+  border:1px solid #3a4036;
+  font:800 9px "Share Tech Mono",monospace;
+  letter-spacing:.075em;
+  cursor:pointer;
+  transition:.15s;
+}
+
+#dm-player-dnd-studio .dm-player-dnd-tab:hover,
+#dm-player-dnd-studio .dm-player-dnd-tab:focus-visible{
+  outline:0;
+  color:#e0d2b4;
+  border-color:#8c6a31;
+}
+
+#dm-player-dnd-studio .dm-player-dnd-tab.is-active{
+  color:#f4dfb5;
+  background:linear-gradient(180deg,#2a2114,#15110c);
+  border-color:#c89a45;
+  box-shadow:inset 0 0 14px rgba(200,154,69,.09),0 0 10px rgba(200,154,69,.08);
+}
+
+#dm-player-dnd-studio .dm-player-dnd-tab-body{
+  min-height:390px;
+  padding-top:8px;
+}
+
+#dm-player-dnd-studio .dm-player-dnd-tab-panel[hidden]{
+  display:none!important;
+}
+
+#dm-player-dnd-studio .dm-player-dnd-tab-panel{
+  animation:dmStudioTabIn .12s ease-out;
+}
+
+#dm-player-dnd-studio .dm-player-dnd-sticky-actions{
+  position:sticky;
+  bottom:0;
+  z-index:11;
+  margin:14px -16px -16px;
+  padding:10px 16px;
+  background:linear-gradient(180deg,rgba(8,10,8,.94),#080a08);
+  border-top:1px solid #3e4136;
+  box-shadow:0 -10px 24px rgba(0,0,0,.28);
+}
+
+#dm-player-dnd-studio [data-dm-studio-panel="loadout"]{
+  min-height:440px;
+}
+
+@keyframes dmStudioTabIn{
+  from{opacity:.45;transform:translateY(2px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+@media(max-width:620px){
+  #dm-player-dnd-studio .dm-player-dnd-tab{
+    padding:7px 9px;
+    font-size:8px;
+  }
+  #dm-player-dnd-studio .dm-player-dnd-sticky-actions{
+    margin:12px -11px -11px;
+    padding:9px 11px;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  #dm-player-dnd-studio .dm-player-dnd-tab-panel{animation:none}
+}

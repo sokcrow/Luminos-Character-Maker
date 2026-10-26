@@ -1,0 +1,59 @@
+name: CR0 Beast Runtime
+
+on:
+  pull_request:
+    paths:
+      - "js/movement-speed-runtime.js"
+      - "js/proficiency-runtime.js"
+      - "js/derived-stats-engine.js"
+      - "js/universal-speed-runtime.js"
+      - "js/combat-v073-speed-authority.js"
+      - "js/unit-combat-instantiator.js"
+      - "js/unit-combat-mechanics-runtime.js"
+      - "js/encounter-modifier-runtime.js"
+      - "js/environment-engine.js"
+      - "js/status-engine.js"
+      - "js/skill-catalog-beast-cr0.js"
+      - "js/unit-catalog-beast-cr0.js"
+      - "js/combat-unit-library-sync.js"
+      - "Battle-viewer.html"
+      - "tests/movement-speed-runtime-smoke.mjs"
+      - "tests/proficiency-runtime-smoke.mjs"
+      - "tests/beast-cr0-catalog-smoke.mjs"
+      - "tests/beast-mobility-runtime-smoke.mjs"
+      - "tests/encounter-modifier-web-smoke.mjs"
+      - ".github/workflows/beast-cr0-runtime.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  beast-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax checks
+        run: |
+          node --check js/movement-speed-runtime.js
+          node --check js/proficiency-runtime.js
+          node --check js/derived-stats-engine.js
+          node --check js/universal-speed-runtime.js
+          node --check js/combat-v073-speed-authority.js
+          node --check js/unit-combat-instantiator.js
+          node --check js/unit-combat-mechanics-runtime.js
+          node --check js/encounter-modifier-runtime.js
+          node --check js/environment-engine.js
+          node --check js/status-engine.js
+          node --check js/skill-catalog-beast-cr0.js
+          node --check js/unit-catalog-beast-cr0.js
+      - name: Focused smoke tests
+        run: |
+          node tests/movement-speed-runtime-smoke.mjs
+          node tests/proficiency-runtime-smoke.mjs
+          node tests/beast-cr0-catalog-smoke.mjs
+          node tests/beast-mobility-runtime-smoke.mjs
+          node tests/encounter-modifier-web-smoke.mjs

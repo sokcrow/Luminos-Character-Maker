@@ -1,0 +1,96 @@
+name: Trait Check Power Smoke
+
+on:
+  pull_request:
+    paths:
+      - "js/archetype-trait-catalog.js"
+      - "js/player-archetype-runtime-core.js"
+      - "js/player-stats-ability-bar.js"
+      - "js/skill-trait-breakdown-patch.js"
+      - "js/trait-engine.js"
+      - "js/player-trait-runtime.js"
+      - "js/rogue-class-runtime.js"
+      - "js/champion-archetype-runtime.js"
+      - "js/banneret-archetype-runtime.js"
+      - "js/samurai-archetype-runtime.js"
+      - "js/bladesinger-archetype-runtime.js"
+      - "tests/trait-special-check-regression.mjs"
+      - "js/derived-stats-engine.js"
+      - "js/trait-standardization-runtime.js"
+      - "js/ranger-class-runtime.js"
+      - "pantalla_dm.html"
+      - "tests/trait-manual-dm-integration-smoke.mjs"
+      - "tests/trait-skill-score-visibility-smoke.mjs"
+      - "tests/trait-visual-browser-smoke.mjs"
+      - "tests/fixtures/jackpot-performance-browser.html"
+      - "tests/trait-dm-composer-target-smoke.mjs"
+      - "js/theatre-check-coordinator.js"
+      - "hoja_personaje.html"
+      - "tests/trait-check-power-smoke.mjs"
+      - ".github/workflows/trait-check-power-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "js/archetype-trait-catalog.js"
+      - "js/player-archetype-runtime-core.js"
+      - "js/player-stats-ability-bar.js"
+      - "js/skill-trait-breakdown-patch.js"
+      - "js/trait-engine.js"
+      - "js/player-trait-runtime.js"
+      - "js/rogue-class-runtime.js"
+      - "js/champion-archetype-runtime.js"
+      - "js/banneret-archetype-runtime.js"
+      - "js/samurai-archetype-runtime.js"
+      - "js/bladesinger-archetype-runtime.js"
+      - "tests/trait-special-check-regression.mjs"
+      - "js/derived-stats-engine.js"
+      - "js/trait-standardization-runtime.js"
+      - "js/ranger-class-runtime.js"
+      - "pantalla_dm.html"
+      - "tests/trait-manual-dm-integration-smoke.mjs"
+      - "tests/trait-skill-score-visibility-smoke.mjs"
+      - "tests/trait-visual-browser-smoke.mjs"
+      - "tests/fixtures/jackpot-performance-browser.html"
+      - "tests/trait-dm-composer-target-smoke.mjs"
+      - "js/theatre-check-coordinator.js"
+      - "hoja_personaje.html"
+      - "tests/trait-check-power-smoke.mjs"
+      - ".github/workflows/trait-check-power-smoke.yml"
+
+jobs:
+  trait-check-power:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node --check js/archetype-trait-catalog.js
+      - run: node --check js/player-archetype-runtime-core.js
+      - run: node --check js/player-stats-ability-bar.js
+      - run: node --check js/derived-stats-engine.js
+      - run: node --check js/skill-trait-breakdown-patch.js
+      - run: node tests/trait-check-power-smoke.mjs
+      - run: node --check js/player-trait-runtime.js
+      - run: node --check js/rogue-class-runtime.js
+      - run: node --check js/champion-archetype-runtime.js
+      - run: node --check js/banneret-archetype-runtime.js
+      - run: node --check js/samurai-archetype-runtime.js
+      - run: node --check js/bladesinger-archetype-runtime.js
+      - run: node tests/trait-special-check-regression.mjs
+      - run: node --check js/trait-standardization-runtime.js
+      - run: node --check js/ranger-class-runtime.js
+      - run: node tests/trait-manual-dm-integration-smoke.mjs
+      - run: node tests/trait-skill-score-visibility-smoke.mjs
+      - run: node tests/trait-visual-browser-smoke.mjs
+        env:
+          SCREENSHOT_DIR: tests/artifacts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jackpot-performance-browser
+          path: tests/artifacts/jackpot-performance-browser.png
+          if-no-files-found: ignore
+      - run: node --check js/theatre-check-coordinator.js
+      - run: node tests/trait-dm-composer-target-smoke.mjs
+      - run: node tests/ranger-class-runtime-smoke.mjs

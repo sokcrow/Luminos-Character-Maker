@@ -1,0 +1,290 @@
+(function (global) {
+  "use strict";
+
+  // Canonical runtime Status store for Traits, Skills, Items, environments and combat effects.
+  // Status icons are presentation-only: unregistered statuses remain mechanically valid with icon=null.
+  const normalizeId = (value) => String(value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+  const numberOr = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
+
+  function registry() {
+    return global.STATUS_REGISTRY && typeof global.STATUS_REGISTRY === "object" ? global.STATUS_REGISTRY : {};
+  }
+
+  function getDefinition(statusId) {
+    const id = normalizeId(statusId);
+    const found = registry()[id] || global.LuminousConditionRuntime?.getDefinition?.(id);
+    if (found) return { id, icon: null, rules: [], ...clone(found) };
+    return {
+      id,
+      name: String(statusId || id || "Unknown Status"),
+      type: "neutral",
+      mode: "single",
+      icon: null,
+      rules: [],
+      description: "Unregistered status. Mechanics may be supplied by its source effect.",
+      unregistered: true,
+    };
+  }
+
+  function ensureStore(unit) {
+    if (!unit || typeof unit !== "object") return null;
+    if (!unit.statusEffects || Array.isArray(unit.statusEffects) || typeof unit.statusEffects !== "object") {
+      const next = {};
+      if (Array.isArray(unit.statusEffects)) {
+        unit.statusEffects.forEach((entry) => {
+          const id = normalizeId(entry?.id || entry?.name || entry);
+          if (id) next[id] = typeof entry === "object" ? clone(entry) : { id, count: 1, potency: 0 };
+        });
+      }
+      unit.statusEffects = next;
+    }
+    return unit.statusEffects;
+  }
+
+  function normalizeInstance(statusId, input = {}, existing = null) {
+    const id = normalizeId(statusId);
+    const definition = getDefinition(id);
+    const count = Math.max(0, numberOr(input.count, existing?.count ?? definition.defaultCount ?? 1));
+    const potency = numberOr(input.potency, existing?.potency ?? 0);
+    const duration = normalizeId(input.duration || existing?.duration || "until_removed");
+    const data = { ...(existing?.data || {}), ...(input.data || {}) };
+    if (["this_turn", "next_turn_end"].includes(duration) && !Number.isFinite(Number(data.durationTurnsRemaining))) {
+      data.durationTurnsRemaining = 1;
+    }
+    return {
+      id,
+      name: input.name || existing?.name || definition.name || id,
+      count,
+      potency,
+      duration,
+      sourceTraitId: input.sourceTraitId || existing?.sourceTraitId || null,
+      sourceUnitId: input.sourceUnitId || existing?.sourceUnitId || null,
+      data,
+    };
+  }
+
+  function applyStatus(unit, statusId, input = {}) {
+    const id = normalizeId(statusId);
+    if (!id) return null;
+    const conditionGate = global.LuminousConditionRuntime?.canApplyStatus?.(unit, id, input);
+    if (conditionGate?.allowed === false) return null;
+    const store = ensureStore(unit);
+    if (!store) return null;
+    const existing = store[id] && typeof store[id] === "object" ? store[id] : null;
+    const mode = normalizeId(input.mode || input.action || "gain");
+    const definition = getDefinition(id);
+    const normalizedInput = !existing && mode !== "set" && Number.isFinite(Number(definition.defaultCount))
+      ? { ...input, count: Number(definition.defaultCount) }
+      : input;
+    let next = normalizeInstance(id, normalizedInput, existing);
+
+    if (existing && ["gain", "add", "inflict", "apply"].includes(mode)) {
+      next.count = numberOr(existing.count, 0) + Math.max(0, numberOr(normalizedInput.count, 1));
+      next.potency = numberOr(existing.potency, 0) + numberOr(normalizedInput.potency, 0);
+    }
+    if (Number.isFinite(Number(definition.maxCount))) next.count = Math.min(Number(definition.maxCount), next.count);
+    store[id] = next;
+    if (id === "prone") {
+      try { global.LuminousUnitCombatMechanics?.onKnockedDown?.(unit); } catch (_) {}
+    }
+    return next;
+  }
+
+  function protectionFor(unit, statusId, options = {}) {
+    const id = normalizeId(statusId);
+    return options.protectedStatuses?.[id] || unit?.statusProtections?.[id] || unit?.protectedStatuses?.[id] || null;
+  }
+
+  function removeStatus(unit, statusId, options = {}) {
+    const id = normalizeId(statusId);
+    const store = ensureStore(unit);
+    if (!store || !id) return { removed: false, protected: false, statusId: id };
+    const protection = protectionFor(unit, id, options);
+    const source = normalizeId(options.from || "effects");
+    const protectionSource = normalizeId(protection?.from || protection?.source || "effects");
+    const blocked = Boolean(protection) && !options.ignoreProtection && (protectionSource === "all" || protectionSource === source || (protectionSource === "effects" && source !== "self"));
+    if (blocked) return { removed: false, protected: true, statusId: id, protection: clone(protection) };
+    const removed = Object.prototype.hasOwnProperty.call(store, id);
+    if (removed) delete store[id];
+    return { removed, protected: false, statusId: id };
+  }
+
+  function hasStatus(unit, statusId) {
+    const store = ensureStore(unit);
+    return Boolean(store && store[normalizeId(statusId)]);
+  }
+
+  function getStatus(unit, statusId) {
+    const store = ensureStore(unit);
+    const entry = store?.[normalizeId(statusId)];
+    return entry ? clone(entry) : null;
+  }
+
+  function protectStatus(unit, statusId, protection = {}) {
+    if (!unit || typeof unit !== "object") return null;
+    if (!unit.statusProtections || typeof unit.statusProtections !== "object") unit.statusProtections = {};
+    const id = normalizeId(statusId);
+    unit.statusProtections[id] = { from: normalizeId(protection.from || "effects"), sourceTraitId: protection.sourceTraitId || null };
+    return clone(unit.statusProtections[id]);
+  }
+
+  function syncTraitState(unit, traitState = {}) {
+    if (!unit) return unit;
+    Object.entries(traitState.statuses || {}).forEach(([statusId, status]) => applyStatus(unit, statusId, { ...status, mode: "set" }));
+    Object.entries(traitState.protectedStatuses || {}).forEach(([statusId, protection]) => protectStatus(unit, statusId, protection));
+    return unit;
+  }
+
+  function advanceDurations(unit, trigger = "turn_end") {
+    const phase = normalizeId(trigger);
+    if (!["turn_end", "round_end", "[round_end]"].includes(phase)) return [];
+    const store = ensureStore(unit) || {};
+    const expired = [];
+    Object.entries({ ...store }).forEach(([statusId, raw]) => {
+      if (!raw || typeof raw !== "object") return;
+      const duration = normalizeId(raw.duration || "until_removed");
+      if (!["this_turn", "next_turn_end"].includes(duration)) return;
+      if (!raw.data || typeof raw.data !== "object") raw.data = {};
+      const remaining = Math.max(1, Math.trunc(numberOr(raw.data.durationTurnsRemaining, 1))) - 1;
+      raw.data.durationTurnsRemaining = remaining;
+      if (remaining <= 0) {
+        removeStatus(unit, statusId, { from: "duration", ignoreProtection: true });
+        expired.push(normalizeId(statusId));
+      }
+    });
+    return expired;
+  }
+
+  function listStatuses(unit) {
+    const store = ensureStore(unit) || {};
+    return Object.entries(store).map(([id, instance]) => ({
+      ...getDefinition(id),
+      instance: typeof instance === "object" ? clone(instance) : { id, count: numberOr(instance, 1), potency: 0 },
+    }));
+  }
+
+  const api = Object.freeze({
+    normalizeId, getDefinition, ensureStore, applyStatus, removeStatus, hasStatus, getStatus,
+    protectStatus, syncTraitState, advanceDurations, listStatuses,
+  });
+
+  global.LuminousStatusEngine = api;
+  global.LuminousStatusLibrary?.installStatusEngineBridge?.();
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+
+  if (typeof require === "function") {
+    try { if (!global.LuminousExhaustionEngine) require("./exhaustion-engine.js"); } catch (_) {}
+    try { if (!global.LuminousConditionRuntime) require("./core-condition-runtime.js"); } catch (_) {}
+    try { if (!global.LuminousConditionCombatBridge) require("./core-condition-combat-bridge.js"); } catch (_) {}
+    try { if (!global.LuminousConditionTheatreBridge) require("./core-condition-theatre-bridge.js"); } catch (_) {}
+    try { if (!global.LuminousUniversalRangedAmmoRuntime) require("./universal-ranged-ammo-runtime.js"); } catch (_) {}
+    try { if (!global.LuminousGoblinUnitRuntime) require("./goblin-unit-runtime.js"); } catch (_) {}
+    try { if (!global.LuminousWolfUnitRuntime) require("./wolf-unit-runtime.js"); } catch (_) {}
+  }
+
+  function loadScript(id, src) {
+    if (!global.document || global.document.getElementById(id)) return null;
+    const script = global.document.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.async = false;
+    global.document.head?.appendChild(script);
+    return script;
+  }
+
+  function browserContext() {
+    const pathname = String(global.location?.pathname || "").toLowerCase();
+    if (/battle|combat/.test(pathname)) return "combat";
+    if (/hoja_personaje/.test(pathname)) return "player";
+    if (/theatre|theater/.test(pathname)) return "theatre";
+    return "other";
+  }
+
+  // StatusEngine is a data/mechanics primitive, not a global runtime bootstrap.
+  // The legacy browser bootstrap pulled combat, spellcasting, class, creature,
+  // injury and equipment graphs into every page that merely needed statuses.
+  // Only the actual Combat document may opt into that graph automatically.
+  function ensureCombatRuntimeGraph() {
+    if (!global.document || browserContext() !== "combat") return false;
+
+    const loadConditions = () => {
+      if (!global.LuminousConditionRuntime) loadScript("core-condition-runtime-script", "js/core-condition-runtime.js");
+    };
+    if (global.LuminousExhaustionEngine) loadConditions();
+    else {
+      const exhaustion = loadScript("exhaustion-engine-script", "js/exhaustion-engine.js");
+      exhaustion?.addEventListener?.("load", loadConditions, { once: true });
+    }
+
+    if (!global.LuminousThrownProjectileSequenceRuntime) loadScript("thrown-projectile-sequence-runtime-script", "js/thrown-projectile-sequence-runtime.js");
+    if (!global.LuminousThrownProjectileSequenceProfiles) loadScript("thrown-projectile-sequence-profiles-script", "js/thrown-projectile-sequence-profiles.js");
+    if (!global.LuminousConditionCombatBridge) loadScript("core-condition-combat-bridge-script", "js/core-condition-combat-bridge.js");
+    if (!global.LuminousCharacterBuildRules) loadScript("character-build-rules-script", "js/character-build-rules.js");
+    if (!global.LuminousRestEngine) loadScript("rest-engine-script", "js/rest-engine.js");
+    if (!global.LuminousRestRuntime) loadScript("rest-runtime-integration-script", "js/rest-runtime-integration.js");
+    if (!global.LuminousUniversalSpeedRuntime) loadScript("universal-speed-runtime-script", "js/universal-speed-runtime.js");
+    if (!global.LuminousUniversalRangedAmmoRuntime) loadScript("universal-ranged-ammo-runtime-script", "js/universal-ranged-ammo-runtime.js");
+    if (!global.LuminousGoblinUnitRuntime) loadScript("goblin-unit-runtime-script", "js/goblin-unit-runtime.js");
+    if (!global.LuminousWolfUnitRuntime) loadScript("wolf-unit-runtime-script", "js/wolf-unit-runtime.js");
+    if (!global.LuminousFixedDamageRuntime) loadScript("fixed-damage-runtime-script", "js/fixed-damage-runtime.js");
+    if (!global.LuminousElementalStatusRuntime) loadScript("elemental-status-runtime-script", "js/elemental-status-runtime.js");
+    if (!global.LuminousElementalStatusCompatibility) loadScript("elemental-status-compat-script", "js/elemental-status-compat.js");
+    if (!global.LuminousRacialTraitRuntimeBridge) loadScript("racial-trait-runtime-bridge-script", "js/racial-trait-runtime-bridge.js");
+    if (!global.LuminousSpellcastingRuntime) loadScript("spellcasting-runtime-script", "js/spellcasting-runtime.js");
+    if (!global.LuminousClassRuntimeBootstrap) loadScript("class-runtime-bootstrap-script", "js/class-runtime-bootstrap.js");
+    if (!global.LuminousArchetypeCombatEventRuntime) loadScript("archetype-combat-event-runtime-script", "js/archetype-combat-event-runtime.js");
+    if (!global.LuminousDeathSaveRuntime) loadScript("death-save-runtime-script", "js/death-save-runtime.js");
+
+    const ensureInjuryEquipmentRuntime = () => {
+      const ensureBridge = () => {
+        if (!global.LuminousInjuryEquipmentRuntime) loadScript("injury-equipment-runtime-script", "js/injury-equipment-runtime.js");
+      };
+      const ensureInjury = () => {
+        if (global.LuminousInjuryEngine) return ensureBridge();
+        const injuryScript = loadScript("injury-engine-script", "js/injury-engine.js");
+        injuryScript?.addEventListener?.("load", ensureBridge, { once: true });
+      };
+      if (global.LuminousAnatomyEquipmentEngine) return ensureInjury();
+      const anatomyScript = loadScript("anatomy-equipment-engine-script", "js/anatomy-equipment-engine.js");
+      anatomyScript?.addEventListener?.("load", ensureInjury, { once: true });
+    };
+    ensureInjuryEquipmentRuntime();
+    return true;
+  }
+
+  function ensureTheatreConditionGraph() {
+    if (!global.document || !["player", "theatre"].includes(browserContext())) return false;
+
+    const ensureBridge = () => {
+      if (global.LuminousConditionTheatreBridge) {
+        global.LuminousConditionTheatreBridge.install?.();
+        return;
+      }
+      const existing = global.document.getElementById("core-condition-theatre-bridge-script");
+      const bridge = existing || loadScript("core-condition-theatre-bridge-script", "js/core-condition-theatre-bridge.js");
+      bridge?.addEventListener?.("load", () => global.LuminousConditionTheatreBridge?.install?.(), { once: true });
+    };
+
+    const ensureConditions = () => {
+      if (global.LuminousConditionRuntime) {
+        ensureBridge();
+        return;
+      }
+      const existing = global.document.getElementById("core-condition-runtime-script");
+      const conditions = existing || loadScript("core-condition-runtime-script", "js/core-condition-runtime.js");
+      conditions?.addEventListener?.("load", ensureBridge, { once: true });
+    };
+
+    if (global.LuminousExhaustionEngine) ensureConditions();
+    else {
+      const existing = global.document.getElementById("exhaustion-engine-script");
+      const exhaustion = existing || loadScript("exhaustion-engine-script", "js/exhaustion-engine.js");
+      exhaustion?.addEventListener?.("load", ensureConditions, { once: true });
+    }
+    return true;
+  }
+
+  ensureCombatRuntimeGraph();
+  ensureTheatreConditionGraph();
+})(typeof window !== "undefined" ? window : globalThis);

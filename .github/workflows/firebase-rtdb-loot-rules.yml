@@ -1,0 +1,104 @@
+name: Firebase RTDB Loot Rules — validate and deploy
+
+# PRs only validate against the Auth/RTDB emulators. Only main may publish rules.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - database.rules.json
+      - firebase.json
+      - combat-results-firebase.json
+      - js/loot-postcombat-runtime.js
+      - js/loot-instance-runtime.js
+      - js/loot-live-postcombat-runtime.js
+      - js/player-postcombat-loot.js
+      - js/creature-compendium-ui.js
+      - tests/creature-compendium-context-smoke.mjs
+      - tests/loot-anatomy-variants-smoke.mjs
+      - tests/player-postcombat-loot-auth-smoke.mjs
+      - tests/loot-mobile-queue-smoke.mjs
+      - css/postcombat-loot-corpse.css
+      - tests/loot-shared-belongings.spec.mjs
+      - tests/loot-shared-belongings-smoke.mjs
+      - tests/loot-authority-emulator.mjs
+      - tests/unit-independent-rules-emulator.mjs
+      - .github/workflows/firebase-rtdb-loot-rules.yml
+  push:
+    branches: [main]
+    paths:
+      - database.rules.json
+      - firebase.json
+      - .github/workflows/firebase-rtdb-loot-rules.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: luminous-rtdb-${{ github.event.pull_request.number || 'production' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate-loot-permissions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify player loot bootstrap and JavaScript syntax
+        run: |
+          node --check js/player-postcombat-loot.js
+          node --check js/loot-live-postcombat-runtime.js
+          node tests/player-postcombat-loot-auth-smoke.mjs
+          node tests/loot-mobile-queue-smoke.mjs
+          node tests/creature-compendium-context-smoke.mjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Auth/RTDB emulator test dependencies
+        run: npm install --no-save --no-audit --no-fund firebase@8.10.1 firebase-tools@14.19.1 @playwright/test@1.55.0
+      - name: Select browser for shared corpse acceptance
+        shell: bash
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "CHROMIUM_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+      - name: Validate RTDB rules and authenticated player loot
+        run: npx firebase emulators:exec --only auth,database --project demo-combat-results --config combat-results-firebase.json 'node tests/loot-authority-emulator.mjs && node tests/unit-independent-rules-emulator.mjs && npx playwright test tests/loot-shared-belongings.spec.mjs --workers=1 --reporter=line'
+
+      - name: Save shared corpse mobile and desktop evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-corpse-browser-evidence
+          path: test-results/
+          if-no-files-found: ignore
+
+  deploy-database-rules:
+    needs: validate-loot-permissions
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Require explicitly configured production Firebase credentials
+        env:
+          FIREBASE_DEPLOY_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUMINOUS_SYSTEM }}
+        run: |
+          if [ -z "$FIREBASE_DEPLOY_CREDENTIALS" ]; then
+            echo "::error::Falta el secret FIREBASE_SERVICE_ACCOUNT_LUMINOUS_SYSTEM; no se han desplegado reglas de producción."
+            exit 1
+          fi
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUMINOUS_SYSTEM }}
+      - name: Publish canonical Realtime Database rules to luminous-system
+        run: npx --yes firebase-tools@14.19.1 deploy --only database --project luminous-system --non-interactive

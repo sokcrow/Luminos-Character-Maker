@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luminous · Tier 1 Status Skill Seeder</title>
+<style>
+:root{color-scheme:dark;--bg:#080808;--panel:#12110e;--line:#453b2b;--gold:#d5ad5d;--text:#eee6d7;--muted:#8c8477;--ok:#85b97a;--bad:#df7669}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Arial,sans-serif}.wrap{max-width:1200px;margin:0 auto;padding:28px}.panel{border:1px solid var(--line);background:var(--panel);padding:22px}h1{margin:0 0 4px;font-size:28px;color:var(--gold)}p{color:var(--muted);line-height:1.5}.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:20px 0}.btn{border:1px solid var(--gold);background:#211a0e;color:var(--gold);padding:10px 16px;font-weight:700;cursor:pointer}.btn.primary{background:var(--gold);color:#151006}.btn:disabled{opacity:.5;cursor:wait}.status{padding:10px;border:1px solid #333;background:#090909;color:var(--muted)}.status.ok{border-color:#375a32;color:var(--ok)}.status.bad{border-color:#71372f;color:var(--bad)}.summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:16px 0}.stat{border:1px solid #302b23;padding:10px;background:#0c0c0b}.stat strong{display:block;color:var(--gold);font-size:20px}.groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.group{border:1px solid #302b23;padding:12px}.group h2{margin:0 0 10px;color:var(--gold);font-size:17px}.damage{margin:12px 0 5px;color:#cdb98b;font-size:11px;letter-spacing:.08em}.skill{display:grid;grid-template-columns:1fr auto;gap:8px;padding:5px 0;border-bottom:1px solid #24211b;font-size:12px}.skill small{color:var(--muted)}code{color:#d7c49d}@media(max-width:800px){.summary{grid-template-columns:repeat(2,1fr)}.groups{grid-template-columns:1fr}}</style>
+</head>
+<body>
+<div class="wrap"><div class="panel">
+<h1>Tier 1 · Starter Status Skills</h1>
+<p>Catálogo melee de entrada para Burn, Rupture, Sinking, Tremor, Poise y Bleed. Son 216 Skills Tier 1: <strong>36 por Status</strong>, con <strong>12 Slash + 12 Pierce + 12 Blunt</strong> en cada familia. Todas mantienen política <code>apply_only</code>, Range 1 y Final Power 10–13.</p>
+<div class="toolbar"><button class="btn primary" id="sync" disabled>SINCRONIZAR 216 SKILLS</button><button class="btn" id="refresh">REVISAR CATÁLOGO</button><span>Destino: <code>campaña/base_datos_skills</code></span></div>
+<div id="status" class="status">Cargando catálogo y verificando sesión DM…</div><div id="summary" class="summary"></div><div id="groups" class="groups"></div>
+<p>La sincronización usa <code>update()</code>: no borra Skills ajenas al catálogo. Los 72 IDs originales se conservan para sus variantes de daño originales; las 144 variantes nuevas usan IDs adicionales.</p>
+</div></div>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="js/statusManager.js"></script>
+<script src="js/status-rupture-runtime.js"></script>
+<script src="js/combat-skill-schema.js"></script>
+<script src="js/skill-catalog-starter-status-tier1.js"></script>
+<script src="js/battle-viewer-firebase-session-074.js"></script>
+<script>
+(function(){
+'use strict';
+const firebaseConfig={apiKey:"AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",authDomain:"luminous-system.firebaseapp.com",databaseURL:"https://luminous-system-default-rtdb.firebaseio.com",projectId:"luminous-system",storageBucket:"luminous-system.firebasestorage.app",messagingSenderId:"330473029689",appId:"1:330473029689:web:44a05e870d493a3b294de8",measurementId:"G-X775P4YS7W"};
+if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+const PATH='campaña/base_datos_skills';
+const catalog=window.LuminousStarterStatusSkillCatalog;
+const schema=window.CombatSkillSchema;
+const session=window.LuminousBattleViewerFirebaseSession074;
+const $=id=>document.getElementById(id);
+const damageLabels={slash:'SLASH',pierce:'PIERCE',blunt:'BLUNT'};
+let dmReady=false;
+function setStatus(text,kind){$('status').textContent=text;$('status').className='status'+(kind?' '+kind:'')}
+function render(){
+ if(!catalog||!schema){setStatus('Falta CombatSkillSchema o LuminousStarterStatusSkillCatalog.','bad');return false}
+ const skills=catalog.list();
+ const groups={}; catalog.STATUS_ORDER.forEach(id=>groups[id]=[]); skills.forEach(skill=>groups[skill.metadata.statusFamily].push(skill));
+ $('summary').innerHTML=catalog.STATUS_ORDER.map(id=>`<div class="stat"><strong>${groups[id].length}</strong>${id.toUpperCase()}</div>`).join('');
+ $('groups').innerHTML=catalog.STATUS_ORDER.map(id=>{
+   const sections=catalog.DAMAGE_ORDER.map(damageId=>{
+     const damageSkills=groups[id].filter(s=>s.metadata.damageFamily===damageId);
+     return `<div class="damage">${damageLabels[damageId]} · ${damageSkills.length}</div>${damageSkills.map(s=>`<div class="skill"><span>${s.name}</span><small>${s.basePower} +${s.coinPower} × ${s.coinAmount} · ${s.sinAffinity}</small></div>`).join('')}`;
+   }).join('');
+   return `<section class="group"><h2>${id.toUpperCase()} · ${groups[id].length}</h2>${sections}</section>`;
+ }).join('');
+ const invalid=skills.map(s=>[s,schema.validateCombatSkill(s)]).filter(([,v])=>!v.valid);
+ if(invalid.length){setStatus(`Catálogo inválido: ${invalid[0][0].id} · ${invalid[0][1].errors.join(' · ')}`,'bad');return false}
+ setStatus(`Catálogo válido: ${skills.length} Skills · versión ${catalog.version} · 36 por Status · 12 por Damage Type · Tier 1 · melee · apply_only.`,'ok');return true;
+}
+async function authorize(){
+ $('sync').disabled=true;dmReady=false;
+ if(!session?.preflight){setStatus('Falta el preflight Firebase 0.7.4.','bad');return false}
+ try{
+   const result=await session.preflight({firebase});
+   if(!result?.ok){setStatus(`Firebase bloqueado: ${result?.reason||'FIREBASE_SESSION_FAILED'}.`,'bad');return false}
+   if(result.role!=='dm'){setStatus(`Sesión válida pero sin autoridad DM (${result.role||'unknown'}).`,'bad');return false}
+   dmReady=true;$('sync').disabled=false;
+   setStatus(`DM autorizado · ${result.uid} · catálogo ${catalog.version} listo para sincronizar ${catalog.list().length} Skills.`,'ok');return true;
+ }catch(error){console.error(error);setStatus(`No se pudo validar la sesión DM: ${error.message||error}`,'bad');return false}
+}
+async function sync(){
+ if(!dmReady){setStatus('Sincronización bloqueada: primero debe validarse una sesión DM.','bad');return}
+ if(!render())return;
+ const button=$('sync');button.disabled=true;
+ try{const payload=catalog.firebasePayload(schema);if(Object.keys(payload).length!==216)throw new Error(`Payload inesperado: ${Object.keys(payload).length} Skills`);await db.ref(PATH).update(payload);setStatus(`Sincronización completa: ${Object.keys(payload).length} Skills escritas/actualizadas en ${PATH}.`,'ok')}
+ catch(error){console.error(error);setStatus(`No se pudo sincronizar: ${error.message||error}`,'bad')}
+ finally{button.disabled=!dmReady}
+}
+$('sync').addEventListener('click',sync);$('refresh').addEventListener('click',()=>{render();authorize()});render();authorize();
+})();
+</script>
+</body>
+</html>

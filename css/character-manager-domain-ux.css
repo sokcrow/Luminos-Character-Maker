@@ -1,0 +1,190 @@
+/* Character Manager domain UX: explicit DM bonds and readable language semantics. */
+.character-manager-studio .cm-bond-admin-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 9px 10px;
+  border-bottom: 1px solid #29261f;
+  background: #0d0d0b;
+}
+
+.character-manager-studio .cm-bond-admin-bar select {
+  min-width: 0;
+  height: 34px;
+  padding: 0 28px 0 9px;
+  color: #d0c7b7;
+  background: #11110f;
+  border: 1px solid #3b372f;
+  font-size: 9px;
+}
+
+.character-manager-studio #character-manager-add-bond,
+.character-manager-studio .cm-bond-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  color: #bda56f;
+  background: #15130f;
+  border: 1px solid #55472f;
+  cursor: pointer;
+}
+
+.character-manager-studio #character-manager-add-bond {
+  padding: 0 10px;
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+
+.character-manager-studio #character-manager-add-bond svg,
+.character-manager-studio .cm-bond-remove svg {
+  width: 15px;
+  height: 15px;
+}
+
+.character-manager-studio #character-manager-add-bond:hover {
+  color: #e1c985;
+  border-color: #8b713e;
+}
+
+.character-manager-studio .cm-bond-row {
+  grid-template-columns: minmax(120px, 1.35fr) minmax(76px, .65fr) minmax(130px, 1.15fr) minmax(100px, .8fr) 34px;
+}
+
+.character-manager-studio .cm-bond-remove {
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  color: #8d6262;
+  border-color: #493333;
+}
+
+.character-manager-studio .cm-bond-remove:hover {
+  color: #d05a5d;
+  border-color: #8f2f31;
+}
+
+.character-manager-studio .cm-language-row {
+  grid-template-columns: minmax(145px, .9fr) minmax(220px, 1.5fr) minmax(105px, .7fr);
+  align-items: center;
+}
+
+.character-manager-studio .cm-language-name {
+  position: relative;
+}
+
+.character-manager-studio .cm-language-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 3px;
+  padding: 1px 5px;
+  color: #bda56f;
+  border: 1px solid #4b412f;
+  font-size: 7px;
+  letter-spacing: .1em;
+}
+
+.character-manager-studio .cm-language-meter {
+  grid-template-columns: auto minmax(90px, 1fr) 68px;
+}
+
+.character-manager-studio .cm-language-domain-label {
+  min-width: 52px;
+  color: #7f776a;
+  font-size: 8px;
+  letter-spacing: .1em;
+}
+
+.character-manager-studio .cm-language-row--common .cm-language-meter {
+  opacity: .5;
+}
+
+.character-manager-studio .cm-language-row--common .cm-language-domain-label {
+  color: #a58c57;
+}
+
+.character-manager-studio .cm-distortion-toggle[hidden] {
+  display: none !important;
+}
+
+.character-manager-studio .cm-language-row--distortion .cm-distortion-toggle {
+  width: auto;
+  min-width: 104px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  color: #736b5f;
+  cursor: pointer;
+}
+
+.character-manager-studio .cm-language-row--distortion .cm-distortion-toggle > span {
+  display: none !important;
+}
+
+.character-manager-studio .cm-language-row--distortion .cm-distortion-toggle input {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  opacity: 1;
+  pointer-events: auto;
+  appearance: none;
+  border: 1px solid #5d5548;
+  background: #0b0b0a;
+  cursor: pointer;
+}
+
+.character-manager-studio .cm-language-row--distortion .cm-distortion-toggle input::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: transparent;
+}
+
+.character-manager-studio .cm-language-row--distortion .cm-distortion-toggle input:checked {
+  border-color: #a7813c;
+}
+
+.character-manager-studio .cm-language-row--distortion .cm-distortion-toggle input:checked::after {
+  background: #d7b977;
+}
+
+.character-manager-studio .cm-language-row--distortion .cm-distortion-toggle svg {
+  width: 15px;
+  height: 15px;
+}
+
+.character-manager-studio .cm-distortion-copy {
+  color: inherit;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .08em;
+}
+
+.character-manager-studio .cm-language-row--distortion .cm-distortion-toggle:has(input:checked) {
+  color: #d7b977;
+}
+
+@media (max-width: 900px) {
+  .character-manager-studio .cm-language-row,
+  .character-manager-studio .cm-bond-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .character-manager-studio .cm-language-row--distortion .cm-distortion-toggle {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 620px) {
+  .character-manager-studio .cm-bond-admin-bar,
+  .character-manager-studio .cm-language-row,
+  .character-manager-studio .cm-bond-row {
+    grid-template-columns: 1fr;
+  }
+  .character-manager-studio #character-manager-add-bond {
+    width: 100%;
+  }
+}

@@ -1,0 +1,58 @@
+name: Import class icons from Imgur
+
+on:
+  push:
+    paths:
+      - ".github/workflows/import-class-icons.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: import-class-icons
+  cancel-in-progress: false
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install image validator
+        run: python -m pip install --disable-pip-version-check Pillow
+
+      - name: Download and validate class PNGs
+        id: download
+        continue-on-error: true
+        run: python scripts/import-class-icons.py
+
+      - name: Commit downloaded icons
+        shell: bash
+        run: |
+          if [ -d Assets/Icons/classes ] && find Assets/Icons/classes -maxdepth 1 -type f -name '*.png' | grep -q .; then
+            git add -A -- Assets/Icons/classes
+            if ! git diff --cached --quiet; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git commit -m "Import class icons from Imgur"
+              git push origin HEAD:main
+            else
+              echo "Class icons already committed."
+            fi
+          else
+            echo "No valid class icons were downloaded."
+          fi
+
+      - name: Report incomplete import
+        if: steps.download.outcome == 'failure'
+        run: |
+          echo "One or more images could not be downloaded. Check the Download and validate class PNGs logs."
+          exit 1

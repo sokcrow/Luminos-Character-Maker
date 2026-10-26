@@ -1,0 +1,722 @@
+/* Inventory HUD V2 — canonical Item Runtime player surface. */
+#inventory-modal.inventory-v2-ready .inventory-modal-content{width:min(96vw,1180px);max-width:1180px;height:min(90vh,900px);background:#0b0907;border:1px solid #5a4227;box-shadow:0 20px 70px rgba(0,0,0,.82),inset 0 0 36px rgba(0,0,0,.7)}
+#inventory-modal.inventory-v2-ready .inventory-tabs{padding:10px 12px 0;gap:6px;background:linear-gradient(90deg,#0d0b08,#151006,#0a0907);border-bottom:1px solid #44331f}
+#inventory-modal.inventory-v2-ready .inv-tab-btn{min-width:150px;border-radius:0;border:1px solid #3c3024;border-bottom:0;background:#100d09;color:#8e8271;font-family:"Share Tech Mono",monospace;letter-spacing:.08em}
+#inventory-modal.inventory-v2-ready .inv-tab-btn.active{color:#151006;background:linear-gradient(90deg,#efbf66,#c88927);border-color:#e6ae4c;box-shadow:none}
+#inventory-modal.inventory-v2-ready .inventory-body-wrapper{background:#080706}
+#inventory-modal.inventory-v2-ready .inventory-left-panel{min-width:0;padding:10px;background:linear-gradient(rgba(8,7,6,.97),rgba(8,7,6,.97)),repeating-linear-gradient(135deg,transparent 0 22px,rgba(214,154,43,.025) 22px 23px)}
+#inventory-modal.inventory-v2-ready #inv-active{height:100%;min-height:0;padding:0}
+.inventory-v2-active-stack{height:100%;min-height:0;display:grid;grid-template-rows:minmax(300px,1fr) minmax(220px,.72fr);gap:10px}
+.inventory-v2-equipment,.inventory-v2-carry{min-height:0;border:1px solid #3e3021;background:linear-gradient(180deg,#0e0b08,#080706);box-shadow:inset 0 0 30px rgba(0,0,0,.75)}
+.inventory-v2-equipment{position:relative;overflow:hidden}
+.inventory-v2-equipment-header,.inventory-v2-carry-header{min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 12px;border-bottom:1px solid #392c1f;background:linear-gradient(90deg,#100c08,#171107,#0c0a08)}
+.inventory-v2-equipment-header div:first-child,.inventory-v2-carry-header div:first-child{display:flex;flex-direction:column;gap:1px}
+.inventory-v2-equipment-header span,.inventory-v2-carry-header span{color:#766c5f;font:9px "Share Tech Mono",monospace;letter-spacing:.14em}
+.inventory-v2-equipment-header strong,.inventory-v2-carry-header strong{color:#dba74e;font-family:"BebasKai",Impact,sans-serif;font-size:20px;font-weight:400;letter-spacing:.08em}
+.inventory-v2-sync,#inventory-v2-carry-count{color:#a99a83;font:10px "Share Tech Mono",monospace;letter-spacing:.09em}
+.inventory-v2-equipment-field{position:relative;height:calc(100% - 40px);min-height:260px}
+.inventory-v2-body-silhouette{position:absolute;left:50%;top:50%;width:126px;height:230px;transform:translate(-50%,-46%);border:1px solid #2b251e;background:linear-gradient(180deg,rgba(99,70,34,.08),rgba(20,16,12,.02));clip-path:polygon(40% 0,60% 0,68% 10%,66% 28%,78% 42%,68% 55%,64% 100%,36% 100%,32% 55%,22% 42%,34% 28%,32% 10%);pointer-events:none}
+.inventory-v2-eq-slot{position:absolute;width:150px;min-height:72px;padding:8px 9px;text-align:left;overflow:hidden;border:1px solid #403225;border-radius:0;background:#0b0907;color:#cabb9f;box-shadow:inset 0 0 18px rgba(0,0,0,.82);transition:border-color .12s ease,box-shadow .12s ease,transform .12s ease}
+.inventory-v2-eq-slot:hover{border-color:#8e642e;transform:translateY(-1px)}
+.inventory-v2-eq-slot.is-filled{background:linear-gradient(145deg,#171109,#0b0907)}
+.inventory-v2-eq-slot.is-compatible{border-color:#d99d37;box-shadow:inset 0 0 18px rgba(0,0,0,.82),0 0 12px rgba(217,157,55,.18)}
+.inventory-v2-eq-slot.is-drop-target{border-color:#ffd77f;box-shadow:0 0 0 1px #d99d37,inset 0 0 20px rgba(215,154,43,.16)}
+.inventory-v2-eq-slot.is-selected{outline:1px solid #f1bd55;outline-offset:2px}
+.inventory-v2-eq-label{display:block;margin-bottom:5px;color:#756a5c;font:8px "Share Tech Mono",monospace;letter-spacing:.14em}
+.inventory-v2-eq-name{display:block;color:#d9cab2;font:10px "Share Tech Mono",monospace;line-height:1.22;text-transform:uppercase}
+.inventory-v2-eq-hint{display:block;margin-top:6px;color:#8d9a6d;font:8px "Share Tech Mono",monospace;letter-spacing:.04em}
+.inv2-eq-main{left:18px;top:18px}.inv2-eq-off{right:18px;top:18px}.inv2-eq-armor{left:50%;top:75px;transform:translateX(-50%)}.inv2-eq-shield{right:18px;bottom:20px}.inv2-eq-acc-a{left:18px;bottom:20px}.inv2-eq-acc-b{left:50%;bottom:20px;transform:translateX(-50%)}
+.inventory-v2-eq-armor:hover,.inventory-v2-eq-acc-b:hover{transform:translateX(-50%) translateY(-1px)}
+.inventory-v2-augment-summary{position:absolute;left:50%;top:178px;transform:translateX(-50%);width:210px;padding:6px 8px;text-align:center;border-top:1px solid #31281e;border-bottom:1px solid #31281e;color:#625b52}
+.inventory-v2-augment-summary span{display:block;font:8px "Share Tech Mono",monospace;letter-spacing:.13em}.inventory-v2-augment-summary strong{display:block;margin-top:3px;color:#8e8271;font:9px "Share Tech Mono",monospace;font-weight:400}
+.inventory-v2-carry{display:grid;grid-template-rows:40px minmax(0,1fr);overflow:hidden}.inventory-v2-grid-host{min-height:0;padding:9px;overflow:auto}
+#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{width:100%;max-width:none;display:grid;grid-template-columns:repeat(5,minmax(82px,1fr));grid-template-rows:repeat(2,minmax(88px,1fr));grid-auto-rows:minmax(88px,1fr);gap:9px;padding:0;background:transparent;border:0}
+#inventory-modal.inventory-v2-ready #inv-stash-grid{width:100%;max-width:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:9px}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot{appearance:none;-webkit-appearance:none;width:auto;min-width:0;height:100%;min-height:88px;aspect-ratio:auto;padding:0;position:relative;overflow:hidden;cursor:pointer;text-align:inherit;color:#d4c6b0;background:linear-gradient(145deg,#0c0b09,#15110d);border:1px solid #3b3025;border-radius:0;box-shadow:inset 0 0 16px rgba(0,0,0,.82);font-family:"Share Tech Mono",monospace}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot:hover,#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot.active{border-color:#d49a38;box-shadow:inset 0 0 16px rgba(0,0,0,.82),0 0 9px rgba(212,154,56,.18)}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .tier{position:absolute;left:5px;top:4px;z-index:3;color:#bda476;font:9px "Share Tech Mono",monospace}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-display{position:absolute;inset:17px 5px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-icon{width:38px;height:38px;flex:0 0 38px;background-position:center;background-size:contain;background-repeat:no-repeat;border:1px solid #33291f;background-color:#090806}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-name{display:block;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;color:#cfc0a9;font:8px "Share Tech Mono",monospace;text-transform:uppercase}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-quantity{position:absolute;right:5px;bottom:4px;color:#9c8d79;font:8px "Share Tech Mono",monospace}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot.inventory-v2-has-effect-indicator .item-quantity{left:5px;right:auto}
+#inventory-modal.inventory-v2-ready .inventory-v2-effect-rail{position:absolute;right:4px;bottom:3px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:2px;max-width:76%;pointer-events:none}
+#inventory-modal.inventory-v2-ready .inventory-v2-effect-badge{display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;min-height:11px;max-width:100%;padding:1px 3px;border:1px solid currentColor;background:rgba(5,7,7,.88);box-shadow:0 1px 4px rgba(0,0,0,.75);font:700 6px/1.15 "Share Tech Mono",monospace;letter-spacing:.025em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#inventory-modal.inventory-v2-ready .inventory-v2-effect-hp{color:#a8e6a3;border-color:rgba(168,230,163,.58);background:rgba(25,48,28,.88)}
+#inventory-modal.inventory-v2-ready .inventory-v2-effect-sp{color:#9eeaf5;border-color:rgba(158,234,245,.58);background:rgba(16,43,50,.88)}
+#inventory-modal.inventory-v2-ready .inventory-v2-effect-cleanse{color:#d6d9df;border-color:rgba(214,217,223,.42);background:rgba(18,20,24,.92);padding:1px 2px}
+#inventory-modal.inventory-v2-ready .inventory-v2-cleanse-icon,#inventory-modal.inventory-v2-ready .inventory-v2-cleanse-fallback{width:13px;height:13px;flex:0 0 13px;border-radius:2px}
+#inventory-modal.inventory-v2-ready .inventory-v2-cleanse-icon{display:block;object-fit:contain;background:#050505}
+#inventory-modal.inventory-v2-ready .inventory-v2-cleanse-fallback{display:grid;place-items:center;background:#211d1a;color:#d6d9df;font:700 6px "Share Tech Mono",monospace}
+#inventory-modal.inventory-v2-ready .inventory-v2-cleanse-more{padding:0 2px;color:#c7cbd2;font:700 6px "Share Tech Mono",monospace}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot.inventory-v2-has-effect-indicator .inventory-v2-item-state{bottom:15px}
+#inventory-modal.inventory-v2-ready .inventory-v2-empty-slot{display:grid;place-items:center;pointer-events:none;color:#403a33;background:#090806;border-style:dashed;font:10px "Share Tech Mono",monospace;letter-spacing:.12em}
+#inventory-modal.inventory-v2-ready .inventory-v2-empty-index{position:absolute;left:6px;top:5px;color:#302b25;font-size:9px}
+#inventory-modal.inventory-v2-ready .item-slot.inventory-v2-equipped{border-color:#9d7b43!important}#inventory-modal.inventory-v2-ready .item-slot.inventory-v2-damaged{box-shadow:inset 0 0 0 1px rgba(167,65,51,.5),inset 0 0 18px rgba(0,0,0,.82)}#inventory-modal.inventory-v2-ready .item-slot.inventory-v2-stolen{border-left:3px solid #9e3d32!important}
+.inventory-v2-item-state{position:absolute;left:5px;bottom:4px;z-index:5;max-width:calc(100% - 10px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#d7a54e;font:7px "Share Tech Mono",monospace;letter-spacing:.04em;pointer-events:none}
+#inventory-modal.inventory-v2-ready .item-detail-card{width:350px;min-width:350px;background:#0d0a08;border-left:1px solid #5b4228;border-top:1px solid #3b3025;padding-bottom:10px}
+.inventory-v2-detail-extra{width:100%;margin-top:10px;padding-top:9px;border-top:1px solid #33291f}.inventory-v2-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}.inventory-v2-detail-grid>div{min-width:0;padding:6px;border:1px solid #302820;background:#090806}.inventory-v2-detail-grid span,.inventory-v2-modules>span{display:block;color:#6f675d;font:7px "Share Tech Mono",monospace;letter-spacing:.12em}.inventory-v2-detail-grid b{display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;color:#cfc0a9;font:9px "Share Tech Mono",monospace;font-weight:400}
+.inventory-v2-modules{margin-top:7px;padding:7px;border:1px solid #302820;background:#090806;color:#8f8577;font:8px "Share Tech Mono",monospace}.inventory-v2-modules [data-v2-detail="modules"]{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.inventory-v2-modules [data-v2-detail="modules"] span{padding:3px 5px;border-left:2px solid #7c5828;background:#100d09;color:#b9aa94}
+.inventory-v2-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.inventory-v2-action{padding:8px 7px;border:1px solid #493823;border-radius:0;background:#13100c;color:#c6b69e;font-family:"Share Tech Mono",monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase}.inventory-v2-action.primary{background:linear-gradient(90deg,#d59a32,#bd791d);border-color:#e7b253;color:#130e07;font-weight:700}.inventory-v2-action:disabled{opacity:.28;cursor:not-allowed}
+.inventory-v2-action-status{min-height:20px;margin-top:6px;color:#81776a;font:8px "Share Tech Mono",monospace;letter-spacing:.05em}.inventory-v2-action-status[data-tone="success"]{color:#96a66f}.inventory-v2-action-status[data-tone="error"]{color:#cd665b}.inventory-v2-action-status[data-tone="working"]{color:#d5a24c}
+#inventory-modal.inventory-v2-stash-locked #inv-stash{position:relative}#inventory-modal.inventory-v2-stash-locked #inv-stash::after{content:"STASH LOCKED BY DM";position:absolute;inset:0;z-index:12;display:grid;place-items:center;background:rgba(5,4,3,.72);color:#b96053;font:22px "BebasKai",Impact,sans-serif;letter-spacing:.1em;pointer-events:none}
+#inventory-modal.inventory-v2-ready .limbus-synthesis-container{border:1px solid #45331f;background:#090706}#inventory-modal.inventory-v2-ready .synthesis-bottom-bar{border-top:1px solid #4a3520;background:rgba(8,7,5,.94)}
+@media(max-height:760px){.inventory-v2-active-stack{grid-template-rows:minmax(260px,1fr) minmax(190px,.68fr)}.inventory-v2-eq-slot{width:136px;min-height:62px}.inventory-v2-augment-summary{top:155px}#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{grid-template-rows:repeat(2,minmax(72px,1fr));grid-auto-rows:minmax(72px,1fr)}#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot{min-height:72px}}
+
+/* Inventory HUD V4 — responsive item-family/equipment surface. */
+#inventory-modal.inventory-v2-ready .inventory-modal-content{box-sizing:border-box;min-width:0;min-height:0;}
+#inventory-modal.inventory-v2-ready .inventory-body-wrapper{min-width:0;min-height:0;}
+#inventory-modal.inventory-v2-ready .inventory-left-panel{min-width:0;min-height:0;overflow:hidden;}
+#inventory-modal.inventory-v2-ready .inventory-tab-content{box-sizing:border-box;min-width:0;min-height:0;}
+.inventory-v2-active-stack{grid-template-rows:auto minmax(220px,1fr);align-content:start;}
+.inventory-v2-equipment{overflow:auto;}
+.inventory-v2-equipment-field{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;height:auto;min-height:0;padding:10px;}
+.inventory-v2-body-silhouette{left:50%;top:50%;width:110px;height:170px;transform:translate(-50%,-50%);opacity:.28;z-index:0;}
+.inventory-v2-eq-slot{position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;width:auto;min-width:0;min-height:74px;z-index:1;}
+.inventory-v2-eq-slot:hover,.inventory-v2-eq-armor:hover,.inventory-v2-eq-acc-b:hover{transform:translateY(-1px)!important;}
+.inventory-v2-augment-summary{display:none!important;}
+#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{grid-template-columns:repeat(5,minmax(74px,1fr));grid-template-rows:none;grid-auto-rows:minmax(86px,1fr);}
+#inventory-modal.inventory-v2-ready #inv-stash-grid{grid-template-columns:repeat(auto-fill,minmax(88px,1fr));align-content:start;}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot{min-width:0;min-height:86px;}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-display{inset:18px 5px 18px;}
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-icon{width:42px;height:42px;flex-basis:42px;display:grid;place-items:center;}
+.inventory-v2-icon-fallback{color:#746b60;font:8px "Share Tech Mono",monospace;letter-spacing:.08em;}
+.inventory-v2-item-category{position:absolute;right:5px;top:4px;z-index:4;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#756c60;font:7px "Share Tech Mono",monospace;letter-spacing:.04em;}
+.inventory-v2-equip-marker{position:absolute;left:5px;bottom:4px;z-index:4;color:#b48a46;font:7px "Share Tech Mono",monospace;letter-spacing:.05em;pointer-events:none;}
+.inventory-v2-runtime-slot.inventory-v2-equipped .inventory-v2-equip-marker{display:none;}
+.inventory-v2-runtime-slot .item-icon.has-icon .inventory-v2-icon-fallback{display:none;}
+#inventory-modal.inventory-v2-ready .item-detail-card{box-sizing:border-box;max-width:350px;}
+
+@media (max-width:1024px){
+  #inventory-modal.inventory-v2-ready .inventory-modal-content{width:min(98vw,980px);height:min(96dvh,900px);max-height:96dvh;}
+  #inventory-modal.inventory-v2-ready .inventory-body-wrapper{flex-direction:column;}
+  #inventory-modal.inventory-v2-ready .inventory-left-panel{flex:1 1 auto;overflow:auto;}
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{width:100%;min-width:0;max-width:none;max-height:38%;flex:0 0 auto;border-left:1px solid #5b4228;border-top:1px solid #5b4228;box-shadow:0 -8px 24px rgba(0,0,0,.55);}
+  .inventory-v2-equipment-field{grid-template-columns:repeat(4,minmax(110px,1fr));}
+}
+
+@media (max-width:760px){
+  #inventory-modal.inventory-v2-ready{align-items:stretch;justify-content:stretch;}
+  #inventory-modal.inventory-v2-ready .inventory-modal-content{width:100vw;max-width:none;height:100dvh;max-height:none;border-left:0;border-right:0;}
+  #inventory-modal.inventory-v2-ready .inventory-tabs{overflow-x:auto;overflow-y:hidden;padding:8px 46px 0 8px;scrollbar-width:thin;}
+  #inventory-modal.inventory-v2-ready .inv-tab-btn{min-width:max-content;padding:9px 12px;font-size:12px;}
+  #inventory-modal.inventory-v2-ready .inventory-left-panel{padding:6px;}
+  #inventory-modal.inventory-v2-ready .inventory-tab-content{padding:8px;}
+  #inventory-modal.inventory-v2-ready #inv-active{padding:0;}
+  .inventory-v2-active-stack{height:auto;min-height:100%;grid-template-rows:auto minmax(260px,auto);gap:8px;}
+  .inventory-v2-equipment-header,.inventory-v2-carry-header{padding:6px 8px;}
+  .inventory-v2-equipment-header strong,.inventory-v2-carry-header strong{font-size:17px;}
+  .inventory-v2-equipment-field{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:7px;}
+  .inventory-v2-body-silhouette{display:none;}
+  .inventory-v2-eq-slot{min-height:68px;padding:7px;}
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{grid-template-columns:repeat(3,minmax(72px,1fr));gap:7px;grid-auto-rows:minmax(82px,1fr);}
+  #inventory-modal.inventory-v2-ready #inv-stash-grid{grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:7px;}
+  #inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot{min-height:82px;}
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{max-height:42%;padding:10px;gap:10px;}
+  .inventory-v2-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .inventory-v2-actions{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+@media (max-width:480px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{grid-template-columns:repeat(2,minmax(72px,1fr));}
+  #inventory-modal.inventory-v2-ready #inv-stash-grid{grid-template-columns:repeat(2,minmax(72px,1fr));}
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{flex-direction:column;max-height:46%;}
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-left{flex:0 0 auto;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;text-align:left;}
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-icon-box{grid-row:1 / span 2;margin:0;width:64px;height:64px;}
+  .inventory-v2-detail-grid{grid-template-columns:1fr;}
+  .inventory-v2-actions{grid-template-columns:1fr;}
+}
+
+/* Inventory V5 capacity telemetry */
+.inventory-v2-stash-count{margin-left:auto;padding:5px 8px;border:1px solid #3a3025;background:#0a0806;color:#9f927e;font:8px "Share Tech Mono",monospace;letter-spacing:.08em;white-space:nowrap;}
+.inventory-v2-stash-count[data-full="true"]{border-color:#8f473d;color:#cf6b60;}
+@media(max-width:760px){.inventory-v2-stash-count{width:100%;box-sizing:border-box;margin-left:0;text-align:right;}.inventory-toolbar{align-items:stretch;}}
+
+/* Mobile landscape standard: reflow instead of desktop scaling. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:600px){
+  #inventory-modal.inventory-v2-ready{align-items:stretch;justify-content:stretch;overscroll-behavior:contain;}
+  #inventory-modal.inventory-v2-ready .inventory-modal-content{width:100vw;max-width:none;height:100dvh;max-height:none;border:0;}
+  #inventory-modal.inventory-v2-ready .inventory-tabs{min-height:44px;padding:4px 50px 0 max(6px,env(safe-area-inset-left));gap:4px;overflow-x:auto;overflow-y:hidden;}
+  #inventory-modal.inventory-v2-ready .inv-tab-btn{min-width:max-content;min-height:40px;padding:6px 10px;font-size:10px;touch-action:manipulation;}
+  #inventory-modal.inventory-v2-ready .inventory-body-wrapper{min-height:0;flex-direction:row!important;overflow:hidden;}
+  #inventory-modal.inventory-v2-ready .inventory-left-panel{flex:1 1 auto;min-width:0;min-height:0;padding:5px 6px 6px max(6px,env(safe-area-inset-left));overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{width:clamp(236px,32vw,310px);min-width:236px;max-width:310px;max-height:none;height:100%;flex:0 0 clamp(236px,32vw,310px);overflow:auto;border-left:1px solid #5b4228;border-top:0;box-shadow:-8px 0 24px rgba(0,0,0,.48);-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+  .inventory-v2-active-stack{height:auto;min-height:100%;grid-template-rows:auto auto;gap:6px;}
+  .inventory-v2-equipment-header,.inventory-v2-carry-header{min-height:34px;padding:4px 7px;gap:6px;}
+  .inventory-v2-equipment-header span,.inventory-v2-carry-header span{font-size:7px;}
+  .inventory-v2-equipment-header strong,.inventory-v2-carry-header strong{font-size:15px;}
+  .inventory-v2-sync,#inventory-v2-carry-count{font-size:8px;}
+  .inventory-v2-equipment-field{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:6px;}
+  .inventory-v2-body-silhouette{display:none;}
+  .inventory-v2-eq-slot{min-height:54px;padding:5px 6px;touch-action:manipulation;}
+  .inventory-v2-eq-label{margin-bottom:2px;font-size:6px;}.inventory-v2-eq-name{font-size:8px;line-height:1.1;}.inventory-v2-eq-hint{margin-top:3px;font-size:6px;}
+  .inventory-v2-carry{grid-template-rows:34px minmax(0,1fr);overflow:visible;}
+  .inventory-v2-grid-host{padding:6px;overflow:visible;}
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{grid-template-columns:repeat(auto-fill,minmax(68px,1fr));grid-auto-rows:76px;gap:5px;}
+  #inventory-modal.inventory-v2-ready #inv-stash-grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px;}
+  #inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot{min-height:76px;height:76px;touch-action:manipulation;}
+  #inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-display{inset:15px 4px 14px;gap:2px;}
+  #inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-icon{width:30px;height:30px;flex-basis:30px;}
+  #inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-name{font-size:7px;}
+  .inventory-v2-detail-grid{grid-template-columns:1fr 1fr;}
+  .inventory-v2-actions{grid-template-columns:1fr 1fr;}
+  .inventory-v2-action{min-height:42px;touch-action:manipulation;}
+  .inventory-toolbar{position:sticky;top:0;z-index:3;}
+}
+/* Jewelry / valuable gemstone composition overlay */
+#inventory-modal.inventory-v2-ready .inventory-v2-runtime-slot .item-icon{position:relative;}
+#inventory-modal.inventory-v2-ready .inventory-v2-gem-overlay{position:absolute;right:-4px;bottom:-4px;width:16px;height:16px;z-index:5;background-position:center;background-size:contain;background-repeat:no-repeat;background-color:#090806;border:1px solid #8d713e;box-shadow:0 1px 5px rgba(0,0,0,.85);pointer-events:none;}
+@media(max-width:760px){#inventory-modal.inventory-v2-ready .inventory-v2-gem-overlay{right:-3px;bottom:-3px;width:13px;height:13px;}}
+
+@media(max-width:760px){
+  #inventory-modal.inventory-v2-ready .inventory-v2-effect-rail{right:3px;bottom:3px;max-width:80%;gap:1px}
+  #inventory-modal.inventory-v2-ready .inventory-v2-effect-badge{font-size:5.5px;min-height:10px;padding:1px 2px}
+  #inventory-modal.inventory-v2-ready .inventory-v2-cleanse-icon,#inventory-modal.inventory-v2-ready .inventory-v2-cleanse-fallback{width:11px;height:11px;flex-basis:11px}
+}
+
+
+/* Inventory V6 — player-first cards and clean detail surface. */
+#inventory-modal.inventory-v2-ready .inventory-v2-item-category{display:none!important}
+#inventory-modal.inventory-v2-ready #detail-tags-val,
+#inventory-modal.inventory-v2-ready #detail-vinculo-info{display:none!important}
+
+#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+  grid-template-columns:repeat(4,minmax(132px,1fr));
+  grid-template-rows:none;
+  grid-auto-rows:108px;
+  gap:9px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+  min-height:108px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-display{
+  inset:19px 8px 25px;
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:flex-start;
+  gap:9px;
+  min-width:0;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-icon{
+  width:48px;
+  height:48px;
+  flex:0 0 48px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-name{
+  display:-webkit-box;
+  width:auto;
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  white-space:normal;
+  text-overflow:ellipsis;
+  text-align:left;
+  color:#e1d4c1;
+  font:9px/1.25 "Share Tech Mono",monospace;
+  letter-spacing:.025em;
+  text-transform:uppercase;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot:hover .item-name,
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot.active .item-name{
+  color:#fff1d6;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-effect-rail{
+  max-width:70%;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-equip-marker{
+  bottom:16px;
+}
+
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-extra{
+  width:100%;
+  margin-top:10px;
+  padding-top:9px;
+  border-top:1px solid #33291f;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-player-facts{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  margin-bottom:7px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-player-facts[hidden],
+#inventory-modal.inventory-v2-ready .inventory-v2-modules[hidden]{
+  display:none!important;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-player-fact{
+  padding:4px 6px;
+  border:1px solid #3c3228;
+  background:#0a0807;
+  color:#a99d8c;
+  font:8px/1.25 "Share Tech Mono",monospace;
+  letter-spacing:.04em;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-player-fact b{
+  color:#d9bd82;
+  font-weight:700;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-modules{
+  margin-top:0;
+  margin-bottom:7px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-actions{
+  margin-top:4px;
+}
+
+@media(max-width:1024px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(3,minmax(128px,1fr));
+    grid-auto-rows:104px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:104px;
+  }
+}
+
+@media(max-width:760px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(2,minmax(132px,1fr));
+    grid-auto-rows:102px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:102px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-display{
+    inset:18px 6px 23px;
+    gap:7px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-icon{
+    width:42px;
+    height:42px;
+    flex-basis:42px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-name{
+    font-size:8px;
+  }
+}
+
+@media (pointer:coarse) and (orientation:landscape) and (max-height:600px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    grid-auto-rows:88px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:88px;
+    height:88px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-display{
+    inset:16px 6px 20px;
+    gap:6px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-icon{
+    width:36px;
+    height:36px;
+    flex-basis:36px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot .item-name{
+    font-size:7px;
+  }
+}
+
+
+/* Inventory V7 — detail card uses its canvas instead of fighting itself. */
+#inventory-modal.inventory-v2-ready .item-detail-card{
+  width:420px;
+  min-width:420px;
+  max-width:420px;
+  box-sizing:border-box;
+  padding:14px;
+  gap:12px;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card.active{
+  display:grid;
+  grid-template-columns:92px minmax(0,1fr);
+  align-content:start;
+  align-items:start;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card .detail-left{
+  width:92px;
+  min-width:0;
+  flex:none;
+  display:block;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card .detail-icon-box{
+  width:90px;
+  height:90px;
+  margin:0;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card .detail-right{
+  min-width:0;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card .detail-title-badge{
+  width:100%;
+  box-sizing:border-box;
+  margin:0 0 7px;
+  padding:7px 10px;
+  font-size:16px;
+  line-height:1.15;
+  clip-path:none;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-meta{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  margin-bottom:8px;
+  color:#a99d8d;
+  font:9px/1.2 "Share Tech Mono",monospace;
+  text-transform:uppercase;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-meta .detail-tier,
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-meta .detail-cost{
+  display:inline-flex;
+  align-items:baseline;
+  gap:4px;
+  margin:0;
+  font-size:9px;
+  color:#9e9283;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-meta b{
+  color:#dfc797;
+  font-weight:700;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-effects{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:4px;
+  margin:0 0 8px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-effects[hidden]{display:none!important}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-effects .inventory-v2-effect-badge{
+  min-height:18px;
+  padding:2px 6px;
+  font-size:8px;
+  overflow:visible;
+}
+#inventory-modal.inventory-v2-ready .item-detail-card .detail-desc{
+  width:100%;
+  box-sizing:border-box;
+  margin:0;
+  padding:9px 0 10px;
+  border-top:1px solid #2f271f;
+  color:#d9d1c6;
+  font-size:11px;
+  line-height:1.45;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-detail-extra{
+  width:auto;
+  min-width:0;
+  margin-top:0;
+  padding-top:8px;
+  border-top:1px solid #33291f;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-player-facts{
+  margin:0 0 6px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-modules{
+  margin:0 0 6px;
+  padding:6px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-start;
+  gap:5px;
+  margin-top:5px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-action{
+  flex:0 0 auto;
+  width:auto;
+  min-width:0;
+  min-height:30px;
+  padding:6px 10px;
+  font-size:8px;
+  line-height:1;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-action-status{
+  min-height:0;
+  margin-top:5px;
+}
+#inventory-modal.inventory-v2-ready .inventory-v2-action-status:empty{
+  display:none;
+}
+
+@media(max-width:1024px){
+  #inventory-modal.inventory-v2-ready .item-detail-card{
+    width:100%;
+    min-width:0;
+    max-width:none;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{
+    grid-template-columns:88px minmax(0,1fr);
+    gap:11px;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-left{width:88px}
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-icon-box{width:86px;height:86px}
+}
+
+@media(max-width:480px){
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{
+    display:grid;
+    grid-template-columns:68px minmax(0,1fr);
+    gap:9px;
+    max-height:48%;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-left{
+    width:68px;
+    display:block;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-icon-box{
+    width:66px;
+    height:66px;
+    margin:0;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-title-badge{
+    font-size:14px;
+    padding:6px 8px;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-desc{
+    font-size:10px;
+    padding:7px 0 8px;
+  }
+  #inventory-modal.inventory-v2-ready .inventory-v2-actions{
+    display:flex;
+    grid-template-columns:none;
+  }
+  #inventory-modal.inventory-v2-ready .inventory-v2-action{
+    min-height:29px;
+    padding:6px 8px;
+  }
+}
+
+@media (pointer:coarse) and (orientation:landscape) and (max-height:600px){
+  #inventory-modal.inventory-v2-ready .item-detail-card.active{
+    width:clamp(300px,38vw,380px);
+    min-width:300px;
+    max-width:380px;
+    flex-basis:auto;
+    grid-template-columns:68px minmax(0,1fr);
+    gap:8px;
+  }
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-left{width:68px}
+  #inventory-modal.inventory-v2-ready .item-detail-card .detail-icon-box{width:66px;height:66px}
+  #inventory-modal.inventory-v2-ready .inventory-v2-action{
+    min-height:30px;
+    touch-action:manipulation;
+  }
+}
+
+
+/* Inventory V8 — Active cards use the whole tile as a compact gameplay ficha. */
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-display{
+  inset:18px 8px 22px;
+  display:grid;
+  grid-template-columns:56px minmax(0,1fr);
+  grid-template-rows:minmax(30px,1fr) 18px;
+  column-gap:10px;
+  row-gap:3px;
+  align-items:center;
+  justify-content:stretch;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-icon{
+  grid-column:1;
+  grid-row:1 / span 2;
+  width:56px;
+  height:56px;
+  flex:none;
+  align-self:center;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-name{
+  grid-column:2;
+  grid-row:1;
+  align-self:end;
+  width:100%;
+  min-width:0;
+  max-width:none;
+  font-size:10px;
+  line-height:1.2;
+  -webkit-line-clamp:2;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-card-meta{
+  grid-column:2;
+  grid-row:2;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:7px;
+  padding-top:3px;
+  border-top:1px solid rgba(116,92,58,.38);
+  color:#928777;
+  font:8px/1 "Share Tech Mono",monospace;
+  letter-spacing:.035em;
+  white-space:nowrap;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-card-value{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color:#d3b36f;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-card-qty{
+  flex:0 0 auto;
+  color:#b8ad9d;
+  font-weight:700;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .tier{
+  left:7px;
+  top:5px;
+  font-size:9px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .inventory-v2-effect-rail{
+  right:6px;
+  bottom:4px;
+  max-width:72%;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .inventory-v2-equip-marker{
+  left:7px;
+  bottom:5px;
+  max-width:26%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .inventory-v2-item-state{
+  left:7px;
+  bottom:5px;
+  max-width:34%;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card.inventory-v2-equipped .inventory-v2-item-state{
+  color:#d7a54e;
+}
+
+@media(max-width:1024px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-display{
+    grid-template-columns:50px minmax(0,1fr);
+    grid-template-rows:minmax(28px,1fr) 17px;
+    column-gap:8px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-icon{
+    width:50px;
+    height:50px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-name{
+    font-size:9px;
+  }
+}
+
+@media(max-width:760px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-display{
+    inset:17px 6px 21px;
+    grid-template-columns:44px minmax(0,1fr);
+    grid-template-rows:minmax(26px,1fr) 16px;
+    column-gap:7px;
+    row-gap:2px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-icon{
+    width:44px;
+    height:44px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-name{
+    font-size:8px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-card-meta{
+    gap:4px;
+    padding-top:2px;
+    font-size:7px;
+  }
+}
+
+@media (pointer:coarse) and (orientation:landscape) and (max-height:600px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-display{
+    inset:15px 5px 18px;
+    grid-template-columns:38px minmax(0,1fr);
+    grid-template-rows:minmax(22px,1fr) 14px;
+    column-gap:6px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-icon{
+    width:38px;
+    height:38px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-active-card .item-name{
+    font-size:7px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-card-meta{
+    font-size:6.5px;
+  }
+}
+
+
+/* Active grid density follows available canvas instead of stretching four giant tiles. */
+#inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  grid-auto-rows:100px;
+}
+#inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+  min-height:100px;
+}
+
+@media(max-width:1024px) and (min-width:761px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+    grid-auto-rows:96px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:96px;
+  }
+}
+
+@media(max-width:760px){
+  #inventory-modal.inventory-v2-ready #inv-active-grid.inv-grid{
+    grid-template-columns:repeat(2,minmax(132px,1fr));
+    grid-auto-rows:98px;
+  }
+  #inventory-modal.inventory-v2-ready #inv-active-grid .inventory-v2-runtime-slot{
+    min-height:98px;
+  }
+}
+
+/* Enchanter's Update — player-facing magic, distinct from mundane Item Quality. */
+#inventory-modal .inventory-v2-runtime-slot.inventory-v2-enchanted{border-color:#8356a7;box-shadow:inset 0 0 0 1px rgba(168,118,218,.18)}
+#inventory-modal .inventory-v2-enchantment-badge{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:42px;
+  padding:2px 7px;border:1px solid #9872c2;border-radius:12px;background:#251731;color:#edd7ff;
+  font-size:10px;font-weight:700;letter-spacing:.03em;line-height:1.3;white-space:nowrap}
+#inventory-modal .inventory-v2-player-magic{border-color:#8763af;background:#251b31;color:#eccdff}
+#inventory-modal .inventory-v2-eq-slot.inventory-v2-enchanted{border-color:#9973c6}
+@media(max-width:560px){
+  #inventory-modal .inventory-v2-enchantment-badge{font-size:9px;padding:2px 5px}
+}
+
+
+/* Enchanter's Update: player-facing magical inscription knowledge */
+.inventory-v2-magic-inscription {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  letter-spacing: 0.08em;
+}
+.inventory-v2-enchantment-inscription {
+  color: #70b8ff;
+  text-shadow: 0 0 8px rgba(112, 184, 255, 0.35);
+}
+.inventory-v2-enchantment-inscription.is-depleted {
+  opacity: 0.45;
+  text-shadow: none;
+}
+.inventory-v2-curse-inscription {
+  color: #c17cff;
+  text-shadow: 0 0 9px rgba(193, 124, 255, 0.4);
+}
+.inventory-v2-mundane-description {
+  color: inherit;
+}

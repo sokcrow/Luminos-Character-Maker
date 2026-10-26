@@ -1,0 +1,4 @@
+node_modules/
+
+# Firebase Functions generated runtime bundle
+functions/vendor/

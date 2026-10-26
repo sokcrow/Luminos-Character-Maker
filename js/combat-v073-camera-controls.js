@@ -1,0 +1,227 @@
+(function (global) {
+  'use strict';
+  if (global.LuminousCombatCameraControls073) return;
+
+  const state={
+    started:false,
+    scale:1,
+    x:0,
+    y:0,
+    dragging:false,
+    moved:false,
+    pointerId:null,
+    lastX:0,
+    lastY:0,
+    restoreTimer:null,
+    touches:new Map(),
+    pinch:null,
+    previousTouchAction:''
+  };
+
+  const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+  function host(){return global.document?.getElementById('game-container')||null}
+  function field(){return global.document?.getElementById('battlefield')||null}
+  function background(){return global.document?.getElementById('webgl2-dom-background')||null}
+  function readState(){const f=field();if(!f)return state;const styles=getComputedStyle(f);state.scale=Number.parseFloat(styles.getPropertyValue('--camera-scale'))||Number(f.style.getPropertyValue('--camera-scale'))||1;state.x=Number.parseFloat(styles.getPropertyValue('--camera-x'))||Number.parseFloat(f.style.getPropertyValue('--camera-x'))||0;state.y=Number.parseFloat(styles.getPropertyValue('--camera-y'))||Number.parseFloat(f.style.getPropertyValue('--camera-y'))||0;return state}
+  function clamped(scale,rawX,rawY){const h=host(),f=field();if(!h||!f)return{x:0,y:0};const viewW=Number(h.clientWidth)||global.innerWidth,viewH=Number(h.clientHeight)||global.innerHeight,worldW=Number(f.offsetWidth)||viewW,worldH=Number(f.offsetHeight)||viewH,minX=Math.min(0,viewW-worldW*scale),minY=Math.min(0,viewH-worldH*scale);return{x:clamp(Number(rawX)||0,minX,0),y:clamp(Number(rawY)||0,minY,0)}}
+  function requestRender(ms=0){global.LuminousWebGL2Renderer?.requestRender?.(ms)}
+  function apply(scale,rawX,rawY,mode='manual'){const f=field();if(!f)return false;const nextScale=clamp(Number(scale)||1,1,2.75),next=clamped(nextScale,rawX,rawY);state.scale=nextScale;state.x=next.x;state.y=next.y;[f,background()].filter(Boolean).forEach(node=>{node.dataset.cameraMode=mode;node.style.setProperty('--camera-x',`${next.x}px`);node.style.setProperty('--camera-y',`${next.y}px`);node.style.setProperty('--camera-scale',String(nextScale))});f.classList.toggle('camera-focus',nextScale!==1||next.x!==0||next.y!==0);global.LuminousCombatStage073?.camera({x:next.x,y:next.y,scale:nextScale});requestRender(50);global.dispatchEvent(new CustomEvent('luminous:combat073-camera-change',{detail:{mode,scale:nextScale,x:next.x,y:next.y}}));return true}
+  function suspendTransitions(){const f=field(),bg=background();if(f)f.style.setProperty('transition','none','important');if(bg)bg.style.setProperty('transition','none','important');if(state.restoreTimer)global.clearTimeout(state.restoreTimer);state.restoreTimer=global.setTimeout(()=>{f?.style.removeProperty('transition');bg?.style.removeProperty('transition');state.restoreTimer=null},90)}
+  function reset(){suspendTransitions();return apply(1,0,0,'manual')}
+  function onWheel(event){const h=host();if(!h||!h.contains(event.target))return;event.preventDefault();readState();const rect=h.getBoundingClientRect(),cursorX=event.clientX-rect.left,cursorY=event.clientY-rect.top,oldScale=state.scale||1,factor=Math.exp(-event.deltaY*0.00135),nextScale=clamp(oldScale*factor,1,2.75);if(Math.abs(nextScale-oldScale)<0.001)return;const worldX=(cursorX-state.x)/oldScale,worldY=(cursorY-state.y)/oldScale,nextX=cursorX-worldX*nextScale,nextY=cursorY-worldY*nextScale;suspendTransitions();apply(nextScale,nextX,nextY,'manual')}
+
+  function touchPair(){
+    const rows=[...state.touches.values()];
+    return rows.length>=2?[rows[0],rows[1]]:null;
+  }
+
+  function pairMetrics(pair){
+    if(!pair)return null;
+    const [a,b]=pair;
+    const dx=b.x-a.x,dy=b.y-a.y;
+    return{
+      distance:Math.max(1,Math.hypot(dx,dy)),
+      centerX:(a.x+b.x)/2,
+      centerY:(a.y+b.y)/2
+    };
+  }
+
+  function beginPinch(){
+    const h=host(),pair=touchPair();
+    if(!h||!pair)return false;
+    readState();
+    const metrics=pairMetrics(pair),rect=h.getBoundingClientRect();
+    state.pinch={
+      distance:metrics.distance,
+      centerX:metrics.centerX-rect.left,
+      centerY:metrics.centerY-rect.top,
+      scale:state.scale,
+      x:state.x,
+      y:state.y
+    };
+    suspendTransitions();
+    return true;
+  }
+
+  function onPointerDown(event){
+    const h=host();
+    if(!h||!h.contains(event.target))return;
+
+    if(event.pointerType==='touch'){
+      // Never capture UI touches: buttons and scrollable menus must receive
+      // their own pointer/click gestures.
+      const target=event.target;
+      const blocked=target?.closest?.(
+        'button,a,input,textarea,select,[role="button"],' +
+        '#category-surface,#command-ring,.player-ready-control,' +
+        '.prototype-controls,.clash-forecast,.clash-hud,.observation-ring'
+      );
+      if(blocked||!(field()?.contains(target)||background()?.contains(target)||target===h))return;
+      state.touches.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(state.touches.size>=2){
+        event.preventDefault();
+        // Capture only during an actual two-finger pinch, never on a tap.
+        for(const pointerId of state.touches.keys()){
+          try{h.setPointerCapture?.(pointerId)}catch(_){}
+        }
+        beginPinch();
+      }
+      return;
+    }
+
+    if(event.button!==1)return;
+    event.preventDefault();
+    readState();
+    state.dragging=true;
+    state.moved=false;
+    state.pointerId=event.pointerId;
+    state.lastX=event.clientX;
+    state.lastY=event.clientY;
+    h.setPointerCapture?.(event.pointerId);
+    h.style.cursor='grabbing';
+    suspendTransitions();
+  }
+
+  function onPointerMove(event){
+    if(event.pointerType==='touch'){
+      if(!state.touches.has(event.pointerId))return;
+      state.touches.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(state.touches.size<2)return;
+      event.preventDefault();
+      if(!state.pinch&&!beginPinch())return;
+
+      const h=host(),metrics=pairMetrics(touchPair());
+      if(!h||!metrics||!state.pinch)return;
+
+      const rect=h.getBoundingClientRect();
+      const centerX=metrics.centerX-rect.left;
+      const centerY=metrics.centerY-rect.top;
+      const ratio=metrics.distance/state.pinch.distance;
+      const nextScale=clamp(state.pinch.scale*ratio,1,2.75);
+      const worldX=(state.pinch.centerX-state.pinch.x)/state.pinch.scale;
+      const worldY=(state.pinch.centerY-state.pinch.y)/state.pinch.scale;
+      const nextX=centerX-worldX*nextScale;
+      const nextY=centerY-worldY*nextScale;
+
+      suspendTransitions();
+      apply(nextScale,nextX,nextY,'touch');
+      return;
+    }
+
+    if(!state.dragging||event.pointerId!==state.pointerId)return;
+    event.preventDefault();
+    const dx=event.clientX-state.lastX,dy=event.clientY-state.lastY;
+    if(Math.abs(dx)+Math.abs(dy)>1)state.moved=true;
+    state.lastX=event.clientX;
+    state.lastY=event.clientY;
+    suspendTransitions();
+    apply(state.scale,state.x+dx,state.y+dy,'manual');
+  }
+
+  function endDrag(event){
+    if(event.pointerType==='touch'){
+      state.touches.delete(event.pointerId);
+      if(state.touches.size<2)state.pinch=null;
+      return;
+    }
+
+    if(!state.dragging||(event.pointerId!=null&&event.pointerId!==state.pointerId))return;
+    const h=host(),wasMoved=state.moved;
+    state.dragging=false;
+    state.pointerId=null;
+    state.moved=false;
+    if(h)h.style.cursor='';
+    if(!wasMoved)reset();
+  }
+
+  function onAuxClick(event){if(event.button===1&&host()?.contains(event.target))event.preventDefault()}
+  function onResize(){
+    const f=field();
+    if(!f)return;
+    // The packed Combat director owns automatic player/full camera framing.
+    // Its focus uses scale 5; manual controls cap at 2.75. Do not turn
+    // camera focus into manual camera mode on rotation/resize.
+    const mode=f.dataset?.cameraMode;
+    if((mode&&mode!=='manual'&&mode!=='touch')||
+       (f.classList?.contains('camera-focus')&&!mode)){
+      readState();
+      return;
+    }
+    readState();
+    apply(state.scale,state.x,state.y,f.dataset.cameraMode||'manual');
+  }
+
+  function start(){
+    if(state.started)return true;
+    const h=host();
+    if(!h||!field())return false;
+    state.started=true;
+    readState();
+    // touch-action:none on the entire host prevents scrolling category lists.
+    // Restrict non-native gestures to the battlefield alone.
+    const f=field();
+    state.previousTouchAction=f.style.touchAction;
+    f.style.touchAction='none';
+    h.addEventListener('wheel',onWheel,{passive:false});
+    h.addEventListener('pointerdown',onPointerDown);
+    global.addEventListener('pointermove',onPointerMove,{passive:false});
+    global.addEventListener('pointerup',endDrag);
+    global.addEventListener('pointercancel',endDrag);
+    h.addEventListener('auxclick',onAuxClick);
+    global.addEventListener('resize',onResize,{passive:true});
+    return true;
+  }
+
+  function stop(){
+    const h=host();
+    h?.removeEventListener('wheel',onWheel);
+    h?.removeEventListener('pointerdown',onPointerDown);
+    h?.removeEventListener('auxclick',onAuxClick);
+    global.removeEventListener('pointermove',onPointerMove);
+    global.removeEventListener('pointerup',endDrag);
+    global.removeEventListener('pointercancel',endDrag);
+    global.removeEventListener('resize',onResize);
+    const f=field();
+    if(f)f.style.touchAction=state.previousTouchAction||'';
+    if(state.restoreTimer)global.clearTimeout(state.restoreTimer);
+    state.touches.clear();
+    state.pinch=null;
+    state.started=false;
+  }
+
+  const boot=()=>{if(!start())global.setTimeout(boot,200)};
+  global.addEventListener('luminous:combat073-runtime-ready',boot,{once:true});
+  boot();
+  global.addEventListener('beforeunload',stop,{once:true});
+
+  global.LuminousCombatCameraControls073=Object.freeze({
+    version:'0.7.3-camera-controls.3-ui-touch-isolation',
+    state,
+    start,
+    stop,
+    apply,
+    reset,
+    readState,
+    clamped
+  });
+})(window);

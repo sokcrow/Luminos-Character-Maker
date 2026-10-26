@@ -1,0 +1,206 @@
+import assert from "node:assert/strict";
+
+await import("../js/player-skills-hud.js");
+
+const hud = globalThis.LuminousPlayerSkillsHud;
+assert.ok(hud, "player skills HUD runtime should register");
+
+const library = {
+  slash_combo: {
+    id: "slash_combo",
+    name: "Slash Combo",
+    tier: 1,
+    type: "Attack",
+    basePower: 4,
+    coinPower: 3,
+    coinAmount: 2,
+    sinAffinity: "wrath",
+    damageType: "cortante",
+  },
+  guard_break: {
+    id: "guard_break",
+    name: "Guard Break",
+    tier: 2,
+    type: "Attack",
+    basePower: 8,
+    coinPower: 2,
+    coinAmount: 1,
+  },
+  veteran_feint: {
+    id: "veteran_feint",
+    name: "Veteran Feint",
+    tier: 3,
+    type: "Defense",
+    basePower: 5,
+    coinPower: 4,
+    coinAmount: 1,
+  },
+};
+
+const loadout = {
+  skillSlotEntries(character = {}) {
+    const deck = character.characterBuild?.skillDeck || {};
+    const out = [];
+    [[deck.tier1, 3], [deck.tier2, 2], [deck.tier3, 1]].forEach(([id, copies]) => {
+      for (let index = 0; id && index < copies; index += 1) out.push({ index: out.length, skillId: id });
+    });
+    return out;
+  },
+  skillLibrary() {
+    return library;
+  },
+};
+
+const progression = {
+  normalizeClasses(character = {}) {
+    return character.characterBuild?.classes || [];
+  },
+  buildProgressionModel() {
+    return {
+      classes: [{
+        classId: "fighter",
+        commonNodes: [{
+          level: 20,
+          status: "earned",
+          items: [{ id: "veteran_feint", kind: "skill" }],
+        }],
+        branches: [{
+          id: "champion",
+          status: "selected",
+          nodes: [{
+            level: 35,
+            status: "future",
+            items: [{ id: "future_skill", kind: "skill" }],
+          }],
+        }],
+      }],
+    };
+  },
+};
+
+const fighter = {
+  characterName: "Test Fighter",
+  characterBuild: {
+    classes: [{ classId: "fighter", levels: 40 }],
+    skillDeck: { tier1: "slash_combo", tier2: "guard_break", tier3: "" },
+  },
+};
+
+const fighterModel = hud.buildSkillViewModel(fighter, {
+  skillLoadout: loadout,
+  progressionCore: progression,
+  spellcasting: { getClassSpellcastingProfile() { return null; } },
+});
+
+assert.equal(fighterModel.spellcaster, false);
+assert.equal(fighterModel.assignedEntries.length, 5, "3/2/1 deck copies should match Combat loadout expansion");
+assert.equal(fighterModel.assignedUnique, 2);
+assert.equal(fighterModel.learnedUnique, 1);
+assert.equal(fighterModel.skills.find((row) => row.id === "slash_combo")?.copies, 3);
+assert.equal(fighterModel.skills.find((row) => row.id === "slash_combo")?.assigned, true);
+assert.equal(fighterModel.skills.find((row) => row.id === "veteran_feint")?.learned, true);
+assert.equal(fighterModel.skills.some((row) => row.id === "future_skill"), false, "future progression grants must not be shown as learned");
+
+const indexOnlyLoadout = {
+  skillSlotEntries() { return []; },
+  skillIdsFor(character = {}) {
+    return Object.entries(character.equippedSkillIndex || {})
+      .filter(([, enabled]) => enabled === true)
+      .map(([id]) => id);
+  },
+  skillLibrary() { return library; },
+};
+const indexOnlyModel = hud.buildSkillViewModel({
+  equippedSkillIndex: { slash_combo: true, guard_break: true },
+}, {
+  skillLoadout: indexOnlyLoadout,
+  progressionCore: { buildProgressionModel() { return { classes: [] }; }, normalizeClasses() { return []; } },
+  spellcasting: { getClassSpellcastingProfile() { return null; } },
+});
+assert.equal(indexOnlyModel.assignedUnique, 2, "equippedSkillIndex-only Combat loadouts must remain visible as assigned");
+assert.equal(indexOnlyModel.skills.find((row) => row.id === "slash_combo")?.assigned, true);
+
+const filterRows = [
+  { id: "assigned_only", assigned: true, learned: false },
+  { id: "learned_only", assigned: false, learned: true },
+];
+assert.equal(hud.visibleSelectionId(filterRows.filter((row) => row.assigned), "learned_only"), "assigned_only", "filter changes must select a visible Skill");
+assert.equal(hud.visibleSelectionId([], "assigned_only"), null, "empty filtered views must clear the detail selection");
+
+const casterRuntime = {
+  getClassSpellcastingProfile(classId) {
+    if (classId === "wizard") return { classId, abilityId: "int", spellcastingStartLimbusLevel: 1 };
+    if (classId === "paladin") return { classId, abilityId: "cha", spellcastingStartLimbusLevel: 10 };
+    return null;
+  },
+};
+
+const wizard = {
+  characterBuild: {
+    classes: [{ classId: "wizard", levels: 12 }],
+    skillDeck: {},
+  },
+};
+assert.equal(hud.isSpellcaster(wizard, { progressionCore: progression, spellcasting: casterRuntime }), true);
+
+const novicePaladin = {
+  characterBuild: {
+    classes: [{ classId: "paladin", levels: 5 }],
+    skillDeck: {},
+  },
+};
+assert.equal(hud.isSpellcaster(novicePaladin, { progressionCore: progression, spellcasting: casterRuntime }), false, "half-caster icon should not switch before its Limbus casting start");
+
+const castingPaladin = {
+  characterBuild: {
+    classes: [{ classId: "paladin", levels: 10 }],
+    skillDeck: {},
+  },
+};
+assert.equal(hud.isSpellcaster(castingPaladin, { progressionCore: progression, spellcasting: casterRuntime }), true);
+
+assert.equal(hud.hudScaleForViewport(1600, 920) < 1, true, "HUD should leave its viewport gutter");
+assert.equal(hud.hudScaleForViewport(2200, 1300), 1);
+assert.equal(hud.HUD_CANVAS.width, 1600);
+assert.equal(hud.HUD_CANVAS.height, 920);
+
+const skillDetail = hud.detailMarkup({
+  ...fighterModel.skills.find((row) => row.id === "slash_combo"),
+  effects: [{ statusId: "rupture", description: "Aplica Rupture." }],
+}, fighterModel);
+assert.match(skillDetail, /Amt\. x2/);
+assert.match(skillDetail, /Rupture/);
+assert.match(skillDetail, /\[On Use\]/);
+assert.match(skillDetail, /limbus-coin-section/);
+assert.match(skillDetail, /Aplica Rupture/);
+assert.doesNotMatch(skillDetail, /<small>slash_combo/);
+assert.doesNotMatch(skillDetail, /LOADOUT SOURCE|COMBAT ENGINE/);
+assert.equal(hud.statusEffectsForSkill({ effects: [{ statusId: "rupture" }, { statusId: "rupture" }] }).length, 1);
+
+const coinApplied = hud.statusEffectsForSkill({
+  coins: [{ effects: [{ type: "status", status: "burn", potency: 1, count: 2, target: "target", trigger: "[On Hit]" }] }],
+});
+assert.equal(coinApplied.length, 1);
+assert.equal(coinApplied[0].coinIndex, 1);
+assert.equal(coinApplied[0].potency, 1);
+assert.equal(coinApplied[0].count, 2);
+assert.equal(coinApplied[0].trigger, "Al impactar");
+assert.equal(coinApplied[0].target, "Objetivo");
+assert.equal(hud.hudScaleForViewport(390, 844), 1, "Mobile must reflow rather than shrink 1600px sheet");
+assert.equal(hud.hudScaleForViewport(844, 390), 1, "Landscape touch HUD must remain legible");
+const responsiveCss = (await import("node:fs")).readFileSync(new URL("../css/player-skills-hud.css", import.meta.url), "utf8");
+assert.match(responsiveCss, /@media \(max-width:900px\)/);
+assert.match(responsiveCss, /grid-template-columns:38px minmax\(0,1fr\) auto/);
+assert.match(responsiveCss, /min-height:42px/);
+const referenced = hud.detailMarkup({name:"Triple",tier:3,basePower:3,coinPower:3,coinAmount:3,attackWeight:1,
+  effects:[{trigger:"[On Use]",description:"Gain Poise Count"}],
+  coins:[{effects:[{trigger:"[On Hit]",description:"Gain 1 Poise"}]},
+         {effects:[{trigger:"[On Crit]",description:"Inflict 1 Burn Count"}]},
+         {effects:[{trigger:"[On Hit]",status:"rupture",potency:2,count:1}]}]});
+assert.match(referenced, /Triple/);
+assert.match(referenced, /\[On Use\]/);
+assert.match(referenced, /\[On Hit\]/);
+assert.match(referenced, /\[On Crit\]/);
+assert.match(referenced, /Coin 3/);
+assert.match(referenced, /Potency|Rupture|rupture/);
+console.log("player-skills-hud-smoke: ok");

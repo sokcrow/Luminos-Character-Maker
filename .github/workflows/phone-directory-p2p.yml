@@ -1,0 +1,34 @@
+name: Phone directory and P2P regression
+
+on:
+  pull_request:
+    paths:
+      - "hoja_personaje.js"
+      - "hoja_personaje.html"
+      - "database.rules.json"
+      - "tests/phone-directory-p2p-smoke.mjs"
+      - "tests/phone-group-chat-smoke.mjs"
+      - ".github/workflows/phone-directory-p2p.yml"
+  push:
+    branches: [main]
+    paths:
+      - "hoja_personaje.js"
+      - "hoja_personaje.html"
+      - "database.rules.json"
+      - "tests/phone-directory-p2p-smoke.mjs"
+      - "tests/phone-group-chat-smoke.mjs"
+
+jobs:
+  phone-p2p-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Check JavaScript syntax
+        run: node --check hoja_personaje.js
+      - name: Run phone/P2P regression checks
+        run: node tests/phone-directory-p2p-smoke.mjs
+      - name: Run phone group chat regression checks
+        run: node tests/phone-group-chat-smoke.mjs

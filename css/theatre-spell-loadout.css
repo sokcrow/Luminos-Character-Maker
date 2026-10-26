@@ -1,0 +1,17 @@
+#modal-escritura-teatro{box-sizing:border-box;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));height:100dvh!important}
+#modal-escritura-teatro>div{box-sizing:border-box;max-height:100%;width:min(100%,540px)!important;overflow-y:auto;min-width:0}
+#modal-escritura-teatro textarea{box-sizing:border-box;min-height:80px;flex-shrink:0}
+#modal-escritura-teatro button,#modal-escritura-teatro select{min-height:44px;font-size:16px;touch-action:manipulation}
+#theatre-assigned-spells{--spell-gold:#c49a54;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;min-width:0;padding:12px;border:1px solid #625034;background:#11100c;color:#e4d7bd}
+#theatre-assigned-spells[hidden]{display:none}
+#theatre-assigned-spells label,#theatre-spell-description,#theatre-spell-feedback{grid-column:1/-1;margin:0;font-size:13px;line-height:1.45}
+#theatre-assigned-spells select{box-sizing:border-box;min-width:0;width:100%;background:#070907;border:1px solid #8d7547;color:#eee0c5;padding:8px}
+#theatre-assigned-spells button{padding:8px 12px;background:#352316;border:1px solid var(--spell-gold);color:#f3dfb8;cursor:pointer}
+#theatre-assigned-spells button:disabled{opacity:.5;cursor:wait}
+#theatre-assigned-spells :focus-visible{outline:2px solid #e9c77a;outline-offset:3px}
+#theatre-spell-description{color:#c4b99f}
+#theatre-spell-feedback:empty{display:none}
+#theatre-spell-class-field{grid-column:1/-1;display:grid;gap:6px;min-width:0}
+#theatre-spell-class-field[hidden]{display:none}
+@media(max-width:540px){#theatre-assigned-spells{grid-template-columns:minmax(0,1fr)}#theatre-assigned-spells button{width:100%}}
+@media(max-height:450px){#modal-escritura-teatro>div{gap:10px!important;padding:12px!important}}

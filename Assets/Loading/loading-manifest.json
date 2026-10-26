@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "totalWeight": 100,
+  "scenes": [
+    {
+      "id": "loading-combat-clash",
+      "file": "Assets/Loading/loading-combat-clash.png",
+      "source": "https://imgur.com/haWXQhp.png",
+      "weight": 18
+    },
+    {
+      "id": "loading-workshop-crafting",
+      "file": "Assets/Loading/loading-workshop-crafting.png",
+      "source": "https://imgur.com/zbr096W.png",
+      "weight": 14
+    },
+    {
+      "id": "loading-lizalin-biodistrict",
+      "file": "Assets/Loading/loading-lizalin-biodistrict.png",
+      "source": "https://imgur.com/N2YXVUr.png",
+      "weight": 12
+    },
+    {
+      "id": "loading-yuanti-obscurum",
+      "file": "Assets/Loading/loading-yuanti-obscurum.png",
+      "source": "https://imgur.com/mSzXSqz.png",
+      "weight": 12
+    },
+    {
+      "id": "loading-lanae-mountain",
+      "file": "Assets/Loading/loading-lanae-mountain.png",
+      "source": "https://imgur.com/JUUc6Ye.png",
+      "weight": 12
+    },
+    {
+      "id": "loading-city-backstreets",
+      "file": "Assets/Loading/loading-city-backstreets.png",
+      "source": "https://imgur.com/Xt7V809.png",
+      "weight": 18
+    },
+    {
+      "id": "loading-abnormality-containment",
+      "file": "Assets/Loading/loading-abnormality-containment.png",
+      "source": "https://imgur.com/AmAaJ7M.png",
+      "weight": 14
+    }
+  ]
+}

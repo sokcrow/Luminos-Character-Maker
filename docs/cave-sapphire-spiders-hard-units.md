@@ -1,0 +1,41 @@
+# Sapphire Spider family — Hard Unit + normal Unit (Cueva Cristalina)
+
+Sapphire Spider is a **Hard Unit**; Sapphire Spiderling is a **normal Unit** (neither is a Boss). Both are rock elementals with crystalline sapphire growths. Both currently allow only the Normal **rank** (which is separate from Unit classification), have native Level 30 and can be spawned up to Level 65. HP = floor(HP Base + Coefficient * Level).
+
+| Unit | Classification | CR | XP | Size | HP Base | Coefficient | HP L30 | OFF | DEF | Speed |
+|---|---|---:|---:|---|---:|---:|---:|---|---|---|
+| Sapphire Spider | Hard Unit | 3 | 700 | Large | 48 | 1.50 | 93 | L+2 | L-2 | 1–8 |
+| Sapphire Spiderling | Unit normal | 1 | 200 | Medium | 15 | 1.20 | 51 | L-1 | L-1 | 1–7 |
+
+Both units load the exact same full-resolution original image from the user-supplied Imgur ID 0c9WpCr: Assets/Images/Units/Cave_Crystal/sapphire_spider.png (1254×1254). The original image bytes are stored as a binary file in the repository Units folder, not as a data URL or thumbnail.
+
+## Skills
+
+Adult: Prismatic Slash, Crystal Thread, Hunter's Sting; Faceted Evasion. Passive Swift Predator.
+Spiderling: Shard Claws, Silken Snare; Skittering Evasion. Passive Brood Instinct. The Spiderling does not have an S3.
+
+The live Combat runtime executes conditional Coin effects and speed-based bonuses: adult 1 Haste per 3 Poise Potency at Turn Start, +5% Damage per positive Speed difference capped +20%; juvenile 1 Haste per 4 Poise Potency capped 2, damage speed bonus capped +10%. Faceted Evasion gains up to +3 Final Defense Power from Poise Count, and Skittering Evasion up to +2. Both Evades compute base and Coin Power dynamically from current DEX. Juvenile Evade Haste activates at most once per Turn.
+
+Crystal Thread can apply up to 3 Restrained on its critical final Coin. Hunter's Sting can apply Fragile on restrained targets and boosts its final Coin Crit Damage by +20% against Restrained.
+
+**Poise runtime compatibility:** The live Status store discards Potency-only Poise stacks when Count=0. To prevent user-authored Potency gains from vanishing, three initial Poise grants include a minimal +1 Count where otherwise required. This is a deliberate small implementation deviation, not a change to all Poise rules.
+
+## Mineral corpse loot
+
+Body profiles are mineral, materials stone and crystal; never edible. Recoverable families: hard_parts (crystal fragments) and hard_cover_modular (stone carapace), mapped to existing hard_exotic material items. No biological organs, meat, blood, gear or currency.
+
+The existing postcombat resolver maps mineral bodies and stone/crystal material to Salvage / Desmontar (Arcana INT; base DC 10, +8 DC if unproficient), never Medicine-based Extract.
+
+## Compatibility and validation
+
+Live engine resistance bands are WEAK x1.5, NORMAL x1, RESIST x0.5. These units use Slash WEAK, Pierce RESIST, Blunt NORMAL and Pride RESIST. Previous proposal-only Pierce x0.75 is not directly supported by current resistance bands.
+
+Smoke command: node tests/cave-sapphire-spiders-smoke.mjs. It is wired to the Loot Foundation Validation PR workflow. Workflows and Codex review are left to GitHub after PR creation.
+
+## CR and experience
+
+The DM approved CR values **two points below the previous balance proposals**: adult CR 3 (700 XP), Spiderling CR 1 (200 XP). Both retain their natural Luminos Level 30; there is no invented Level-to-CR conversion. The existing `combat-xp-runtime.js` maps `challengeRating` to XP. At Victory, this is distributed automatically when the separate Encounter XP integration PR #1032 is deployed.
+
+The Spiderling remains a **normal Unit**, not a Hard Unit. Its **HP Base is halved from 30 to 15**, while its existing coefficient 1.20 remains unchanged. Level 30 HP therefore becomes `floor(15 + 1.20 × 30) = 51`. The adult stays at 93 HP.
+
+Both units are already registered through the universal Unit Catalog and Combat Unit Instantiator, using original local sprite, skills, mineral loot, and elemental type. The PR must be merged and the updated catalog synchronized before these new data values are available in a live campaign.

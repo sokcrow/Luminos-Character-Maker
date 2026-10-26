@@ -1,0 +1,253 @@
+name: Combat v0.7.3 Live Cutover Smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Battle-viewer.html'
+      - 'css/combat-target-feedback-073.css'
+      - 'js/combat-target-feedback-073.js'
+      - 'tests/combat-target-feedback-073-smoke.mjs'
+      - 'css/combat-mobile-runtime.css'
+      - 'combat/**'
+      - 'database.rules.json'
+      - 'js/combat-v073-live-adapter.js'
+      - 'js/combat-encounter-lifecycle.js'
+      - 'js/battle-viewer-dm-console-074.js'
+      - 'js/combat-v073-plan-sync.js'
+      - 'js/combat-v073-economy-menu.js'
+      - 'js/combat-v073-economy-review-fixes.js'
+      - 'js/combat-v073-remote-intents.js'
+      - 'js/combat-v073-library-client.js'
+      - 'js/combat-v073-authority.js'
+      - 'js/death-save-runtime.js'
+      - 'js/combatEngine.js'
+      - 'js/combat-action-resolver.js'
+      - 'js/combat-v073-steps.js'
+      - 'tests/downed-lifecycle-and-interrupt-smoke.mjs'
+      - 'tests/combat-v073-downed-interrupt-smoke.mjs'
+      - 'tests/pr1042-real-downed-regression-smoke.mjs'
+      - 'tests/combat-death-save-authority-rng-smoke.mjs'
+      - 'js/player-vitals-realtime-bridge.js'
+      - 'js/player-vitals-hud.js'
+      - 'js/player-stats-ability-bar.js'
+      - 'js/derived-stats-engine.js'
+      - 'js/item-runtime-engine.js'
+      - 'js/rest-runtime-integration.js'
+      - 'js/inventory-hud-v2.js'
+      - 'js/dm-player-dnd-studio.js'
+      - 'pantalla_dm.html'
+      - 'js/battle-viewer-player-entry-074.js'
+      - 'hoja_personaje.html'
+      - 'hoja_personaje.js'
+      - 'js/combat-deployment-runtime.js'
+      - 'js/combat-v073-deployment-bridge.js'
+      - 'js/unit-rank-runtime.js'
+      - 'js/enemy-action-slot-allocator.js'
+      - 'js/battle-viewer-runtime-073-timeline.js'
+      - 'js/wolf-unit-runtime.js'
+      - 'js/universal-library-runtime.js'
+      - 'js/combat-v073-camera-controls.js'
+      - 'js/dm-player-loadout-core.js'
+      - 'js/dm-player-loadout-manager.js'
+      - 'js/player-skills-hud.js'
+      - 'js/player-skill-deck-manager.js'
+      - 'css/player-skill-deck-manager.css'
+      - 'tests/player-skill-deck-manager-integration-smoke.mjs'
+      - 'css/player-skills-hud.css'
+      - 'js/battle-viewer-player-skill-planner-074.js'
+      - 'js/battle-viewer-player-spell-planner-074.js'
+      - 'tests/combat-v074-player-spell-planner-smoke.mjs'
+      - 'tests/dm-player-loadout-manager-smoke.mjs'
+      - 'tests/player-skills-hud-smoke.mjs'
+      - 'tests/combat-v074-player-skill-planner-smoke.mjs'
+      - 'js/combat-v073-dm-setup.js'
+      - 'js/combat-v073-speed-authority.js'
+      - 'js/movement-speed-runtime.js'
+      - 'js/universal-speed-runtime.js'
+      - 'docs/canonical-speed-rules.md'
+      - 'tests/movement-speed-runtime-smoke.mjs'
+      - 'tests/speed-dex-size-integration-smoke.mjs'
+      - 'tests/combat-v073-player-speed-turn-one-smoke.mjs'
+      - 'js/combat-v073-dm-observer.js'
+      - 'js/dm-combat-live-viewer.js'
+      - 'js/combat-unit-library-sync.js'
+      - 'js/combat-v073-unit-deploy-bridge.js'
+      - 'js/unit-combat-instantiator.js'
+      - 'js/skill-catalog-goblin-tier1.js'
+      - 'js/unit-catalog-goblin.js'
+      - 'js/goblin-unit-runtime.js'
+      - 'js/dm-combat-tab-manager.js'
+      - 'tests/combat-v073-live-cutover-smoke.mjs'
+      - 'tests/combat-v073-six-ready-start-smoke.mjs'
+      - 'tests/combat-v073-dm-editor-smoke.mjs'
+      - 'tests/dm-combat-live-viewer-smoke.mjs'
+      - 'tests/dm-combat-unit-library-real-ui-smoke.mjs'
+      - 'tests/combat-v073-speed-persistence-smoke.mjs'
+      - 'tests/combat-v073-dm-observer-smoke.mjs'
+      - 'tests/combat-v073-limbus-facing-runtime-smoke.mjs'
+      - 'tests/combat-v073-player-renderer-performance-smoke.mjs'
+      - 'tests/combat-backup-lifecycle-smoke.mjs'
+      - 'tests/unit-rank-command-smoke.mjs'
+      - 'tests/enemy-action-slot-allocator-smoke.mjs'
+      - 'tests/wolf-unit-library-smoke.mjs'
+      - 'tests/combat-v073-theatre-isolation-smoke.mjs'
+      - 'tests/combat-v074-dm-console-smoke.mjs'
+      - 'tests/combat-v073-live-sync-hotfix-smoke.mjs'
+      - 'tests/combat-v073-economy-menu-smoke.mjs'
+      - 'tests/combat-mobile-boot-smoke.mjs'
+      - 'tests/combat-v073-player-menu-inventory-click-smoke.mjs'
+      - 'tests/combat-player-active-inventory-authority-smoke.mjs'
+      - 'tests/item-runtime-canonical-combat-use-smoke.mjs'
+      - 'tests/player-vitals-universal-sync-smoke.mjs'
+      - 'tests/unit-combat-instantiator-smoke.mjs'
+      - 'tests/universal-library-authority-smoke.mjs'
+      - 'tests/scale-sorcerer-deployment-smoke.mjs'
+      - 'tests/universal-caster-deployment-smoke.mjs'
+      - 'js/combat-spell-loadout-074.js'
+      - 'js/spellcasting-basic-rules-runtime.js'
+      - 'js/unit-ai-kit-adapter.js'
+      - 'js/battle-viewer-encounter-setup-074.js'
+      - 'tests/player-vitals-realtime-bridge-smoke.mjs'
+      - '.github/workflows/combat-v073-live-smoke.yml'
+
+jobs:
+  live-cutover-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Adapter syntax
+        run: |
+          node --check js/combat-v073-live-adapter.js
+          node --check js/combat-encounter-lifecycle.js
+          node --check js/battle-viewer-dm-console-074.js
+          node --check js/combat-v073-plan-sync.js
+          node --check js/combat-v073-economy-menu.js
+          node --check js/combat-v073-economy-review-fixes.js
+          node --check js/combat-v073-remote-intents.js
+          node --check js/combat-v073-library-client.js
+          node --check js/combat-v073-authority.js
+          node --check js/player-vitals-realtime-bridge.js
+          node --check js/player-vitals-hud.js
+          node --check js/player-stats-ability-bar.js
+          node --check js/derived-stats-engine.js
+          node --check js/item-runtime-engine.js
+          node --check js/rest-runtime-integration.js
+          node --check js/inventory-hud-v2.js
+          node --check js/dm-player-dnd-studio.js
+          node --check js/battle-viewer-player-entry-074.js
+          node --check hoja_personaje.js
+          node --check js/combat-deployment-runtime.js
+          node --check js/combat-v073-deployment-bridge.js
+          node --check js/unit-rank-runtime.js
+          node --check js/enemy-action-slot-allocator.js
+          node --check js/battle-viewer-runtime-073-timeline.js
+          node --check js/wolf-unit-runtime.js
+          node --check js/universal-library-runtime.js
+          node --check js/combat-v073-camera-controls.js
+          node --check js/dm-player-loadout-core.js
+          node --check js/dm-player-loadout-manager.js
+          node --check js/player-skills-hud.js
+          node --check js/battle-viewer-player-skill-planner-074.js
+          node --check js/battle-viewer-player-spell-planner-074.js
+          node --check js/combat-v073-dm-setup.js
+          node --check js/combat-v073-speed-authority.js
+          node --check js/combat-v073-dm-observer.js
+          node --check js/dm-combat-live-viewer.js
+          node --check js/combat-unit-library-sync.js
+          node --check js/combat-v073-unit-deploy-bridge.js
+          node --check js/unit-combat-instantiator.js
+          node --check js/skill-catalog-goblin-tier1.js
+          node --check js/unit-catalog-goblin.js
+          node --check js/goblin-unit-runtime.js
+          node --check js/dm-combat-tab-manager.js
+      - name: Visible player target confirmation (mobile + desktop)
+        run: |
+          node --check js/combat-target-feedback-073.js
+          node tests/combat-target-feedback-073-smoke.mjs
+      - name: Canonical v0.7.3 cutover contract
+        run: node tests/combat-v073-live-cutover-smoke.mjs
+      - name: Six live Players READY and AI preparation regression
+        run: node tests/combat-v073-six-ready-start-smoke.mjs
+      - name: DM Combat Library and field setup contract
+        run: node tests/combat-v073-dm-editor-smoke.mjs
+      - name: Real DM Battle visual parity contract
+        run: node tests/dm-combat-live-viewer-smoke.mjs
+      - name: DM Unit Library real UI empty-Firebase runtime
+        run: node tests/dm-combat-unit-library-real-ui-smoke.mjs
+      - name: Live sync, camera and canonical library hotfix contract
+        run: node tests/combat-v073-live-sync-hotfix-smoke.mjs
+      - name: Unit Library to FIELD instantiation contract
+        run: node tests/unit-combat-instantiator-smoke.mjs
+      - name: Universal Library and authoritative Combat contract
+        run: node tests/universal-library-authority-smoke.mjs
+      - name: Scale Sorcerer Kobold FIELD and BACKUP regression
+        run: node tests/scale-sorcerer-deployment-smoke.mjs
+      - name: Universal PC NPC AI spell and backup integration
+        run: node tests/universal-caster-deployment-smoke.mjs
+      - name: Universal Player vitals realtime bridge
+        run: node tests/player-vitals-realtime-bridge-smoke.mjs
+      - name: Player Action economy menu contract
+        run: node tests/combat-v073-economy-menu-smoke.mjs
+      - name: Mobile Combat player-centered HUD and Spells eligibility
+        run: node tests/combat-mobile-boot-smoke.mjs
+      - name: DM Player Skills and Spell live Encounter assignment
+        run: node tests/dm-player-loadout-manager-smoke.mjs
+      - name: Player Skill cards Coins and Status Effects
+        run: node tests/player-skills-hud-smoke.mjs
+      - name: Player Limbus Skill Deck UI, assets and canonical 3/2/1 persistence
+        run: |
+          node --check js/player-skill-deck-manager.js
+          node tests/player-skill-deck-manager-integration-smoke.mjs
+      - name: Combat Player Skills selectable without developer HUD
+        run: node tests/combat-v074-player-skill-planner-smoke.mjs
+      - name: Player Spell details preserve per-Coin triggers
+        run: node tests/combat-v074-player-spell-planner-smoke.mjs
+      - name: Player menu and active inventory click contract
+        run: node tests/combat-v073-player-menu-inventory-click-smoke.mjs
+      - name: Combat Player Active Inventory authority
+        run: node tests/combat-player-active-inventory-authority-smoke.mjs
+      - name: Canonical ItemRuntime combat use contract
+        run: node tests/item-runtime-canonical-combat-use-smoke.mjs
+      - name: Universal Player HP/SP sync contract
+        run: node tests/player-vitals-universal-sync-smoke.mjs
+      - name: Shared movement, Dexterity and size Speed rules
+        run: |
+          node --check js/movement-speed-runtime.js
+          node --check js/universal-speed-runtime.js
+          node tests/movement-speed-runtime-smoke.mjs
+          node tests/speed-dex-size-integration-smoke.mjs
+          node tests/combat-v073-player-speed-turn-one-smoke.mjs
+      - name: Speed persistence contract
+        run: node tests/combat-v073-speed-persistence-smoke.mjs
+      - name: DM observer mode contract
+        run: node tests/combat-v073-dm-observer-smoke.mjs
+      - name: Limbus sprite facing runtime contract
+        run: node tests/combat-v073-limbus-facing-runtime-smoke.mjs
+      - name: Player renderer performance contract
+        run: node tests/combat-v073-player-renderer-performance-smoke.mjs
+      - name: Downed and fatal Bleed real-engine regressions
+        run: |
+          node tests/downed-lifecycle-and-interrupt-smoke.mjs
+          node tests/combat-v073-downed-interrupt-smoke.mjs
+          node tests/pr1042-real-downed-regression-smoke.mjs
+          node tests/combat-death-save-authority-rng-smoke.mjs
+      - name: FIELD and BACKUP lifecycle contract
+        run: node tests/combat-backup-lifecycle-smoke.mjs
+      - name: Unit rank and Backup command contract
+        run: node tests/unit-rank-command-smoke.mjs
+      - name: Enemy FIELD slot allocation contract
+        run: node tests/enemy-action-slot-allocator-smoke.mjs
+      - name: Wolf Backup summon contract
+        run: node tests/wolf-unit-library-smoke.mjs
+      - name: Combat / Theatre isolation contract
+        run: node tests/combat-v073-theatre-isolation-smoke.mjs
+      - name: Encounter end and DM resolution contract
+        run: node tests/combat-v074-dm-console-smoke.mjs
+

@@ -1,0 +1,227 @@
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(HERE, "..");
+const JS_DIR = path.join(ROOT, "js");
+const OUTPUT = path.join(JS_DIR, "class-runtime-manifest.js");
+
+const SUPPORT = [
+  {
+    id: "support:creature-type-catalog",
+    kind: "support",
+    path: "js/creature-type-catalog.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousCreatureTypeCatalog",
+    autoload: false,
+  },
+  {
+    id: "support:caster-spellcasting-traits-runtime",
+    kind: "support",
+    path: "js/caster-spellcasting-traits-runtime.js",
+    contexts: ["any"],
+    dependsOn: ["support:spellcasting-runtime"],
+    globalName: "LuminousCasterSpellcastingTraitsRuntime",
+    autoload: false,
+  },
+  {
+    id: "support:fighting-style-runtime",
+    kind: "support",
+    path: "js/fighting-style-runtime.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousFightingStyleRuntime",
+  },
+  {
+    id: "support:universal-action-economy",
+    kind: "support",
+    path: "js/universal-action-economy.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousActionEconomy",
+    autoload: false,
+  },
+  {
+    id: "support:fighter-maneuver-catalog",
+    kind: "support",
+    path: "js/fighter-maneuver-catalog.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousFighterManeuverCatalog",
+    autoload: false,
+  },
+  {
+    id: "support:player-archetype-runtime-core",
+    kind: "support",
+    path: "js/player-archetype-runtime-core.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousArchetypeRuntime",
+    autoload: false,
+  },
+  {
+    id: "support:spellcasting-runtime",
+    kind: "support",
+    path: "js/spellcasting-runtime.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousSpellcastingRuntime",
+    autoload: false,
+  },
+  {
+    id: "support:universal-speed-runtime",
+    kind: "support",
+    path: "js/universal-speed-runtime.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousUniversalSpeedRuntime",
+    autoload: false,
+  },
+  {
+    id: "support:weapon-property-runtime",
+    kind: "support",
+    path: "js/weapon-property-runtime.js",
+    contexts: ["any"],
+    dependsOn: [],
+    globalName: "LuminousWeaponPropertyRuntime",
+  },
+];
+
+const LEGACY_PRIMARY = [
+  {
+    prefix: "college-of-whispers",
+    id: "archetype:college-of-whispers",
+    kind: "archetype",
+    path: "js/college-of-whispers-runtime.js",
+    globalName: "LuminousCollegeOfWhispersRuntime",
+  },
+];
+
+const DEPENDENCY_OVERRIDES = new Map([
+  ["class:fighter", ["support:fighting-style-runtime", "support:universal-action-economy"]],
+  ["class:monk", ["support:weapon-property-runtime", "support:universal-speed-runtime"]],
+  ["class:ranger", ["support:creature-type-catalog", "support:fighting-style-runtime", "support:caster-spellcasting-traits-runtime"]],
+  ["class:sorcerer", ["support:spellcasting-runtime", "support:universal-speed-runtime"]],
+  ["class:wizard", ["support:spellcasting-runtime"]],
+  ["archetype:battle-master", ["support:player-archetype-runtime-core", "support:fighter-maneuver-catalog"]],
+  ["archetype:champion", ["support:player-archetype-runtime-core", "support:fighting-style-runtime"]],
+  ["archetype:samurai", ["support:player-archetype-runtime-core"]],
+  ["archetype:banneret", ["class:fighter", "support:player-archetype-runtime-core"]],
+  ["archetype:bladesinger", ["class:wizard", "support:player-archetype-runtime-core", "support:universal-action-economy"]],
+  ["archetype:bilgewater-buccaneer", ["support:player-archetype-runtime-core", "class:ranger"]],
+  ["archetype:bilgewater-demolisher", ["support:player-archetype-runtime-core", "class:ranger"]],
+  ["archetype:mastermind", ["support:player-archetype-runtime-core", "class:rogue"]],
+  ["archetype:college-of-whispers", ["support:player-archetype-runtime-core", "class:bard"]],
+]);
+
+function pascalCase(value) {
+  return String(value)
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("");
+}
+
+function primaryEntry(prefix, kind, filename, globalName = null) {
+  const id = `${kind}:${prefix}`;
+  return {
+    prefix,
+    id,
+    kind,
+    path: `js/${filename}`,
+    contexts: ["any"],
+    dependsOn: [...(DEPENDENCY_OVERRIDES.get(id) || [])],
+    globalName: globalName || `Luminous${pascalCase(prefix)}${kind === "class" ? "Class" : "Archetype"}Runtime`,
+  };
+}
+
+function discoverEntries() {
+  const files = new Set(fs.readdirSync(JS_DIR).filter((name) => name.endsWith(".js")));
+  const primary = [];
+
+  [...files].sort().forEach((filename) => {
+    let match = filename.match(/^(.+)-class-runtime\.js$/);
+    if (match) {
+      primary.push(primaryEntry(match[1], "class", filename));
+      return;
+    }
+    match = filename.match(/^(.+)-archetype-runtime\.js$/);
+    if (match && match[1] !== "player") primary.push(primaryEntry(match[1], "archetype", filename));
+  });
+
+  LEGACY_PRIMARY.forEach((legacy) => {
+    if (!files.has(path.basename(legacy.path))) return;
+    if (!primary.some((entry) => entry.id === legacy.id)) {
+      primary.push(primaryEntry(legacy.prefix, legacy.kind, path.basename(legacy.path), legacy.globalName));
+    }
+  });
+
+  const adapters = [];
+  primary.forEach((entry) => {
+    for (const context of ["combat", "theatre"]) {
+      const filename = `${entry.prefix}-${context}-runtime.js`;
+      if (!files.has(filename)) continue;
+      adapters.push({
+        id: `adapter:${entry.prefix}:${context}`,
+        kind: "adapter",
+        path: `js/${filename}`,
+        contexts: [context],
+        dependsOn: [entry.id],
+      });
+    }
+  });
+
+  const order = { support: 0, archetype: 1, class: 2, adapter: 3 };
+  return [
+    ...SUPPORT,
+    ...primary.map(({ prefix, ...entry }) => entry),
+    ...adapters,
+  ].sort((a, b) => (order[a.kind] - order[b.kind]) || a.id.localeCompare(b.id));
+}
+
+function render(entries) {
+  return `// GENERATED FILE. Run: npm run generate:class-runtime-manifest
+(function (global) {
+  "use strict";
+
+  const entries = ${JSON.stringify(entries, null, 2)};
+
+  const manifest = Object.freeze({
+    version: 1,
+    generatedFrom: "scripts/generate-class-runtime-manifest.mjs",
+    entries: Object.freeze(entries.map((entry) => Object.freeze({
+      ...entry,
+      contexts: Object.freeze([...(entry.contexts || ["any"])]),
+      dependsOn: Object.freeze([...(entry.dependsOn || [])]),
+    }))),
+  });
+
+  global.LuminousClassRuntimeManifest = manifest;
+  if (typeof module !== "undefined" && module.exports) module.exports = manifest;
+})(typeof window !== "undefined" ? window : globalThis);
+`;
+}
+
+const expectedEntries = discoverEntries();
+if (process.argv.includes("--check")) {
+  if (!fs.existsSync(OUTPUT)) {
+    console.error("class-runtime-manifest.js is missing. Run: npm run generate:class-runtime-manifest");
+    process.exitCode = 1;
+  } else {
+    delete globalThis.LuminousClassRuntimeManifest;
+    await import(`${pathToFileURL(OUTPUT).href}?check=${Date.now()}`);
+    const currentEntries = globalThis.LuminousClassRuntimeManifest?.entries || [];
+    if (JSON.stringify(currentEntries) !== JSON.stringify(expectedEntries)) {
+      console.error("class-runtime-manifest.js is stale. Run: npm run generate:class-runtime-manifest");
+      process.exitCode = 1;
+    } else {
+      console.log("class-runtime-manifest.js is current.");
+    }
+  }
+} else {
+  fs.writeFileSync(OUTPUT, render(expectedEntries), "utf8");
+  console.log(`Generated ${path.relative(ROOT, OUTPUT)}.`);
+}

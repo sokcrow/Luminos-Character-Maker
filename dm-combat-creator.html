@@ -1,0 +1,3588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprite & UI Preview Editor</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+
+        /* --- VARIABLES BASE --- */
+        :root {
+            --limbus-hp-orange: #ff4a22;
+            --limbus-speed-yellow: #ffe877;
+            --limbus-slot-dark: #1a1510;
+            --limbus-slot-border: #4a3520;
+            --limbus-focused-ui-bg: #110000;
+            --limbus-focused-ui-border: #440000;
+            --limbus-hp-focused: #ff2222;
+        }
+
+        body { margin: 0; padding: 0; background-color: #050010; color: white; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
+
+        /* --- CONTENEDOR DE UNIDAD --- */
+        .combatant {
+            position: relative;
+            width: 260px;
+            height: 360px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        /* --- UI SUPERIOR (Velocidad y Slots) --- */
+        .top-ui-panel {
+            position: absolute;
+            top: -60px; /* Asegurar que quede por encima del sprite */
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            z-index: 10;
+        }
+        .speed-number { color: var(--limbus-speed-yellow); font-size: 50px; font-family: 'Bebas Neue', cursive; line-height: 0.9; }
+        .action-slot-svg { width: 44px; height: 44px; }
+        .slot-heptagon-bg { fill: var(--limbus-slot-dark); stroke: var(--limbus-slot-border); stroke-width: 10; }
+
+        /* --- CENTRO (Sprite) --- */
+        .sprite-anchor {
+            position: relative;
+            z-index: 5;
+        }
+        .sprite-img {
+            max-height: 200px;
+            transform-origin: bottom center;
+            /* Placeholder styles if empty */
+            min-width: 100px;
+            min-height: 100px;
+            object-fit: contain;
+            object-position: bottom;
+            filter: drop-shadow(0px 10px 5px rgba(0,0,0,0.8));
+        }
+
+        /* --- UI INFERIOR (HP Base Unfocused) --- */
+        .diegetic-floor {
+            position: absolute;
+            bottom: -110px; /* Debajo de los pies */
+            width: 220px;
+            height: 220px;
+            transform: rotateX(65deg);
+            z-index: 1;
+        }
+        .floor-bg-poly { fill: rgba(255, 80, 0, 0.2); stroke: rgba(255, 200, 50, 0.5); stroke-width: 3; }
+        .hp-track { fill: none; stroke: rgba(30, 5, 5, 0.8); stroke-width: 22; stroke-linecap: butt; }
+        .hp-fill-line { fill: none; stroke: var(--limbus-hp-orange); stroke-width: 22; transition: stroke-dashoffset 0.4s ease-out; filter: drop-shadow(0px 0px 10px var(--limbus-hp-orange)); }
+
+        /* --- UI DE FOCUSED (RECTANGULAR) --- */
+        .focused-ui-rect {
+            position: absolute; bottom: -90px; width: 350px; height: 60px;
+            background: var(--limbus-focused-ui-bg); border: 3px solid var(--limbus-focused-ui-border); border-radius: 4px;
+            z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8), inset 0 0 10px rgba(100,50,0,0.5); pointer-events: auto;
+        }
+        .focused-hp-bar-container { width: 95%; height: 25px; background: #220000; border: 2px solid #441111; position: relative; overflow: hidden; }
+        .focused-hp-fill-rect { height: 100%; background: var(--limbus-hp-focused); width: 100%; transition: width 0.4s ease-out; filter: drop-shadow(0px 0px 8px var(--limbus-hp-focused)); }
+
+
+/* --- NUEVA ESTRUCTURA PREVIEW --- */
+
+
+
+
+/* --- SISTEMA DE CAPAS (Z-INDEX) --- */
+.unit-preview-wrapper {
+  position: relative;
+  width: 250px;
+  height: 350px; /* Altura fija para contener las capas absolutas */
+  display: flex;
+  justify-content: center;
+  font-family: sans-serif;
+  margin: 0 auto;
+}
+
+.z-1 { z-index: 1; }
+.z-2 { z-index: 2; }
+.z-3 { z-index: 3; }
+.z-4 { z-index: 4; }
+.z-5 { z-index: 5; pointer-events: none; } /* Permite hacer clic a través de la UI vacía */
+
+/* CAPA 1: Plataforma SVG */
+.layer-platform {
+  position: absolute;
+  bottom: 25px; /* Ajuste para el SVG centrado */
+  width: 160px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.diegetic-floor-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0px 8px 4px rgba(0,0,0,0.8));
+}
+.floor-bg-poly {
+  fill: #111;
+  stroke: #333;
+  stroke-width: 2;
+}
+.hp-track {
+  fill: none;
+  stroke: #220000;
+  stroke-width: 10;
+  stroke-linecap: square;
+}
+.hp-fill-line {
+  fill: none;
+  stroke: #ff1a1a;
+  stroke-width: 10;
+  stroke-linecap: square;
+  transition: stroke-dashoffset 0.3s ease;
+  filter: drop-shadow(0 0 6px #ff4d4d);
+}
+
+/* CAPAS 2 & 4: FX (Trasero y Delantero) */
+.layer-fx-rear, .layer-fx-front {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+
+/* CAPA 3: Sprite */
+.layer-sprite {
+  position: absolute;
+  bottom: 50px; /* Anclado justo sobre la plataforma */
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.unit-sprite {
+  /* El transform (scale, spriteX, spriteY) va estrictamente aquí */
+  max-height: 250px;
+  object-fit: contain;
+}
+
+/* CAPA 5: UI Global */
+.layer-ui {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* UI: Top Indicators */
+.top-indicators {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+.speed-value {
+  color: #ffdb58;
+  font-size: 40px;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 219, 88, 0.8), 2px 2px 0px #000;
+  font-family: 'Bebas Neue', cursive;
+  line-height: 0.9;
+}
+.action-slots { display: flex; gap: 5px; }
+.action-slot {
+  width: 45px; height: 45px;
+  display: flex; justify-content: center; align-items: center;
+}
+.action-slot-svg-container {
+  width: 100%; height: 100%;
+}
+.action-slot-poly {
+  fill: #1a1a1a;
+  stroke: #a37c35;
+  stroke-width: 8;
+}
+
+/* UI: Vitals (HP & SP) */
+.vitals-container {
+  position: absolute;
+  bottom: 60px; /* Alineado con la base del sprite */
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.hp-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.vital-hp-number {
+  color: #ff3b30;
+  font-size: 32px;
+  font-weight: 900;
+  text-shadow: 2px 2px 0px #000, 0 0 8px rgba(255, 59, 48, 0.5);
+  margin-bottom: -5px;
+  font-family: 'Bebas Neue', cursive;
+}
+
+.vital-sp-container {
+  width: 45px; height: 45px;
+  background: #2a6cb5; /* SP es cian palido, actualizando color a base cian palido */
+  background: linear-gradient(135deg, #4dc6cc, #248b99);
+  border-radius: 50%;
+  display: flex; justify-content: center; align-items: center;
+  border: 4px solid #a37c35; /* Borde del mismo color dorado de accion */
+  box-shadow: 0 0 15px rgba(36, 139, 153, 0.8), inset 0 0 10px rgba(0,0,0,0.5);
+}
+.vital-sp {
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px #000;
+  font-family: 'Bebas Neue', cursive;
+}
+
+/* UI: Estados (Abajo del todo) */
+.status-effects-row {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  pointer-events: auto; /* Permite hover sobre iconos de estado */
+}
+.status-badge { position: relative; width: 30px; height: 35px; background: #111; border: 1px solid #444; display: flex; justify-content: center; align-items: center; }
+.status-icon { width: 20px; height: 20px; object-fit: contain; }
+.status-stack {
+  position: absolute; bottom: -5px; right: -5px;
+  color: #ebd197; font-size: 16px; font-weight: bold;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+
+/* --- REGLAS ESTILO DEL TERMINAL (CSS) --- */
+.trigger-builder-card {
+  background: #111;
+  border: 1px solid #444;
+  padding: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.node-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #1a1a1a;
+  padding: 10px;
+  border-left: 3px solid #8a1c1c;
+}
+
+.node-label {
+  color: #b8943b;
+  font-family: 'Cinzel', serif;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.strict-dropdown {
+  background: #222;
+  color: #d1d1d1;
+  border: 1px solid #555;
+  padding: 5px;
+  font-family: monospace;
+}
+
+.condition-row {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.math-terminal {
+  background: #0a0a0a;
+  border: 1px solid #333;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.terminal-display-wrapper {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.formula-display, .cond-val {
+  flex-grow: 1;
+  background: #121212 !important;
+  color: #e5b85c !important; /* Texto dorado para la fórmula validada */
+  font-family: monospace;
+  font-size: 16px;
+  border: 1px solid #a37c35 !important; /* Borde dorado */
+  pointer-events: auto; /* Permite hacer click para focusear */
+  cursor: text;
+}
+.cond-val {
+    width: 150px;
+    flex-grow: 0;
+}
+
+.math-focus {
+    border: 1px solid #00FFFF !important; /* Cyan glow para focus */
+    box-shadow: 0 0 5px rgba(0,255,255,0.5);
+}
+
+.btn-clear-formula {
+  background: #8a1c1c;
+  color: white;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.math-keypad {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.keypad-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.math-btn {
+  background: #1a1a1a;
+  color: #d1d1d1;
+  border: 1px solid #444;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: monospace;
+  font-weight: bold;
+}
+
+.math-btn:hover { background: #333; border-color: #a37c35; }
+.var-btn { color: #7eb4f5; border-color: #2a6cb5; } /* Azul para variables */
+.func-btn { color: #ebd197; } /* Dorado para funciones */
+</style>
+    <style>
+        /* Heptagon styles */
+        .sin-selector {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .sin-radio {
+            display: none;
+        }
+
+        .sin-label {
+            width: 40px;
+            height: 40px;
+            background: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            clip-path: polygon(50% 100%, 90% 80%, 100% 40%, 75% 0%, 25% 0%, 0% 40%, 10% 80%);
+            transition: all 0.2s;
+            position: relative;
+            border: 2px solid transparent;
+            box-sizing: border-box;
+            opacity: 0.5;
+        }
+
+        .sin-label img {
+            width: 24px;
+            height: 24px;
+            pointer-events: none;
+        }
+
+        .sin-radio:checked + .sin-label {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .sin-radio[value="wrath"]:checked + .sin-label { background: #FF0000; box-shadow: 0 0 10px #FF0000; }
+        .sin-radio[value="lust"]:checked + .sin-label { background: #FFA500; box-shadow: 0 0 10px #FFA500; }
+        .sin-radio[value="sloth"]:checked + .sin-label { background: #FFFF00; box-shadow: 0 0 10px #FFFF00; }
+        .sin-radio[value="gluttony"]:checked + .sin-label { background: #008000; box-shadow: 0 0 10px #008000; }
+        .sin-radio[value="gloom"]:checked + .sin-label { background: #00FFFF; box-shadow: 0 0 10px #00FFFF; }
+        .sin-radio[value="pride"]:checked + .sin-label { background: #4169E1; box-shadow: 0 0 10px #4169E1; }
+        .sin-radio[value="envy"]:checked + .sin-label { background: #800080; box-shadow: 0 0 10px #800080; }
+        .sin-radio[value="sinless"]:checked + .sin-label { background: #555; box-shadow: 0 0 10px #555; }
+
+        /* Fallback for border since clip-path cuts off normal borders, we use an inner div */
+        .sin-label::before {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px; right: 2px; bottom: 2px;
+            background: #1a1a1a;
+            clip-path: polygon(50% 100%, 90% 80%, 100% 40%, 75% 0%, 25% 0%, 0% 40%, 10% 80%);
+            z-index: -1;
+        }
+
+        /* Damage styles */
+        .damage-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+            justify-content: center;
+        }
+
+        .damage-radio {
+            display: none;
+        }
+
+        .damage-label {
+            background: #222;
+            border: 2px solid #444;
+            padding: 5px 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            color: #888;
+            font-family: monospace;
+            text-transform: uppercase;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .damage-label img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .damage-radio:checked + .damage-label {
+            background: #111;
+            border-color: #00FFFF; /* Cyan limbus aesthetic */
+            color: #00FFFF;
+            box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+        }
+
+        .tooltip-fireball {
+            color: #c49a00;
+            font-size: 11px;
+            text-align: center;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            font-family: sans-serif;
+            opacity: 0.8;
+        }
+
+        /* Hide number input spinners */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        /* Condition/Timing Controls */
+        .cond-btn {
+            background: #221100;
+            border: 1px solid #442200;
+            color: #cc8833;
+            cursor: pointer;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-family: monospace;
+            transition: all 0.2s;
+        }
+        .cond-btn:hover { background: #442200; color: #ffaa33; }
+        .cond-container {
+            display: none;
+            background: #110800;
+            border: 1px solid #331a00;
+            padding: 5px;
+            margin-top: 5px;
+            gap: 5px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .cond-container.active { display: flex; }
+
+        .stat-grid-selector {
+            position: relative;
+            display: inline-block;
+        }
+        .stat-grid-btn {
+            background: #222;
+            border: 1px solid #444;
+            color: #ccc;
+            cursor: pointer;
+            padding: 2px 5px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .stat-grid-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #111;
+            border: 1px solid #444;
+            padding: 5px;
+            z-index: 50;
+            width: 150px;
+        }
+        .stat-grid-dropdown.active { display: block; }
+        .stat-grid-section { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 5px; }
+        .stat-grid-item {
+            width: 24px; height: 24px;
+            background: #222; border: 1px solid #333;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; font-size: 10px; font-weight: bold; color: #888;
+        }
+        .stat-grid-item:hover { background: #444; color: white; border-color: #666; }
+        .stat-grid-item img { width: 16px; height: 16px; object-fit: contain; }
+
+        .math-op-group { display: flex; gap: 2px; }
+        .math-op-btn {
+            background: #222; border: 1px solid #444; color: #888;
+            width: 20px; height: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center; font-family: monospace; font-weight: bold;
+        }
+        .math-op-btn.active { background: #442200; border-color: #cc8833; color: #ffaa33; }
+        .math-op-btn:hover { background: #333; }
+
+        .cond-val-input { width: 30px; background: #222; border: 1px solid #444; color: #ccc; text-align: center; font-family: monospace; padding: 2px; }
+
+        .timing-group { display: flex; gap: 2px; margin-left: auto; }
+        .timing-btn {
+            background: #222; border: 1px solid #444; color: #888;
+            padding: 2px 6px; font-size: 10px; cursor: pointer; text-transform: uppercase;
+        }
+        .timing-btn.active { background: #002244; border-color: #3388cc; color: #3388cc; }
+        .timing-btn:hover { background: #333; }
+        .target-toggle-group .target-btn {
+            background: #222; border: 1px solid #444; color: #888;
+            padding: 2px 6px; font-size: 10px; cursor: pointer; text-transform: uppercase; font-family: monospace;
+        }
+        .target-toggle-group .target-btn.active { background: #440000; border-color: #ff3333; color: #ff3333; }
+        .target-toggle-group .target-btn:hover { background: #333; }
+
+        /* --- LIMBUS UI PROTOCOL: STATUS BUILDER OVERRIDE --- */
+        #status-builder-container {
+            border: 1px solid #444 !important;
+            margin-bottom: 15px;
+            padding: 15px !important;
+            background-color: #1a1a1a !important;
+            color: #d1d1d1;
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+
+        #status-builder-container legend {
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+            color: #d1d1d1;
+            padding: 0 5px;
+            border: none;
+        }
+
+        .sb-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .sb-block-label {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            font-size: 13px;
+            color: #d1d1d1;
+            box-sizing: border-box;
+        }
+
+        #status-builder-container input[type="text"],
+        #status-builder-container input[type="number"],
+        #status-builder-container textarea {
+            background-color: #2a2a2a !important;
+            color: #d1d1d1 !important;
+            border: none !important;
+            outline: none !important;
+            border-bottom: 2px solid #b8943b !important;
+            padding: 8px !important;
+            font-family: sans-serif;
+            font-size: 14px;
+            border-radius: 0;
+            transition: border-bottom-color 0.2s ease, background-color 0.2s ease;
+            box-sizing: border-box;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        #status-builder-container input[type="text"]:focus,
+        #status-builder-container input[type="number"]:focus,
+        #status-builder-container textarea:focus {
+            border-bottom: 2px solid #8a1c1c !important;
+            background-color: #333 !important;
+        }
+
+        #status-builder-container textarea {
+            resize: vertical;
+            min-height: 60px !important;
+        }
+
+        /* Ocultar spinners de input number (si no estaban ocultos) */
+        #status-builder-container input[type="number"]::-webkit-inner-spin-button,
+        #status-builder-container input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Limbus Radio Group */
+        .limbus-radio-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .limbus-radio-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #d1d1d1;
+        }
+
+        .limbus-radio-group input[type="radio"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #b8943b;
+            border-radius: 0; /* Strict square corners */
+            outline: none;
+            background-color: transparent;
+            position: relative;
+            cursor: pointer;
+            margin: 0;
+            transition: border-color 0.2s ease;
+        }
+
+        .limbus-radio-group input[type="radio"]::after {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            bottom: 2px;
+            background-color: transparent;
+            transition: background-color 0.2s ease;
+            border-radius: 0;
+        }
+
+        .limbus-radio-group input[type="radio"]:checked {
+            border-color: #8a1c1c;
+        }
+
+        .limbus-radio-group input[type="radio"]:checked::after {
+            background-color: #8a1c1c;
+        }
+
+        /* Limbus Save Button */
+        #btnSaveStatus {
+            width: 100% !important;
+            padding: 12px !important;
+            margin-top: 15px !important;
+            background: #121212 !important; /* Gris oscuro / negro */
+            color: #8a1c1c !important;
+            border: 2px solid #8a1c1c !important;
+            border-radius: 0;
+            cursor: pointer;
+            font-family: sans-serif;
+            font-weight: bold !important;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: background-color 0.1s, color 0.1s;
+        }
+
+        #btnSaveStatus:hover {
+            background-color: #8a1c1c !important;
+            color: #121212 !important;
+        }
+
+</style>
+</head>
+<body>
+    <div id="editor-preview" style="flex-grow: 1; display: flex; justify-content: center; align-items: center; position: relative;">
+        <!-- Previsualización aquí -->
+    </div>
+
+
+    <div id="editor-sidebar" style="width: 350px; background: #111; padding: 20px; overflow-y: auto; border-left: 1px solid #333; display: flex; flex-direction: column;">
+        <div id="dm-dashboard" style="background: rgba(20,20,20,0.95); border: 1px solid #886633; color: #fff; border-radius: 6px; display: flex; flex-direction: column; margin-bottom: 20px;">
+            <div class="dm-header" style="background: #201000; padding: 8px; text-align: center; font-size: 14px; font-weight: bold; border-bottom: 1px solid #886633; color: #ffdd44; letter-spacing: 1px; text-transform: uppercase;">
+                Combat Creator & Directory
+            </div>
+            <div class="dm-tools" style="padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 300px;">
+                <div class="dm-directory-group">
+                    <div class="directory-tabs" style="display: flex; gap: 2px; margin-bottom: 5px;">
+                        <button onclick="switchTab('players')" style="flex: 1; background: #333; color: white; border: 1px solid #555; padding: 4px; cursor: pointer;">Jugadores</button>
+                        <button onclick="switchTab('npcs')" style="flex: 1; background: #333; color: white; border: 1px solid #555; padding: 4px; cursor: pointer;">NPCs</button>
+                        <button onclick="switchTab('enemies')" style="flex: 1; background: #333; color: white; border: 1px solid #555; padding: 4px; cursor: pointer;">Enemigos</button>
+                    </div>
+
+                    <input type="text" id="tag-search" placeholder="Buscar tags (ej. syndicate, boss)..." onkeyup="filterDirectory()" style="width: 100%; box-sizing: border-box; background: #000; color: #fff; border: 1px solid #555; padding: 4px; font-size: 11px; margin-bottom: 5px;">
+
+                    <div id="directory-list" style="max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.5); border: 1px solid #443311; padding: 4px; border-radius: 3px;">
+                        <!-- Los resultados se renderizan aquí dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div style="display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #553311; padding-bottom: 10px;">
+            <button class="tab-btn active" id="tab-btn-units" onclick="switchEditorTab('units')" style="flex: 1; padding: 10px; background: #c49a00; color: #000; border: none; font-weight: bold; cursor: pointer; font-family: 'Bebas Neue', sans-serif; font-size: 16px;">[ ENSAMBLAJE DE ENTIDADES ]</button>
+            <button class="tab-btn" id="tab-btn-skills" onclick="switchEditorTab('skills')" style="flex: 1; padding: 10px; background: #332211; color: #ccc; border: none; font-weight: bold; cursor: pointer; font-family: 'Bebas Neue', sans-serif; font-size: 16px;">[ ARCHIVO DE HABILIDADES ]</button>
+            <button class="tab-btn" id="tab-btn-status" onclick="switchEditorTab('status')" style="flex: 1; padding: 10px; background: #332211; color: #ccc; border: none; font-weight: bold; cursor: pointer; font-family: 'Bebas Neue', sans-serif; font-size: 16px;">[ ESTADOS (STATUS) ]</button>
+        </div>
+
+        <div id="module-units">
+        <h2 id="editor-preview">ENSAMBLAJE DE ENTIDADES</h2>
+
+
+        <!-- Controles Visuales -->
+        <fieldset style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
+            <legend>Visuales</legend>
+            <label style="display:block; margin-bottom: 5px;">URL de Sprite:
+                <input type="text" id="spriteUrl" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Idle Sprite:
+                <input type="text" id="idle_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Moving Sprite:
+                <input type="text" id="moving_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Guard Sprite:
+                <input type="text" id="guard_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Evade Sprite:
+                <input type="text" id="evade_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Hurt Sprite:
+                <input type="text" id="hurt_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Dead Sprite:
+                <input type="text" id="dead_sprite" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:flex; justify-content: space-between; margin-bottom: 5px;">Focused Encounter:
+                <input type="checkbox" id="isFocusedToggle">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Scale:
+                <input type="number" id="scaleSlider" step="0.05" value="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Sprite X:
+                <input type="number" id="spriteXSlider" step="1" value="0" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Sprite Y:
+                <input type="number" id="spriteYSlider" step="1" value="0" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">UI X:
+                <input type="number" id="uiXSlider" step="1" value="0" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">UI Y:
+                <input type="number" id="uiYSlider" step="1" value="0" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+        </fieldset>
+
+        <!-- Stats Mecánicas -->
+
+        <fieldset style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
+            <legend>Stats Mecánicas</legend>
+            <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <span id="label-npc" style="color: #c49a00; font-weight: bold;">[ NPC / ENEMIGO ]</span>
+                <label class="switch" style="position: relative; display: inline-block; width: 50px; height: 24px;">
+                    <input type="checkbox" id="is-player-switch" onchange="togglePlayerLock()">
+                    <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: .4s; border-radius: 24px;"></span>
+                </label>
+                <span id="label-player" style="color: #555;">[ JUGADOR ]</span>
+            </div>
+            <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                <label style="flex: 1;">Max HP: <input type="number" id="unit-hp" class="mech-stat" value="100" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Nivel: <input type="number" id="statLevel" value="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+            </div>
+            <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                <label style="flex: 1;">Velocidad: <input type="text" id="unit-speed" class="mech-stat" value="2-4" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Action Slots: <input type="number" id="statSlots" value="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Max Action Slots: <input type="number" id="statMaxSlots" value="3" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+            </div>
+            <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                <label style="flex: 1;">Defensa (AC): <input type="number" id="unit-ac" class="mech-stat" value="10" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Stagger (%): <input type="text" id="unit-stagger" class="mech-stat" value="70, 40" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">SP (Cordura): <input type="number" id="unit-sp" class="mech-stat" value="45" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+            </div>
+
+            <button id="btn-link-skill" style="width: 100%; padding: 10px; background: #8a0303; color: #fff; border: 1px solid #ff4a22; font-weight: bold; cursor: pointer; margin-top: 10px;" onclick="openSkillModal()">[ + VINCULAR HABILIDAD ]</button>
+            <div id="linked-skills-list" style="background: #111; padding: 10px; border: 1px solid #333; min-height: 50px; margin-top: 5px;"></div>
+        </fieldset>
+
+
+        <!-- Metadata & Guardado -->
+        <fieldset style="border: 1px solid #444; margin-bottom: 15px; padding: 10px;">
+            <legend>Base de Datos</legend>
+            <label style="display:block; margin-bottom: 5px;">Nombre del Template:
+                <input type="text" id="metaName" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Linked NPC ID:
+                <input type="text" id="metaLinkedNpc" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+            <label style="display:block; margin-bottom: 5px;">Tags (separados por coma):
+                <input type="text" id="metaTags" placeholder="Facción, Tipo, Rango" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+            </label>
+
+            <button id="btnSaveUnit" style="width: 100%; padding: 10px; margin-top: 10px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold;">[ GUARDAR UNIDAD ]</button>
+        </fieldset>
+
+
+        </div> <!-- End module-units -->
+
+        <div id="module-skills" style="display: none; flex-direction: row; gap: 10px; max-height: calc(100vh - 100px);"><div id="ms-left" style="flex: 1; overflow-y: auto; padding-right: 5px;">
+
+        <button id="btn-start-skill-builder" style="width: 100%; padding: 15px; margin-bottom: 15px; background: #c49a00; color: #000; border: none; font-weight: bold; font-family: 'Bebas Neue', cursive; font-size: 20px; cursor: pointer;">[ INICIAR NUEVO CONSTRUCTOR DE SKILL ]</button>
+
+        <!-- Constructor de Skills -->
+        <fieldset id="skill-builder-container" style="border: 1px solid #444; margin-bottom: 15px; padding: 10px; display: none;">
+            <legend>Constructor de Skills</legend>
+            <input type="hidden" id="sb-current-id" value="">
+
+            <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                <label style="flex: 1;">ID Habilidad: <input type="text" id="sb-id" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+                <label style="flex: 1;">Nombre: <input type="text" id="sb-name" style="width: 100%; background: #222; color: white; border: 1px solid #555;"></label>
+            </div>
+
+            <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                <label style="flex: 1;">
+                    Base Power: <input type="number" id="sb-base" value="4" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                    <small style="color: #888; font-size: 10px; display: block; margin-top: 2px;">El poder base (mínimo) del ataque.</small>
+                </label>
+                <label style="flex: 1;">
+                    Coin Power: <input type="number" id="sb-coin-power" value="4" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                    <small style="color: #888; font-size: 10px; display: block; margin-top: 2px;">El poder adicional que otorga cada moneda (cara).</small>
+                </label>
+            </div>
+
+            <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                <label style="flex: 1;">
+                    Coin Count: <input type="number" id="sb-coin-count" value="1" min="1" max="5" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                    <small style="color: #888; font-size: 10px; display: block; margin-top: 2px;">Número de monedas (golpes/caras) del ataque.</small>
+                </label>
+                <label style="flex: 1;">
+                    Weight: <input type="number" id="sb-weight" value="1" min="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                    <small style="color: #888; font-size: 10px; display: block; margin-top: 2px;">A cuántos objetivos golpea (1 es single-target).</small>
+                </label>
+                <label style="flex: 1;">
+                    Range: <input type="number" id="sb-range" value="1" min="1" style="width: 100%; background: #222; color: white; border: 1px solid #555;" oninput="this.value = Math.max(1, parseInt(this.value) || 1)">
+                    <small style="color: #888; font-size: 10px; display: block; margin-top: 2px;">Alcance en tiles de la habilidad.</small>
+                </label>
+            </div>
+
+            <div style="display:flex; gap: 5px; margin-bottom: 10px;">
+                <label style="flex: 1;">
+                    Targeting Type:
+                    <select id="sb-targeting-type" style="width: 100%; background: #222; color: white; border: 1px solid #555; padding: 2px;" onchange="document.getElementById('sb-aoe-pattern').disabled = (this.value !== 'AoE');">
+                        <option value="Focused Attack">Focused Attack</option>
+                        <option value="Focused Volley">Focused Volley</option>
+                        <option value="Unfocused Volley">Unfocused Volley</option>
+                        <option value="Indiscriminate">Indiscriminate</option>
+                        <option value="AoE">AoE</option>
+                    </select>
+                </label>
+                <label style="flex: 1;">
+                    AoE Pattern:
+                    <select id="sb-aoe-pattern" style="width: 100%; background: #222; color: white; border: 1px solid #555; padding: 2px;" disabled>
+                        <option value="Self">Self</option>
+                        <option value="Radius">Radius</option>
+                        <option value="Cone">Cone</option>
+                    </select>
+                </label>
+            </div>
+
+            <!-- Deckbuilding & Equipment -->
+            <div style="background: #1e1e1e; padding: 10px; margin-bottom: 10px; border: 1px solid #444; border-radius: 3px;">
+                <strong style="display:block; margin-bottom: 5px; color: #ffdd44; font-size: 13px;">Deckbuilding & Equipment</strong>
+                <div style="display:flex; gap: 5px; align-items: center;">
+                    <label style="flex: 1; font-size: 12px;">Tier (Costo):
+                        <select id="sb-tier" style="width: 100%; background: #222; color: white; border: 1px solid #555; padding: 2px;">
+                            <option value="1">Tier 1 (1 Slot)</option>
+                            <option value="2">Tier 2 (2 Slots)</option>
+                            <option value="3">Tier 3 (3 Slots)</option>
+                        </select>
+                    </label>
+                    <label style="flex: 1; display: flex; align-items: center; gap: 5px; font-size: 12px; margin-top: 15px;">
+                        <input type="checkbox" id="sb-is-item-skill"> Item Skill (Costo 0)
+                    </label>
+                </div>
+            </div>
+
+            <!-- Stat Modifier Selector (Brutalist style grid) -->
+            <label style="display:block; margin-bottom: 5px; font-size: 12px; color: #ccc;">Modificador de Escalado (Nivel = Base + Mod):</label>
+            <div class="damage-selector" style="margin-bottom: 10px;">
+                <input type="radio" id="stat-fuerza" name="sb-scaling-stat" value="Fuerza" class="damage-radio" checked>
+                <label for="stat-fuerza" class="damage-label">Fuerza</label>
+
+                <input type="radio" id="stat-destreza" name="sb-scaling-stat" value="Destreza" class="damage-radio">
+                <label for="stat-destreza" class="damage-label">Destreza</label>
+
+                <input type="radio" id="stat-constitucion" name="sb-scaling-stat" value="Constitucion" class="damage-radio">
+                <label for="stat-constitucion" class="damage-label">Constitución</label>
+
+                <input type="radio" id="stat-inteligencia" name="sb-scaling-stat" value="Inteligencia" class="damage-radio">
+                <label for="stat-inteligencia" class="damage-label">Inteligencia</label>
+
+                <input type="radio" id="stat-sabiduria" name="sb-scaling-stat" value="Sabiduria" class="damage-radio">
+                <label for="stat-sabiduria" class="damage-label">Sabiduría</label>
+
+                <input type="radio" id="stat-carisma" name="sb-scaling-stat" value="Carisma" class="damage-radio">
+                <label for="stat-carisma" class="damage-label">Carisma</label>
+            </div>
+
+            <!-- Kinetic Damage Selector -->
+            <div id="sb-kinetic-damage-container">
+                <label style="display:block; margin-bottom: 5px; font-size: 12px; color: #ccc;">Tipo de Daño Cinético:</label>
+                <div class="damage-selector">
+                    <input type="radio" id="dmg-cortante" name="sb-damage-radio" value="cortante" class="damage-radio" checked>
+                    <label for="dmg-cortante" class="damage-label">
+                        <img src="https://imgur.com/Akf25L5.png" alt="Cortante"> Cortante
+                    </label>
+
+                    <input type="radio" id="dmg-perforante" name="sb-damage-radio" value="perforante" class="damage-radio">
+                    <label for="dmg-perforante" class="damage-label">
+                        <img src="https://imgur.com/slcQlpc.png" alt="Perforante"> Perforante
+                    </label>
+
+                    <input type="radio" id="dmg-contundente" name="sb-damage-radio" value="contundente" class="damage-radio">
+                    <label for="dmg-contundente" class="damage-label">
+                        <img src="https://imgur.com/cg8Wh4w.png" alt="Contundente"> Contundente
+                    </label>
+                </div>
+            </div>
+
+            <!-- Sin Selector -->
+            <label style="display:block; margin-bottom: 5px; font-size: 12px; color: #ccc;">Alineación de Pecado:</label>
+            <div class="sin-selector">
+                <input type="radio" id="sin-wrath" name="sb-sin-radio" value="wrath" class="sin-radio" checked>
+                <label for="sin-wrath" class="sin-label" title="Wrath">
+                    <img src="https://imgur.com/Nn33MJR.png" alt="Wrath">
+                </label>
+
+                <input type="radio" id="sin-lust" name="sb-sin-radio" value="lust" class="sin-radio">
+                <label for="sin-lust" class="sin-label" title="Lust">
+                    <img src="https://imgur.com/bF7bHHT.png" alt="Lust">
+                </label>
+
+                <input type="radio" id="sin-sloth" name="sb-sin-radio" value="sloth" class="sin-radio">
+                <label for="sin-sloth" class="sin-label" title="Sloth">
+                    <img src="https://imgur.com/igYFF1I.png" alt="Sloth">
+                </label>
+
+                <input type="radio" id="sin-gluttony" name="sb-sin-radio" value="gluttony" class="sin-radio">
+                <label for="sin-gluttony" class="sin-label" title="Gluttony">
+                    <img src="https://imgur.com/0KArwDU.png" alt="Gluttony">
+                </label>
+
+                <input type="radio" id="sin-gloom" name="sb-sin-radio" value="gloom" class="sin-radio">
+                <label for="sin-gloom" class="sin-label" title="Gloom">
+                    <img src="https://imgur.com/DCTX5Jy.png" alt="Gloom">
+                </label>
+
+                <input type="radio" id="sin-pride" name="sb-sin-radio" value="pride" class="sin-radio">
+                <label for="sin-pride" class="sin-label" title="Pride">
+                    <img src="https://imgur.com/w6z9THA.png" alt="Pride">
+                </label>
+
+                <input type="radio" id="sin-envy" name="sb-sin-radio" value="envy" class="sin-radio">
+                <label for="sin-envy" class="sin-label" title="Envy">
+                    <img src="https://imgur.com/SuNHY9D.png" alt="Envy">
+                </label>
+
+                <input type="radio" id="sin-sinless" name="sb-sin-radio" value="sinless" class="sin-radio">
+                <label for="sin-sinless" class="sin-label" title="Sinless">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; border: 2px dashed #888;"></div>
+                </label>
+            </div>
+
+            <div class="tooltip-fireball">
+                "Los elementos mágicos no son tipos de daño. Se aplican como Efectos de Estado. Ej: Fireball = Daño Contundente + Pecado Wrath + Aplica Quemadura (Burn)."
+            </div>
+
+            <!-- Defensive Skill Engine -->
+            <div style="background: #1a1a1a; padding: 10px; margin-bottom: 10px; border: 1px solid #333;">
+                <label style="display:flex; justify-content: space-between; margin-bottom: 5px;"><strong>Defensive Skill</strong>
+                    <input type="checkbox" id="sb-is-defense">
+                </label>
+                <div id="sb-defense-options" style="display: none;">
+                    <label style="display:block; margin-bottom: 5px;">Subtipo:
+                        <select id="sb-defense-subtype" style="width: 100%; background: #222; color: white; border: 1px solid #555;">
+                            <option value="Guard">Guard</option>
+                            <option value="Evade">Evade</option>
+                            <option value="Counter">Counter</option>
+                            <option value="ClashableGuard">Clashable Guard</option>
+                            <option value="ClashableCounter">Clashable Counter</option>
+                        </select>
+                    </label>
+                    <label style="display:flex; justify-content: space-between; font-size: 11px;">Requires Unlock (Availability)
+                        <input type="checkbox" id="sb-defense-requires-unlock">
+                    </label>
+                    <p style="font-size: 10px; color: #888; margin-top:5px; margin-bottom: 0;">Si "Sin Type" no es asignado, se forzará a Sinless.</p>
+                </div>
+            </div>
+
+            <!-- Efectos Globales -->
+            <div style="border-top: 1px dashed #555; margin-top: 10px; padding-top: 10px;">
+                <strong>Efectos Globales (Pre/Post)</strong>
+                <div id="sb-global-effects-container" style="margin-bottom: 5px;"></div>
+                <button type="button" id="sb-btn-add-global" style="background: #444; color: white; border: none; padding: 2px 5px; font-size: 11px; cursor: pointer;">+ Añadir Efecto Global</button>
+            </div>
+
+            <!-- Monedas Dinámicas -->
+            <div style="border-top: 1px dashed #555; margin-top: 10px; padding-top: 10px;">
+                <strong>Monedas (Resolución)</strong>
+                <div id="sb-coins-container"></div>
+            </div>
+
+
+            <!-- Skill Evolution Module -->
+            <div style="border-top: 1px dashed #555; margin-top: 10px; padding-top: 10px; background: #1a0a0a; border: 1px solid #500; padding: 10px; border-radius: 4px;">
+                <h3 style="margin-top: 0; color: #ff4a22; font-family: 'Cinzel', serif; font-size: 14px;">[ MUTACIÓN DE HABILIDAD (Skill Evolution) ]</h3>
+                <label style="display:flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">Habilitar Mutación
+                    <input type="checkbox" id="sb-evo-enable" onchange="document.getElementById('sb-evo-config').style.display = this.checked ? 'block' : 'none'">
+                </label>
+                <div id="sb-evo-config" style="display: none; border-left: 2px solid #8a0303; padding-left: 10px; margin-top: 5px;">
+                    <label style="display:flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">Target Skill ID
+                        <select id="sb-evo-target-id" style="width: 150px; background: #000; color: #fff; border: 1px solid #444;">
+                            <option value="">-- Seleccionar --</option>
+                        </select>
+                    </label>
+                    <label style="display:flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">Condition Target
+                        <select id="sb-evo-target" style="width: 150px; background: #000; color: #fff; border: 1px solid #444;">
+                            <option value="Self">Self</option>
+                            <option value="Target">Target</option>
+                        </select>
+                    </label>
+                    <label style="display:flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">Condition Type
+                        <select id="sb-evo-cond-type" style="width: 150px; background: #000; color: #fff; border: 1px solid #444;">
+                            <option value="hp_percent">HP %</option>
+                            <option value="status_potency">Status Potency</option>
+                            <option value="status_count">Status Count</option>
+                        </select>
+                    </label>
+                    <label style="display:flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">Status ID (si aplica)
+                        <input type="text" id="sb-evo-status-id" placeholder="Ej. burn" style="width: 150px; background: #000; color: #fff; border: 1px solid #444;">
+                    </label>
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <label style="font-size: 11px; flex: 1;">Operador
+                            <select id="sb-evo-operator" style="width: 100%; background: #000; color: #fff; border: 1px solid #444;">
+                                <option value="<"><</option>
+                                <option value="<="><=</option>
+                                <option value="=">=</option>
+                                <option value=">=">>=</option>
+                                <option value=">">></option>
+                            </select>
+                        </label>
+                        <label style="font-size: 11px; flex: 1;">Valor
+                            <input type="number" id="sb-evo-value" style="width: 100%; background: #000; color: #fff; border: 1px solid #444;">
+                        </label>
+                    </div>
+                    <label style="display:flex; justify-content: space-between; font-size: 11px; margin-top: 5px;">Evolución Permanente
+                        <input type="checkbox" id="sb-evo-permanent">
+                    </label>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <button type="button" id="save-skill-db-btn" onclick="saveSkillToDB()" style="width: 100%; padding: 8px; margin-top: 5px; background: #8a0303; color: white; border: none; cursor: pointer; font-weight: bold;">[ GUARDAR HABILIDAD EN DB ]</button>
+            </div>
+        </fieldset>
+
+        </div> <!-- End ms-left -->
+        <div id="ms-right" style="flex: 1; overflow-y: auto; padding-left: 5px; border-left: 1px solid #444;">
+            <div style="background: rgba(20,20,20,0.95); border: 1px solid #886633; color: #fff; border-radius: 6px; display: flex; flex-direction: column; margin-bottom: 20px;">
+                <div class="dm-header" style="background: #201000; padding: 8px; text-align: center; font-size: 14px; font-weight: bold; border-bottom: 1px solid #886633; color: #ffdd44; letter-spacing: 1px; text-transform: uppercase;">
+                    Directorio Activo
+                </div>
+                <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                    <input type="text" id="skill-dir-search" placeholder="Buscar por nombre, daño o pecado..." onkeyup="filterSkillDirectory()" style="width: 100%; box-sizing: border-box; background: #000; color: #fff; border: 1px solid #555; padding: 4px; font-size: 11px; margin-bottom: 5px;">
+                    <div id="skill-directory-list" style="overflow-y: auto; background: rgba(0,0,0,0.5); border: 1px solid #443311; padding: 4px; border-radius: 3px; max-height: 400px; display: flex; flex-direction: column; gap: 4px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        </div> <!-- End module-skills -->
+
+        <div id="module-status" style="display: none; flex-direction: row; gap: 10px; max-height: calc(100vh - 100px);">
+            <div id="mst-left" style="flex: 1; overflow-y: auto; padding-right: 5px;">
+
+                                <!-- Constructor de Estados -->
+                <fieldset id="status-builder-container">
+                    <legend>Constructor de Estados Avanzado</legend>
+                    <input type="hidden" id="sb-status-current-id" value="">
+
+                    <div class="sb-row">
+                        <label class="sb-block-label">ID Estado: <input type="text" id="sb-status-id"></label>
+                        <label class="sb-block-label">Nombre: <input type="text" id="sb-status-name"></label>
+                    </div>
+
+                    <div class="sb-row">
+                        <label class="sb-block-label">Value Mode:
+                            <select id="sb-status-mode">
+                                <option value="zero">Zero (Solo Ícono/Presencia)</option>
+                                <option value="single">Single (Count o Potency)</option>
+                                <option value="double">Double (Count y Potency)</option>
+                            </select>
+                        </label>
+                        <label class="sb-block-label">Tag Lógico:
+                            <select id="sb-status-tag">
+                                <option value="positive">Positive (Buff)</option>
+                                <option value="neutral">Neutral</option>
+                                <option value="negative">Negative (Debuff)</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="sb-row">
+                        <label class="sb-block-label">Damage Type Tag (Damage/Power/Protection/Fragility):
+                            <select id="sb-status-damage-type">
+                                <option value="">(None)</option>
+                                <option value="Blunt">Blunt</option>
+                                <option value="Pierce">Pierce</option>
+                                <option value="Slash">Slash</option>
+                            </select>
+                        </label>
+                        <label class="sb-block-label">Sin Affinity Tag (Damage/Power/Protection/Fragility):
+                            <select id="sb-status-sin-affinity">
+                                <option value="">(None)</option>
+                                <option value="Wrath">Wrath</option>
+                                <option value="Lust">Lust</option>
+                                <option value="Sloth">Sloth</option>
+                                <option value="Gluttony">Gluttony</option>
+                                <option value="Gloom">Gloom</option>
+                                <option value="Pride">Pride</option>
+                                <option value="Envy">Envy</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="sb-row">
+                        <label class="sb-block-label">Crit Vulnerability per Count:
+                            <input type="number" step="0.01" id="sb-status-crit-vuln" placeholder="0.0">
+                        </label>
+                    </div>
+
+                    <label class="sb-block-label">URL del Asset Visual (Ícono): <input type="text" id="sb-status-icon"></label>
+
+                    <fieldset id="sb-rules-container" style="margin-top: 10px; border: 1px solid #b8943b; background: #0a0a0a; padding: 10px;">
+                        <legend style="color: #b8943b; font-family: 'Cinzel', serif; font-size: 16px;">Reglas del Motor (Multi-Rule System) & Terminal Matemático</legend>
+                        <div id="sb-rules-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                        <button type="button" onclick="addStatusRule()" style="width: 100%; background: #8a1c1c; color: white; border: none; padding: 10px; margin-top: 10px; cursor: pointer; font-family: 'Bebas Neue', cursive; font-size: 16px;">[ + ENSAMBLAR NUEVA REGLA (TERMINAL) ]</button>
+                    </fieldset>
+
+                    <button id="btnSaveStatus" onclick="saveStatusToFirebase()" style="margin-top: 15px;">[ GUARDAR ESTADO GLOBAL ]</button>
+                </fieldset>
+            </div>
+
+            <div id="mst-right" style="flex: 1; border-left: 1px solid #553311; padding-left: 10px; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #553311; padding-bottom: 5px; margin-bottom: 5px;">
+                    <h3 style="margin: 0; font-family: 'Bebas Neue', cursive;">Directorio Activo de Estados</h3>
+                    <button id="btn-filter-missing-icons" onclick="toggleMissingIconFilter()" style="background: #aa3333; color: white; border: none; padding: 4px 8px; cursor: pointer; font-size: 11px; font-weight: bold;">[ Filtrar Sin Ícono ]</button>
+                </div>
+                <div id="active-status-directory" style="display: flex; flex-direction: column; gap: 5px;">
+                    <!-- Los estados globales se listarán aquí -->
+                </div>
+            </div>
+        </div>
+
+<!-- Buscador -->
+        <fieldset style="border: 1px solid #444; padding: 10px;">
+            <legend>Cargar Template</legend>
+            <div style="display:flex; gap: 5px;">
+                <input type="text" id="searchTemplateInput" placeholder="Nombre..." style="flex: 1; background: #222; color: white; border: 1px solid #555;">
+                <button id="btnSearch" style="background: #007bff; color: white; border: none; cursor: pointer; padding: 5px 10px;">Buscar</button>
+            </div>
+            <div id="searchResults" style="margin-top: 10px; max-height: 100px; overflow-y: auto; font-size: 12px; background: #222;"></div>
+        </fieldset>
+    </div>
+
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Limbus Combat Logic -->
+    <script src="js/statusManager.js"></script>
+
+    <!-- MODAL VINCULADOR DE HABILIDADES -->
+    <div id="skill-link-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: #111; border: 2px solid #555; width: 600px; max-width: 90%; max-height: 80vh; display: flex; flex-direction: column;">
+            <div style="background: #333; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; color: #fff; font-family: 'Bebas Neue', sans-serif;">ARSENAL DE HABILIDADES</h2>
+                <button onclick="closeSkillModal()" style="background: transparent; border: none; color: #fff; cursor: pointer; font-size: 20px;">X</button>
+            </div>
+            <div style="padding: 10px;">
+                <input type="text" id="skill-search-input" placeholder="Buscar por nombre..." style="width: 100%; box-sizing: border-box; background: #000; color: #fff; border: 1px solid #444; padding: 8px;">
+            </div>
+            <div id="skill-modal-list" style="flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 5px;">
+                <!-- Generado por JS -->
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+
+        // FALLBACK FUNCTIONS TO PREVENT DATA BLINDNESS
+        window.applySkillFallbacks = function(skill) {
+            if (!skill || typeof skill !== 'object') return skill;
+            if (!('evolution_chain' in skill)) skill.evolution_chain = null;
+            if (!skill.effects) skill.effects = [];
+            // Any other fallback for skill maxCap or global modifiers
+            return skill;
+        };
+
+        window.processSkillsData = function(skills) {
+            if (!skills) return skills;
+            for (let key in skills) {
+                skills[key] = window.applySkillFallbacks(skills[key]);
+            }
+            return skills;
+        };
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAIVIuKgXUsdrb9Mmss9PH7R3FpWAMG2hU",
+            authDomain: "luminous-system.firebaseapp.com",
+            databaseURL: "https://luminous-system-default-rtdb.firebaseio.com",
+            projectId: "luminous-system",
+            storageBucket: "luminous-system.firebasestorage.app",
+            messagingSenderId: "330473029689",
+            appId: "1:330473029689:web:44a05e870d493a3b294de8",
+            measurementId: "G-X775P4YS7W",
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        auth.onAuthStateChanged((user) => {
+            if (!user || user.uid !== "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1") {
+                initEditor(); filterDirectory(); // window.location.replace("index.html");
+            } else {
+                initEditor();
+                filterDirectory();
+            }
+        });
+
+        // Utilidades SVG
+        function generateHeptagonPoints(radius) {
+            const sides = 7; const points = []; const startAngle = Math.PI / 2;
+            for (let i = 0; i < sides; i++) {
+                const angle = startAngle + (i * 2 * Math.PI / sides);
+                points.push({ x: (radius * Math.cos(angle)).toFixed(1), y: (radius * Math.sin(angle)).toFixed(1) });
+            }
+            const fullPoly = points.map(p => `${p.x},${p.y}`).join(' ');
+            const frontHalf = `${points[5].x},${points[5].y} ${points[6].x},${points[6].y} ${points[0].x},${points[0].y} ${points[1].x},${points[1].y} ${points[2].x},${points[2].y}`;
+            return { full: fullPoly, front: frontHalf };
+        }
+
+        const heptagonBase = generateHeptagonPoints(85);
+
+        // Variables de estado
+        const ENTITY_DB = {
+            players: [
+                { id: "p_1", name: "Jeske", tags: ["sinner", "frontline"], isCombatant: true, combatTemplate: {} }
+            ],
+            npcs: [
+                { id: "n_1", name: "Pierre", tags: ["ally", "syndicate", "bistrot"], isCombatant: true, combatTemplate: {} }
+            ],
+            enemies: [
+                { id: "e_1", name: "Syndicate Hooligan", tags: ["enemy", "syndicate", "minion"], isCombatant: true, combatTemplate: {} },
+                { id: "e_2", name: "Distortion Faust", tags: ["enemy", "boss", "focused"], isCombatant: true, combatTemplate: {} }
+            ]
+        };
+
+
+        let currentDirectoryTab = 'enemies';
+
+        // 1. TABS LOGIC
+        function switchEditorTab(tab) {
+            document.getElementById('module-units').style.display = tab === 'units' ? 'block' : 'none';
+            document.getElementById('module-skills').style.display = tab === 'skills' ? 'flex' : 'none';
+            document.getElementById('module-status').style.display = tab === 'status' ? 'flex' : 'none';
+            document.getElementById('editor-sidebar').style.width = tab === 'skills' || tab === 'status' ? '750px' : '350px';
+
+            document.getElementById('tab-btn-units').className = tab === 'units' ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tab-btn-skills').className = tab === 'skills' ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tab-btn-status').className = tab === 'status' ? 'tab-btn active' : 'tab-btn';
+
+            document.getElementById('tab-btn-units').style.background = tab === 'units' ? '#c49a00' : '#332211';
+            document.getElementById('tab-btn-units').style.color = tab === 'units' ? '#000' : '#ccc';
+            document.getElementById('tab-btn-skills').style.background = tab === 'skills' ? '#c49a00' : '#332211';
+            document.getElementById('tab-btn-skills').style.color = tab === 'skills' ? '#000' : '#ccc';
+            document.getElementById('tab-btn-status').style.background = tab === 'status' ? '#c49a00' : '#332211';
+            document.getElementById('tab-btn-status').style.color = tab === 'status' ? '#000' : '#ccc';
+
+            const previewLabel = document.getElementById('editor-preview');
+            if (previewLabel) {
+                if (tab === 'units') {
+                    renderPreview();
+                } else {
+                    previewLabel.innerHTML = '<span style="color: #555; font-size: 24px; font-weight: bold; font-family: \'Bebas Neue\', cursive; border: 2px dashed #555; padding: 20px;">[ SELECCIONA UNA HABILIDAD DEL DIRECTORIO ]</span>';
+                }
+            }
+        }
+
+        // 2. PLAYER / NPC TOGGLE
+        function togglePlayerLock() {
+            const isPlayer = document.getElementById('is-player-switch').checked;
+            document.getElementById('label-player').style.color = isPlayer ? '#c49a00' : '#555';
+            document.getElementById('label-player').style.fontWeight = isPlayer ? 'bold' : 'normal';
+            document.getElementById('label-npc').style.color = isPlayer ? '#555' : '#c49a00';
+            document.getElementById('label-npc').style.fontWeight = isPlayer ? 'normal' : 'bold';
+
+            const mechInputs = document.querySelectorAll('.mech-stat');
+            mechInputs.forEach(input => {
+                input.disabled = isPlayer;
+                input.style.opacity = isPlayer ? '0.3' : '1';
+            });
+        }
+
+        // 3. SKILL MODAL
+        function openSkillModal() {
+            document.getElementById('skill-link-modal').style.display = 'flex';
+            document.getElementById('skill-search-input').focus();
+            loadSkillsIntoModal();
+        }
+
+        function closeSkillModal() {
+            document.getElementById('skill-link-modal').style.display = 'none';
+        }
+
+        function loadSkillsIntoModal() {
+            db.ref('campaña/base_datos_skills/').once('value').then(snap => {
+                allGlobalSkills = window.processSkillsData(snap.val()) || {};
+                renderSkillModalList('');
+                updateEvolutionDropdown();
+            });
+        }
+
+        function renderSkillModalList(filter) {
+            const list = document.getElementById('skill-modal-list');
+            list.innerHTML = '';
+            filter = filter.toLowerCase();
+
+            Object.entries(allGlobalSkills).forEach(([id, skill]) => {
+                if (skill.name.toLowerCase().includes(filter)) {
+                    const div = document.createElement('div');
+                    div.style.background = '#222';
+                    div.style.padding = '8px';
+                    div.style.border = '1px solid #444';
+                    div.style.cursor = 'pointer';
+                    div.style.display = 'flex';
+                    div.style.justifyContent = 'space-between';
+                    div.innerHTML = `<span>${skill.name} <small style="color:#888;">(${skill.dmgType || ''})</small></span> <span style="color:#c49a00; font-size: 12px;">VINCULAR</span>`;
+
+                    div.onclick = () => {
+                        unitActionSlots.push(id);
+                        renderLinkedSkills();
+                        closeSkillModal();
+                    };
+                    list.appendChild(div);
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('skill-search-input');
+            if(searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    renderSkillModalList(e.target.value);
+                });
+            }
+        });
+
+        function renderLinkedSkills() {
+            const container = document.getElementById('linked-skills-list');
+            container.innerHTML = '';
+            if (unitActionSlots.length === 0) {
+                container.innerHTML = '<span style="color:#555; font-size:12px;">Sin habilidades vinculadas.</span>';
+                return;
+            }
+
+            unitActionSlots.forEach((skillId, index) => {
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.justifyContent = 'space-between';
+                div.style.background = '#222';
+                div.style.padding = '5px';
+                div.style.marginBottom = '5px';
+                div.style.border = '1px solid #444';
+
+                div.innerHTML = `<span style="font-size: 12px;">${skillId}</span>
+                                 <button style="background: #8a0303; color: white; border: none; cursor:pointer;" onclick="removeSkill(${index})">X</button>`;
+                container.appendChild(div);
+            });
+        }
+
+        function removeSkill(index) {
+            unitActionSlots.splice(index, 1);
+            renderLinkedSkills();
+        }
+
+        // 4. SAVE DB LOGIC
+        function saveSkillToDB() {
+            const name = document.getElementById('sb-name').value;
+            if(!name) { alert('[!] El nombre de la Habilidad es requerido para guardar.'); return; }
+
+            const skillObj = generateSkillObject();
+            const currentId = document.getElementById("sb-current-id").value;
+            const uuid = Date.now().toString() + "_" + Math.random().toString(36).substring(2, 7);
+            const id = currentId || document.getElementById("sb-id").value || "db_skill_" + uuid;
+            skillObj.id = id;
+            skillObj.name = name;
+
+            db.ref('campaña/base_datos_skills/' + id).set(skillObj).then(() => {
+                // Visual confirmation
+                const container = document.getElementById('skill-builder-container');
+                const originalBorder = container.style.border;
+                container.style.border = '2px solid #c49a00';
+                setTimeout(() => container.style.border = originalBorder, 500);
+
+                // Reset form
+                document.getElementById('sb-name').value = '';
+                document.getElementById('sb-id').value = '';
+                document.getElementById('sb-current-id').value = '';
+                document.querySelectorAll('.sin-radio').forEach(el => el.checked = false);
+                const wrathRadio = document.getElementById('sin-wrath');
+                if(wrathRadio) wrathRadio.checked = true;
+
+                document.getElementById('sb-base').value = '4';
+                document.getElementById('sb-coin-power').value = '4';
+                document.getElementById('sb-coin-count').value = '1';
+                document.getElementById('sb-weight').value = '1';
+                document.getElementById('sb-range').value = '1';
+                document.getElementById('sb-targeting-type').value = 'Focused Attack';
+                document.getElementById('sb-targeting-type').dispatchEvent(new Event('change'));
+                document.getElementById('sb-aoe-pattern').value = 'Self';
+                document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
+
+                document.getElementById('sb-global-effects-container').innerHTML = '';
+                document.getElementById('sb-evo-enable').checked = false;
+                document.getElementById('sb-evo-enable').dispatchEvent(new Event('change'));
+                document.getElementById('sb-evo-target-id').value = '';
+                document.getElementById('sb-evo-target').value = 'Self';
+                document.getElementById('sb-evo-cond-type').value = 'hp_percent';
+                document.getElementById('sb-evo-status-id').value = '';
+                document.getElementById('sb-evo-operator').value = '<';
+                document.getElementById('sb-evo-value').value = '';
+                document.getElementById('sb-evo-permanent').checked = false;
+
+                // Hide builder and show start button again
+                container.style.display = 'none';
+                document.getElementById('btn-start-skill-builder').style.display = 'block';
+            });
+        }
+
+        function loadSkillIntoForm(skill) {
+            document.getElementById('btn-start-skill-builder').style.display = 'none';
+            document.getElementById('skill-builder-container').style.display = 'block';
+
+            document.getElementById('sb-current-id').value = skill.id || '';
+            document.getElementById('sb-id').value = skill.id || '';
+            document.getElementById('sb-name').value = skill.name || '';
+            document.getElementById('sb-base').value = skill.basePower || 0;
+            document.getElementById('sb-coin-power').value = skill.coinPower || 0;
+            document.getElementById('sb-coin-count').value = skill.coinAmount || 1;
+            document.getElementById('sb-weight').value = skill.weight || 1;
+            document.getElementById('sb-range').value = skill.skillRange || 1;
+            document.getElementById('sb-targeting-type').value = skill.targeting_type || 'Focused Attack';
+            document.getElementById('sb-targeting-type').dispatchEvent(new Event('change'));
+            if (skill.targeting_type === 'AoE') {
+                document.getElementById('sb-aoe-pattern').value = skill.aoe_pattern || 'Self';
+            }
+            document.getElementById('sb-tier').value = skill.tier || 1;
+            document.getElementById('sb-is-item-skill').checked = !!skill.isItemSkill;
+
+            // Stats
+            if (skill.scaling_stat) {
+                const statRadio = document.querySelector(`input[name="sb-scaling-stat"][value="${skill.scaling_stat}"]`);
+                if (statRadio) statRadio.checked = true;
+            }
+
+            // Damage
+            const dmgRadio = document.querySelector(`input[name="sb-damage-radio"][value="${skill.tipo_dano || 'contundente'}"]`);
+            if (dmgRadio) dmgRadio.checked = true;
+
+            // Sin
+            const sinRadio = document.querySelector(`input[name="sb-sin-radio"][value="${skill.pecado || 'sinless'}"]`);
+            if (sinRadio) sinRadio.checked = true;
+
+            // Defense
+            const isDefense = !!skill.isDefense;
+            document.getElementById('sb-is-defense').checked = isDefense;
+            // First set subtype if it is defense so that change event picks it up correctly
+            if (isDefense) {
+                document.getElementById('sb-defense-subtype').value = skill.defenseSubtype || 'Guard';
+            }
+            document.getElementById('sb-is-defense').dispatchEvent(new Event('change'));
+            if (isDefense) {
+                document.getElementById('sb-defense-subtype').dispatchEvent(new Event('change'));
+                document.getElementById('sb-defense-requires-unlock').checked = !!skill.requiresUnlock;
+            }
+
+            // Global Effects
+            const globalContainer = document.getElementById('sb-global-effects-container');
+            globalContainer.innerHTML = '';
+            if (skill.effects && Array.isArray(skill.effects)) {
+                skill.effects.forEach(eff => {
+                    globalContainer.insertAdjacentHTML('beforeend', createEffectEditorHtml(false));
+                    const row = globalContainer.lastElementChild;
+                    row.querySelector('.eff-trigger').value = eff.trigger || '[On Use]';
+                    row.querySelector('.eff-target').value = eff.target || 'self';
+                    if (row.querySelector('.eff-type')) {
+                        row.querySelector('.eff-type').value = eff.type || 'status';
+                        row.querySelector('.eff-type').dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    if (row.querySelector('.eff-scale-target')) row.querySelector('.eff-scale-target').value = eff.scaleTarget || 'base_power';
+                    if (row.querySelector('.eff-scale-condition')) {
+                        row.querySelector('.eff-scale-condition').value = eff.scaleCondition || 'status_potency';
+                        row.querySelector('.eff-scale-condition').dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    row.querySelector('.eff-potency').value = eff.potency || 0;
+                    row.querySelector('.eff-count').value = eff.count || 0;
+                    if (row.querySelector('.eff-maxcap')) row.querySelector('.eff-maxcap').value = eff.maxCap || 0;
+                    if (row.querySelector('.eff-is-reuse')) row.querySelector('.eff-is-reuse').checked = !!eff.is_reuse;
+                    if (row.querySelector('.eff-target-ally')) row.querySelector('.eff-target-ally').checked = !!eff.target_ally;
+
+                    const effStatus = eff.status || '';
+                    row.querySelector('.eff-status').value = effStatus;
+                    const statusBtnLabel = row.querySelector('.status-btn-label');
+                    if (effStatus && window.STATUS_REGISTRY && window.STATUS_REGISTRY[effStatus]) {
+                        statusBtnLabel.textContent = window.STATUS_REGISTRY[effStatus].name;
+                    } else {
+                        statusBtnLabel.textContent = 'Select Status';
+                    }
+
+                    if (eff.timing) {
+                        row.querySelector('.cond-timing').value = eff.timing;
+                        row.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
+                        row.querySelector(`.timing-btn[data-timing="${eff.timing}"]`).classList.add('active');
+                    }
+                    if (eff.condition) {
+                        row.querySelector('.eff-has-condition').checked = true;
+                        const condContainer = row.querySelector('.cond-container');
+                        condContainer.style.display = 'block';
+
+                        const targetVal = eff.condition.target || 'target';
+                        condContainer.querySelector('.cond-target').value = targetVal;
+                        condContainer.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
+                        condContainer.querySelector(`.target-btn[data-target="${targetVal}"]`).classList.add('active');
+
+                        const statVal = eff.condition.stat || 'HP';
+                        condContainer.querySelector('.cond-stat').value = statVal;
+                        // Update label
+                        const btnLabel = condContainer.querySelector('.stat-btn-label');
+                        if (statVal === 'HP' || statVal === 'SP') {
+                            btnLabel.textContent = statVal;
+                        } else {
+                            const item = condContainer.querySelector(`.stat-item[data-val="${statVal}"] img`);
+                            if (item) {
+                                btnLabel.innerHTML = `<img src="${item.src}" style="width:12px;height:12px;">`;
+                            }
+                        }
+
+                                                const opVal = eff.condition.operator || 'equal to';
+                        condContainer.querySelector('.cond-operator').value = opVal;
+                        condContainer.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
+                        condContainer.querySelector(`.math-op-btn[data-op="${opVal}"]`).classList.add('active');
+
+                        condContainer.querySelector('.cond-value').value = eff.condition.value || 0;
+
+                        if (statVal && statVal.includes('took_')) {
+                             condContainer.querySelector('.math-op-group').style.display = 'none';
+                             condContainer.querySelector('.cond-value').style.display = 'none';
+                        } else {
+                             condContainer.querySelector('.math-op-group').style.display = 'inline-flex';
+                             condContainer.querySelector('.cond-value').style.display = 'inline-block';
+                        }
+                    }
+
+                });
+            }
+
+            // Trigger coin regeneration
+            document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
+
+            // Wait a tick for DOM to update
+            setTimeout(() => {
+                const coinContainers = document.querySelectorAll('.sb-coin-block');
+                if (skill.coins && Array.isArray(skill.coins)) {
+                    skill.coins.forEach((coin, i) => {
+                        if (coinContainers[i]) {
+                            const toggleInput = coinContainers[i].querySelector('.sb-coin-nature-toggle');
+                            if (toggleInput) {
+                                toggleInput.checked = (coin.type === 'unbreakable');
+                            }
+                            if (coin.effects && Array.isArray(coin.effects)) {
+                                const effContainer = coinContainers[i].querySelector('.coin-effects-container');
+                                effContainer.innerHTML = '';
+                                coin.effects.forEach(eff => {
+                                effContainer.insertAdjacentHTML('beforeend', createEffectEditorHtml(true));
+                                const row = effContainer.lastElementChild;
+                                row.querySelector('.eff-trigger').value = eff.trigger || '[On Hit]';
+                                row.querySelector('.eff-target').value = eff.target || 'target';
+                                row.querySelector('.eff-potency').value = eff.potency || 0;
+                                row.querySelector('.eff-count').value = eff.count || 0;
+                    if (row.querySelector('.eff-maxcap')) row.querySelector('.eff-maxcap').value = eff.maxCap || 0;
+                                if (row.querySelector('.eff-is-reuse')) row.querySelector('.eff-is-reuse').checked = !!eff.is_reuse;
+                                if (row.querySelector('.eff-target-ally')) row.querySelector('.eff-target-ally').checked = !!eff.target_ally;
+
+                    const effStatusCoin = eff.status || '';
+                    row.querySelector('.eff-status').value = effStatusCoin;
+                    const statusBtnLabelCoin = row.querySelector('.status-btn-label');
+                    if (effStatusCoin && window.STATUS_REGISTRY && window.STATUS_REGISTRY[effStatusCoin]) {
+                        statusBtnLabelCoin.textContent = window.STATUS_REGISTRY[effStatusCoin].name;
+                    } else {
+                        statusBtnLabelCoin.textContent = 'Select Status';
+                    }
+
+                    if (eff.timing) {
+                        row.querySelector('.cond-timing').value = eff.timing;
+                        row.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
+                        row.querySelector(`.timing-btn[data-timing="${eff.timing}"]`).classList.add('active');
+                    }
+                    if (eff.condition) {
+                        row.querySelector('.eff-has-condition').checked = true;
+                        const condContainer = row.querySelector('.cond-container');
+                        condContainer.style.display = 'block';
+
+                        const targetVal = eff.condition.target || 'target';
+                        condContainer.querySelector('.cond-target').value = targetVal;
+                        condContainer.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
+                        condContainer.querySelector(`.target-btn[data-target="${targetVal}"]`).classList.add('active');
+
+                        const statVal = eff.condition.stat || 'HP';
+                        condContainer.querySelector('.cond-stat').value = statVal;
+                        // Update label
+                        const btnLabel = condContainer.querySelector('.stat-btn-label');
+                        if (statVal === 'HP' || statVal === 'SP') {
+                            btnLabel.textContent = statVal;
+                        } else {
+                            const item = condContainer.querySelector(`.stat-item[data-val="${statVal}"] img`);
+                            if (item) {
+                                btnLabel.innerHTML = `<img src="${item.src}" style="width:12px;height:12px;">`;
+                            }
+                        }
+
+                                                const opVal = eff.condition.operator || 'equal to';
+                        condContainer.querySelector('.cond-operator').value = opVal;
+                        condContainer.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
+                        condContainer.querySelector(`.math-op-btn[data-op="${opVal}"]`).classList.add('active');
+
+                        condContainer.querySelector('.cond-value').value = eff.condition.value || 0;
+
+                        if (statVal && statVal.includes('took_')) {
+                             condContainer.querySelector('.math-op-group').style.display = 'none';
+                             condContainer.querySelector('.cond-value').style.display = 'none';
+                        } else {
+                             condContainer.querySelector('.math-op-group').style.display = 'inline-flex';
+                             condContainer.querySelector('.cond-value').style.display = 'inline-block';
+                        }
+                    }
+
+                                });
+                            }
+                        }
+                    });
+                }
+            }, 50);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnSaveUnit = document.getElementById('btnSaveUnit');
+            if(btnSaveUnit) {
+                btnSaveUnit.addEventListener('click', () => {
+                    const name = document.getElementById('metaName').value;
+                    if (!name) { alert("Nombre requerido"); return; }
+
+                    const isPlayer = document.getElementById('is-player-switch').checked;
+
+                    const unitPayload = {
+                        isPlayer: isPlayer,
+                        name: name,
+                        linkedPlayerUID: document.getElementById('metaLinkedNpc').value,
+                        tags: document.getElementById('metaTags').value.split(',').map(s => s.trim()),
+                        visual: currentState.visual,
+                        action_slots: unitActionSlots,
+                        attack_tier_1_sequence: [],
+                        attack_tier_2_sequence: [],
+                        attack_tier_3_sequence: []
+                    };
+
+                    if (!isPlayer) {
+                        unitPayload.mechanics = {
+                            hp: parseFloat(document.getElementById('unit-hp').value),
+                            sp: parseFloat(document.getElementById('unit-sp').value),
+                            speed: document.getElementById('unit-speed').value,
+                            ac: parseFloat(document.getElementById('unit-ac').value),
+                            stagger: document.getElementById('unit-stagger').value
+                        };
+                    }
+
+                    const id = 'unit_' + Date.now();
+                    db.ref('campaña/base_datos_unidades/' + id).set(unitPayload).then(() => {
+                        alert('Unidad guardada exitosamente.');
+                    });
+                });
+            }
+        });
+
+        let unitActionSlots = [];
+        let allGlobalSkills = {};
+
+        const VISUAL_DICT = {
+            sins: {
+                wrath: { url: "https://imgur.com/Nn33MJR.png", color: "#FF0000" },
+                lust: { url: "https://imgur.com/bF7bHHT.png", color: "#FFA500" },
+                sloth: { url: "https://imgur.com/igYFF1I.png", color: "#FFFF00" },
+                gluttony: { url: "https://imgur.com/0KArwDU.png", color: "#008000" },
+                gloom: { url: "https://imgur.com/DCTX5Jy.png", color: "#00FFFF" },
+                pride: { url: "https://imgur.com/w6z9THA.png", color: "#4169E1" },
+                envy: { url: "https://imgur.com/SuNHY9D.png", color: "#800080" },
+                sinless: { url: "", color: "#555555" }
+            },
+            damage: {
+                cortante: { url: "https://imgur.com/Akf25L5.png" },
+                perforante: { url: "https://imgur.com/slcQlpc.png" },
+                contundente: { url: "https://imgur.com/cg8Wh4w.png" }
+            }
+        };
+
+        function renderSkillCard(skill) {
+            const previewContainer = document.getElementById("editor-preview");
+
+            const sinData = VISUAL_DICT.sins[skill.pecado || 'sinless'] || VISUAL_DICT.sins['sinless'];
+            const dmgData = VISUAL_DICT.damage[skill.tipo_dano || 'contundente'] || VISUAL_DICT.damage['contundente'];
+
+            let actionIconUrl = dmgData.url;
+            let showDmgIcon = true;
+            let counterIconHtml = '';
+
+            if (skill.isDefense) {
+                if (skill.defenseSubtype === 'Evade') {
+                    actionIconUrl = 'https://imgur.com/YXyy0mS.png'; // Evade Icon
+                } else if (skill.defenseSubtype === 'Guard') {
+                    actionIconUrl = 'https://imgur.com/c2DI4lM.png'; // Guard Icon
+                } else if (['Counter', 'ClashableCounter', 'ClashableGuard'].includes(skill.defenseSubtype)) {
+                    // Kinetic defensive skills keep damage type, but add Counter icon
+                    counterIconHtml = `<img src="https://imgur.com/dyayioM.png" style="width: 24px; height: 24px; object-fit: contain; margin-left: 4px;" alt="Counter">`;
+                }
+            }
+
+            const sinIconHtml = sinData.url ? `<img src="${sinData.url}" style="width: 45px; height: 45px; object-fit: contain;">` : '<div style="width: 45px; height: 45px; border-radius: 50%; border: 2px dashed #888;"></div>';
+
+            let effectsHtml = '';
+
+            // Global Effects
+            if (skill.effects && Array.isArray(skill.effects)) {
+                skill.effects.forEach((eff) => {
+                    const statusObj = window.STATUS_REGISTRY ? window.STATUS_REGISTRY[eff.status] : null;
+                    const statusIcon = statusObj && statusObj.icon ? `<img src="${statusObj.icon}" style="width: 18px; height: 18px;">` : '';
+                    const statusName = statusObj ? statusObj.name : eff.status;
+
+                    const pot = eff.potency || 0;
+                    const cnt = eff.count || 0;
+                    const verb = eff.target === 'self' ? 'Gain' : 'Inflict';
+                    const stylizedStatus = `<span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>`;
+
+                                        let conditionText = '';
+                    if (eff.condition) {
+                        if (eff.condition.stat.includes('took_')) {
+                             let condStr = eff.condition.stat.replace(/_/g, ' ').replace('took ', 'took ');
+                             conditionText = `<span>If ${eff.condition.target} ${condStr}, </span>`;
+                        } else {
+                             conditionText = `<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>`;
+                        }
+                    }
+
+                    let timingText = '';
+                    if (eff.timing === 'next_turn') {
+                        timingText = ` <span>next turn</span>`;
+                    }
+
+                    let effectText = '';
+                    if (eff.type === 'scale_power') {
+                        let scaleTargetText = eff.scaleTarget ? eff.scaleTarget.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Power';
+                        let limitText = eff.maxCap > 0 ? ` (Max ${eff.maxCap})` : '';
+                        let perWhat = '';
+                        if (eff.scaleCondition === 'negative_types') {
+                            perWhat = `for every type of negative effect on ${eff.target}`;
+                        } else {
+                            let statType = eff.scaleCondition === 'status_count' ? 'Count' : '';
+                            perWhat = `for every ${eff.potency || 1} ${statusIcon} ${stylizedStatus} ${statType} on ${eff.target}`.trim();
+                        }
+                        effectText = `<span>${scaleTargetText} +1 ${perWhat}${limitText}</span>`;
+                    } else if (eff.type === 'raw_damage' || eff.type === 'percentage_damage') {
+                        let isRaw = eff.type === 'raw_damage';
+                        let amt = eff.potency;
+                        let textStr = isRaw ? `Damage +${amt}` : `+${amt}% damage for this Coin`;
+                        effectText = `<span>${textStr}</span>`;
+                    } else if (statusObj && statusObj.mode === 'zero') {
+                        effectText = `<span>${verb}</span> ${statusIcon} ${stylizedStatus}`;
+                    } else if (statusObj && statusObj.mode === 'single') {
+                        effectText = `<span>${verb} ${cnt}</span> ${statusIcon} ${stylizedStatus}`;
+                    } else {
+                        if (pot > 0 && cnt > 0) {
+                            effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                        } else if (cnt > 0 && pot === 0) {
+                            effectText = `<span>${verb} +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                        } else {
+                            effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus}`;
+                        }
+                    }
+
+                    effectsHtml += `
+                        <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
+                            <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
+                            ${conditionText}
+                            ${effectText}
+                            ${timingText}
+                        </div>
+                    `;
+                });
+            }
+
+            // Coin Effects
+            const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+            if (skill.coins && Array.isArray(skill.coins)) {
+                skill.coins.forEach((coin, index) => {
+                    if (coin.effects && Array.isArray(coin.effects)) {
+                        coin.effects.forEach((eff) => {
+                            const statusObj = window.STATUS_REGISTRY ? window.STATUS_REGISTRY[eff.status] : null;
+                            const statusIcon = statusObj && statusObj.icon ? `<img src="${statusObj.icon}" style="width: 18px; height: 18px;">` : '';
+                            const statusName = statusObj ? statusObj.name : eff.status;
+
+                            const pot = eff.potency || 0;
+                    const cnt = eff.count || 0;
+                    const verb = eff.target === 'self' ? 'Gain' : 'Inflict';
+                    const stylizedStatus = `<span style="color: #FF3333; text-decoration: underline; text-decoration-color: #770000;">${statusName}</span>`;
+
+                                        let conditionText = '';
+                    if (eff.condition) {
+                        if (eff.condition.stat.includes('took_')) {
+                             let condStr = eff.condition.stat.replace(/_/g, ' ').replace('took ', 'took ');
+                             conditionText = `<span>If ${eff.condition.target} ${condStr}, </span>`;
+                        } else {
+                             conditionText = `<span>If ${eff.condition.target} has ${eff.condition.operator} ${eff.condition.value} ${eff.condition.stat}, </span>`;
+                        }
+                    }
+
+                    let timingText = '';
+                    if (eff.timing === 'next_turn') {
+                        timingText = ` <span>next turn</span>`;
+                    }
+
+                    let effectText = '';
+                    if (eff.type === 'scale_power') {
+                        let scaleTargetText = eff.scaleTarget ? eff.scaleTarget.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Power';
+                        let limitText = eff.maxCap > 0 ? ` (Max ${eff.maxCap})` : '';
+                        let perWhat = '';
+                        if (eff.scaleCondition === 'negative_types') {
+                            perWhat = `for every type of negative effect on ${eff.target}`;
+                        } else {
+                            let statType = eff.scaleCondition === 'status_count' ? 'Count' : '';
+                            perWhat = `for every ${eff.potency || 1} ${statusIcon} ${stylizedStatus} ${statType} on ${eff.target}`.trim();
+                        }
+                        effectText = `<span>${scaleTargetText} +1 ${perWhat}${limitText}</span>`;
+                    } else if (eff.type === 'raw_damage' || eff.type === 'percentage_damage') {
+                        let isRaw = eff.type === 'raw_damage';
+                        let amt = eff.potency;
+                        let textStr = isRaw ? `Damage +${amt}` : `+${amt}% damage for this Coin`;
+                        effectText = `<span>${textStr}</span>`;
+                    } else if (statusObj && statusObj.mode === 'zero') {
+                        effectText = `<span>${verb}</span> ${statusIcon} ${stylizedStatus}`;
+                    } else if (statusObj && statusObj.mode === 'single') {
+                        effectText = `<span>${verb} ${cnt}</span> ${statusIcon} ${stylizedStatus}`;
+                    } else {
+                        if (pot > 0 && cnt > 0) {
+                            effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus} <span>and +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                        } else if (cnt > 0 && pot === 0) {
+                            effectText = `<span>${verb} +${cnt}</span> ${statusIcon} ${stylizedStatus} <span>Count</span>`;
+                        } else {
+                            effectText = `<span>${verb} ${pot}</span> ${statusIcon} ${stylizedStatus}`;
+                        }
+                    }
+
+
+                    effectsHtml += `
+                        <div class="effect-row" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
+                            <div style="width: 22px; height: 22px; background-color: #fff; display: flex; justify-content: center; align-items: center; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%);">
+                                <div style="width: 20px; height: 20px; background-color: #000; color: #fff; display: flex; justify-content: center; align-items: center; font-size: 10px; font-weight: bold; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%);">
+                                ${roman[index] || (index+1)}
+                                </div>
+                            </div>
+                            <span style="color: #00FF00; font-weight: bold;">${eff.trigger}</span>
+                            ${conditionText}
+                            ${effectText}
+                            ${timingText}
+                        </div>
+                    `;
+                        });
+                    }
+                });
+            }
+
+            let coinsHtml = '';
+            const coinAmount = skill.coinAmount || 1;
+            const coinsArr = skill.coins || [];
+
+            for (let i = 0; i < coinAmount; i++) {
+                const coinData = coinsArr[i] || {};
+                let coinUrl = 'https://imgur.com/yshLPnQ.png'; // Normal Coin
+                if (coinData.type === 'unbreakable') {
+                    coinUrl = 'https://imgur.com/yCxmI84.png'; // Unbreakable Red Coin
+                }
+
+                coinsHtml += `
+                    <img src="${coinUrl}" style="width: 24px; height: 24px; object-fit: contain;">
+                `;
+            }
+
+            const html = `
+                <!-- Contenedor Principal (Fondo Negro Absoluto) -->
+                <div class="skill-card-preview" style="background-color: #000; color: #fff; display: flex; gap: 20px; padding: 15px; font-family: 'Courier New', Courier, monospace; border: 1px solid #333;">
+
+                    <!-- Columna Izquierda: Geometría y Poder Base -->
+                    <div class="skill-left" style="display: flex; flex-direction: column; align-items: center; min-width: 100px;">
+
+                        <!-- Heptágono Invertido (Contenedor Exterior para Borde Cyan) -->
+                        <div class="sin-border" style="width: 84px; height: 84px; background-color: ${sinData.color}; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%); display: flex; justify-content: center; align-items: center;">
+                            <!-- Fondo Negro Interior -->
+                            <div class="sin-bg" style="width: 76px; height: 76px; background-color: #000; clip-path: polygon(50% 100%, 10% 78%, 0 35%, 25% 0, 75% 0, 100% 35%, 90% 78%); display: flex; justify-content: center; align-items: center;">
+                                <!-- Ícono de Pecado -->
+                                ${sinIconHtml}
+                            </div>
+                        </div>
+
+                        <!-- Poder Base y Daño -->
+                        <div class="skill-power" style="margin-top: 10px; font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                            ${skill.basePower || 0}
+                            <img src="${actionIconUrl}" style="width: 24px; height: 24px; object-fit: contain;" alt="Action Type">
+                            ${counterIconHtml}
+                            + ${skill.coinPower || 0}
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Datos Mecánicos y Activadores -->
+                    <div class="skill-right" style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1;">
+
+                        <!-- Íconos de Monedas (Arriba del nombre) -->
+                        <div class="coin-amount-container" style="display: flex; gap: 4px; margin-bottom: -4px;">
+                            ${coinsHtml}
+                        </div>
+
+                        <!-- Nombre de Habilidad con delineado negro -->
+                        <div class="skill-name-banner" style="background-color: ${sinData.color}; padding: 4px 25px 4px 10px; font-weight: 900; font-size: 1.5rem; clip-path: polygon(0 0, 100% 0, 85% 100%, 0% 100%); letter-spacing: 1px; color: #FFF; -webkit-text-stroke: 1px #000; text-shadow: 1px 1px 0 #000;">
+                            ${(skill.targeting_type && skill.targeting_type !== 'Focused Attack') ? `[${skill.targeting_type}${skill.targeting_type === 'AoE' && skill.aoe_pattern ? ' - ' + skill.aoe_pattern : ''}] ` : ''}${skill.name || 'Unnamed Skill'}
+                        </div>
+
+                        <!-- Nivel y Peso (Sin Emojis) -->
+                        <div class="skill-stats" style="display: flex; gap: 15px; font-size: 1rem; color: #ccc;">
+                            <span>Lv. + Mod. (${skill.scaling_stat || 'Fuerza'})</span>
+                            <span style="color: #FFD700;">Atk Weight ${skill.weight || 1}</span>
+                            <span style="color: #44ddff;">Range ${skill.skillRange || 1}</span>
+                        </div>
+
+                        <!-- Lista de Efectos (Coin Triggers) -->
+                        <div class="coin-effects-list" style="margin-top: 5px; display: flex; flex-direction: column; gap: 4px;">
+                            ${effectsHtml}
+                        </div>
+
+                    </div>
+                </div>
+            `;
+
+            previewContainer.innerHTML = html;
+        }
+
+        let isMissingIconFilterActive = false;
+
+        function toggleMissingIconFilter() {
+            isMissingIconFilterActive = !isMissingIconFilterActive;
+            const btn = document.getElementById('btn-filter-missing-icons');
+            if (isMissingIconFilterActive) {
+                btn.style.background = '#007bff';
+                btn.textContent = '[ Mostrando Sin Ícono ]';
+            } else {
+                btn.style.background = '#aa3333';
+                btn.textContent = '[ Filtrar Sin Ícono ]';
+            }
+            // Trigger a re-render of the directory
+            db.ref('campaña/base_datos_status').once('value').then(snap => {
+                renderStatusDirectory(snap.val());
+            });
+        }
+
+        function renderStatusDirectory(data) {
+            const container = document.getElementById('active-status-directory');
+            if(!container) return;
+            container.innerHTML = '';
+
+            // Fusionamos la base de datos de Firebase con el STATUS_REGISTRY por defecto para mostrar todos
+            if(data && window.STATUS_REGISTRY) {
+                Object.entries(data).forEach(([key, status]) => {
+                    window.STATUS_REGISTRY[key] = status;
+                });
+            }
+
+            if(window.STATUS_REGISTRY) {
+                Object.entries(window.STATUS_REGISTRY).forEach(([key, status]) => {
+                    const hasIcon = status.icon && status.icon.trim() !== '';
+
+                    if (isMissingIconFilterActive && hasIcon) {
+                        return; // Ocultar si tiene icono y el filtro esta activo
+                    }
+
+                    const colorMap = { 'positive': '#ccaa00', 'neutral': '#886633', 'negative': '#aa3333' };
+                    let tag = status.tag || status.type || 'neutral';
+                    let color = colorMap[tag] || '#886633';
+                    let alertHtml = '';
+                    let borderStyle = `1px solid ${color}`;
+
+                    if (!hasIcon) {
+                        borderStyle = `2px solid red`;
+                        alertHtml = `<span style="color: red; font-weight: bold; margin-left: auto;">[!]</span>`;
+                    }
+
+                    const div = document.createElement('div');
+                    div.style.cssText = `padding: 5px; border: ${borderStyle}; cursor: pointer; color: #ccc; font-size: 11px; background: rgba(0,0,0,0.5); display: flex; align-items: center; gap: 5px; margin-bottom: 2px;`;
+
+                    let iconHtml = '';
+                    if(hasIcon) {
+                        iconHtml = `<img src="${status.icon}" style="width: 20px; height: 20px; object-fit: contain;">`;
+                    }
+
+                    div.innerHTML = `
+                        ${iconHtml}
+                        <div style="flex: 1;">
+                            <strong style="color: ${color};">${status.name}</strong>
+                            <span style="color: #666;">[${status.mode || 'N/A'}]</span>
+                        </div>
+                        ${alertHtml}
+                    `;
+                    div.onclick = () => loadStatusIntoBuilder(key, status);
+                    container.appendChild(div);
+                });
+            }
+        }
+
+        function listenToSkillDirectory() {
+            db.ref('campaña/base_datos_status').on('value', snap => {
+                renderStatusDirectory(snap.val());
+            });
+
+                        db.ref('campaña/base_datos_skills/').on('value', (snap) => {
+                allGlobalSkills = window.processSkillsData(snap.val()) || {};
+                filterSkillDirectory();
+                updateEvolutionDropdown();
+            });
+        function updateEvolutionDropdown() {
+            const select = document.getElementById('sb-evo-target-id');
+            if(!select) return;
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">-- Seleccionar --</option>';
+            if(allGlobalSkills) {
+                Object.entries(allGlobalSkills).forEach(([id, skill]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = skill.name + " (" + id + ")";
+                    select.appendChild(option);
+                });
+            }
+            if(currentValue && allGlobalSkills[currentValue]) {
+                select.value = currentValue;
+            }
+        }
+        }
+
+        function filterSkillDirectory() {
+            const query = (document.getElementById('skill-dir-search').value || '').toLowerCase().trim();
+            const listContainer = document.getElementById('skill-directory-list');
+            listContainer.innerHTML = '';
+
+            Object.entries(allGlobalSkills).forEach(([id, skill]) => {
+                const name = (skill.name || '').toLowerCase();
+                const damage = (skill.tipo_dano || '').toLowerCase();
+                const sin = (skill.pecado || '').toLowerCase();
+
+                if (name.includes(query) || damage.includes(query) || sin.includes(query)) {
+                    const row = document.createElement('div');
+                    row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: #222; padding: 6px; border: 1px solid #443311;";
+
+                    const info = document.createElement('div');
+                    info.style.cssText = "display: flex; flex-direction: column; cursor: pointer; flex-grow: 1;";
+                    info.innerHTML = `<strong style="color: #00FFFF; font-size: 13px;">${skill.name}</strong><span style="color: #aaa; font-size: 10px;">${skill.tipo_dano} | ${skill.pecado}</span>`;
+                    info.onclick = () => { renderSkillCard(skill); };
+
+                    const actions = document.createElement('div');
+                    actions.style.cssText = "display: flex; gap: 4px;";
+
+                    const btnEdit = document.createElement('button');
+                    btnEdit.innerText = "[ EDITAR ]";
+                    btnEdit.style.cssText = "background: #c49a00; color: #000; border: none; font-size: 10px; font-weight: bold; cursor: pointer; padding: 2px 5px;";
+                    btnEdit.onclick = () => { loadSkillIntoForm(skill); };
+
+                    const btnDel = document.createElement('button');
+                    btnDel.innerText = "[ BORRAR ]";
+                    btnDel.style.cssText = "background: #8a0303; color: #fff; border: none; font-size: 10px; font-weight: bold; cursor: pointer; padding: 2px 5px;";
+                    btnDel.onclick = () => {
+                        if(confirm("¿Purgar " + skill.name + " de la base de datos?")) {
+                            db.ref('campaña/base_datos_skills/' + id).remove();
+                        }
+                    };
+
+                    actions.appendChild(btnEdit);
+                    actions.appendChild(btnDel);
+
+                    row.appendChild(info);
+                    row.appendChild(actions);
+                    listContainer.appendChild(row);
+                }
+            });
+        }
+
+
+        let currentState = {
+            visual: {
+                spriteUrl: "",
+                idle_sprite: "",
+                moving_sprite: "",
+                guard_sprite: "",
+                evade_sprite: "",
+                hurt_sprite: "",
+                dead_sprite: "",
+                scale: 1.0,
+                spriteX: 0,
+                spriteY: 0,
+                uiX: 0,
+                uiY: 0,
+                isFocused: false
+            },
+            mechanics: {
+                hp: 100,
+                level: 1,
+                speed: "2-4",
+                actionSlots: 1,
+                maxSlotsLimit: 3,
+                skills: ["skill_id_1"]
+            },
+            skillsData: {
+                rawEffects: "",
+                parsedEffects: []
+            },
+            meta: {
+                name: "",
+                linkedNPC: "",
+                tags: []
+            }
+        };
+
+        function renderPreview() {
+            const previewContainer = document.getElementById("editor-preview");
+            if (!previewContainer) return;
+
+            // Apply transform ONLY to the sprite
+            const spriteTransform = `translate(${currentState.visual.spriteX}px, ${currentState.visual.spriteY}px) scale(${currentState.visual.scale})`;
+
+            // Get number of action slots
+            const slotsCount = currentState.mechanics.actionSlots || 1;
+            const slotsHtml = Array.from({length: slotsCount}).map(() => `
+                <div class="action-slot">
+                    <svg class="action-slot-svg-container" viewBox="0 0 100 100">
+                        <polygon class="action-slot-poly" points="50.0,95.0 14.8,78.1 6.1,40.0 30.5,9.5 69.5,9.5 93.9,40.0 85.2,78.1" />
+                        <rect x="35" y="47" width="30" height="6" fill="#a37c35" />
+                    </svg>
+                </div>
+            `).join('');
+
+            // Build statuses
+            let statusesHtml = '';
+            if (currentState.mechanics.statuses) {
+                statusesHtml = currentState.mechanics.statuses.map(s => {
+                    const iconUrl = s.icon || 'placeholder_status.png';
+                    const stack = s.count ? s.count : (s.intensity ? s.intensity : '');
+                    return `
+                    <div class="status-badge">
+                      <img src="${iconUrl}" class="status-icon" alt="${s.name || ''}">
+                      ${stack ? `<span class="status-stack">${stack}</span>` : ''}
+                    </div>`;
+                }).join('');
+            }
+
+            // HP Logic
+            const hpVal = currentState.mechanics.hp || 100;
+            const maxHp = currentState.mechanics.maxHp || hpVal || 100;
+            const hpPercent = Math.max(0, Math.min(100, (hpVal / maxHp) * 100));
+            // 100 stroke-dashoffset means empty. 0 means full.
+            const strokeOffset = 100 - hpPercent;
+
+            previewContainer.innerHTML = `
+                <div class="unit-preview-wrapper">
+
+                  <!-- CAPA 1: Plataforma Heptagonal SVG (HP Bar en el contorno inferior) -->
+                  <div class="layer-platform z-1">
+                    <svg class="diegetic-floor-svg" viewBox="0 0 160 60">
+                        <polygon class="floor-bg-poly" points="10,15 150,15 160,15 130,45 80,55 30,45 0,15" />
+                        <polyline class="hp-track" points="0,15 30,45 80,55 130,45 160,15" />
+                        <polyline class="hp-fill-line" points="0,15 30,45 80,55 130,45 160,15" pathLength="100" style="stroke-dasharray: 100; stroke-dashoffset: ${strokeOffset};" />
+                    </svg>
+                  </div>
+
+                  <!-- CAPA 2: FX Trasero -->
+                  <div class="layer-fx-rear z-2" id="preview-fx-rear"></div>
+
+                  <!-- CAPA 3: Sprite -->
+                  <div class="layer-sprite z-3">
+                    ${currentState.visual.spriteUrl
+                        ? `<img class="unit-sprite" id="preview-sprite" src="${currentState.visual.spriteUrl}" alt="Unit" style="transform: ${spriteTransform};">`
+                        : `<div style="width:100px; height:100px; background:#444; border:2px dashed #888; transform: ${spriteTransform};"></div>`}
+                  </div>
+
+                  <!-- CAPA 4: FX Delantero -->
+                  <div class="layer-fx-front z-4" id="preview-fx-front"></div>
+
+                  <!-- CAPA 5: Interfaz (UI) -->
+                  <div class="layer-ui z-5">
+
+                    <!-- UI: Velocidad y Acción (Arriba) -->
+                    <div class="top-indicators">
+                      <span class="speed-value" id="preview-speed">${currentState.mechanics.speed || 5}</span>
+                      <div class="action-slots" id="preview-action-slots">
+                        ${slotsHtml}
+                      </div>
+                    </div>
+
+                    <!-- UI: Vitales (Centro-Abajo) -->
+                    <div class="vitals-container">
+                      <!-- HP Numérico (La barra está en la plataforma SVG ahora) -->
+                      <div class="hp-wrapper">
+                        <div class="vital-hp-number" id="preview-hp-text">${hpVal}</div>
+                      </div>
+
+                      <!-- SP -->
+                      <div class="vital-sp-container">
+                        <div class="vital-sp" id="preview-sp">${currentState.mechanics.sp || 0}</div>
+                      </div>
+                    </div>
+
+                    <!-- UI: Estados (Fondo) -->
+                    <div class="status-effects-row" id="preview-status-effects">
+                      ${statusesHtml}
+                    </div>
+
+                  </div>
+                </div>
+            `;
+        }
+
+                function generateStatusOptions() {
+            let html = '';
+            for (const [id, data] of Object.entries(STATUS_REGISTRY)) {
+                const iconHtml = data.icon ? `<img src="${data.icon}" style="width: 14px; height: 14px; margin-right: 4px;">` : `<div style="width: 14px; height: 14px; margin-right: 4px; border-radius: 50%; border: 1px dashed #555;"></div>`;
+                html += `
+                    <div class="stat-grid-item status-list-item" data-val="${id}" title="${data.name}" style="width: 100%; justify-content: flex-start; padding: 4px; height: auto;">
+                        ${iconHtml}
+                        <span style="font-size: 11px;">${data.name}</span>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function filterStatusGrid(searchInput, gridItemsContainer) {
+            const query = searchInput.value.toLowerCase().trim();
+            const items = gridItemsContainer.querySelectorAll('.status-list-item');
+            items.forEach(item => {
+                const text = item.getAttribute('title').toLowerCase();
+                if (text.includes(query)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        function generateStatGridItems() {
+            let html = `
+                <div class="stat-grid-section">
+                    <div class="stat-grid-item stat-item" data-val="HP" title="HP">HP</div>
+                    <div class="stat-grid-item stat-item" data-val="SP" title="SP">SP</div>
+                    <div class="stat-grid-item stat-item" data-val="took_damage_this_turn" title="Took DMG this turn">DMG T.Turn</div>
+                    <div class="stat-grid-item stat-item" data-val="took_damage_last_turn" title="Took DMG last turn">DMG L.Turn</div>
+                    <div class="stat-grid-item stat-item" data-val="took_no_damage_this_turn" title="Took No DMG this turn">No DMG T.Turn</div>
+                    <div class="stat-grid-item stat-item" data-val="took_no_damage_last_turn" title="Took No DMG last turn">No DMG L.Turn</div>
+                </div>
+                <div class="stat-grid-section">
+            `;
+            for (const [id, data] of Object.entries(STATUS_REGISTRY)) {
+                if (data.icon) {
+                    html += `<div class="stat-grid-item stat-item" data-val="${id}" title="${data.name}"><img src="${data.icon}"></div>`;
+                }
+            }
+            html += `</div>`;
+            return html;
+        }
+
+                function createEffectEditorHtml(isCoinEffect) {
+            const triggers = isCoinEffect
+                ? `<option value="[On Hit]">[On Hit]</option><option value="[Heads Hit]">[Heads Hit]</option><option value="[Tails Hit]">[Tails Hit]</option><option value="[On Crit]">[On Crit]</option><option value="[On Crit - Heads Hit]">[On Crit - Heads Hit]</option><option value="[On Crit - Tails Hit]">[On Crit - Tails Hit]</option><option value="[Hit after Clash Win]">[Hit after Clash Win]</option><option value="[Hit after Clash Lose]">[Hit after Clash Lose]</option><option value="[On Hit without Cracking]">[On Hit without Cracking]</option><option value="[Heads]">[Heads]</option><option value="[Tails]">[Tails]</option><option value="[Before Attack]">[Before Attack]</option><option value="[On Unopposed Attack]">[On Unopposed Attack]</option><option value="[Attack End]">[Attack End]</option><option value="[Current Coin Attack End]">[Current Coin Attack End]</option><option value="[Heads Attack End]">[Heads Attack End]</option><option value="[Tails Attack End]">[Tails Attack End]</option><option value="[Before Getting Hit]">[Before Getting Hit]</option><option value="[On Kill]">[On Kill]</option><option value="[On Crit Kill]">[On Crit Kill]</option><option value="[On Crit Kill Against Enemy]">[On Crit Kill Against Enemy]</option>`
+                : `<option value="[On Use]">[On Use]</option><option value="[Before Clash]">[Before Clash]</option><option value="[On Clash Win]">[On Clash Win]</option><option value="[On Clash Lose]">[On Clash Lose]</option><option value="[On Evade]">[On Evade]</option>`;
+
+            const statGridHtml = generateStatGridItems();
+
+            return `
+                <div class="effect-row" style="background: #1a1a1a; padding: 5px; margin-bottom: 2px; border: 1px solid #333; position: relative;">
+                    <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+                        <label style="color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; gap: 2px; background: #333; padding: 2px 4px; border-radius: 3px;" title="Reuse Modifier">
+                            <input type="checkbox" class="eff-is-reuse" style="margin:0; width:10px; height:10px;"> Reuse
+                        </label>
+                        <label style="color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; gap: 2px; background: #333; padding: 2px 4px; border-radius: 3px;" title="Ally Modifier">
+                            <input type="checkbox" class="eff-target-ally" style="margin:0; width:10px; height:10px;"> Ally
+                        </label>
+                        <select class="eff-trigger" style="background: #000; color: #0f0; border: 1px solid #0f0; font-weight: bold; width: 100px;">
+                            ${triggers}
+                        </select>
+
+
+                        <select class="eff-type" style="background: #222; color: #fff; border: 1px solid #444; width: 80px;">
+                            <option value="status">Status</option>
+                            <option value="scale_power">Scale Pwr</option>
+                            <option value="raw_damage">Raw DMG</option>
+                            <option value="percentage_damage">% DMG</option>
+                        </select>
+
+                        <select class="eff-scale-target" style="display:none; background: #222; color: #fff; border: 1px solid #444; width: 70px;">
+                            <option value="base_power">Base Pwr</option>
+                            <option value="clash_power">Clash Pwr</option>
+                            <option value="final_power">Final Pwr</option>
+                            <option value="coin_power">Coin Pwr</option>
+                            <option value="damage_dealt_multiplier">% Damage</option>
+                            <option value="raw_damage">Raw Damage</option>
+                        </select>
+
+                        <select class="eff-scale-condition" style="display:none; background: #222; color: #fff; border: 1px solid #444; width: 70px;">
+                            <option value="status_potency">Status Pot.</option>
+                            <option value="status_count">Status Cnt.</option>
+                            <option value="negative_types">Neg. Types</option>
+                        </select>
+<select class="eff-target" style="background: #222; color: #fff; border: 1px solid #444; width: 70px;">
+                            <option value="target">Target</option>
+                            <option value="self">Self</option>
+                        </select>
+
+
+                        <span class="eff-potency-label" style="color: #888; font-size: 11px;">Pot.</span>
+                        <input type="number" class="eff-potency" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center;">
+
+                        <span class="eff-count-label" style="color: #888; font-size: 11px;">Cnt.</span>
+                        <input type="number" class="eff-count" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center;">
+
+                        <span class="eff-maxcap-label" style="color: #888; font-size: 11px; display: none;">Max Cap</span>
+                        <input type="number" class="eff-maxcap" value="0" style="width: 30px; background: #222; color: #fff; border: 1px solid #444; text-align: center; display: none;">
+
+
+                        <div class="stat-grid-selector status-grid-selector" style="flex-grow: 1; max-width: 150px;">
+                            <button type="button" class="stat-grid-btn eff-status-btn" style="width: 100%; justify-content: space-between;">
+                                <span class="status-btn-label">Select Status</span> ▼
+                            </button>
+                            <input type="hidden" class="eff-status" value="">
+                            <div class="stat-grid-dropdown status-grid-dropdown" style="width: 250px; max-height: 200px; overflow-y: auto;">
+                                <input type="text" class="status-search-input" placeholder="Search..." style="width: 100%; box-sizing: border-box; background: #000; color: #fff; border: 1px solid #444; padding: 4px; font-size: 11px; margin-bottom: 5px;">
+                                <div class="status-grid-items">
+                                    ${generateStatusOptions()}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timing-group" style="display: flex; align-items: center; background: #222; padding: 2px; border: 1px solid #444; border-radius: 3px;">
+                            <button type="button" class="timing-btn active" data-timing="this_turn">This Turn</button>
+                            <button type="button" class="timing-btn" data-timing="next_turn">Next Turn</button>
+                            <input type="hidden" class="cond-timing" value="this_turn">
+                        </div>
+
+                        <label style="color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; gap: 2px; background: #333; padding: 2px 4px; border-radius: 3px;" title="Enable Condition">
+                            <input type="checkbox" class="eff-has-condition" style="margin:0; width:10px; height:10px;"> Condición
+                        </label>
+
+                        <button type="button" class="eff-remove" style="background: #4a0000; color: #ff5555; border: 1px solid #ff0000; cursor: pointer; padding: 2px 5px; font-weight: bold; margin-left: auto;">X</button>
+                    </div>
+
+                    <div class="cond-container" style="display: none; background: #111; padding: 5px; border-top: 1px dashed #444; margin-top: 5px;">
+                        <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+                            <span style="color: #888; font-size: 11px;">If</span>
+                            <div class="target-toggle-group" style="display: flex; gap: 2px;">
+                                <button type="button" class="target-btn active" data-target="target">TARGET</button>
+                                <button type="button" class="target-btn" data-target="self">SELF</button>
+                                <input type="hidden" class="cond-target" value="target">
+                            </div>
+                            <span style="color: #888; font-size: 11px;">has</span>
+
+                            <div class="math-op-group">
+                                <button type="button" class="math-op-btn" data-op="less than">&lt;</button>
+                                <button type="button" class="math-op-btn active" data-op="equal to">=</button>
+                                <button type="button" class="math-op-btn" data-op="more than">&gt;</button>
+                                <input type="hidden" class="cond-operator" value="equal to">
+                            </div>
+
+                            <input type="number" class="cond-val-input cond-value" value="0" style="width: 40px;">
+
+                            <div class="stat-grid-selector">
+                                <button type="button" class="stat-grid-btn"><span class="stat-btn-label">HP</span> ▼</button>
+                                <input type="hidden" class="cond-stat" value="HP">
+                                <div class="stat-grid-dropdown">${statGridHtml}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function bindEffectList(containerId, isCoinEffect) {
+            const container = document.getElementById(containerId);
+                        container.addEventListener('change', (e) => {
+                if (e.target.classList.contains('eff-type')) {
+                    const row = e.target.closest('.effect-row');
+                    const isScale = e.target.value === 'scale_power';
+                    const isDmg = e.target.value === 'raw_damage' || e.target.value === 'percentage_damage';
+                    row.querySelector('.eff-scale-target').style.display = isScale ? 'inline-block' : 'none';
+                    row.querySelector('.eff-scale-condition').style.display = isScale ? 'inline-block' : 'none';
+                    row.querySelector('.eff-maxcap-label').style.display = isScale ? 'inline-block' : 'none';
+                    row.querySelector('.eff-maxcap').style.display = isScale ? 'inline-block' : 'none';
+
+                    const statusSelector = row.querySelector('.status-grid-selector');
+                    const cntLabel = row.querySelector('.eff-count-label');
+                    const cntInput = row.querySelector('.eff-count');
+                    const potLabel = row.querySelector('.eff-potency-label');
+
+                    if (isScale) {
+                         cntLabel.style.display = 'none';
+                         cntInput.style.display = 'none';
+                         potLabel.innerText = 'Val';
+                         if(row.querySelector('.eff-scale-condition').value === 'negative_types') {
+                              statusSelector.style.display = 'none';
+                         } else {
+                              statusSelector.style.display = 'inline-block';
+                         }
+                    } else if (isDmg) {
+                         cntLabel.style.display = 'none';
+                         cntInput.style.display = 'none';
+                         potLabel.innerText = 'Dmg';
+                         statusSelector.style.display = 'none';
+                    } else {
+                         cntLabel.style.display = 'inline-block';
+                         cntInput.style.display = 'inline-block';
+                         potLabel.innerText = 'Pot.';
+                         statusSelector.style.display = 'inline-block';
+                    }
+                } else if (e.target.classList.contains('eff-scale-condition')) {
+                    const row = e.target.closest('.effect-row');
+                    const statusSelector = row.querySelector('.status-grid-selector');
+                    if(e.target.value === 'negative_types') {
+                         statusSelector.style.display = 'none';
+                    } else {
+                         statusSelector.style.display = 'inline-block';
+                    }
+                }
+            });
+            container.addEventListener('click', (e) => {
+                if (e.target.closest('.stat-item') && e.target.closest('.cond-container')) {
+                    const statVal = e.target.closest('.stat-item').dataset.val;
+                    const row = e.target.closest('.effect-row');
+                    const mathGroup = row.querySelector('.math-op-group');
+                    const valInput = row.querySelector('.cond-value');
+                    if (statVal && statVal.includes('took_')) {
+                        if(mathGroup) mathGroup.style.display = 'none';
+                        if(valInput) valInput.style.display = 'none';
+                    } else {
+                        if(mathGroup) mathGroup.style.display = 'inline-flex';
+                        if(valInput) valInput.style.display = 'inline-block';
+                    }
+                }
+
+                if(e.target.classList.contains('eff-remove')) {
+                    e.target.closest('.effect-row').remove();
+                }
+            });
+            return function addEffect() {
+                container.insertAdjacentHTML('beforeend', createEffectEditorHtml(isCoinEffect));
+            };
+        }
+
+                function gatherEffects(container) {
+            const effects = [];
+            container.querySelectorAll('.effect-row').forEach(row => {
+                const isReuse = row.querySelector('.eff-is-reuse') ? row.querySelector('.eff-is-reuse').checked : false;
+                const targetAlly = row.querySelector('.eff-target-ally') ? row.querySelector('.eff-target-ally').checked : false;
+                const eff = {
+                    trigger: row.querySelector('.eff-trigger').value,
+                    target: row.querySelector('.eff-target').value,
+                    type: row.querySelector('.eff-type') ? row.querySelector('.eff-type').value : 'status',
+                    scaleTarget: row.querySelector('.eff-scale-target') ? row.querySelector('.eff-scale-target').value : null,
+                    scaleCondition: row.querySelector('.eff-scale-condition') ? row.querySelector('.eff-scale-condition').value : null,
+                    status: row.querySelector('.eff-status').value,
+                    potency: parseInt(row.querySelector('.eff-potency').value) || 0,
+                    count: parseInt(row.querySelector('.eff-count').value) || 0,
+                    maxCap: parseInt(row.querySelector('.eff-maxcap') ? row.querySelector('.eff-maxcap').value : '0') || 0,
+                    is_reuse: isReuse,
+                    target_ally: targetAlly
+                };
+
+                                // Always get timing
+                eff.timing = row.querySelector('.cond-timing').value || 'this_turn';
+
+                // Add conditional data if active
+                const hasCondition = row.querySelector('.eff-has-condition').checked;
+                if (hasCondition) {
+                    const condContainer = row.querySelector('.cond-container');
+                    eff.condition = {
+                        target: condContainer.querySelector('.cond-target').value,
+                        stat: condContainer.querySelector('.cond-stat').value,
+                        operator: condContainer.querySelector('.cond-operator').value,
+                        value: parseInt(condContainer.querySelector('.cond-value').value) || 0
+                    };
+                }
+
+                effects.push(eff);
+            });
+            return effects;
+        }
+
+        function generateSkillObject() {
+            const isDefense = document.getElementById('sb-is-defense').checked;
+
+            let selectedSinEl = document.querySelector('input[name="sb-sin-radio"]:checked');
+            let sinType = selectedSinEl ? selectedSinEl.value : 'sinless';
+
+            let selectedDamageEl = document.querySelector('input[name="sb-damage-radio"]:checked');
+            let damageType = selectedDamageEl ? selectedDamageEl.value : 'contundente';
+            let selectedStatEl = document.querySelector('input[name="sb-scaling-stat"]:checked');
+            let scalingStat = selectedStatEl ? selectedStatEl.value : 'Fuerza';
+
+            const basePowerVal = parseInt(document.getElementById('sb-base').value);
+            const coinPowerVal = parseInt(document.getElementById('sb-coin-power').value);
+
+            const skillObj = {
+                id: document.getElementById('sb-id').value || "new_skill",
+                name: document.getElementById('sb-name').value || "New Skill",
+                pecado: sinType,
+                tipo_dano: damageType,
+                scaling_stat: isDefense ? null : scalingStat,
+                tier: parseInt(document.getElementById('sb-tier').value) || 1,
+                isItemSkill: document.getElementById('sb-is-item-skill').checked,
+                basePower: isDefense ? 0 : (isNaN(basePowerVal) ? 0 : basePowerVal),
+                coinPower: isDefense ? 0 : (isNaN(coinPowerVal) ? 0 : coinPowerVal),
+                coinAmount: parseInt(document.getElementById('sb-coin-count').value) || 1,
+                weight: parseInt(document.getElementById('sb-weight').value) || 1,
+                skillRange: parseInt(document.getElementById('sb-range').value) || 1,
+                targeting_type: document.getElementById('sb-targeting-type').value || 'Focused Attack',
+                aoe_pattern: document.getElementById('sb-targeting-type').value === 'AoE' ? document.getElementById('sb-aoe-pattern').value : null,
+                isDefense: isDefense,
+                effects: gatherEffects(document.getElementById('sb-global-effects-container')),
+                coins: []
+            };
+
+            if (document.getElementById('sb-evo-enable').checked) {
+                const conditionValue = parseFloat(document.getElementById('sb-evo-value').value);
+                skillObj.evolution = {
+                    target_skill_id: document.getElementById('sb-evo-target-id').value,
+                    condition_target: document.getElementById('sb-evo-target').value,
+                    condition_type: document.getElementById('sb-evo-cond-type').value,
+                    condition_status_id: document.getElementById('sb-evo-status-id').value,
+                    condition_operator: document.getElementById('sb-evo-operator').value,
+                    condition_value: isNaN(conditionValue) ? 0 : conditionValue,
+                    is_permanent: document.getElementById('sb-evo-permanent').checked
+                };
+            }
+
+            if (isDefense) {
+                skillObj.defenseSubtype = document.getElementById('sb-defense-subtype').value;
+                const requiresUnlock = document.getElementById('sb-defense-requires-unlock').checked;
+                if (['Counter', 'ClashableCounter', 'ClashableGuard'].includes(skillObj.defenseSubtype)) {
+                    skillObj.requiresUnlock = requiresUnlock;
+                }
+
+                if (['ClashableGuard', 'ClashableCounter'].includes(skillObj.defenseSubtype)) {
+                    skillObj.isClashable = true;
+                }
+            }
+
+            const coinContainers = document.querySelectorAll('.sb-coin-block');
+            for(let i = 0; i < skillObj.coinAmount; i++) {
+                if (coinContainers[i]) {
+                    const toggleInput = coinContainers[i].querySelector('.sb-coin-nature-toggle');
+                    let coinNature = 'standard';
+                    if (toggleInput && toggleInput.checked) {
+                        coinNature = 'unbreakable';
+                    }
+                    if (isDefense && skillObj.defenseSubtype === 'ClashableGuard') {
+                        coinNature = 'unbreakable'; // Force unbreakable
+                    }
+
+                    skillObj.coins.push({
+                        type: coinNature,
+                        status: 'active',
+                        effects: gatherEffects(coinContainers[i].querySelector('.coin-effects-container'))
+                    });
+                }
+            }
+
+            return skillObj;
+        }
+
+        function initSkillBuilder() {
+            const addGlobalEffect = bindEffectList('sb-global-effects-container', false);
+            document.getElementById('sb-btn-add-global').addEventListener('click', () => addGlobalEffect());
+
+            function updateDefenseVisibility() {
+                const isDefense = document.getElementById('sb-is-defense').checked;
+                const subtype = document.getElementById('sb-defense-subtype').value;
+                const kineticContainer = document.getElementById('sb-kinetic-damage-container');
+
+                const baseInput = document.getElementById('sb-base');
+                const coinPowerInput = document.getElementById('sb-coin-power');
+                const coinCountInput = document.getElementById('sb-coin-count');
+                const scalingRadios = document.querySelectorAll('input[name="sb-scaling-stat"]');
+
+                document.getElementById('sb-defense-options').style.display = isDefense ? 'block' : 'none';
+
+                if (isDefense) {
+                    // Disable inputs and set auto text/values for all defenses
+                    baseInput.disabled = true;
+                    coinPowerInput.disabled = true;
+                    baseInput.type = 'text';
+                    coinPowerInput.type = 'text';
+
+                    const statName = subtype === 'Evade' ? 'Destreza' :
+                                     (subtype === 'Counter' || subtype === 'ClashableCounter') ? 'Fuerza' :
+                                     'Constitución';
+                    baseInput.value = `Auto (${statName})`;
+                    coinPowerInput.value = `Auto (${statName})`;
+
+                    scalingRadios.forEach(radio => radio.disabled = true);
+
+                    if (subtype === 'Guard' || subtype === 'ClashableGuard' || subtype === 'Evade') {
+                        kineticContainer.style.display = 'none';
+                        coinCountInput.disabled = true;
+                        coinCountInput.value = 1;
+                        // Trigger input event to update coin blocks
+                        coinCountInput.dispatchEvent(new Event('input'));
+                    } else {
+                        kineticContainer.style.display = 'block';
+                        coinCountInput.disabled = false;
+                        if (coinCountInput.value === '1') {
+                             // Let it be what it was, but we ensure it's not locked
+                        }
+                    }
+                } else {
+                    kineticContainer.style.display = 'block';
+
+                    // Enable inputs
+                    baseInput.disabled = false;
+                    coinPowerInput.disabled = false;
+                    baseInput.type = 'number';
+                    coinPowerInput.type = 'number';
+
+                    // Restore previous numeric value if possible, else 0
+                    const prevBase = parseInt(baseInput.value);
+                    const prevCoin = parseInt(coinPowerInput.value);
+                    baseInput.value = isNaN(prevBase) ? 0 : prevBase;
+                    coinPowerInput.value = isNaN(prevCoin) ? 0 : prevCoin;
+
+                    coinCountInput.disabled = false;
+                    scalingRadios.forEach(radio => radio.disabled = false);
+                }
+            }
+
+            document.getElementById('sb-is-defense').addEventListener('change', (e) => {
+                updateDefenseVisibility();
+                if (e.target.checked) {
+                    const sinlessRadio = document.querySelector('input[name="sb-sin-radio"][value="sinless"]');
+                    if (sinlessRadio) {
+                        sinlessRadio.checked = true;
+                    }
+                }
+            });
+
+            document.getElementById('sb-defense-subtype').addEventListener('change', () => {
+                updateDefenseVisibility();
+            });
+
+            document.getElementById('sb-coin-count').addEventListener('input', (e) => {
+                let count = parseInt(e.target.value) || 1;
+                count = Math.max(1, count);
+
+                const container = document.getElementById('sb-coins-container');
+                const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+                const existingBlocks = container.querySelectorAll('.sb-coin-block');
+                const currentCount = existingBlocks.length;
+
+                if (count > currentCount) {
+                    for (let i = currentCount; i < count; i++) {
+                        const block = document.createElement('div');
+                        block.className = 'sb-coin-block';
+                        block.style.cssText = 'background: #1a1a1a; padding: 5px; margin-bottom: 5px; border: 1px solid #333;';
+                        block.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <div style="font-size: 11px; font-weight: bold; color: #ffdd44;">Moneda ${roman[i] || (i+1)}</div>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer;">
+                                    <input type="checkbox" class="sb-coin-nature-toggle"> <span style="color:#ff5555; border-bottom: 1px dashed #ff5555;">Unbreakable (Red Coin)</span>
+                                </label>
+                            </div>
+                            <div class="coin-effects-container"></div>
+                            <button type="button" class="sb-btn-add-coin-effect" style="background: #444; color: white; border: none; padding: 2px 5px; font-size: 10px; cursor: pointer;">+ Añadir Efecto</button>
+                        `;
+                        container.appendChild(block);
+                    }
+                } else if (count < currentCount) {
+                    for (let i = currentCount - 1; i >= count; i--) {
+                        container.removeChild(existingBlocks[i]);
+                    }
+                }
+            });
+
+                        // Delegación de eventos para el contenedor de monedas
+            document.getElementById('sb-coins-container').addEventListener('click', handleEffectContainerClick);
+            document.getElementById('sb-global-effects-container').addEventListener('click', handleEffectContainerClick);
+
+            // Add listener for input on status search
+            document.getElementById('sb-global-effects-container').addEventListener('input', (e) => {
+                if (e.target.classList.contains('status-search-input')) {
+                    const gridItemsContainer = e.target.closest('.status-grid-dropdown');
+                    filterStatusGrid(e.target, gridItemsContainer);
+                }
+            });
+            document.getElementById('sb-coins-container').addEventListener('input', (e) => {
+                if (e.target.classList.contains('status-search-input')) {
+                    const gridItemsContainer = e.target.closest('.status-grid-dropdown');
+                    filterStatusGrid(e.target, gridItemsContainer);
+                }
+            });
+
+            function enforceUIValidation() {
+            const coinCount = parseInt(document.getElementById('sb-coin-count').value) || 1;
+            const globalEffects = document.querySelectorAll('#sb-global-effects-container .effect-row');
+            globalEffects.forEach(row => {
+                 const reuseCheckbox = row.querySelector('.eff-is-reuse');
+                 if (reuseCheckbox) {
+                      if (coinCount > 1) {
+                           reuseCheckbox.checked = false;
+                           reuseCheckbox.disabled = true;
+                           reuseCheckbox.parentElement.style.opacity = '0.5';
+                           reuseCheckbox.parentElement.title = 'Reuse Skill is strictly restricted to 1-Coin Skills.';
+                      } else {
+                           reuseCheckbox.disabled = false;
+                           reuseCheckbox.parentElement.style.opacity = '1';
+                           reuseCheckbox.parentElement.title = 'Reuse Modifier';
+                      }
+                 }
+            });
+
+                const isDefense = document.getElementById('sb-is-defense').checked;
+                const defenseSubtype = document.getElementById('sb-defense-subtype').value;
+                const isEvade = isDefense && defenseSubtype === 'Evade';
+
+
+                const isSingleCoin = coinCount === 1;
+
+                document.querySelectorAll('.eff-trigger').forEach(select => {
+                    let optEvade = select.querySelector('option[value="[On Evade]"]');
+                    if (optEvade) {
+                        optEvade.disabled = !isEvade;
+                        if (!isEvade && select.value === '[On Evade]') select.value = select.querySelector('option').value;
+                    }
+
+                    let optHeadsEnd = select.querySelector('option[value="[Heads Attack End]"]');
+                    if (optHeadsEnd) {
+                        optHeadsEnd.disabled = !isSingleCoin;
+                        if (!isSingleCoin && select.value === '[Heads Attack End]') select.value = select.querySelector('option').value;
+                    }
+
+                    let optTailsEnd = select.querySelector('option[value="[Tails Attack End]"]');
+                    if (optTailsEnd) {
+                        optTailsEnd.disabled = !isSingleCoin;
+                        if (!isSingleCoin && select.value === '[Tails Attack End]') select.value = select.querySelector('option').value;
+                    }
+
+                    let coinBlock = select.closest('.sb-coin-block');
+                    if (coinBlock) {
+                        let isUnbreakable = false;
+                        const toggleInput = coinBlock.querySelector('.sb-coin-nature-toggle');
+                        if (toggleInput && toggleInput.checked) {
+                            isUnbreakable = true;
+                        }
+
+                        let optClashLose = select.querySelector('option[value="[Hit after Clash Lose]"]');
+                        if (optClashLose) {
+                            optClashLose.disabled = !isUnbreakable;
+                            if (!isUnbreakable && select.value === '[Hit after Clash Lose]') select.value = select.querySelector('option').value;
+                        }
+
+                        let optHitNoCrack = select.querySelector('option[value="[On Hit without Cracking]"]');
+                        if (optHitNoCrack) {
+                            optHitNoCrack.disabled = !isUnbreakable;
+                            if (!isUnbreakable && select.value === '[On Hit without Cracking]') select.value = select.querySelector('option').value;
+                        }
+                    }
+                });
+
+                document.querySelectorAll('.eff-is-reuse').forEach(checkbox => {
+                    checkbox.disabled = isDefense;
+                    if (isDefense) {
+                        checkbox.checked = false;
+                    }
+                });
+            }
+
+            document.addEventListener('change', (e) => {
+                if (e.target.id === 'sb-is-defense' || e.target.id === 'sb-defense-subtype' || e.target.id === 'sb-coin-count' || e.target.classList.contains('sb-coin-nature-toggle')) {
+                    enforceUIValidation();
+                }
+            });
+
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach(mutation => {
+                    if (mutation.addedNodes.length > 0) {
+                        enforceUIValidation();
+                    }
+                });
+            });
+
+            observer.observe(document.getElementById('sb-coins-container'), { childList: true, subtree: true });
+            observer.observe(document.getElementById('sb-global-effects-container'), { childList: true, subtree: true });
+
+
+            function handleEffectContainerClick(e) {
+                if (e.target.classList.contains('sb-btn-add-coin-effect')) {
+                    const effectContainer = e.target.closest('.sb-coin-block').querySelector('.coin-effects-container');
+                    if (effectContainer) {
+                        effectContainer.insertAdjacentHTML('beforeend', createEffectEditorHtml(true));
+                    }
+                } else if (e.target.classList.contains('eff-remove')) {
+                    const row = e.target.closest('.effect-row');
+                    if (row) {
+                        row.remove();
+                    }
+                } else if (e.target.classList.contains('eff-has-condition')) {
+                    const condContainer = e.target.closest('.effect-row').querySelector('.cond-container');
+                    if (condContainer) {
+                        condContainer.style.display = e.target.checked ? 'block' : 'none';
+                    }
+                    if (typeof renderPreview === 'function') renderPreview();
+                } else if (e.target.closest('.stat-grid-btn')) {
+                    const dropdown = e.target.closest('.stat-grid-selector').querySelector('.stat-grid-dropdown');
+                    if (dropdown) {
+                        // Close others
+                        document.querySelectorAll('.stat-grid-dropdown').forEach(d => {
+                            if (d !== dropdown) d.classList.remove('active');
+                        });
+                        dropdown.classList.toggle('active');
+                    }
+                } else if (e.target.closest('.eff-status-btn')) {
+                    const dropdown = e.target.closest('.status-grid-selector').querySelector('.status-grid-dropdown');
+                    if (dropdown) {
+                        // Close others
+                        document.querySelectorAll('.stat-grid-dropdown').forEach(d => {
+                            if (d !== dropdown) d.classList.remove('active');
+                        });
+                        dropdown.classList.toggle('active');
+                    }
+                } else if (e.target.closest('.status-list-item')) {
+                    const item = e.target.closest('.status-list-item');
+                    const val = item.getAttribute('data-val');
+                    const selector = item.closest('.status-grid-selector');
+                    selector.querySelector('.eff-status').value = val;
+                    const btnLabel = selector.querySelector('.status-btn-label');
+                    const statusData = window.STATUS_REGISTRY[val];
+                    if (statusData) {
+                        btnLabel.textContent = statusData.name;
+                        // Dynamically update UI based on status mode
+                        const effectRow = selector.closest('.effect-row');
+                        if (effectRow) {
+                            const potInput = effectRow.querySelector('.eff-potency');
+                            const cntInput = effectRow.querySelector('.eff-count');
+                            const potLabel = effectRow.querySelector('.eff-potency-label');
+                            const cntLabel = effectRow.querySelector('.eff-count-label');
+
+                            if (statusData.mode === 'zero') {
+                                if(potInput) { potInput.style.setProperty('display', 'none', 'important'); potInput.disabled = true; potInput.value = 1; }
+                                if(cntInput) { cntInput.style.setProperty('display', 'none', 'important'); cntInput.disabled = true; cntInput.value = 1; }
+                                if(potLabel) potLabel.style.setProperty('display', 'none', 'important');
+                                if(cntLabel) cntLabel.style.setProperty('display', 'none', 'important');
+                            } else if (statusData.mode === 'single') {
+                                if(potInput) { potInput.style.setProperty('display', 'none', 'important'); potInput.disabled = true; potInput.value = 1; }
+                                if(cntInput) { cntInput.style.display = 'inline-block'; cntInput.disabled = false; }
+                                if(potLabel) potLabel.style.setProperty('display', 'none', 'important');
+                                if(cntLabel) cntLabel.style.display = 'inline-block';
+                            } else {
+                                if(potInput) { potInput.style.display = 'inline-block'; potInput.disabled = false; }
+                                if(cntInput) { cntInput.style.display = 'inline-block'; cntInput.disabled = false; }
+                                if(potLabel) potLabel.style.display = 'inline-block';
+                                if(cntLabel) cntLabel.style.display = 'inline-block';
+                            }
+                        }
+                    }
+                    selector.querySelector('.status-grid-dropdown').classList.remove('active');
+                    if (typeof renderPreview === 'function') renderPreview();
+                } else if (e.target.closest('.stat-item')) {
+                    const item = e.target.closest('.stat-item');
+                    const val = item.getAttribute('data-val');
+                    const selector = item.closest('.stat-grid-selector');
+                    selector.querySelector('.cond-stat').value = val;
+                    const btnLabel = selector.querySelector('.stat-btn-label');
+
+                    if (val === 'HP' || val === 'SP') {
+                        btnLabel.textContent = val;
+                    } else if (item.querySelector('img')) {
+                        btnLabel.innerHTML = `<img src="${item.querySelector('img').src}" style="width:12px;height:12px;">`;
+                    }
+                                        selector.querySelector('.stat-grid-dropdown').classList.remove('active');
+                    if (typeof renderPreview === 'function') renderPreview();
+                } else if (e.target.classList.contains('math-op-btn')) {
+                    const group = e.target.closest('.math-op-group');
+                    group.querySelectorAll('.math-op-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    group.querySelector('.cond-operator').value = e.target.getAttribute('data-op');
+                    if (typeof renderPreview === 'function') renderPreview();
+                } else if (e.target.classList.contains('target-btn')) {
+                    const group = e.target.closest('.target-toggle-group');
+                    group.querySelectorAll('.target-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    group.querySelector('.cond-target').value = e.target.getAttribute('data-target');
+                    if (typeof renderPreview === 'function') renderPreview();
+                } else if (e.target.classList.contains('timing-btn')) {
+                    const group = e.target.closest('.timing-group');
+                    group.querySelectorAll('.timing-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    group.querySelector('.cond-timing').value = e.target.getAttribute('data-timing');
+                    if (typeof renderPreview === 'function') renderPreview();
+
+                } else {
+                    // Close dropdowns if clicking outside
+                    if (!e.target.closest('.stat-grid-selector') && !e.target.closest('.status-grid-selector')) {
+                        document.querySelectorAll('.stat-grid-dropdown').forEach(d => d.classList.remove('active'));
+                    }
+                }
+            }
+
+            // Trigger initial generation
+            document.getElementById('sb-coin-count').dispatchEvent(new Event('input'));
+
+            document.getElementById('btn-start-skill-builder').addEventListener('click', () => {
+                const container = document.getElementById('skill-builder-container');
+                container.style.display = 'block';
+                document.getElementById('btn-start-skill-builder').style.display = 'none';
+            });
+        }
+
+        function switchTab(tabName) {
+            currentDirectoryTab = tabName;
+            filterDirectory();
+        }
+
+        function filterDirectory() {
+            const query = document.getElementById('tag-search').value.toLowerCase().trim();
+            const listContainer = document.getElementById('directory-list');
+            listContainer.innerHTML = ''; // Limpiar lista
+
+            // Buscar coincidencias parciales en el nombre o en el arreglo de tags
+            const results = ENTITY_DB[currentDirectoryTab].filter(entity => {
+                const matchName = entity.name.toLowerCase().includes(query);
+                const matchTag = entity.tags.some(tag => tag.toLowerCase().includes(query));
+                return matchName || matchTag;
+            });
+
+            // Renderizar botones de selección
+            results.forEach(entity => {
+                const btn = document.createElement('div');
+                btn.style.cssText = "padding: 4px; border-bottom: 1px solid #332211; cursor: pointer; color: #ccc; font-size: 11px;";
+                btn.innerHTML = `<strong>${entity.name}</strong> <span style="color: #886633;">[${entity.tags.join(', ')}]</span>`;
+
+                btn.onclick = () => loadEntityIntoEditor(entity);
+
+                // Efecto hover simple
+                btn.onmouseover = () => btn.style.background = '#221100';
+                btn.onmouseout = () => btn.style.background = 'transparent';
+
+                listContainer.appendChild(btn);
+            });
+        }
+
+        function loadEntityIntoEditor(entity) {
+            if (!entity.isCombatant || !entity.combatTemplate) {
+                console.warn("La entidad seleccionada no tiene datos de combate vinculados.");
+                return;
+            }
+            console.log("Cargando plantilla en el editor:", entity.name);
+            loadTemplate(entity.combatTemplate);
+        }
+
+        function initEditor() {
+            console.log("DM Autenticado. Editor Inicializado.");
+            listenToSkillDirectory();
+
+            // Inputs binding
+            const bindInput = (id, statePath, isNumber = false) => {
+                const el = document.getElementById(id);
+                el.addEventListener('input', (e) => {
+                    let val = e.target.value;
+                    if(e.target.type === 'checkbox') val = e.target.checked;
+                    else if (isNumber) val = parseFloat(val) || 0;
+
+                    const paths = statePath.split('.');
+                    if(paths.length === 2) currentState[paths[0]][paths[1]] = val;
+
+                    renderPreview();
+                });
+            };
+
+            bindInput('spriteUrl', 'visual.spriteUrl');
+            bindInput('idle_sprite', 'visual.idle_sprite');
+            bindInput('moving_sprite', 'visual.moving_sprite');
+            bindInput('guard_sprite', 'visual.guard_sprite');
+            bindInput('evade_sprite', 'visual.evade_sprite');
+            bindInput('hurt_sprite', 'visual.hurt_sprite');
+            bindInput('dead_sprite', 'visual.dead_sprite');
+            bindInput('isFocusedToggle', 'visual.isFocused');
+            bindInput('scaleSlider', 'visual.scale', true);
+            bindInput('spriteXSlider', 'visual.spriteX', true);
+            bindInput('spriteYSlider', 'visual.spriteY', true);
+            bindInput('uiXSlider', 'visual.uiX', true);
+            bindInput('uiYSlider', 'visual.uiY', true);
+
+            if (document.getElementById('statHp')) bindInput('statHp', 'mechanics.hp', true);
+            else if (document.getElementById('unit-hp')) bindInput('unit-hp', 'mechanics.hp', true);
+
+            bindInput('statLevel', 'mechanics.level', true);
+
+            if (document.getElementById('statSpeed')) bindInput('statSpeed', 'mechanics.speed');
+            else if (document.getElementById('unit-speed')) bindInput('unit-speed', 'mechanics.speed');
+
+            bindInput('statSlots', 'mechanics.actionSlots', true);
+            bindInput('statMaxSlots', 'mechanics.maxSlotsLimit', true);
+
+            const statSkillsEl = document.getElementById('statSkills');
+            if (statSkillsEl) {
+                statSkillsEl.addEventListener('input', (e) => {
+                    try { currentState.mechanics.skills = JSON.parse(e.target.value); } catch(err) { /* ignore parse errors while typing */ }
+                });
+            }
+
+            initSkillBuilder();
+
+            bindInput('metaName', 'meta.name');
+            bindInput('metaLinkedNpc', 'meta.linkedNPC');
+
+            document.getElementById('metaTags').addEventListener('input', (e) => {
+                currentState.meta.tags = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+            });
+
+            // Save logic
+
+
+            // Search logic
+            document.getElementById('btnSearch').addEventListener('click', () => {
+                const term = document.getElementById('searchTemplateInput').value.toLowerCase();
+                if(!term) return;
+
+                db.ref('combatTemplates').once('value').then(snap => {
+                    const data = snap.val();
+                    const resultsContainer = document.getElementById('searchResults');
+                    resultsContainer.innerHTML = '';
+                    if(!data) return;
+
+                    Object.entries(data).forEach(([key, template]) => {
+                        if (template.meta && template.meta.name && template.meta.name.toLowerCase().includes(term)) {
+                            const div = document.createElement('div');
+                            div.style.padding = '5px';
+                            div.style.borderBottom = '1px solid #444';
+                            div.style.cursor = 'pointer';
+                            div.innerText = template.meta.name;
+                            div.addEventListener('click', () => {
+                                loadTemplate(template);
+                            });
+                            resultsContainer.appendChild(div);
+                        }
+                    });
+                });
+            });
+
+            renderPreview();
+        }
+
+
+
+
+
+
+        const MATH_DICT = {
+            '[Level]': 'unit.level',
+            '[Offensive_Level]': 'unit.offensive_level',
+            '[Count]': 'this.count',
+            '[Potency]': 'this.potency',
+            '[CHA_Mod]': 'unit.cha_mod',
+            '[Max_HP]': 'unit.maxHp',
+            '[Current_HP]': 'unit.hp',
+            '[Max_SP]': 'unit.maxSp',
+            '[Current_SP]': 'unit.sp',
+            '[Speed]': 'unit.speed',
+            '[Defense_Power]': 'unit.defense_power',
+            '[Clash_Power]': 'unit.clash_power',
+            '[Stat_Mod]': 'unit.stat_mod'
+        };
+
+        function parseToCode(visualString) {
+            if (!visualString) return '';
+            let codeString = visualString;
+            for (const [visualTag, codeTag] of Object.entries(MATH_DICT)) {
+                // escape brackets for regex
+                const escapedTag = visualTag.replace(/\[/g, '\\[').replace(/\]/g, '\\]');
+                const regex = new RegExp(escapedTag, 'g');
+                codeString = codeString.replace(regex, codeTag);
+            }
+            return codeString;
+        }
+
+        function parseToVisual(codeString) {
+            if (!codeString) return '';
+            let visualString = codeString;
+            // reverse mapping
+            for (const [visualTag, codeTag] of Object.entries(MATH_DICT)) {
+                const regex = new RegExp(codeTag.replace(/\./g, '\\.'), 'g');
+                visualString = visualString.replace(regex, visualTag);
+            }
+            return visualString;
+        }
+
+        function addStatusRule(ruleData = {}) {
+            const list = document.getElementById('sb-rules-list');
+            const index = list.children.length;
+            const block = document.createElement('div');
+            block.className = 'trigger-builder-card';
+            block.id = `trigger-card-${index}`;
+
+            block.innerHTML = `
+              <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #555; padding-bottom:5px;">
+                  <span style="color:#d1d1d1; font-weight:bold;">Ensamblaje de Regla</span>
+                  <button type="button" onclick="this.closest('.trigger-builder-card').remove()" style="background: #333; color: white; border: 1px solid #555; cursor: pointer;">X</button>
+              </div>
+
+              <!-- NODO 1: Detonador -->
+              <div class="node-section node-event">
+                <span class="node-label">1. CUÁNDO (Trigger):</span>
+                <select class="rule-trigger strict-dropdown">
+                  <option value="passive">Pasiva (Stats Estáticos)</option>
+                  <option value="on_turn_start">Al Iniciar el Turno</option>
+                  <option value="on_round_end">Al Terminar el Turno</option>
+                  <option value="on_attack">Al Atacar</option>
+                  <option value="getting_hit">Al Recibir Daño</option>
+                  <option value="on_crit">Al Asestar Crítico</option>
+                  <option value="on_coin_flip">Al Lanzar Moneda</option>
+                  <option value="on_heads">Al Sacar Cara</option>
+                  <option value="on_tails">Al Sacar Cruz</option>
+                  <option value="on_tremor_burst">Al Detonar Temblor</option>
+                  <option value="instant">Instantáneo (Solo Single Mode)</option>
+                </select>
+              </div>
+
+              <!-- NODO 2: Validadores -->
+              <div class="node-section node-conditions">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="node-label">2. SI (Condiciones):</span>
+                    <label style="color:#d1d1d1; font-size:11px; cursor:pointer;"><input type="checkbox" class="rule-has-condition" onchange="this.closest('.node-conditions').querySelector('.condition-row').style.display = this.checked ? 'flex' : 'none'"> Habilitar</label>
+                </div>
+                <div class="condition-row" style="display:none; margin-top:5px; flex-wrap:wrap;">
+                  <select class="cond-property strict-dropdown">
+                    <option value="skill.range_type">Tipo de Rango</option>
+                    <option value="attack.is_unopposed">Es Ataque Sin Oposición</option>
+                    <option value="target.hp">HP del Objetivo</option>
+                    <option value="self.hp">HP Propio</option>
+                    <option value="count">Stacks (Count)</option>
+                    <option value="potency">Intensidad (Potency)</option>
+                  </select>
+                  <select class="cond-operator strict-dropdown">
+                    <option value="==">== (Igual)</option>
+                    <option value=">=">>= (Mayor o Igual)</option>
+                    <option value="<="><= (Menor o Igual)</option>
+                    <option value=">">> (Mayor)</option>
+                    <option value="<">< (Menor)</option>
+                  </select>
+                  <!-- Se usa el Terminal Matemático para el valor -->
+                  <input type="text" class="cond-val" readonly placeholder="Valor..." onfocus="setTerminalFocus(this)">
+                </div>
+              </div>
+
+              <!-- NODO 3 & TERMINAL: Resolución y Fórmulas -->
+              <div class="node-section node-effect">
+                <span class="node-label">3. ENTONCES (Efecto y Fórmula):</span>
+
+                <div style="display:flex; gap:5px; margin-bottom:5px; align-items:center;">
+                    <select class="rule-operation strict-dropdown">
+                      <option value="add">Sumar (+)</option>
+                      <option value="sub">Restar (-)</option>
+                      <option value="mult">Multiplicar (x)</option>
+                      <option value="div">Dividir (/)</option>
+                      <option value="set">Igualar a (=)</option>
+                    </select>
+
+                    <span style="color:#888;">a</span>
+
+                    <select class="rule-affectation strict-dropdown">
+                      <option value="hp">HP</option>
+                      <option value="sp">SP</option>
+                      <option value="stagger_threshold">Stagger Threshold</option>
+                      <option value="defensive_level">Defense Level</option>
+                      <option value="defense_power">Defense Power</option>
+                      <option value="offensive_level">Offensive Level</option>
+                      <option value="clash_power">Clash Power</option>
+                      <option value="coin_power">Coin Power</option>
+                      <option value="base_power">Base Power</option>
+                      <option value="final_power">Final Power</option>
+                      <option value="damage_dealt_multiplier">Damage Dealt Multiplier (x0.1)</option>
+                      <option value="damage_taken_multiplier">Damage Taken Multiplier (x0.1)</option>
+                      <option value="crit_damage_multiplier">Crit Damage Multiplier (x0.1)</option>
+                      <option value="healing_multiplier">Healing Multiplier</option>
+                      <option value="speed">Speed</option>
+                      <option value="resource">Resource</option>
+                    </select>
+                </div>
+
+                <!-- Terminal Matemático Universal -->
+                <div class="math-terminal">
+                  <!-- Display de Solo Lectura -->
+                  <div class="terminal-display-wrapper">
+                    <input type="text" class="formula-display" readonly placeholder="Ensambla la fórmula aquí..." onfocus="setTerminalFocus(this)">
+                    <button type="button" class="btn-clear-formula" onclick="clearTerminalFocus(this)">CLEAR</button>
+                  </div>
+
+                  <!-- Teclado de Variables y Operadores -->
+                  <div class="math-keypad">
+                    <div class="keypad-group variables-group">
+                      <button type="button" class="math-btn var-btn" data-val="[Level]" onclick="injectMath(this)">[Nivel]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Offensive_Level]" onclick="injectMath(this)">[Nivel Ofensivo]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Count]" onclick="injectMath(this)">[Count]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Potency]" onclick="injectMath(this)">[Potency]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[CHA_Mod]" onclick="injectMath(this)">[Mod. Carisma]</button>
+
+                      <!-- Expanded tactical variables -->
+                      <button type="button" class="math-btn var-btn" data-val="[Max_HP]" onclick="injectMath(this)">[Max_HP]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Current_HP]" onclick="injectMath(this)">[Current_HP]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Max_SP]" onclick="injectMath(this)">[Max_SP]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Current_SP]" onclick="injectMath(this)">[Current_SP]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Speed]" onclick="injectMath(this)">[Speed]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Defense_Power]" onclick="injectMath(this)">[Defense_Power]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Clash_Power]" onclick="injectMath(this)">[Clash_Power]</button>
+                      <button type="button" class="math-btn var-btn" data-val="[Stat_Mod]" onclick="injectMath(this)">[Stat_Mod]</button>
+
+                    </div>
+                    <div class="keypad-group numbers-group">
+                      <button type="button" class="math-btn num-btn" data-val="0" onclick="injectMath(this)">0</button>
+                      <button type="button" class="math-btn num-btn" data-val="1" onclick="injectMath(this)">1</button>
+                      <button type="button" class="math-btn num-btn" data-val="2" onclick="injectMath(this)">2</button>
+                      <button type="button" class="math-btn num-btn" data-val="3" onclick="injectMath(this)">3</button>
+                      <button type="button" class="math-btn num-btn" data-val="4" onclick="injectMath(this)">4</button>
+                      <button type="button" class="math-btn num-btn" data-val="5" onclick="injectMath(this)">5</button>
+                      <button type="button" class="math-btn num-btn" data-val="6" onclick="injectMath(this)">6</button>
+                      <button type="button" class="math-btn num-btn" data-val="7" onclick="injectMath(this)">7</button>
+                      <button type="button" class="math-btn num-btn" data-val="8" onclick="injectMath(this)">8</button>
+                      <button type="button" class="math-btn num-btn" data-val="9" onclick="injectMath(this)">9</button>
+                      <button type="button" class="math-btn num-btn" data-val="10" onclick="injectMath(this)">10</button>
+                      <button type="button" class="math-btn num-btn" data-val="20" onclick="injectMath(this)">20</button>
+                      <button type="button" class="math-btn num-btn" data-val="." onclick="injectMath(this)">.</button>
+                    </div>
+                    <div class="keypad-group operators-group">
+                      <button type="button" class="math-btn op-btn" data-val="+" onclick="injectMath(this)">+</button>
+                      <button type="button" class="math-btn op-btn" data-val="-" onclick="injectMath(this)">-</button>
+                      <button type="button" class="math-btn op-btn" data-val="*" onclick="injectMath(this)">*</button>
+                      <button type="button" class="math-btn op-btn" data-val="/" onclick="injectMath(this)">/</button>
+                      <button type="button" class="math-btn func-btn" data-val="floor(" onclick="injectMath(this)">Floor()</button>
+                      <button type="button" class="math-btn func-btn" data-val="ceil(" onclick="injectMath(this)">Ceil()</button>
+                      <button type="button" class="math-btn func-btn" data-val=")" onclick="injectMath(this)">)</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="margin-top:5px; border-top:1px dashed #555; padding-top:5px; text-align:right;">
+                    <span style="color: #888; font-size:12px;">Decaimiento (Decay): </span>
+                    <select class="rule-decay strict-dropdown">
+                        <option value="none">Sin Decaimiento</option>
+                        <option value="sub_count_1">Reducir Count en 1</option>
+                        <option value="sub_potency_1">Reducir Potency en 1</option>
+                        <option value="half_count">Reducir Count a la mitad</option>
+                        <option value="half_potency">Reducir Potency a la mitad</option>
+                        <option value="total_loss">Pérdida Total</option>
+                    </select>
+                </div>
+              </div>
+            `;
+
+            if (ruleData.trigger) block.querySelector('.rule-trigger').value = ruleData.trigger;
+            if (ruleData.operation) block.querySelector('.rule-operation').value = ruleData.operation;
+            if (ruleData.affectation) block.querySelector('.rule-affectation').value = ruleData.affectation;
+            if (ruleData.decay) block.querySelector('.rule-decay').value = ruleData.decay;
+
+            // Re-populate Condition (Node 2)
+            if(ruleData.condition) {
+                block.querySelector('.rule-has-condition').checked = true;
+                block.querySelector('.condition-row').style.display = 'flex';
+                block.querySelector('.cond-property').value = ruleData.condition.property || 'count';
+                block.querySelector('.cond-operator').value = ruleData.condition.operator || '==';
+                block.querySelector('.cond-val').value = ruleData.condition.value || '';
+            }
+
+            // Re-populate Effect Formula (Node 3)
+            if(ruleData.formula) {
+                block.querySelector('.formula-display').value = ruleData.formula;
+            } else if (ruleData.aff_input !== undefined) {
+                // Legacy migration
+                block.querySelector('.formula-display').value = ruleData.aff_input.toString();
+            }
+
+            list.appendChild(block);
+        }
+
+        // Logic for Math Terminal Focussing and Injecting
+        let currentMathFocus = null;
+
+        function setTerminalFocus(inputElement) {
+            if(currentMathFocus) {
+                currentMathFocus.classList.remove('math-focus');
+            }
+            currentMathFocus = inputElement;
+            currentMathFocus.classList.add('math-focus');
+        }
+
+        function clearTerminalFocus(btnElement) {
+            // Find the closest terminal block
+            const terminalWrapper = btnElement.closest('.terminal-display-wrapper');
+            const formulaInput = terminalWrapper.querySelector('.formula-display');
+
+            // We only clear the formula display of this block (we don't clear conditions, they have no clear btn)
+            formulaInput.value = '';
+
+            // Set focus explicitly to it just in case
+            setTerminalFocus(formulaInput);
+        }
+
+        function injectMath(btnElement) {
+            const val = btnElement.getAttribute('data-val');
+
+            // If we have a globally focussed element that belongs to the same card as this button
+            const card = btnElement.closest('.trigger-builder-card');
+
+            if (currentMathFocus && card.contains(currentMathFocus)) {
+                // Ignore actual text input typing in readonly, just append
+                const currentVal = currentMathFocus.value || '';
+
+                // Smart append: if we append variable/number and the last char was variable/number/), add space?
+                // For simplicity, just direct append
+                currentMathFocus.value = currentVal + val;
+            } else {
+                // Fallback: If nothing is focussed on this card, default focus to formula display
+                const formulaDisplay = card.querySelector('.formula-display');
+                setTerminalFocus(formulaDisplay);
+                formulaDisplay.value = (formulaDisplay.value || '') + val;
+            }
+        }
+
+
+        function loadStatusIntoBuilder(id, status) {
+            document.getElementById('status-builder-container').style.display = 'block';
+
+            document.getElementById('sb-status-current-id').value = id;
+            document.getElementById('sb-status-id').value = id;
+            document.getElementById('sb-status-name').value = status.name || '';
+            document.getElementById('sb-status-mode').value = status.mode || 'single';
+            document.getElementById('sb-status-tag').value = status.type || status.tag || 'neutral';
+
+            document.getElementById('sb-status-damage-type').value = status.damage_type_tag || '';
+            document.getElementById('sb-status-sin-affinity').value = status.sin_affinity_tag || '';
+            document.getElementById('sb-status-crit-vuln').value = status.crit_vulnerability_per_count !== undefined ? status.crit_vulnerability_per_count : '';
+
+            const iconInput = document.getElementById('sb-status-icon');
+            iconInput.value = status.icon || '';
+
+            // Load Rules
+            const rulesList = document.getElementById('sb-rules-list');
+            rulesList.innerHTML = '';
+
+            if (status.rules && Array.isArray(status.rules)) {
+                status.rules.forEach(rule => {
+                    // Traducción bidireccional al cargar
+                    if(rule.condition && rule.condition.value) {
+                        rule.condition.value = parseToVisual(rule.condition.value.toString());
+                    }
+                    if(rule.formula) {
+                        rule.formula = parseToVisual(rule.formula.toString());
+                    }
+                    addStatusRule(rule);
+                });
+            } else if (status.trigger && status.affectation_vector) {
+                // Legacy migration
+                const legacyRule = {
+                    trigger: status.trigger,
+                    operation: 'add',
+                    formula: (status.aff_input !== undefined) ? status.aff_input.toString() : '1',
+                    affectation: status.affectation_vector,
+                    decay: status.decay_rule || 'none'
+                };
+                if (status.decay_rule === 'total_loss_round_end') legacyRule.decay = 'total_loss';
+                if (status.decay_rule === 'sub_per_trigger') legacyRule.decay = 'sub_count_1';
+                addStatusRule(legacyRule);
+            }
+
+            if (!status.icon || status.icon.trim() === '') {
+                iconInput.focus();
+            }
+        }
+
+        function saveStatusToFirebase() {
+            const currentId = document.getElementById('sb-status-current-id').value;
+            let id = document.getElementById('sb-status-id').value.trim();
+
+            if(!id) {
+                alert("ID de estado no válido.");
+                return;
+            }
+
+            // Gather rules using new Node Architecture and parseToCode
+            const rules = [];
+            const ruleBlocks = document.querySelectorAll('.trigger-builder-card');
+            ruleBlocks.forEach(block => {
+                const rule = {
+                    trigger: block.querySelector('.rule-trigger').value,
+                    operation: block.querySelector('.rule-operation').value,
+                    affectation: block.querySelector('.rule-affectation').value,
+                    decay: block.querySelector('.rule-decay').value
+                };
+
+                // NODO 2: Validadores
+                const hasCondition = block.querySelector('.rule-has-condition').checked;
+                if(hasCondition) {
+                    const condValVisual = block.querySelector('.cond-val').value;
+                    rule.condition = {
+                        property: block.querySelector('.cond-property').value,
+                        operator: block.querySelector('.cond-operator').value,
+                        value: parseToCode(condValVisual)
+                    };
+                }
+
+                // NODO 3: Fórmula (Terminal)
+                const formulaVisual = block.querySelector('.formula-display').value;
+                rule.formula = parseToCode(formulaVisual);
+
+                rules.push(rule);
+            });
+
+            const updates = {
+                name: document.getElementById('sb-status-name').value.trim(),
+                icon: document.getElementById('sb-status-icon').value.trim(),
+                mode: document.getElementById('sb-status-mode').value,
+                type: document.getElementById('sb-status-tag').value,
+                damage_type_tag: document.getElementById('sb-status-damage-type').value || null,
+                sin_affinity_tag: document.getElementById('sb-status-sin-affinity').value || null,
+                crit_vulnerability_per_count: parseFloat(document.getElementById('sb-status-crit-vuln').value) || null,
+                rules: rules,
+                // Nullify legacy fields
+                trigger: null,
+                affectation_vector: null,
+                decay_rule: null,
+                tag: null,
+                decay_condition: null,
+                baseValue: null,
+                maxCount: null,
+                maxPotency: null
+            };
+
+            if (id !== currentId && currentId !== '') {
+                db.ref(`campaña/base_datos_status/${currentId}`).remove();
+            }
+
+            db.ref(`campaña/base_datos_status/${id}`).update(updates).then(() => {
+                alert("Estado guardado con éxito.");
+                document.getElementById('sb-status-current-id').value = id;
+            }).catch(err => {
+                console.error(err);
+                alert("Error al guardar estado: " + err.message);
+            });
+        }
+
+        function loadTemplate(template) {
+            currentState = JSON.parse(JSON.stringify(template)); // deep copy
+
+            // Update UI inputs
+            if (document.getElementById('spriteUrl')) document.getElementById('spriteUrl').value = currentState.visual.spriteUrl || '';
+            if (document.getElementById('idle_sprite')) document.getElementById('idle_sprite').value = currentState.visual.idle_sprite || '';
+            if (document.getElementById('moving_sprite')) document.getElementById('moving_sprite').value = currentState.visual.moving_sprite || '';
+            if (document.getElementById('guard_sprite')) document.getElementById('guard_sprite').value = currentState.visual.guard_sprite || '';
+            if (document.getElementById('evade_sprite')) document.getElementById('evade_sprite').value = currentState.visual.evade_sprite || '';
+            if (document.getElementById('hurt_sprite')) document.getElementById('hurt_sprite').value = currentState.visual.hurt_sprite || '';
+            if (document.getElementById('dead_sprite')) document.getElementById('dead_sprite').value = currentState.visual.dead_sprite || '';
+            if (document.getElementById('isFocusedToggle')) document.getElementById('isFocusedToggle').checked = currentState.visual.isFocused || false;
+
+            if (document.getElementById('scaleSlider')) document.getElementById('scaleSlider').value = currentState.visual.scale;
+            if (document.getElementById('spriteXSlider')) document.getElementById('spriteXSlider').value = currentState.visual.spriteX;
+            if (document.getElementById('spriteYSlider')) document.getElementById('spriteYSlider').value = currentState.visual.spriteY;
+            if (document.getElementById('uiXSlider')) document.getElementById('uiXSlider').value = currentState.visual.uiX;
+            if (document.getElementById('uiYSlider')) document.getElementById('uiYSlider').value = currentState.visual.uiY;
+
+            if (document.getElementById('statHp')) document.getElementById('statHp').value = currentState.mechanics.hp;
+            else if (document.getElementById('unit-hp')) document.getElementById('unit-hp').value = currentState.mechanics.hp;
+            if (document.getElementById('statLevel')) document.getElementById('statLevel').value = currentState.mechanics.level;
+            if (document.getElementById('statSpeed')) document.getElementById('statSpeed').value = currentState.mechanics.speed;
+            else if (document.getElementById('unit-speed')) document.getElementById('unit-speed').value = currentState.mechanics.speed;
+            if (document.getElementById('statSlots')) document.getElementById('statSlots').value = currentState.mechanics.actionSlots;
+            if (document.getElementById('statMaxSlots')) document.getElementById('statMaxSlots').value = currentState.mechanics.maxSlotsLimit !== undefined ? currentState.mechanics.maxSlotsLimit : 3;
+            if (document.getElementById('statSkills')) document.getElementById('statSkills').value = JSON.stringify(currentState.mechanics.skills);
+
+            // Removed rawSkillEffects loading
+
+            document.getElementById('metaName').value = currentState.meta.name || '';
+            document.getElementById('metaLinkedNpc').value = currentState.meta.linkedNPC || '';
+            document.getElementById('metaTags').value = (currentState.meta.tags || []).join(', ');
+
+            renderPreview();
+            alert("Template cargado: " + currentState.meta.name);
+        }
+    </script>
+
+</body>
+</html>

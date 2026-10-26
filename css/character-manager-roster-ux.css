@@ -1,0 +1,64 @@
+.character-manager-studio .cm-faction-filter {
+  max-width: 112px;
+  min-width: 72px;
+  padding: 3px 5px;
+  color: #b8a270;
+  background: #0e0e0d;
+  border: 1px solid #39352c;
+  font: 9px "Share Tech Mono", monospace;
+}
+
+.character-manager-studio .cm-faction-filter[hidden],
+.character-manager-studio #character-manager-search[hidden] {
+  display: none !important;
+}
+
+.character-manager-studio .cm-roster-group-heading {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  cursor: pointer;
+  background: #0c0c0b;
+  user-select: none;
+}
+
+.character-manager-studio .cm-roster-group-heading::before {
+  content: "▾";
+  display: inline-block;
+  width: 10px;
+  margin-right: 4px;
+  color: #6d675d;
+  font-size: 9px;
+  transform-origin: center;
+}
+
+.character-manager-studio .cm-roster-group-heading.is-collapsed::before {
+  transform: rotate(-90deg);
+}
+
+.character-manager-studio .cm-roster-group[data-collapsed="true"] > .cm-roster-entry {
+  display: none !important;
+}
+
+.character-manager-studio .cm-roster-entry[hidden],
+.character-manager-studio .cm-roster-group[hidden] {
+  display: none !important;
+}
+
+.character-manager-studio .cm-roster-heading {
+  gap: 5px;
+}
+
+.character-manager-studio .cm-roster-heading > span:first-child {
+  flex: 0 0 auto;
+}
+
+.character-manager-studio #character-manager-search-ux {
+  min-width: 0;
+}
+
+@media (max-width: 820px) {
+  .character-manager-studio .cm-faction-filter {
+    max-width: 94px;
+  }
+}

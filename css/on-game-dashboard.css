@@ -1,0 +1,240 @@
+:root { color-scheme: dark; font-family: "Share Tech Mono", monospace; }
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; background: #020304; color: #e8edf2; }
+.master-control-bar { position: fixed; inset: 0 0 auto; z-index: 9999; min-height: 64px; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; background: rgba(5, 8, 12, .96); border-bottom: 1px solid #c49a00; box-shadow: 0 4px 20px #000; }
+.instance-toggles { display: flex; gap: 12px; }
+.instance-toggles label { padding: 9px 14px; border: 1px solid #46505a; cursor: pointer; letter-spacing: .05em; }
+.instance-toggles label:has(input:checked) { color: #050505; background: #c49a00; border-color: #ffe084; }
+.connection-status { color: #7aff9b; font-size: .8rem; }
+.connection-status.offline { color: #ff6575; }
+.game-module {
+    display: none;
+    position: fixed;
+    inset: 64px 0 0;
+    background: #050608;
+    width: 100%;
+    height: calc(100vh - 64px);
+}
+.game-module.active-module { display: flex; }
+.hidden { display: none !important; }
+#modulo-standby { align-items: center; justify-content: center; background: #000; }
+.standby-text { color: #24272a; letter-spacing: .45em; font-size: clamp(1.5rem, 4vw, 4rem); }
+#modulo-teatro { flex-direction: row; }
+.stage-view-wrapper { flex: 1; display: flex; flex-direction: column; background-position: center; background-size: cover; overflow: hidden; isolation: isolate; }
+#theatre-stage { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 1vw; overflow: hidden; aspect-ratio: 16 / 9; max-height: 100%; margin: 0 auto; z-index: var(--theatre-layer-stage); }
+.theatre-sprite { max-height: 72vh; max-width: 30vw; object-fit: contain; filter: drop-shadow(0 0 12px #000); transform-origin: bottom center; }
+
+.director-controls { width: 350px; background: #0a0a0a; border-left: 2px solid #a37c35; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
+.panel-title { color: #a37c35; font-size: 1.2rem; text-align: center; margin: 0 0 15px 0; border-bottom: 1px solid #333; padding-bottom: 10px; }
+.npc-spawner-section { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.strict-dropdown { padding: 8px; background: #121820; color: white; border: 1px solid #53606d; font-family: "Share Tech Mono", monospace; }
+.btn-action { padding: 10px; background: #8a1c1c; color: white; border: 1px solid #ff6575; cursor: pointer; font-family: "Share Tech Mono", monospace; font-weight: bold; }
+.btn-action:hover { background: #a62323; }
+.active-actors-list { display: flex; flex-direction: column; gap: 10px; }
+.actor-control-card { background: #121212; border: 1px solid #444; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.actor-name { color: #d1d1d1; font-size: 0.9rem; font-weight: bold; }
+.actor-buttons { display: flex; gap: 5px; }
+.actor-buttons button { flex: 1; padding: 5px; background: #222; color: #a37c35; border: 1px solid #a37c35; cursor: pointer; font-family: "Share Tech Mono", monospace; font-size: 0.8rem; }
+.actor-buttons button:hover { background: #333; }
+.actor-buttons .btn-remove { background: #3a0c0c; color: #ff6575; border-color: #ff6575; }
+.actor-buttons .btn-remove:hover { background: #5c1414; }
+.dialogue-panel { padding: 18px 5vw; min-height: 130px; background: rgba(0,0,0,.88); border-top: 2px solid #c49a00; }
+.dialogue-name { color: #c49a00; font-size: 1.25rem; }
+.theatre-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; padding: 12px; background: #090c10; }
+.theatre-controls input, .theatre-controls textarea, .theatre-controls button { padding: 9px; background: #121820; color: white; border: 1px solid #53606d; }
+.theatre-controls textarea { grid-column: 1 / 3; resize: none; }
+#modulo-combate { flex-direction: column; }
+#combat-grid { flex: 1; }
+#combat-grid iframe { width: 100%; height: 100%; border: 0; }
+#combat-log-and-controls { padding: 8px 18px; display: flex; justify-content: space-between; background: #090c10; border-top: 1px solid #c49a00; }
+#btn-trigger-combat { padding: 10px 18px; background: #8b111d; color: #fff; border: 1px solid #ff6575; }
+@media (max-width: 850px) { .master-control-bar { align-items: flex-start; } .instance-toggles { flex-wrap: wrap; } .instance-toggles label { font-size: .7rem; } .theatre-controls { grid-template-columns: 1fr; } .theatre-controls textarea { grid-column: auto; } }
+
+.theatre-controls {
+    position: relative;
+    z-index: 100;
+}
+
+/* Encounter lifecycle controls: production HUD, not debug chrome. */
+#combat-log-and-controls {
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+#combat-log-and-controls > span {
+  margin-right: auto;
+  color: #b7aa94;
+  font: 700 11px "Share Tech Mono", monospace;
+  letter-spacing: .06em;
+}
+#combat-log-and-controls button {
+  min-height: 36px;
+  padding: 9px 14px;
+  border: 1px solid #5f5548;
+  background: #17130f;
+  color: #e8dfd0;
+  font: 700 11px "Share Tech Mono", monospace;
+  letter-spacing: .055em;
+  cursor: pointer;
+}
+#combat-log-and-controls button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+#btn-trigger-combat {
+  background: #8b111d;
+  color: #fff;
+  border-color: #ff6575;
+}
+#btn-end-combat-victory {
+  border-color: #b58a3e;
+  background: #352712;
+  color: #f0d39d;
+}
+#btn-end-combat-defeat {
+  border-color: #9b403b;
+  background: #321413;
+  color: #f1aaa5;
+}
+#btn-end-combat-cancel {
+  border-color: #555;
+  background: #111;
+  color: #aaa;
+}
+
+/* P1 · Director combat HUD: stay visible inside the real viewport on phones.
+   Keep the original production buttons and their handlers; no debug toolbar. */
+#modulo-combate { min-width:0; min-height:0; overflow:hidden; }
+#modulo-combate #combat-grid {
+  flex:1 1 auto; min-width:0; min-height:0; width:100%;
+  display:flex; overflow:hidden;
+}
+#modulo-combate #combat-grid iframe {
+  flex:1; display:block; width:100%; height:100%;
+  min-height:0; min-width:0; border:0;
+}
+#modulo-combate #combat-log-and-controls {
+  flex:0 0 auto; position:relative; z-index:5;
+  width:100%; min-width:0; max-height:min(34dvh,230px);
+  box-sizing:border-box; overflow-x:hidden; overflow-y:auto;
+  padding:8px clamp(8px,1.5vw,18px);
+  gap:8px;
+  background:linear-gradient(100deg,rgba(5,9,13,.98),rgba(18,15,12,.98));
+  border-top:1px solid #9c7844;
+  box-shadow:0 -8px 22px rgba(0,0,0,.36);
+}
+#modulo-combate #combat-log-and-controls > span {
+  flex:1 1 155px; min-width:100px;
+  margin:0; align-self:center;
+  font:600 11px/1.35 "Share Tech Mono",monospace;
+  color:#c7b393;
+}
+#modulo-combate #combat-log-and-controls button {
+  flex:0 1 auto;
+  min-width:0; min-height:44px;
+  padding:9px 12px; font-size:11px;
+  border-radius:2px; white-space:normal;
+  touch-action:manipulation;
+}
+#modulo-combate #combat-log-and-controls button:focus-visible,
+.instance-toggles label:focus-within {
+  outline:2px solid #f1cc78; outline-offset:2px;
+}
+@media(max-width:900px){
+  .master-control-bar {
+    display:flex; flex-wrap:nowrap; align-items:center;
+    height:64px; min-height:64px; padding:7px 10px;
+    gap:8px;
+  }
+  .master-control-bar .instance-toggles {
+    flex:1 1 auto; min-width:0;
+    display:flex; flex-wrap:nowrap; align-items:center;
+    gap:6px; overflow-x:auto; overscroll-behavior-x:contain;
+    scrollbar-width:thin;
+  }
+  .master-control-bar .instance-toggles label {
+    flex:0 0 auto; display:flex; align-items:center;
+    padding:8px; min-height:44px; white-space:nowrap;
+    font-size:11px;
+  }
+  .master-control-bar .status-container {
+    flex:0 0 auto; gap:4px!important;
+    max-width:112px; min-width:0;
+  }
+  .master-control-bar #current-output-status{display:none}
+  .master-control-bar #connection-status{font-size:10px;white-space:nowrap}
+  #modulo-combate #combat-log-and-controls {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px; max-height:min(38dvh,225px);
+    padding:8px 9px max(8px,env(safe-area-inset-bottom));
+  }
+  #modulo-combate #combat-log-and-controls > span {
+    grid-column:1/-1; text-align:center;
+    font-size:10px; line-height:1.25;
+  }
+  #modulo-combate #combat-log-and-controls button {
+    width:100%; min-height:44px; padding:7px 6px;
+    font:700 clamp(10px,2.4vw,12px)/1.2 "Share Tech Mono",monospace;
+  }
+}
+@media(max-width:390px){
+  .master-control-bar .instance-toggles label {padding:6px;font-size:10px}
+  .master-control-bar .status-container{max-width:70px}
+  .master-control-bar #connection-status{font-size:9px;overflow:hidden;text-overflow:ellipsis}
+}
+
+/* P0 regression · Starting an encounter is NOT the same as resolving a READY round.
+   This single director-only action is reachable from Theatre, Standby and Combat. */
+.master-control-bar #btn-start-encounter {
+  flex:0 0 auto;
+  min-height:44px;
+  padding:9px 14px;
+  background:linear-gradient(120deg,#502014,#8c3022);
+  border:1px solid #f0a66c;
+  color:#fff3d8;
+  font:700 12px/1.2 "Share Tech Mono",monospace;
+  letter-spacing:.04em;
+  white-space:nowrap;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.master-control-bar #btn-start-encounter:disabled{opacity:.52;cursor:wait}
+.master-control-bar #btn-start-encounter:focus-visible{outline:2px solid #fff0b2;outline-offset:2px}
+.master-control-bar #dm-encounter-start-status:not([hidden]){
+  display:block;
+  position:fixed;
+  top:calc(64px + env(safe-area-inset-top,0px));
+  right:10px;
+  z-index:10000;
+  max-width:min(460px,calc(100vw - 20px));
+  box-sizing:border-box;
+  padding:10px 14px;
+  background:#1a1210;
+  border:1px solid #c78355;
+  box-shadow:0 8px 22px #0009;
+  color:#ffe2c1;
+  font:700 12px/1.4 "Share Tech Mono",monospace;
+  overflow-wrap:anywhere;
+}
+.master-control-bar #dm-encounter-start-status[data-error="true"]{
+  border-color:#ff6575;
+  color:#ffadb5;
+}
+@media(max-width:900px){
+  .master-control-bar #btn-start-encounter{
+    min-height:44px;
+    min-width:124px;
+    padding:8px 10px;
+    font-size:10px;
+  }
+  .master-control-bar .instance-toggles{padding-right:2px}
+}
+
+/* The loading coordinator's fullscreen overlay is above every normal z-index.
+   Reserve the fixed 64px Director bar so START/REANUDAR is not swallowed
+   while Battle Viewer hydrates. Do NOT lower the auth-blocker or make all
+   loading surfaces click-through. */
+body.on-game-dashboard #luminous-game-loading-overlay {
+  top:64px;
+  bottom:0;
+}
