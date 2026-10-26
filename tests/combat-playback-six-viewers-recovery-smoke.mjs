@@ -27,7 +27,7 @@ function viewer(index, { finalRepair = false } = {}) {
   const baseProtocol = c.LuminousCombatPlayback;
   c.LuminousCombatPlayback = {
     ...baseProtocol,
-    createConsumer(options) { return baseProtocol.createConsumer({ ...options, visualTimeoutMs: 35 }); },
+    createConsumer(options) { return baseProtocol.createConsumer({ ...options, visualTimeoutMs: 35, batchGapTimeoutMs: 35 }); },
   };
   const ref = path => ({
     orderByKey() { return this; },
