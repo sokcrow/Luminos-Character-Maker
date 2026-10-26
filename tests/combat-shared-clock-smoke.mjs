@@ -76,7 +76,9 @@ const execution = (async () => {
 })();
 execution.then(() => { done = true; });
 for (let i = 0; i < 10000; i++) {
-  for (let turn = 0; turn < 30; turn++) await Promise.resolve();
+  // Let all pending Promise work settle before advancing simulated wall time.
+  // A fixed microtask count depends on the consumer's internal async depth.
+  await new Promise(resolve => setImmediate(resolve));
   if (!timers.size) { if (done) break; throw Error('Scheduled playback deadlocked'); }
   const [id, next] = [...timers].sort((a, b) => a[1].at - b[1].at || a[0] - b[0])[0];
   wall = next.at; timers.delete(id); next.fn();
