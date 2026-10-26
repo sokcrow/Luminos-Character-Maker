@@ -55,7 +55,7 @@
       stop() { stopped = true; for (const [id, resolve] of timers) { clearTimer(id); resolve(); } timers.clear(); },
     });
   }
-  function createConsumer({ generation, checkpoint, apply, present, finish, onEvent = () => {}, onError = () => {}, onVisualError = () => {}, beforeEvents = async () => {}, visualTimeoutMs = 7000, batchGapTimeoutMs = 3000 }) {
+  function createConsumer({ generation, checkpoint, apply, present, finish, onEvent = () => {}, onError = () => {}, onVisualError = () => {}, beforeEvents = async () => {}, visualTimeoutMs = 7000, batchGapTimeoutMs = 3000, waitForPresentation = true }) {
     let cursor = Number(checkpoint?.seq) || 0, eventCursor = Number(checkpoint?.eventCursor) || 0;
     let chain = Promise.resolve(), stopped = false;
     const pending = new Map(), seen = new Map();
@@ -130,7 +130,12 @@
               presentations.push(awaitVisual(() => present(event.cue, copy(event.args || []), row, event), event.cue));
             eventCursor = event.sequence;
           }
-          await Promise.all(presentations);
+          // Scheduled playback advances on server deadlines, just like the DM.
+          // A local animation's duration must not hold the transport queue: two
+          // simultaneous Coins may arrive in different batches, and a phone may
+          // render a longer animation than the authority. Legacy playback has
+          // no deadlines and retains its sequential presentation contract.
+          if (waitForPresentation) await Promise.all(presentations);
         }
         if(stopped)return;
         if (Number(row.eventCursor) !== eventCursor) throw new Error('PLAYBACK_CHECKPOINT_CURSOR');
