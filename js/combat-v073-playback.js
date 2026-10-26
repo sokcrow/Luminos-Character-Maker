@@ -55,10 +55,29 @@
       stop() { stopped = true; for (const [id, resolve] of timers) { clearTimer(id); resolve(); } timers.clear(); },
     });
   }
-  function createConsumer({ generation, checkpoint, apply, present, finish, onEvent = () => {}, onError = () => {}, onVisualError = () => {}, beforeEvents = async () => {}, visualTimeoutMs = 7000 }) {
+  function createConsumer({ generation, checkpoint, apply, present, finish, onEvent = () => {}, onError = () => {}, onVisualError = () => {}, beforeEvents = async () => {}, visualTimeoutMs = 7000, batchGapTimeoutMs = 3000 }) {
     let cursor = Number(checkpoint?.seq) || 0, eventCursor = Number(checkpoint?.eventCursor) || 0;
     let chain = Promise.resolve(), stopped = false;
     const pending = new Map(), seen = new Map();
+    let gapTimer = null;
+    function trackBatchGap() {
+      const gap = !pending.has(cursor + 1) && [...pending.keys()].some(seq => seq > cursor + 1);
+      if (!gap) {
+        if (gapTimer !== null) global.clearTimeout?.(gapTimer);
+        gapTimer = null;
+        return;
+      }
+      if (gapTimer !== null || typeof global.setTimeout !== 'function') return;
+      // Out-of-order delivery is tolerated briefly. A truly missing batch must
+      // force canonical checkpoint recovery instead of silently freezing forever.
+      gapTimer = global.setTimeout(() => {
+        gapTimer = null;
+        if (!stopped && !pending.has(cursor + 1) && [...pending.keys()].some(seq => seq > cursor + 1)) {
+          stopped = true;
+          onError(new Error('PLAYBACK_BATCH_GAP'));
+        }
+      }, batchGapTimeoutMs);
+    }
     function visualError(error) {
       try { onVisualError(error); } catch (_) {}
     }
@@ -117,6 +136,7 @@
         if (Number(row.eventCursor) !== eventCursor) throw new Error('PLAYBACK_CHECKPOINT_CURSOR');
         if(row.combatants) apply(copy(row.combatants));
         pending.delete(row.seq); cursor = row.seq;
+        trackBatchGap();
         if (row.type === 'round_complete') await finish(row);
       }
     }
@@ -136,11 +156,12 @@
         }
         if (seq <= cursor) return chain;
         seen.set(seq, signature); pending.set(seq, row);
+        trackBatchGap();
         chain = chain.then(drain).catch(error => { stopped = true; onError(error); });
         return chain;
       },
       cursor: () => cursor, eventCursor: () => eventCursor, idle: () => chain,
-      stop() { stopped = true; pending.clear(); seen.clear(); },
+      stop() { stopped = true; if (gapTimer !== null) global.clearTimeout?.(gapTimer); gapTimer = null; pending.clear(); seen.clear(); },
     });
   }
   global.LuminousCombatPlayback = Object.freeze({ schemaVersion: SCHEMA, engineVersion: ENGINE, timelineVersion: 1,
