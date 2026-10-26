@@ -212,3 +212,15 @@ await bootstrapFixture();
 await bootstrapFixture(false);
 await bootstrapFixture(true,"js/spell-batch-cantrips-runtime.js");
 console.log("Combat SP-01: trusted execution payload, empty assignment, delayed/failed bootstrap OK");
+
+// Existing Wizards without DM mirrors retain the resolver's learned/prepared list.
+{
+  const {win,unit}=spellPlanningFixture(["wizard"]);
+  delete unit.spellLoadout;
+  win.LuminousWizardClassRuntime={spellIdsForCombat:()=>["fire_bolt","mage_hand"]};
+  const rows=win.LuminousCombatEconomyMenu073.spellRowsForPlayer();
+  assert.deepEqual(Array.from(rows,row=>row.spellId),["fire_bolt","mage_hand"]);
+  assert.ok(rows.every(row=>row.classId==="wizard"));
+  unit.spellLoadout={schemaVersion:1};
+  assert.equal(win.LuminousCombatEconomyMenu073.spellRowsForPlayer().length,0);
+}

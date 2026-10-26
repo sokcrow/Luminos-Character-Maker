@@ -411,7 +411,19 @@
       });
     }
     if(!isSpellcaster(unit))return [];
-    return liveActions("spell").map(row=>normalizeSpellForMenu(row,row?.id));
+    // Older Wizards keep their learned/prepared spells in classResources.
+    // Consult the same resolver without reviving explicitly cleared selections.
+    const legacyIds=loadout?.rawSpellIdsFor?.(unit)||[];
+    const resolved=legacyIds.map(id=>{
+      const result=loadout.resolveSpellForCombatant(unit,id);
+      const definition=loadout.resolveSpellDefinition(id);
+      const row=normalizeSpellForMenu(result.spell||definition?.spell||{id,name:id},id);
+      if(result.ok)return {...row,classId:result.classId};
+      if(result.reason==="SPELL_CLASS_AMBIGUOUS"&&result.candidates?.length)
+        return {...row,__spellClassCandidates:[...new Set(result.candidates)]};
+      return {...row,__spellUnavailableReason:spellUnavailableLabel(result.reason)};
+    });
+    return resolved.length?resolved:liveActions("spell").map(row=>normalizeSpellForMenu(row,row?.id));
   }
 
   function inventoryEntries(container) {
