@@ -213,6 +213,9 @@
       state.viewerRecoveryTimer = null;
       if (state.generation !== generation || adapter()?.role !== 'player') return;
       try {
+        // A cancelled RTDB listener can be caused by an Auth token restored
+        // after the initial subscription. Refresh it before the first retry.
+        if (reason?.code === 'PERMISSION_DENIED') await adapter()?.user?.getIdToken?.(true);
         // Rejoin at the canonical DM checkpoint. Never replay combat rules locally.
         const snapshot = await adapter().db.ref(state.authority.ROOT.current).once('value');
         const latest = snapshot.val();
