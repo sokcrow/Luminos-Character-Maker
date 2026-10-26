@@ -726,6 +726,7 @@
       <div class="item-display">
         ${activeCard ? `<span class="inventory-v2-icon-holder">${iconHtml}${renderActiveEffectMarkers(effectIndicators)}</span>` : iconHtml}
         <span class="item-name">${escapeHtml(itemName(item))}</span>
+        ${activeCard ? `<span class="inventory-v2-card-status"><span class="inventory-v2-card-qty">x${quantity}</span></span>` : ""}
         ${enchantment && !activeCard ? `<span class="inventory-v2-enchantment-badge" title="Encantamiento mágico +${enchantment.tier}: ${escapeHtml(enchantment.label)}">✦ +${enchantment.tier}</span>` : ""}
       </div>
       ${equipable && !activeCard ? '<span class="inventory-v2-equip-marker">EQUIP</span>' : ""}
@@ -937,11 +938,11 @@
       }
       if (state.selectedContainer === containerType && state.selected?.key === slot.dataset.key) slot.classList.add("active");
       else slot.classList.remove("active");
-      if (flags.length && containerType !== "active") {
+      if (flags.length) {
         const badge = doc.createElement("span");
         badge.className = "inventory-v2-item-state";
         badge.textContent = flags.join(" / ");
-        slot.appendChild(badge);
+        (slot.querySelector(".inventory-v2-card-status") || slot).appendChild(badge);
       }
     });
   }

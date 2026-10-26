@@ -701,12 +701,12 @@ test("stash filters derive from live item families", async ({ page }) => {
   await expect(page.locator('#filtros-stash .inv-filter-btn[data-filter="chemical_processed"]')).toHaveCount(1);
 });
 
-test("gothic inventory preserves two readable mobile columns without horizontal modal overflow", async ({ page }) => {
+test("gothic inventory preserves four readable mobile columns without horizontal modal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await bootHarness(page);
   await page.locator("#inventory-modal").evaluate((el) => el.classList.add("active"));
   const columns = await page.locator("#inv-active-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length);
-  expect(columns).toBe(2);
+  expect(columns).toBe(4);
   const overflow = await page.locator(".inventory-modal-content").evaluate((el) => ({ clientWidth: el.clientWidth, scrollWidth: el.scrollWidth }));
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
   await expect(page.locator(".inventory-v2-equipment [data-equipment-slot]")).toHaveCount(8);
@@ -971,3 +971,23 @@ test("successful Arcana save spends one SP and retains its learned knowledge",as
     return {sp:u.sp,knowledge:u.itemMagicKnowledge,pending:window.LuminousInventoryHudV2.state.arcanaStudyPending};
   })).toEqual({sp:2,knowledge:{blade_1:{enchantmentIdentified:true}},pending:false});
 });
+
+for (const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1280,720],[1920,1080]]) {
+ test('four-column belongings keep names, icons and quantities inside cards at '+width,async({page})=>{
+  await page.setViewportSize({width,height});await bootHarness(page);
+  await page.addStyleTag({content:fs.readFileSync(SHEET_CSS,'utf8').replace(/@import[^;]+;/g,'')});
+  await page.addStyleTag({path:CSS});await page.addStyleTag({path:GOTHIC_CSS});
+  const grid=page.locator('#inv-active-grid');
+  expect(await grid.evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(4);
+  const cards=grid.locator('[data-key]');await expect(cards).toHaveCount(2);
+  for(const card of await cards.all()){
+   expect(await card.evaluate(el=>{
+    const c=el.getBoundingClientRect(),n=el.querySelector('.item-name'),i=el.querySelector('.item-icon').getBoundingClientRect();
+    return n.getBoundingClientRect().bottom<=c.bottom+1 && n.scrollHeight<=n.clientHeight+1 &&
+      i.width>=44 && Math.abs(i.left+i.right-c.left-c.right)<3;
+   })).toBe(true);
+   await expect(card.locator('.inventory-v2-card-qty')).toHaveText('x1');
+  }
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ });
+}
