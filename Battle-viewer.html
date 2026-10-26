@@ -429,6 +429,14 @@ function smartTargetForPlan(owner,plan){
       html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
         asset+'?v=20261026-sp01-repair-1');
     }
+    // A denied Free Action must load the corrected request/receipt client,
+    // authority listener and player feedback, even with an older cached iframe.
+    for(const asset of ['js/combat-v073-economy-menu.js',
+      'js/combat-v073-plan-sync.js','js/combat-v073-remote-intents.js']){
+      const escaped=asset.replace(/[.]/g,'\\.');
+      html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
+        asset+'?v=20261026-free-actions-repair-1');
+    }
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();
