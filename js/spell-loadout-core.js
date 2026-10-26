@@ -53,8 +53,9 @@
   }
   function canonical(source = {}) {
     // A versioned empty assignment survives RTDB's removal of empty arrays.
-    return source.spellLoadout?.schemaVersion === 1 ? source.spellLoadout
-      : source.characterBuild?.spellLoadout?.schemaVersion === 1 ? source.characterBuild.spellLoadout : null;
+    // V2 read compatibility does not itself authorize any DM exception.
+    return [source.spellLoadout,source.characterBuild?.spellLoadout]
+      .find(row=>[1,2].includes(Number(row?.schemaVersion)))||null;
   }
   function hasSelection(source = {}) {
     return Boolean(canonical(source)) || [source, source.characterBuild || {}].some(record =>

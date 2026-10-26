@@ -78,7 +78,25 @@
         const kind=norm(raw.kind||raw.actionData?.kind||raw.type);
         if(kind!=='spell'&&kind!=='spells')continue;
         const unit=raw.unitId&&units[raw.unitId]?units[raw.unitId]:Object.values(units).find(row=>canonicalPlayerId(row)===clean(raw.scheduledBy));
-        if(unit?.isPlayer===true&&!isSpellcaster(unit))throw new Error(`SPELL_PLAN_REJECTED_NON_CASTER:${canonicalPlayerId(unit)||unit.id||raw.unitId||'player'}`);
+        if(!unit)throw new Error('SPELL_PLAN_REJECTED:SPELL_ACTOR_NOT_FOUND');
+        if(unit.isPlayer===true){
+          if(!isSpellcaster(unit))throw new Error(`SPELL_PLAN_REJECTED_NON_CASTER:${canonicalPlayerId(unit)||unit.id||raw.unitId||'player'}`);
+          const spellId=clean(raw.spellId||raw.actionData?.spellId||raw.actionData?.id||raw.data?.spellId||raw.data?.id);
+          const resolver=global.LuminousCombatSpellLoadout074;
+          if(!resolver?.resolveSpellForCombatant)throw new Error('SPELL_RUNTIME_NOT_READY');
+          const result=resolver.resolveSpellForCombatant(unit,spellId,{classId:raw.classId||raw.actionData?.classId||null});
+          if(!result.ok)throw new Error(`SPELL_PLAN_REJECTED:${result.reason||'SPELL_UNAVAILABLE'}`);
+          // Only targeting and casting choices come from the Player. Definitions
+          // used by the sealed executor must come from the DM's own catalog.
+          const definition=clone(result.spell);
+          raw.spellId=definition.spellId||definition.id||spellId;
+          raw.classId=result.classId;
+          raw.actionName=definition.name;
+          raw.actionData={...definition,id:raw.spellId,spellId:raw.spellId,
+            kind:'spell',sourceType:'spell',classId:result.classId};
+          delete raw.data;
+
+        }
       }
     }
     return true;
@@ -149,7 +167,7 @@
     const out={schemaVersion:2,engineVersion:'0.7.3-live-authority',kind,unitId,scheduledBy:canonicalPlayerId(unit)||unitId,schedulerUid:adapterState()?.uid||'',status:'planned',round:Number(adapterState()?.round)||1,sourceSlotIndex:Number.isInteger(plan.sourceSlotIndex)?plan.sourceSlotIndex:slotIndex,targetId:clean(plan.targetId)||null,targetSlotIndex:plan.targetSlotIndex==null?null:Math.max(0,Number(plan.targetSlotIndex)||0),actionData:data};
     const targetSide=clean(data.targetSide||data.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(Array.isArray(plan.additionalTargets)&&plan.additionalTargets.length)out.additionalTargets=clone(plan.additionalTargets);out.actionName=clean(data.name||data.nombre||data.label||id);
     for(const key of ['drawId','clashChoice','clashOrder','clashConfirmed'])if(plan[key]!=null)out[key]=clone(plan[key]);out.planType=plan.type||'auto';
-    if(kind==='spell'){out.spellId=id;out.spellSelectionKey=clean(data.spellSelectionKey||data.selectionKey||id);out.classId=clean(data.classId||data.class||'unknown');out.slotLevel=Math.max(0,Math.min(9,Math.trunc(finite(data.slotLevel??data.level,0))));out.overcast=Boolean(data.overcast);}else if(kind==='trait')out.traitId=id;else if(kind==='item'){out.itemId=id;const itemType=clean(data.itemType||data.item_type||data.type);if(itemType)out.itemType=itemType;}else if(kind==='global')out.actionKey=id;else out.skillId=id;return out;
+    if(kind==='spell'){out.spellId=id;out.spellSelectionKey=clean(data.spellSelectionKey||data.selectionKey||id);out.classId=clean(data.classId||data.class)||null;out.slotLevel=Math.max(0,Math.min(9,Math.trunc(finite(data.slotLevel??data.level,0))));out.overcast=Boolean(data.overcast);}else if(kind==='trait')out.traitId=id;else if(kind==='item'){out.itemId=id;const itemType=clean(data.itemType||data.item_type||data.type);if(itemType)out.itemType=itemType;}else if(kind==='global')out.actionKey=id;else out.skillId=id;return out;
   }
   function collectAiPlans(){const out={};Object.entries(runtime()?.combatants?.()||{}).forEach(([id,unit])=>{if(unit?.controlled!=='ai'||!Array.isArray(unit.autoPlans))return;const rows={};unit.autoPlans.forEach((plan,index)=>{if(plan)rows[index]=serializeRuntimePlan(plan,id,index);});if(Object.keys(rows).length)out[id]=rows;});return out;}
   function activePlayerIds(){return global.LuminousCombatParticipants?.playerIds(adapterState()?.combatants||{})||[];}

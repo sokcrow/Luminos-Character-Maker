@@ -42,7 +42,7 @@
       const data={...(source||{}),kind,skillId,id:skillId||clean(source?.id||raw.actionName),name:clean(raw.actionName||source?.name||skillId)};if(targetSide)data.targetSide=targetSide;return{...common,type:kind==='defense'?'defense':raw.planType==='deck'||raw.drawId?'deck':raw.planType==='auto'?'auto':'granted',data};
     }
     if(kind==='spell'){
-      const spellId=clean(raw.spellId),data={...embedded,kind:'spell',spellId,id:spellId||clean(embedded.id),name:clean(raw.actionName||embedded.name||spellId),targetSide:targetSide||embedded.targetSide||'enemy',slotLevel:Number(raw.slotLevel??embedded.slotLevel)||0,overcast:Boolean(raw.overcast??embedded.overcast)};return{...common,type:'spells',data};
+      const spellId=clean(raw.spellId),data={...embedded,classId:raw.classId||embedded.classId||null,kind:'spell',spellId,id:spellId||clean(embedded.id),name:clean(raw.actionName||embedded.name||spellId),targetSide:targetSide||embedded.targetSide||'enemy',slotLevel:Number(raw.slotLevel??embedded.slotLevel)||0,overcast:Boolean(raw.overcast??embedded.overcast)};return{...common,type:'spells',data};
     }
     if(kind==='item'){
       const itemId=clean(raw.itemId),itemType=clean(raw.itemType||embedded.itemType||embedded.item_type)||(targetSide==='ally'?'hp_healing':'offensive'),data={...embedded,kind:'item',itemId,id:itemId||clean(embedded.id),name:clean(raw.actionName||embedded.name||itemId),itemType,targetSide:targetSide||embedded.targetSide};return{...common,type:'items',data};

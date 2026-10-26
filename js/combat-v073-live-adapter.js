@@ -232,7 +232,8 @@
       result.push({
         ...clone(raw),
         ...(global.LuminousSpellLoadout?.hasSelection(authoritativePlayer || {}) ? {
-          spellLoadout: { schemaVersion: 1, spellIds: global.LuminousSpellLoadout.selectedIds(authoritativePlayer) },
+          spellLoadout: clone(global.LuminousSpellLoadout.canonical(authoritativePlayer))||
+            {schemaVersion:1,spellIds:global.LuminousSpellLoadout.selectedIds(authoritativePlayer)},
           spellCastOverrides: clone(authoritativePlayer.spellCastOverrides || authoritativePlayer.characterBuild?.spellCastOverrides || {})
         } : {}),
         inventario_activo: clone(liveActiveInventory),
