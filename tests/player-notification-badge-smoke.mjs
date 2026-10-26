@@ -9,7 +9,7 @@ const end = source.indexOf('  const refreshUnreadChat =', start);
 assert.ok(start >= 0 && end > start, 'Notification runtime must be present');
 const runtime = source.slice(start, end);
 
-function setupViewport(width, height, unreadBank = true) {
+function setupViewport(width, height, unreadBank = true, includePhone = false) {
     const frames = [];
     const main = { parentElement: null, getBoundingClientRect: () => ({ left: 0, top: 0, right: width, bottom: height }) };
     const clipped = {
@@ -29,7 +29,13 @@ function setupViewport(width, height, unreadBank = true) {
         setAttribute(name, value) { this.attrs[name] = value; },
         removeAttribute(name) { delete this.attrs[name]; },
     };
+    const phone = includePhone ? {
+        ...button,
+        textContent: 'Celular',
+        attrs: { 'aria-label': 'Abrir celular' },
+    } : null;
     const anchors = new Map([['button[name="act_tab_banco"]', button]]);
+    if (phone) anchors.set('#btn-toggle-phone', phone);
     const body = {
         parentElement: null,
         children: [],
@@ -68,7 +74,7 @@ function setupViewport(width, height, unreadBank = true) {
     )(window, document, unreadBank, false, false);
 
     return {
-        button, body, clipped, window, ...api,
+        button, phone, body, clipped, window, ...api,
         flush() { while (frames.length) frames.shift()(); },
     };
 }
@@ -107,6 +113,25 @@ test('hidden or offscreen controls hide the badge, and dismissal clears it', () 
     page.flush();
     assert.equal(page.body.children.length, 0, 'read notification removes the badge');
     assert.equal(page.button.getAttribute('aria-label'), null, 'original accessible name is restored');
+});
+
+test('phone badge is external, and muting hides only its aggregate alert', () => {
+    for (const [width, height] of [[390, 844], [1280, 720]]) {
+        const page = setupViewport(width, height, true, true);
+        page.update();
+        page.flush();
+        const phoneBadge = page.badges.get('#btn-toggle-phone');
+        assert.ok(phoneBadge);
+        assert.equal(phoneBadge.parentElement, page.body);
+        assert.equal(phoneBadge.hidden, false);
+        assert.equal(page.phone.getAttribute('aria-label'), 'Abrir celular (notificación sin leer)');
+        page.window.isPhoneMuted = true;
+        page.update();
+        page.flush();
+        assert.equal(page.badges.has('#btn-toggle-phone'), false);
+        assert.equal(page.badges.has('button[name="act_tab_banco"]'), true);
+        assert.equal(page.phone.getAttribute('aria-label'), 'Abrir celular');
+    }
 });
 
 test('notification styles are independent of button clipping', () => {
