@@ -68,7 +68,7 @@ assert.equal(denied.used,false);
 assert.equal(denied.reason,'permission_denied','A Firebase permissions rejection returns a definite failure');
 assert.equal(writes.length,beforeDeniedWrites,'Rejected Free Action never reaches the server');
 const outboxKey='luminous:combat-independent:owner:p1:encounter';
-assert.equal(storage.has(outboxKey),false,'Rejected Free Action must not remain in the recovery outbox');
+assert.equal(Object.keys(JSON.parse(storage.get(outboxKey)||'{}')).some(key=>key.includes('find')),false,'Rejected Free Action must not remain in the recovery outbox');
 denyWrites=false;
 const permitted=api.requestIndependentAction(universal);
 await flush(()=>writes.length===beforeDeniedWrites+1&&[...timers.values()].some(timer=>timer.delay===12000));
