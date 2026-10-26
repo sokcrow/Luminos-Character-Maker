@@ -120,6 +120,34 @@ assert.deepEqual(clients[4].events, [1, 2, 3], 'healthy client receives every ev
 assert.deepEqual(clients[5].events, [1, 2, 3], 'second healthy client receives every event');
 clients.forEach(client => client.close());
 
+// Regression: a dropped batch must trigger checkpoint recovery, not wait forever.
+const gapClient = viewer(7);
+await gapClient.sync.observe(round);
+gapClient.deliver(batch(1, 95));
+await gapClient.idle();
+gapClient.deliver(batch(3, 77, 'round_complete'));
+await gapClient.idle();
+await new Promise(resolve => setTimeout(resolve, 460));
+assert.equal(gapClient.sync.state.consumer.cursor(), 2, 'missing batch triggers checkpoint recovery');
+gapClient.deliver(batch(3, 77, 'round_complete'));
+await gapClient.idle();
+assert.deepEqual(gapClient.finished, [2]);
+assert.equal(gapClient.applied.at(-1).ally.hp, 77);
+assert.ok(gapClient.errors.some(line => line.includes('PLAYBACK_BATCH_GAP')));
+gapClient.close();
+
+// Normal reordering within the grace period should not cause a recovery.
+const reorderedClient = viewer(8);
+await reorderedClient.sync.observe(round);
+reorderedClient.deliver(batch(1, 95));
+await reorderedClient.idle();
+reorderedClient.deliver(batch(3, 77, 'round_complete'));
+reorderedClient.deliver(batch(2, 90));
+await reorderedClient.idle();
+assert.equal(reorderedClient.sync.state.consumer.cursor(), 3);
+assert.deepEqual(reorderedClient.errors, []);
+reorderedClient.close();
+
 // A lost terminal batch must not strand the player after the DM has completed.
 const finalClient = viewer(6, { finalRepair: true });
 await finalClient.sync.observe(round);
