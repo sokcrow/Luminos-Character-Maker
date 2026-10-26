@@ -219,6 +219,7 @@
           context: "combat",
           healTarget,
           includeAugments: false,
+          traits: global.LuminousPlayerTraitRuntime?.getTraits?.() || [],
           blockLongRests: recovery.mechanics.blockLongRests,
           sourceTraitId: recovery.mechanics.sourceTraitId,
         });

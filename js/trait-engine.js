@@ -115,6 +115,7 @@
       MaxHP: num(runtime.MaxHP ?? runtime.maxHp ?? getPath(runtime, "self.maxHp") ?? combat.hp_max ?? character.maxHp), CurrentHP: num(runtime.CurrentHP ?? runtime.currentHp ?? getPath(runtime, "self.currentHp") ?? getPath(runtime, "self.hp") ?? combat.hp_actual ?? character.currentHp),
       MaxSP: num(runtime.MaxSP ?? runtime.maxSp ?? getPath(runtime, "self.maxSp") ?? combat.sp_max ?? character.maxSp), CurrentSP: num(runtime.CurrentSP ?? runtime.currentSp ?? getPath(runtime, "self.currentSp") ?? getPath(runtime, "self.sp") ?? combat.sp_actual ?? character.sp),
       SkillCoinCount: num(runtime.SkillCoinCount ?? skill.coinCount ?? skill.coinAmount ?? (Array.isArray(skill.coins) ? skill.coins.length : 0)), SkillWeight: num(runtime.SkillWeight ?? skill.weight ?? skill.attackWeight), SkillRange: num(runtime.SkillRange ?? skill.skillRange), SpellSlotLevel: num(runtime.SpellSlotLevel ?? skill.spellSlotLevel),
+      TargetSpeed: num(runtime.TargetSpeed ?? getPath(runtime, "target.speed") ?? getPath(runtime, "target.currentSpeed") ?? getPath(runtime, "target.resolvedSpeed")),
       TargetLevel: num(runtime.TargetLevel ?? getPath(runtime, "target.level")), TargetMaxHP: num(runtime.TargetMaxHP ?? getPath(runtime, "target.maxHp")), TargetCurrentHP: num(runtime.TargetCurrentHP ?? getPath(runtime, "target.currentHp") ?? getPath(runtime, "target.hp")),
       TargetOffensiveLevel: num(runtime.TargetOffensiveLevel ?? getPath(runtime, "target.offensiveLevel")), TargetDefensiveLevel: num(runtime.TargetDefensiveLevel ?? getPath(runtime, "target.defensiveLevel")),
       AliveAllies: num(runtime.AliveAllies ?? runtime.aliveAllies), AliveEnemies: num(runtime.AliveEnemies ?? runtime.aliveEnemies), TurnNumber: num(runtime.TurnNumber ?? runtime.turnNumber), RoundNumber: num(runtime.RoundNumber ?? runtime.roundNumber),
@@ -482,7 +483,7 @@
       const character = env.runtime.character || env.runtime.self || {};
       const statId = normalizeId(rule.statId), amount = num(rule.value), max = num(rule.max, Infinity);
       if (!character.stats || typeof character.stats !== "object") character.stats = {};
-      const aliases = statId === "strength" ? ["strength", "fuerza"] : statId === "constitution" ? ["constitution", "constitucion"] : [statId];
+      const aliases = { strength: ["fuerza", "strength"], dexterity: ["destreza", "dexterity"], constitution: ["constitucion", "constitution"], intelligence: ["inteligencia", "intelligence"], wisdom: ["sabiduria", "wisdom"], charisma: ["carisma", "charisma"] }[statId] || [statId];
       const key = aliases.find((alias) => Object.prototype.hasOwnProperty.call(character.stats, alias)) || aliases[0];
       const before = num(character.stats[key], 10), after = Math.min(max, before + amount); character.stats[key] = after;
       if (!character.statCaps || typeof character.statCaps !== "object") character.statCaps = {};

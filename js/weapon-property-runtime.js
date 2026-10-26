@@ -237,7 +237,12 @@
     if (coinIndex % 2 !== 0) return 0;
     const main = options.mainHand || options.weapon || null;
     const off = options.offHand || null;
-    return main && off && hasProperty(main, "light") && hasProperty(off, "light") ? 5 : 0;
+    const lightDual = main && off && hasProperty(main, "light") && hasProperty(off, "light");
+    const traits = Array.isArray(options.traits) ? options.traits : [];
+    const dualWielder = traits.some((trait) => normalizeId(typeof trait === "string" ? trait : trait?.id || trait?.name) === "dual_wielder");
+    const oneHandedMelee = (weapon) => weapon && Number(weapon.equipment?.handCost ?? weapon.handCost ?? weapon.handsRequired ?? 1) === 1
+      && normalizeId(weapon.classification || weapon.type).includes("melee");
+    return lightDual || (dualWielder && oneHandedMelee(main) && oneHandedMelee(off)) ? 5 : 0;
   }
 
   function requiresAmmunition(weapon = {}) {

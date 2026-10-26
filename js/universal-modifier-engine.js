@@ -318,7 +318,7 @@
         if (rule.whileStatus && !hasStatus(unit, rule.whileStatus, traitState)) return;
         if (!(rule.conditions || []).every((condition) => conditionMatches(condition, runtime, character, trait))) return;
         const id = normalizeId(rule.statId);
-        const aliases = id === "strength" ? ["fuerza", "strength"] : id === "constitution" ? ["constitucion", "constitution"] : [id];
+        const aliases = { strength: ["fuerza", "strength"], dexterity: ["destreza", "dexterity"], constitution: ["constitucion", "constitution"], intelligence: ["inteligencia", "intelligence"], wisdom: ["sabiduria", "wisdom"], charisma: ["carisma", "charisma"] }[id] || [id];
         const key = aliases.find((entry) => Object.prototype.hasOwnProperty.call(stats, entry)) || aliases[0];
         const max = Number.isFinite(Number(rule.max)) ? Number(rule.max) : Number.POSITIVE_INFINITY;
         const amount = valueForRule(rule, character, runtime, trait);

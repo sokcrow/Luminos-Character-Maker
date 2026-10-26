@@ -1,0 +1,31 @@
+name: General Traits 1-14 smoke
+on:
+  pull_request:
+    paths:
+      - 'js/general-trait-catalog.js'
+      - 'js/trait-engine.js'
+      - 'js/universal-modifier-engine.js'
+      - 'js/player-trait-runtime.js'
+      - 'js/dm-trait-catalog-importer.js'
+      - 'js/rest-engine.js'
+      - 'js/rest-runtime-integration.js'
+      - 'js/weapon-property-runtime.js'
+      - 'tests/general-trait-catalog-smoke.cjs'
+      - '.github/workflows/general-traits-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'js/general-trait-catalog.js'
+      - 'js/trait-engine.js'
+      - 'js/rest-engine.js'
+      - 'tests/general-trait-catalog-smoke.cjs'
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/general-trait-catalog-smoke.cjs
+      - run: node tests/weapon-property-runtime-smoke.cjs
