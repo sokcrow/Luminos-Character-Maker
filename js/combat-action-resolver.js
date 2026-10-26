@@ -114,7 +114,7 @@
     if (action.economy.cost === schema.ECONOMY_COSTS.QUICK_ACTION) {
       const economy = context.teamEconomy || global.LuminousTeamActionEconomy;
       if (economy?.consumeQuickAction && context.encounter) {
-        return economy.consumeQuickAction(context.encounter, sideForActor(actor));
+        return economy.consumeQuickAction(context.encounter, actor);
       }
       if (typeof context.consumeQuickAction === "function") return context.consumeQuickAction({ action, actor, context });
       return { consumed: false, reason: "team_quick_action_runtime_required" };
@@ -135,7 +135,7 @@
 
   function consumeHelpBudget(actor, context = {}) {
     const economy = context.teamEconomy || global.LuminousTeamActionEconomy;
-    if (economy?.consumeHelp && context.encounter) return economy.consumeHelp(context.encounter, sideForActor(actor));
+    if (economy?.consumeHelp && context.encounter) return economy.consumeHelp(context.encounter, actor);
     if (typeof context.consumeHelp === "function") return context.consumeHelp({ actor, context });
     return { consumed: false, reason: "team_help_runtime_required" };
   }

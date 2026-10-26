@@ -276,8 +276,8 @@
 
   function resetPlanningResources(encounter) {
     for (const team of [encounter.allies, encounter.enemies]) {
-      team.quickActionRemaining = 1;
-      team.helpRemaining = 1;
+      for(const {unit}of team.active){unit.quickActionRemaining=1;global.LuminousActionEconomy?.resetTurnResources?.(unit);if(global.LuminousUnitUniversalActionPolicy)global.LuminousUnitUniversalActionPolicy.snapshot(unit,{round:encounter.round});else if(Number(unit.universalActionPhaseLedger?.round)!==encounter.round)unit.universalActionPhaseLedger={round:encounter.round,spent:{}};}
+      team.quickActionRemaining=team.active.length;team.helpRemaining=team.active.length;
       team.ready = false;
     }
     return encounter;
@@ -296,20 +296,8 @@
     return null;
   }
 
-  function consumeQuickAction(encounter, side) {
-    const team = teamForSide(encounter, side);
-    if (![PHASES.PLANNING_PLAYER, PHASES.PLANNING_AI].includes(encounter.phase)) return { consumed: false, reason: "quick_action_planning_only" };
-    if (team.quickActionRemaining <= 0) return { consumed: false, reason: "team_quick_action_spent" };
-    team.quickActionRemaining = 0;
-    return { consumed: true, remaining: 0 };
-  }
-
-  function consumeHelp(encounter, side) {
-    const team = teamForSide(encounter, side);
-    if (team.helpRemaining <= 0) return { consumed: false, reason: "team_help_spent" };
-    team.helpRemaining = 0;
-    return { consumed: true, remaining: 0 };
-  }
+  function consumeQuickAction(encounter,unitOrId){const found=profileForUnit(encounter,unitOrId);if(!found)return{consumed:false,reason:'unit_required'};if(![PHASES.PLANNING_PLAYER,PHASES.PLANNING_AI,PHASES.COMBAT].includes(encounter.phase))return{consumed:false,reason:'quick_action_active_turn_only'};const unit=found.profile.unit;if(Number(unit.quickActionRemaining??1)<=0)return{consumed:false,reason:'unit_quick_action_spent'};unit.quickActionRemaining=0;const state=global.LuminousActionEconomy?.ensureState?.(unit);if(state)state.quickActionRemaining=0;return{consumed:true,remaining:0};}
+  function consumeHelp(encounter,unitOrId){const found=profileForUnit(encounter,unitOrId);if(!found)return{consumed:false,reason:'unit_required'};const ledger=found.profile.unit.universalActionPhaseLedger||={round:encounter.round,spent:{}};ledger.spent||={};if(ledger.spent['phase:combat_phase'])return{consumed:false,reason:'unit_universal_phase_spent'};ledger.spent.help=true;ledger.spent['phase:combat_phase']=true;return{consumed:true,remaining:0};}
 
   function lockUnitSlots(encounter, unitOrId, count = 1, reason = "status") {
     const found = profileForUnit(encounter, unitOrId);

@@ -23,7 +23,7 @@
   function terminal(action = {}) { return action.state === "resolved" || action.state === "cancelled"; }
 
   function isUnitActive(runtime, unit = {}) {
-    if (!unit || !entityId(unit)) return false;
+    if (!unit || !entityId(unit)||Number(unit.hp??1)<=0||unit.battleActive===false||unit.isBackup||unit.incapacitated) return false;
     if (unit.defeated === true || unit.dead === true || unit.removed === true || unit.escaped === true) return false;
     const absentThrough = Number(unit.combatAbsentThroughRound ?? unit.absentThroughRound ?? -1);
     return !Number.isFinite(absentThrough) || runtime.round > absentThrough;
@@ -62,7 +62,7 @@
   function setPhase(runtime, phase) { runtime.phase = schema.normalizePhase(phase, phase); return runtime.phase; }
 
   function resetLocalEconomy(runtime) {
-    for (const side of [queueApi.SIDE_A, queueApi.SIDE_B]) runtime.teamResources[side] = { quickActionRemaining: 1, helpRemaining: 1 };
+    for (const unit of activeUnits(runtime)){unit.quickActionRemaining=1;runtime.teamResources[entityId(unit)]={quickActionRemaining:1,helpRemaining:1};}
     runtime.reactionRemaining = {};
     for (const unit of activeUnits(runtime)) {
       const max = Number(unit.reactionsPerRound ?? unit.reactionMax ?? unit.maxReactions ?? 1);
@@ -71,7 +71,7 @@
   }
 
   function consumeLocalQuick(runtime, side) {
-    const bucket = runtime.teamResources[side] || runtime.teamResources[queueApi.SIDE_A];
+    const bucket=runtime.teamResources[side];if(!bucket)return{consumed:false,reason:"unit_required"};
     if (![schema.PHASES.PLANNING_PHASE_PLAYER, schema.PHASES.PLANNING_PHASE_AI].includes(runtime.phase)) return { consumed: false, reason: "quick_action_planning_only" };
     if (bucket.quickActionRemaining <= 0) return { consumed: false, reason: "team_quick_action_spent" };
     bucket.quickActionRemaining = 0;
@@ -79,7 +79,7 @@
   }
 
   function consumeLocalHelp(runtime, side) {
-    const bucket = runtime.teamResources[side] || runtime.teamResources[queueApi.SIDE_A];
+    const bucket=runtime.teamResources[side];if(!bucket)return{consumed:false,reason:"unit_required"};
     if (bucket.helpRemaining <= 0) return { consumed: false, reason: "team_help_spent" };
     bucket.helpRemaining = 0;
     return { consumed: true, remaining: 0 };
@@ -107,8 +107,8 @@
       coinwiseResolution: context.coinwiseResolution !== false,
       combatActionQueue: context.combatActionQueue || queueApi,
       isTargetAvailable: (target) => runtimeTargetAvailable(runtime, target, context),
-      consumeQuickAction: context.consumeQuickAction || (({ actor }) => consumeLocalQuick(runtime, queueApi.sideOf(actor))),
-      consumeHelp: context.consumeHelp || (({ actor }) => consumeLocalHelp(runtime, queueApi.sideOf(actor))),
+      consumeQuickAction: context.consumeQuickAction || (({ actor }) => consumeLocalQuick(runtime, entityId(actor))),
+      consumeHelp: context.consumeHelp || (({ actor }) => consumeLocalHelp(runtime, entityId(actor))),
       consumeReaction: context.consumeReaction || (({ actor }) => consumeLocalReaction(runtime, entityId(actor))),
     };
   }

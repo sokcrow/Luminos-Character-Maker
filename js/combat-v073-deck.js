@@ -110,4 +110,3 @@
   global.LuminousCombatSlotDeck073=Object.freeze({skills,eligible,definition,ensure,syncAll,hand,actionOptions,mark,compact,compactModeDecks,validatePlans});
   global.addEventListener('luminous:combat073-hydrated',()=>syncAll());
 })(window);
-

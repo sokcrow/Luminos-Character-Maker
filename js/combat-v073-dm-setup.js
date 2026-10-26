@@ -754,5 +754,3 @@
     actorForPlayer
   });
 })(window);
-
-

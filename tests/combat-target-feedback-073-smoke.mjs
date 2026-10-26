@@ -11,6 +11,45 @@ const manifest = JSON.parse(read('combat/combat-v073-live.manifest.json'));
 const packed = gunzipSync(Buffer.from(manifest.parts.map(part => read(part.file).replace(/\s+/g, '')).join(''), 'base64')).toString('utf8');
 const commitNeedle = '  renderTargetArrows();\n  if(isClashIntent(PLAYER_ID,completedIndex,plan)){';
 assert.equal(packed.split(commitNeedle).length - 1, 1, 'exactly one real packed successful targeting commit');
+// Execute the actual Viewer patch, then the production selection function.
+// Checking only the presence of the insertion needle misses rejected plans.
+let patched = packed;
+runInNewContext(viewer.slice(viewer.indexOf("    stage('patch-target-feedback'"), viewer.indexOf("    stage('patch-renderer'")), {
+  stage() {}, html: packed,
+  replaceUniqueCombatSource(before, after) {
+    assert.equal(patched.split(before).length - 1, 1);
+    patched = patched.replace(before, after);
+  }
+});
+const choose = patched.match(/function choosePlayerTarget\(slot\)\{[\s\S]*?\n\}\n/)[0];
+for (const scenario of ['valid', 'invalid-slot', 'rejected-help', 'clash']) {
+  const events = [], plan = {data:{name:'Skill 1'}}, slot = {dataset:{ownerId:'enemy',slotIndex:'0'}};
+  let finalized = false, confirmation = false;
+  const ctx = {
+    targetingModeActive:true, pendingTargetPlan:plan, pendingTargetSlotIndex:0,
+    PLAYER_ID:'hero', plannedActions:[plan],
+    combatData:{hero:{id:'hero',faction:'ally'},enemy:{id:'enemy',name:'Kobold',faction:'enemy'}},
+    planTargetRule:()=> 'enemy', targetSlotIsValid:()=>scenario!=='invalid-slot',
+    captureClashChoiceSnapshot:()=>({}), unitHasStatus:()=>false,
+    universalPlanPreview:()=>({ok:scenario!=='rejected-help'}), setStatus(){},
+    configureAtkWeightTargets(){}, configurePlayerClashChoice(){}, syncReadyControl(){},
+    $:()=>({classList:{remove(){}}}), clearTargetSelectionClasses(){}, renderTargetArrows(){},
+    isClashIntent:()=>scenario==='clash', beginClashConfirmation(){confirmation=true;},
+    finalizePlannedAction(){finalized=true;},
+    CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},
+    window:{dispatchEvent(event){assert.equal(plan.targetId,'enemy');events.push(event);}}
+  };
+  runInNewContext(choose+'\nchoosePlayerTarget(slot);', {...ctx,slot});
+  const accepted = scenario==='valid'||scenario==='clash';
+  assert.equal(events.length,accepted?1:0,scenario+' acknowledgement');
+  assert.equal(finalized,scenario==='valid');
+  assert.equal(confirmation,scenario==='clash');
+  if(accepted){
+    assert.equal(events[0].type,'luminous:combat073-target-selected');
+    assert.equal(events[0].detail.clashPending,scenario==='clash');
+    assert.equal(events[0].detail.targetId,'enemy');
+  }
+}
 assert.match(viewer, /replaceUniqueCombatSource\(/);
 assert.match(viewer, /luminous:combat073-target-selected/);
 assert.match(viewer, /css\/combat-target-feedback-073\.css/);

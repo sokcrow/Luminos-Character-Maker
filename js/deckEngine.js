@@ -417,4 +417,3 @@
     global.DeckEngine = DeckEngine;
     if (typeof module !== "undefined" && module.exports) module.exports = DeckEngine;
 })(typeof window !== "undefined" ? window : globalThis);
-

@@ -157,6 +157,7 @@
     if (!state || !canUse(unit, id, options)) return false;
     if (id === ACTION_COSTS.QUICK_ACTION) {
       state.quickActionRemaining = Math.max(0, finiteInt(state.quickActionRemaining, 0) - 1);
+      unit.quickActionRemaining=state.quickActionRemaining;
       return true;
     }
     if (id === ACTION_COSTS.REACTION) {
