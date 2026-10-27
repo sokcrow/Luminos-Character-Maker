@@ -6,7 +6,7 @@
  const style=`
  #limbus-session-mvp-action{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));right:16px;z-index:2150000;background:#291c10;color:#f4cb80;border:1px solid #b78b40;min-height:44px;padding:9px 16px;cursor:pointer;font-weight:700}
  #limbus-session-mvp-shade{position:fixed;inset:0;z-index:2150001;background:rgba(0,0,0,.85);display:grid;place-items:center;padding:16px;box-sizing:border-box}
- #limbus-session-mvp-dialog{width:min(760px,100%);max-height:min(90dvh,900px);overflow:auto;overscroll-behavior:contain;background:linear-gradient(155deg,#302116,#100f12);border:2px solid #ae7931;color:#f8ead8;box-shadow:0 16px 65px #000;padding:clamp(12px,3vw,28px);box-sizing:border-box;font:16px/1.4 Arial,sans-serif}
+ #limbus-session-mvp-shade[hidden],#limbus-session-mvp-action[hidden]{display:none}\n #limbus-session-mvp-dialog{width:min(760px,100%);max-height:min(90dvh,900px);overflow:auto;overscroll-behavior:contain;background:linear-gradient(155deg,#302116,#100f12);border:2px solid #ae7931;color:#f8ead8;box-shadow:0 16px 65px #000;padding:clamp(12px,3vw,28px);box-sizing:border-box;font:16px/1.4 Arial,sans-serif}
  #limbus-session-mvp-dialog h2{color:#ffd284;font-size:clamp(23px,4vw,34px);margin:0 0 12px}
  #limbus-session-mvp-dialog p{margin:8px 0 14px}
  #limbus-session-mvp-dialog button{border:1px solid #b99053;background:#45301a;color:#ffe4ac;min-height:44px;padding:10px 14px;cursor:pointer;font:inherit}
