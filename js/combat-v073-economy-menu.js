@@ -23,6 +23,7 @@
     reactionSpentRound: null,
     classObserver: null,
     menuObserver: null,
+    menuSyncFrame: null,
     itemRowByInstanceId: new Map(),
     rootMenuClickInstalled: false,
     actionBackRecoveryInstalled: false,
@@ -620,10 +621,11 @@
     const caster=isSpellcaster(unit)||Boolean(global.LuminousSpellLoadout?.selectedIds(unit)?.length)||
       selectedSpellIds(unit).size>0;
     spellMenuNodes().forEach((node) => {
-      node.hidden = !caster;
-      if (node.style) node.style.display = caster ? "" : "none";
-      node.setAttribute?.("aria-hidden", caster ? "false" : "true");
-      if ("disabled" in node) node.disabled = !caster;
+      if(node.hidden!==!caster)node.hidden = !caster;
+      const display=caster?"":"none",aria=caster?"false":"true";
+      if (node.style && node.style.display!==display) node.style.display = display;
+      if(node.getAttribute?.("aria-hidden")!==aria)node.setAttribute?.("aria-hidden",aria);
+      if ("disabled" in node && node.disabled!==!caster) node.disabled = !caster;
     });
     if (!caster && activeMenu() === "spells") {
       try { lexical("goRoot", () => {})(); } catch (_) {}
@@ -1081,9 +1083,9 @@
     const coarsePointer = global.matchMedia?.("(pointer: coarse)")?.matches === true;
     const compact = coarsePointer || Number(host.clientWidth || global.innerWidth || 0) <= 900;
     const menu = activeMenu();
-    host.classList.toggle("combat-compact-menu", compact);
-    host.classList.toggle("combat-root-menu-active", compact && !menu);
-    host.classList.toggle("combat-category-active", compact && Boolean(menu));
+    for(const [name,value] of [["combat-compact-menu",compact],["combat-root-menu-active",compact&&!menu],["combat-category-active",compact&&Boolean(menu)]]){
+      if(host.classList.contains(name)!==value)host.classList.toggle(name,value);
+    }
     return compact;
   }
 
@@ -1682,8 +1684,18 @@
       syncSpellMenuVisibility();
     });
     if (!state.menuObserver && typeof MutationObserver === "function" && global.document?.body) {
-      state.menuObserver = new MutationObserver(() => { syncSpellMenuVisibility(); syncResponsiveMenuLayout(); });
+      // Coins, HP labels and VFX insert nodes throughout the fight. They cannot
+      // change the command menu. Only rebuild its visibility for menu changes,
+      // and coalesce those into one frame instead of forcing layout per delivery.
+      const selector='#command-ring,.command-ring,[data-menu="spells"],[data-category="spells"],[data-action="spells"],[data-command="spells"],.command-option,.menu-option,img[src*="Spells.png"],img[src*="spells.png"]';
+      state.menuObserver = new MutationObserver(records => {
+        const relevant=records.some(record=>record.target?.closest?.(selector)||
+          [...record.addedNodes,...record.removedNodes].some(node=>node.nodeType===1&&(node.matches?.(selector)||node.querySelector?.(selector))));
+        if(!relevant||state.menuSyncFrame!==null)return;
+        state.menuSyncFrame=global.requestAnimationFrame(()=>{state.menuSyncFrame=null;syncSpellMenuVisibility();syncResponsiveMenuLayout()});
+      });
       state.menuObserver.observe(global.document.body, { childList: true, subtree: true });
+      global.addEventListener?.('beforeunload',()=>{state.menuObserver?.disconnect();if(state.menuSyncFrame!==null)global.cancelAnimationFrame(state.menuSyncFrame);state.menuSyncFrame=null;},{once:true});
     }
     state.installed = true;
     try {

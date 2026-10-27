@@ -2,14 +2,18 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import os from 'node:os';
 import {fixture,npcBenchmarkPlan} from './helpers/combat-nine-fixture.mjs';
 
 const harnessRoot=process.cwd(),base='http://127.0.0.1:4173';
+// Reuse the real authenticated harness for the single-player regression;
+// keep the historical nine-viewer experiment unchanged by default.
+const pair=process.env.COMBAT_BENCH_PLAYERS==='1',clientCount=pair?2:9,npcCount=pair?1:2;
 const namespace='demo-combat-results-default-rtdb';
-const output=path.resolve(process.env.COMBAT_BENCH_OUTPUT||'artifacts/combat-nine');
+const output=path.resolve(process.env.COMBAT_BENCH_OUTPUT||(pair?'artifacts/combat-pair':'artifacts/combat-nine'));
 const roots={before:path.resolve(process.env.COMBAT_BENCH_BASELINE_ROOT||''),after:harnessRoot};
 const labels={before:process.env.COMBAT_BENCH_BASELINE_SHA||'unrecorded',after:process.env.COMBAT_BENCH_CANDIDATE_SHA||'unrecorded'};
-const viewports=[[1280,720],[360,800],[390,844],[844,390],[768,1024],[1280,720],[1920,1080],[390,844],[1280,720]];
+const viewports=pair?[[1280,720],JSON.parse(process.env.COMBAT_BENCH_VIEWPORT||'[1280,720]')]:[[1280,720],[360,800],[390,844],[844,390],[768,1024],[1280,720],[1920,1080],[390,844],[1280,720]];
 let sourceRoot=harnessRoot,server;
 const endpoint=p=>`http://127.0.0.1:9100/${p.split('/').map(encodeURIComponent).join('/')}.json?ns=${namespace}`;
 async function admin(p,method='GET',value){
@@ -22,14 +26,24 @@ async function account(index){
   const data=await response.json();expect(data.localId,JSON.stringify(data)).toBeTruthy();return {uid:data.localId,email,password};
 }
 
-function instrument(){
+function instrument(options={}){
   // Fixture seed only. Presentation clocks/timers and the combat resolver are
   // untouched. Different UUIDs and Auth identities remain genuinely random.
   const randomValues=crypto.getRandomValues.bind(crypto);
   crypto.getRandomValues=values=>{if(values instanceof Uint32Array&&values.length===1){values[0]=0x1234abcd;return values}return randomValues(values)};
   try{localStorage.setItem('luminos.combat.presentation.v1',JSON.stringify({sound:false,volume:0,quality:'full'}));}catch{}
   const now=()=>performance.timeOrigin+performance.now()+(window.LuminousCombatPlaybackSync?.state.serverOffset||0);
-  const data=window.__nine={cues:[],events:[],received:[],frames:[],longTasks:[],profile:[],gpu:{frames:0,draws:0,drawingFrames:0,lastFrameDraws:0},active:false,ruleCalls:0,errors:[]};
+  const data=window.__nine={cues:[],events:[],received:[],frames:[],longTasks:[],profile:[],observers:[],gpu:{frames:0,draws:0,drawingFrames:0,lastFrameDraws:0},active:false,ruleCalls:0,errors:[]};
+  const NativeObserver=window.MutationObserver;
+  window.MutationObserver=class extends NativeObserver{
+    constructor(callback){
+      const row={origin:new Error().stack,calls:0,records:0,ms:0};data.observers.push(row);
+      super((records,observer)=>{
+        const active=data.active,start=performance.now();
+        try{return callback(records,observer)}finally{if(active){row.calls++;row.records+=records.length;row.ms+=performance.now()-start}}
+      });
+    }
+  };
   if(window.WebGL2RenderingContext){
     const proto=WebGL2RenderingContext.prototype,clear=proto.clear,draw=proto.drawArrays;
     const active=()=>data.active&&window.LuminousCombatAuthority073?.state.runningLocal;
@@ -64,7 +78,7 @@ function instrument(){
   }
   function start(event,cue,args){
     if(!event){data.errors.push('Missing presentation identity: '+cue);return null;}
-    const row={sequence:event.sequence,cue,owner:args?.[0]?.ownerId||null,opponent:args?.[1]?.ownerId||null,index:cue==='powerCoin'?args?.[1]?.index:cue==='hitCoin'?args?.[2]:null,result:resultValue(cue,args),startAt:now(),playAt:event.timing?.playAt??null,paintAt:null,endAt:null};
+    const row={roundId:event.roundId,sequence:event.sequence,cue,owner:args?.[0]?.ownerId||null,opponent:args?.[1]?.ownerId||null,index:cue==='powerCoin'?args?.[1]?.index:cue==='hitCoin'?args?.[2]:null,result:resultValue(cue,args),startAt:now(),playAt:event.timing?.playAt??null,paintAt:null,endAt:null};
     data.cues.push(row);requestAnimationFrame(()=>{
       row.paintAt=now();
       if(['actionStart','actionApproach','clashStart','clashOutcome','hitMotion'].includes(cue))row.scene={
@@ -101,16 +115,16 @@ function instrument(){
       const operation=measured('presentSync',api.present).call(surface,cue,args,...rest);
       return Promise.resolve(operation).finally(()=>{if(row)row.endAt=now()});
     }};
-    for(const name of ['refreshPlayback','queuePlaybackRefresh','flushPlaybackRefresh'])if(typeof api[name]==='function')wrapped[name]=measured(name,api[name]);
+    for(const name of ['refreshPlayback','queuePlaybackRefresh','flushPlaybackRefresh','finishPlayback'])if(typeof api[name]==='function')wrapped[name]=measured(name,api[name]);
     surface=Object.freeze(wrapped);
   }});
   let previous=performance.now();
-  function frame(at){const active=data.active&&window.LuminousCombatAuthority073?.state.runningLocal;if(active)data.frames.push({at:now(),ms:at-previous});previous=at;requestAnimationFrame(frame)}requestAnimationFrame(frame);
+  function frame(at){const running=Boolean(window.LuminousCombatAuthority073?.state.runningLocal),active=data.active&&(running||options.captureIdle);if(active)data.frames.push({at:now(),ms:at-previous,running,round:window.LuminousCombat073?.uiState?.().round,visibility:document.visibilityState});previous=at;requestAnimationFrame(frame)}requestAnimationFrame(frame);
   new PerformanceObserver(list=>{if(data.active)data.longTasks.push(...list.getEntries().map(e=>({at:performance.timeOrigin+e.startTime,duration:e.duration})))}).observe({type:'longtask'});
 }
 async function contextFor(browser,viewport,errors,blocked){
   const context=await browser.newContext({viewport:{width:viewport[0],height:viewport[1]},reducedMotion:'no-preference'});
-  await context.addInitScript(instrument);
+  await context.addInitScript(instrument,{captureIdle:pair});
   await context.route('**/*',async route=>{
     const url=route.request().url(),match=url.match(/firebasejs\/8\.10\.1\/(firebase-[a-z]+\.js)/);
     if(match){let body=fs.readFileSync(path.join(harnessRoot,'node_modules/firebase',match[1]),'utf8');
@@ -142,7 +156,7 @@ async function choose(frame,index){
 }
 async function snapshot(frame){return frame.evaluate(()=>({renderer:{spriteMode:window.LuminousWebGL2Renderer?.spriteMode?.(),quality:window.LuminousWebGL2Renderer?.qualityMode?.(),cores:navigator.hardwareConcurrency,textureCount:window.LuminousWebGL2Renderer?.textureCount?.()},ui:LuminousCombat073.uiState(),authority:{phase:LuminousCombatAuthority073.state.current?.phase,error:LuminousCombatAuthority073.state.lastStartError},domVitals:Object.fromEntries([...document.querySelectorAll('.sprite-container')].map(n=>[n.id.replace(/^token-/,''),{hp:n.querySelector('.hp-number')?.textContent,sp:n.querySelector('.floating-sp-group')?.textContent}])),units:Object.fromEntries(Object.entries(LuminousCombat073.combatants()).map(([id,u])=>[id,{hp:u.hp,sp:u.sp,lifeState:u.lifeState||null,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],shieldPools:u.shieldPools||{}}])),telemetry:window.__nine}));}
 
-test('Nine real Battle Viewers compare identical Clashes before and after',async({browser})=>{
+test('Authenticated Battle Viewers compare identical Clashes before and after',async({browser})=>{
   test.setTimeout(1200000);fs.mkdirSync(output,{recursive:true});
   expect(roots.before!==harnessRoot,'A distinct baseline checkout is required').toBeTruthy();
   server=http.createServer((req,res)=>{
@@ -150,29 +164,40 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
     if(!file.startsWith(sourceRoot+path.sep)){res.writeHead(403).end();return;}
     fs.readFile(file,(error,body)=>{if(error){res.writeHead(404).end();return;}res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.wav':'audio/wav'})[path.extname(file)]||'application/octet-stream');res.end(body);});
   });await new Promise(resolve=>server.listen(4173,'127.0.0.1',resolve));
-  const users=[];for(let index=0;index<9;index++)users.push(await account(index));
+  const users=[];for(let index=0;index<clientCount;index++)users.push(await account(index));
   const campaign=fixture(users),cases=[];
+  if(pair)delete campaign.combate.combatants.kobold2;
   try{
     // ABBA ordering limits warm-up and machine drift bias. All versions use
     // normal production timing, the same seed, fixture, plans and viewport mix.
-    for(const [iteration,label] of ['before','after','after','before'].entries()){
+    for(const [iteration,label] of (process.env.COMBAT_BENCH_ORDER||'before,after,after,before').split(',').entries()){
       sourceRoot=roots[label];await admin('campaña','PUT',campaign);
       const directory=path.join(output,`${iteration+1}-${label}`);fs.mkdirSync(directory,{recursive:true});
       const contexts=[],pages=[],frames=[],errors=[],blocked=[];
-      const result={label,iteration,sha:labels[label],viewports,seed:'0x1234abcd',accounts:9,players:8,fixture:'8 player actions + 2 opposed NPC actions, 3 Coins',complete:false,errors,blocked,clients:[]};
+      let trace;
+      const result={label,iteration,sha:labels[label],viewports,seed:'0x1234abcd',accounts:clientCount,players:clientCount-1,fixture:pair?'1 player + 1 opposed NPC, 3 Coins, repeated rounds':'8 player actions + 2 opposed NPC actions, 3 Coins',complete:false,errors,blocked,clients:[],rounds:[]};
       try{
-        for(let index=0;index<9;index++){
+        if(pair){trace=await browser.newBrowserCDPSession();await trace.send('Tracing.start',{categories:'devtools.timeline,v8,blink.user_timing',transferMode:'ReturnAsStream'});}
+        for(let index=0;index<clientCount;index++){
           const context=await contextFor(browser,viewports[index],errors,blocked);contexts.push(context);
           const page=await context.newPage();pages.push(page);frames.push(await login(page,users[index]));
         }
         const dm=frames[0];
-        await expect.poll(async()=>Object.keys((await admin('campaña/combate/planningAi'))?.plans||{}).length,{timeout:30000}).toBe(2);
+        if(pair){
+          result.environment={browser:browser.version(),cpu:os.cpus()[0]?.model,cores:os.cpus().length,platform:os.platform(),headless:true,assets:'historical SVG fixture; external assets blocked; not the user machine'};
+          for(const frame of frames)await frame.evaluate(()=>{__nine.active=true});
+          await new Promise(resolve=>setTimeout(resolve,5000));
+        }
+        const started=Date.now();
+        for(let cycle=1;cycle<=(pair?3:1);cycle++){
+        const cycleStart=Date.now();
+        await expect.poll(async()=>Object.keys((await admin('campaña/combate/planningAi'))?.plans||{}).length,{timeout:30000}).toBe(npcCount);
         // Explicit fixture actions authored through the real DM planning
         // channel. The real sealer, rules, resolver and animations still run.
         await dm.evaluate(async fixturePlans=>{
           const bridge=LuminousCombatRemoteIntents073,state=bridge.state;
           const row=JSON.parse(JSON.stringify(state.planningAi));
-          for(let i=1;i<=2;i++){
+          for(let i=1;i<=fixturePlans.length;i++){
             const id=`kobold${i}`,unit=LuminousCombat073.combatants()[id],skill=LuminousCombatLiveAdapter073.state.skills.enemy_s1;
             const option=LuminousCombatSlotDeck073.actionOptions(id,0).find(row=>row.id==='enemy_s1');
             if(!option?.__deckCard?.drawId)throw new Error('NPC fixture has no legal drawn Skill: '+id);
@@ -180,15 +205,17 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
             row.plans[id]={0:LuminousCombatAuthority073.serializeRuntimePlan(plan,id,0)};
           }
           await LuminousCombatLiveAdapter073.state.db.ref('campaña/combate/planningAi').set(row);
-        },[npcBenchmarkPlan(1,campaign.base_datos_skills.enemy_s1),npcBenchmarkPlan(2,campaign.base_datos_skills.enemy_s1)]);
+        },Array.from({length:npcCount},(_,index)=>npcBenchmarkPlan(index+1,campaign.base_datos_skills.enemy_s1)));
         await expect.poll(()=>dm.evaluate(()=>LuminousCombat073.combatants().kobold1.autoPlans?.[0]?.targetId)).toBe('player:p1');
         for(const frame of frames)await frame.evaluate(()=>{__nine.active=true});
-        const started=Date.now();
-        for(let index=1;index<9;index++)await choose(frames[index],index-1);
-        await expect.poll(()=>dm.evaluate(()=>__nine.cues.some(row=>row.cue==='clashStart')),{timeout:45000}).toBe(true);
-        await Promise.all([pages[0].screenshot({path:path.join(directory,'dm-live-clash.png')}),pages[2].screenshot({path:path.join(directory,'phone-live-clash.png')})]);
-        await expect.poll(async()=>(await admin('campaña/combate/estado'))?.round,{timeout:180000}).toBe(2);
-        for(const frame of frames)await expect.poll(()=>frame.evaluate(()=>({round:LuminousCombat073.uiState().round,running:LuminousCombatAuthority073.state.runningLocal})),{timeout:60000}).toEqual({round:2,running:false});
+        const previousClashes=await dm.evaluate(()=>__nine.cues.filter(row=>row.cue==='clashStart').length);
+        for(let index=1;index<clientCount;index++)await choose(frames[index],index-1);
+        await expect.poll(()=>dm.evaluate(()=>__nine.cues.filter(row=>row.cue==='clashStart').length),{timeout:45000}).toBeGreaterThan(previousClashes);
+        await Promise.all([pages[0].screenshot({path:path.join(directory,`dm-clash-${cycle}.png`)}),pages[pair?1:2].screenshot({path:path.join(directory,`player-clash-${cycle}.png`)})]);
+        await expect.poll(async()=>(await admin('campaña/combate/estado'))?.round,{timeout:180000}).toBe(cycle+1);
+        for(const frame of frames)await expect.poll(()=>frame.evaluate(()=>({round:LuminousCombat073.uiState().round,running:LuminousCombatAuthority073.state.runningLocal})),{timeout:60000}).toEqual({round:cycle+1,running:false});
+        if(pair)result.rounds.push({round:cycle,wallMs:Date.now()-cycleStart,settled:await Promise.all(frames.map(frame=>frame.evaluate(()=>({heap:performance.memory?.usedJSHeapSize,animations:document.getAnimations().filter(a=>a.playState==='running').length,visibility:document.visibilityState,dpr:devicePixelRatio}))))});
+        }
         result.wallMs=Date.now()-started;
         result.authority=await admin('campaña/combate/authority/current');
         result.batches=await admin('campaña/combate/playback/current/batches');
@@ -198,7 +225,8 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
         const checkpoint=saved.stateJson?JSON.parse(saved.stateJson):saved.combatants;
         expect(checkpoint,'Authoritative final combatant snapshot').toBeTruthy();
         const canonical=id=>{const u=checkpoint[id];return {hp:u.hp,sp:u.sp,lifeState:u.lifeState||null,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],shieldPools:u.shieldPools||{}}};
-        const dmCues=new Map(result.clients[0].telemetry.cues.map(cue=>[cue.sequence,cue]));
+        const cueKey=cue=>`${cue.roundId||''}:${cue.sequence}`;
+        const dmCues=new Map(result.clients[0].telemetry.cues.map(cue=>[cueKey(cue),cue]));
         for(const client of result.clients){
           expect(client.telemetry.errors).toEqual([]);
           expect(client.telemetry.profile.length,'Measured runtime API calls').toBeGreaterThan(0);
@@ -210,7 +238,7 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
             expect(client.domVitals[id]?.hp,`visible canonical HP ${id}`).toBe(String(Math.round(checkpoint[id].hp)));
             expect(client.domVitals[id]?.sp,`visible canonical SP ${id}`).toBe(String(Math.round(checkpoint[id].sp)));
           }
-          for(const cue of client.telemetry.cues)expect(cue.result,`rendered result of event ${cue.sequence}`).toEqual(dmCues.get(cue.sequence)?.result);
+          for(const cue of client.telemetry.cues)expect(cue.result,`rendered result of event ${cueKey(cue)}`).toEqual(dmCues.get(cueKey(cue))?.result);
         }
         if(label==='after')for(const client of result.clients){
           expect(client.renderer?.spriteMode,'Shared DOM base composition for DM and Players').toBe('dom-hybrid');
@@ -220,7 +248,7 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
             expect(cue.scene?.participants,'Real DOM highlights both Clash participants').toEqual([cue.owner,cue.opponent].sort());
             expect(cue.scene?.movement.some(row=>row.id===cue.owner||row.id===cue.opponent),'Clash approach moves actual tokens').toBe(true);
           }
-          expect(client.telemetry.cues.some(c=>c.cue==='actionApproach'),'Unopposed movement is transmitted').toBe(true);
+          if(!pair)expect(client.telemetry.cues.some(c=>c.cue==='actionApproach'),'Unopposed movement is transmitted').toBe(true);
           for(const cue of client.telemetry.cues.filter(c=>c.cue==='actionApproach')){
             expect(cue.scene?.camera).toBe('combat');
             expect(cue.scene?.participants).toContain(cue.owner);
@@ -228,9 +256,29 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
           }
         }
         for(const client of result.clients.slice(1))expect(client.telemetry.ruleCalls,'Players never resolve damage or random Coins locally').toBe(0);
+        if(pair){
+          const dmKeys=result.clients[0].telemetry.cues.map(cueKey).sort();
+          const playerKeys=result.clients[1].telemetry.cues.map(cueKey).sort();
+          expect(new Set(playerKeys).size,'No duplicate Player presentation events').toBe(playerKeys.length);
+          expect(playerKeys,'Every DM presentation is consumed across all three rounds').toEqual(dmKeys);
+        }
         expect(errors).toEqual([]);result.complete=true;
         await Promise.all(pages.map((page,index)=>page.screenshot({path:path.join(directory,`final-${index}.png`)})));
+        if(pair){
+          const requestedAt=Date.now();
+          await pages[0].locator('#combat-entry-menu > summary').click();
+          await pages[0].locator('#combat-entry-end').click();
+          await pages[0].locator('#combat-entry-result').selectOption('cancelled');
+          await pages[0].locator('#combat-entry-confirm-end').click();
+          await expect.poll(()=>admin('campaña/combate/estado/phase'),{timeout:30000}).toBe('ENDED');
+          result.ending={requestedAt,endedAt:Date.now()};
+          await expect.poll(()=>admin('campaña/estado_mundo/instancia_activa'),{timeout:15000}).toBe('teatro');
+          result.ending.theatreAt=Date.now();
+          await expect(pages[1].locator('#combat-entry-view')).toBeHidden({timeout:15000});
+          result.ending.playerHiddenAt=Date.now();
+        }
       }catch(error){
+        result.complete=false;
         result.failure=String(error.stack||error);
         result.clients=await Promise.all(frames.map(frame=>snapshot(frame).catch(error=>({failure:String(error)}))));
         result.combatSnapshot=await admin('campaña/combate').catch(()=>null);
@@ -238,6 +286,14 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
         result.batches=await admin('campaña/combate/playback/current/batches').catch(()=>null);
         await Promise.all(pages.map((page,index)=>page.screenshot({path:path.join(directory,`failure-${index}.png`),timeout:5000}).catch(()=>{})));
       }finally{
+        if(trace){
+          try{
+            const complete=new Promise(resolve=>trace.once('Tracing.tracingComplete',resolve));
+            await trace.send('Tracing.end');const {stream}=await complete;
+            const file=fs.openSync(path.join(directory,'chromium-trace.json'),'w');
+            try{for(;;){const chunk=await trace.send('IO.read',{handle:stream});fs.writeSync(file,chunk.base64Encoded?Buffer.from(chunk.data,'base64'):chunk.data);if(chunk.eof)break}}finally{fs.closeSync(file);await trace.send('IO.close',{handle:stream})}
+          }catch(error){result.traceFailure=String(error)}finally{await trace.detach()}
+        }
         fs.writeFileSync(path.join(directory,'raw.json'),JSON.stringify(result,null,2));cases.push({label,iteration,complete:result.complete,failure:result.failure||null});
         await Promise.all(contexts.map(context=>context.close()));
       }
