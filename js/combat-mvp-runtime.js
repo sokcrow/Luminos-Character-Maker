@@ -70,7 +70,7 @@
   }
   function bonus(base,isWinner,victory=true){
     const xp=Math.max(0,Math.floor(finite(base)));
-    return victory&&isWinner?Math.floor(xp*1.15):xp;
+    return victory&&isWinner?Math.floor(xp*115/100):xp;
   }
   function sessionXp(level){return Math.max(100,100*Math.floor(Math.max(1,Math.floor(finite(level)||1))/5));}
   const api=Object.freeze({WEIGHTS,eligibleActors,selectMvp,bonus,sessionXp,recordEvent,snapshotMetrics,resetMetrics});
