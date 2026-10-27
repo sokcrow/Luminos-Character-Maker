@@ -8374,6 +8374,12 @@ function hydrateLiveCombat(payload={}){
   initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();
   return initializeCombatSurface({playIntro:payload.playIntro!==false})
 }
+const playbackVisualChanges=new Map();
+let playbackVisualFrame=null;
+function clearPlaybackVisualChanges(){
+  if(playbackVisualFrame!==null)cancelAnimationFrame(playbackVisualFrame);
+  playbackVisualFrame=null;playbackVisualChanges.clear()
+}
 window.LuminousCombatStepRuntime=Object.freeze({
   version:window.LuminousCombatSteps.version,
   events:afterSequence=>combatStepRuntime().events(afterSequence),
@@ -8421,6 +8427,7 @@ window.LuminousCombatStepRuntime=Object.freeze({
     activeGrapples=attach(saved.activeGrapples||[]);grappleSerial=Number(saved.grappleSerial)||0
   },
   async present(cue,args,visual){
+    this.flushPlaybackRefresh();
     const entry=value=>{
       if(Array.isArray(value))return value.map(entry);
       if(value?.ownerId&&value?.plan)return {...value,slot:unitSlots(value.ownerId)[value.localIndex??0]||null};
@@ -8441,6 +8448,7 @@ window.LuminousCombatStepRuntime=Object.freeze({
     syncReadyControl();window.LuminousCombatHudMotion073?.refresh()
   },
   beginPlayback(turn){
+    clearPlaybackVisualChanges();
     round=Math.max(1,Number(turn)||1);
     $('round').textContent=round;
     this.lockPlanning(true);
@@ -8448,17 +8456,50 @@ window.LuminousCombatStepRuntime=Object.freeze({
     combatStepRuntime().resetJournal();
     setCameraFocus('full',false)
   },
-  refreshPlayback(){
-    window.LuminousCombatStage073?.refresh();window.LuminousCombatHudMotion073?.refresh();
-    Object.entries(combatData).forEach(([id,unit])=>{
-      syncCombatantVitalNumber(id);
-      const token=$(`token-${id}`),pct=combatantHpPct(unit,unit.hp);
-      for(const line of token?.querySelectorAll('.hp-fill-line,.hp-transition-line')||[])setHpLinePct(line,pct,0);
-      const orb=token?.querySelector('.floating-sp-group');if(orb)orb.textContent=Math.round(unit.sp);
-      renderStatusEffects(id)
-    })
+  cancelPlaybackRefresh:clearPlaybackVisualChanges,
+  queuePlaybackRefresh(changes){
+    for(const {unitId,fields}of changes){
+      let dirty=playbackVisualChanges.get(unitId);
+      if(!dirty)playbackVisualChanges.set(unitId,dirty=new Set());
+      for(const field of fields)dirty.add(field)
+    }
+    if(playbackVisualChanges.size&&playbackVisualFrame===null)playbackVisualFrame=requestAnimationFrame(()=>this.flushPlaybackRefresh())
+  },
+  flushPlaybackRefresh(){
+    if(playbackVisualFrame!==null)cancelAnimationFrame(playbackVisualFrame);
+    playbackVisualFrame=null;
+    if(!playbackVisualChanges.size)return;
+    const changes=[...playbackVisualChanges].map(([unitId,fields])=>({unitId,fields:[...fields]}));
+    playbackVisualChanges.clear();
+    try{this.refreshPlayback(changes)}catch(error){console.warn('[Combat playback visual refresh]',error)}
+  },
+  refreshPlayback(changes){
+    const full=!Array.isArray(changes);
+    if(full){window.LuminousCombatStage073?.refresh();window.LuminousCombatHudMotion073?.refresh()}
+    const rows=full?Object.keys(combatData).map(unitId=>({unitId,fields:null})):changes;
+    let conditions=false,layout=false,fieldHeight=null;
+    for(const {unitId:id,fields}of rows){
+      const unit=combatData[id];if(!unit)continue;
+      const has=(...keys)=>full||keys.some(key=>fields.includes(key));
+      if(has('hp','maxHp','sp','shieldPools','observationKnown','lifeState','dead','defeated')){
+        syncCombatantVitalNumber(id);
+        const token=$(`token-${id}`),pct=combatantHpPct(unit,unit.hp);
+        for(const line of token?.querySelectorAll('.hp-fill-line,.hp-transition-line')||[])setHpLinePct(line,pct,0);
+        const orb=token?.querySelector('.floating-sp-group');if(orb)orb.textContent=Math.round(unit.sp);
+        if(!full&&has('shieldPools'))renderCombatantShield(id,0)
+      }
+      if(has('statusEffects','pendingStatusEffects')){renderStatusEffects(id);conditions=true;layout=true}
+      if(!full&&has('staggerStage','staggerActivatedRound','staggerUntilRound','incapacitated','lifeState','isDowned','isDead','dead','defeated','statusEffects')){syncUnitActionState(id);conditions=true}
+      if(!full&&has('x','y','scale','spriteY','deploymentState','battleActive','isBackup')){
+        if(fieldHeight===null)fieldHeight=$('battlefield')?.offsetHeight;
+        window.LuminousCombatStage073?.refreshUnit(unit,fieldHeight);layout=true
+      }
+    }
+    if(!full&&conditions)syncConditionVisuals();
+    if(!full&&layout)window.LuminousCombatHudMotion073?.scheduleStatusLayout?.()
   },
   finishPlayback(next){
+    this.flushPlaybackRefresh();
     closeAllFloatingClashHuds();clearTimelineVisualFocus();
     round=Math.max(1,Number(next)||1);$('round').textContent=round;
     plannedActions=[];planReady=false;timelineResolutionActive=false;

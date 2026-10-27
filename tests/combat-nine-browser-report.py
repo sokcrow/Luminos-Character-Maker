@@ -2,6 +2,7 @@
 import csv
 import json
 import math
+import os
 import statistics
 import sys
 from collections import Counter, defaultdict
@@ -76,6 +77,18 @@ for label in ['before', 'after']:
 coverage={label:{key:sum(c.get(key,0) for c in cases if c['label']==label) for key in ['expected','painted','omittedCommands','missingPaintSamples','duplicateCommands','unexpectedCommands']} for label in ['before','after']}
 accepted=valid and all(c['renderCoverageComplete'] and c.get('scene',{}).get('clashSamples',0)>0 and not any(c.get('scene',{}).get(key,1) for key in ['unmeasured','cameraMissing','focusMismatch','movementMissing']) for c in cases if c['label']=='after')
 report = {'valid': valid, 'acceptedAfterWithVisualChecks':accepted,'coverage':coverage, 'sameWorkloadAndOutcome': comparable, 'cases': cases, 'metrics': metrics, 'definition': 'Desfase absoluto = magnitud de la diferencia del primer requestAnimationFrame tras iniciar la presentación respecto al mismo evento del DM. Incluye adelantos y retrasos; lagMs conserva solo retrasos y signedSkewMs su signo. Es una oportunidad de pintar, no una lectura de píxeles. El tiempo entre frames se mide aparte. Los percentiles usan muestras observadas; omisiones y muestras sin RAF se cuentan por separado, nunca como latencia cero. Cuatro rondas con ritmo normal, mismo escenario, semilla y viewports, orden ABBA, Auth/RTDB Emulator y una pareja de capturas en vivo por ronda. Nueve contextos comparten un runner CI: no son nueve dispositivos físicos ni una medición de Internet.'}
+budget=float(os.environ['COMBAT_BENCH_CLASH_BUDGET_MS']) if os.environ.get('COMBAT_BENCH_CLASH_BUDGET_MS') else None
+observed=metrics['after']['clashSkewAbsMs']['p95']
+report['performanceBudget']={'maxClashP95Ms':budget,'observedClashP95Ms':observed,'passed':observed is not None and observed < budget if budget is not None else None}
+report['profiles']={}
+for label in ['before','after']:
+    grouped={'dm':defaultdict(list),'players':defaultdict(list)}
+    for result in raw:
+        if result['label']!=label:continue
+        for index,client in enumerate(result.get('clients',[])):
+            role='dm' if index==0 else 'players'
+            for mark in client.get('telemetry',{}).get('profile',[]):grouped[role][mark['name']].append(mark['ms'])
+    report['profiles'][label]={role:{name:{'calls':len(values),'totalMs':sum(values),'durationMs':summary(values)} for name,values in by_name.items()} for role,by_name in grouped.items()}
 root.mkdir(parents=True, exist_ok=True)
 (root/'summary.json').write_text(json.dumps(report, indent=2, ensure_ascii=False))
 if samples:
@@ -131,6 +144,7 @@ for cue in cues:
     data=metrics['after']['byPhase'][cue]
     values=[data[k]['p95'] for k in ['absoluteSkewMs','queueLateMs','paintMs','wireAfterDeadlineMs']]
     lines.append('| '+names.get(cue,cue)+' | '+' | '.join('Sin dato' if v is None else f'{v:.1f} ms' for v in values)+' |')
+lines+=['',f"Presupuesto de rendimiento: {json.dumps(report['performanceBudget'],ensure_ascii=False)}",'', 'Las duraciones de perfiles API son inclusivas y pueden anidarse: no se suman para atribuir CPU. Consultar summary.json para conteos y percentiles por DM/Players.']
 (root/'RESULTADO.md').write_text('\n'.join(lines)+'\n')
-print(json.dumps({'valid':valid,'sameWorkloadAndOutcome':comparable,'beforeAbsoluteClashP95':before,'afterAbsoluteClashP95':after,'cases':cases},ensure_ascii=False))
-if not valid: sys.exit(1)
+print(json.dumps({'valid':valid,'sameWorkloadAndOutcome':comparable,'beforeAbsoluteClashP95':before,'afterAbsoluteClashP95':after,'performanceBudget':report['performanceBudget'],'cases':cases},ensure_ascii=False))
+if not valid or (budget is not None and not report['performanceBudget']['passed']): sys.exit(1)

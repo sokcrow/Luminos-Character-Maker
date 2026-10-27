@@ -29,7 +29,21 @@ function instrument(){
   crypto.getRandomValues=values=>{if(values instanceof Uint32Array&&values.length===1){values[0]=0x1234abcd;return values}return randomValues(values)};
   try{localStorage.setItem('luminos.combat.presentation.v1',JSON.stringify({sound:false,volume:0,quality:'full'}));}catch{}
   const now=()=>performance.timeOrigin+performance.now()+(window.LuminousCombatPlaybackSync?.state.serverOffset||0);
-  const data=window.__nine={cues:[],events:[],received:[],frames:[],longTasks:[],active:false,ruleCalls:0,errors:[]};
+  const data=window.__nine={cues:[],events:[],received:[],frames:[],longTasks:[],profile:[],active:false,ruleCalls:0,errors:[]};
+  function measured(name,fn){
+    if(fn.__nineProfile)return fn;
+    const wrapped=function(...args){
+      const active=data.active&&window.LuminousCombatAuthority073?.state.runningLocal,start=performance.now();
+      try{return fn.apply(this,args)}finally{if(active)data.profile.push({name,ms:performance.now()-start,at:now()})}
+    };
+    Object.defineProperty(wrapped,'__nineProfile',{value:true});return wrapped;
+  }
+  for(const [name,methods]of [['LuminousCombatAuthority073',['applySnapshot']],['LuminousCombat073',['render']],['LuminousCombatStage073',['refresh','refreshUnit']],['LuminousCombatHudMotion073',['refresh','scheduleStatusLayout']]]){
+    let value;
+    Object.defineProperty(window,name,{configurable:true,get:()=>value,set(api){
+      const wrapped={...api};for(const method of methods)if(typeof api[method]==='function')wrapped[method]=measured(name+'.'+method,api[method]);value=Object.freeze(wrapped);
+    }});
+  }
   const pending=new Map(),renderEvents=new WeakMap();
   const key=(cue,args)=>JSON.stringify([cue,args?.[0]?.ownerId||args?.[0]||null,args?.[1]?.ownerId||null,cue==='powerCoin'?args?.[1]?.index:cue==='hitCoin'?args?.[2]:null]);
   const sides=coins=>(coins||[]).map(coin=>coin?.side||null);
@@ -75,11 +89,15 @@ function instrument(){
     const core=api.createConsumer({...options,present(cue,args,row,event){renderEvents.set(args,event);return present(cue,args,row,event)}});
     return Object.freeze({...core,receive(row){data.received.push({seq:row.seq,at:now()});return core.receive(row)}});
   }});}});
-  Object.defineProperty(window,'LuminousCombatStepRuntime',{configurable:true,get:()=>surface,set(api){surface=Object.freeze({...api,present(cue,args,...rest){
-    const event=rest[1]||renderEvents.get(args),row=start(event,cue,args);
-    const operation=api.present(cue,args,...rest);
-    return Promise.resolve(operation).finally(()=>{if(row)row.endAt=now()});
-  }});}});
+  Object.defineProperty(window,'LuminousCombatStepRuntime',{configurable:true,get:()=>surface,set(api){
+    const wrapped={...api,present(cue,args,...rest){
+      const event=rest[1]||renderEvents.get(args),row=start(event,cue,args);
+      const operation=measured('presentSync',api.present).call(surface,cue,args,...rest);
+      return Promise.resolve(operation).finally(()=>{if(row)row.endAt=now()});
+    }};
+    for(const name of ['refreshPlayback','queuePlaybackRefresh','flushPlaybackRefresh'])if(typeof api[name]==='function')wrapped[name]=measured(name,api[name]);
+    surface=Object.freeze(wrapped);
+  }});
   let previous=performance.now();
   function frame(at){const active=data.active&&window.LuminousCombatAuthority073?.state.runningLocal;if(active)data.frames.push({at:now(),ms:at-previous});previous=at;requestAnimationFrame(frame)}requestAnimationFrame(frame);
   new PerformanceObserver(list=>{if(data.active)data.longTasks.push(...list.getEntries().map(e=>({at:performance.timeOrigin+e.startTime,duration:e.duration})))}).observe({type:'longtask'});
@@ -116,7 +134,7 @@ async function choose(frame,index){
   },index);
   await frame.locator('#ready').click({timeout:30000});
 }
-async function snapshot(frame){return frame.evaluate(()=>({ui:LuminousCombat073.uiState(),authority:{phase:LuminousCombatAuthority073.state.current?.phase,error:LuminousCombatAuthority073.state.lastStartError},units:Object.fromEntries(Object.entries(LuminousCombat073.combatants()).map(([id,u])=>[id,{hp:u.hp,sp:u.sp,lifeState:u.lifeState||null,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],shieldPools:u.shieldPools||{}}])),telemetry:window.__nine}));}
+async function snapshot(frame){return frame.evaluate(()=>({ui:LuminousCombat073.uiState(),authority:{phase:LuminousCombatAuthority073.state.current?.phase,error:LuminousCombatAuthority073.state.lastStartError},domVitals:Object.fromEntries([...document.querySelectorAll('.sprite-container')].map(n=>[n.id.replace(/^token-/,''),{hp:n.querySelector('.hp-number')?.textContent,sp:n.querySelector('.floating-sp-group')?.textContent}])),units:Object.fromEntries(Object.entries(LuminousCombat073.combatants()).map(([id,u])=>[id,{hp:u.hp,sp:u.sp,lifeState:u.lifeState||null,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],shieldPools:u.shieldPools||{}}])),telemetry:window.__nine}));}
 
 test('Nine real Battle Viewers compare identical Clashes before and after',async({browser})=>{
   test.setTimeout(1200000);fs.mkdirSync(output,{recursive:true});
@@ -177,10 +195,15 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
         const dmCues=new Map(result.clients[0].telemetry.cues.map(cue=>[cue.sequence,cue]));
         for(const client of result.clients){
           expect(client.telemetry.errors).toEqual([]);
+          expect(client.telemetry.profile.length,'Measured runtime API calls').toBeGreaterThan(0);
           expect(client.telemetry.cues.some(row=>row.cue==='clashStart')).toBe(true);
           expect(client.telemetry.cues.some(row=>row.cue==='clashOutcome')).toBe(true);
           expect(client.telemetry.cues.some(row=>row.cue==='hitMotion')).toBe(true);
           for(const id of Object.keys(checkpoint))expect(client.units[id],`canonical results ${id}`).toEqual(canonical(id));
+          for(const id of Object.keys(checkpoint).filter(id=>id.startsWith('player:'))){
+            expect(client.domVitals[id]?.hp,`visible canonical HP ${id}`).toBe(String(Math.round(checkpoint[id].hp)));
+            expect(client.domVitals[id]?.sp,`visible canonical SP ${id}`).toBe(String(Math.round(checkpoint[id].sp)));
+          }
           for(const cue of client.telemetry.cues)expect(cue.result,`rendered result of event ${cue.sequence}`).toEqual(dmCues.get(cue.sequence)?.result);
         }
         if(label==='after')for(const client of result.clients){

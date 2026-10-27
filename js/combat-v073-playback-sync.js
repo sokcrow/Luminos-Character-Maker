@@ -117,6 +117,7 @@
     if (state.viewerFinishTimer != null) global.clearTimeout?.(state.viewerFinishTimer);
     state.viewerRecoveryTimer = state.viewerFinishTimer = null;
     state.viewerClock?.stop(); state.viewerClock = null;
+    surface()?.cancelPlaybackRefresh?.();
     global.LuminousCombatAudiovisual073?.clear();
     state.consumer?.stop(); state.consumer = null;
     if (state.ref && state.handler) state.ref.off('child_added', state.handler);
@@ -290,9 +291,15 @@
           }
         },
         apply: snapshot => {
-          a.applySnapshot(snapshot);
-          try { surface().refreshPlayback(); }
-          catch (error) { global.console?.warn?.('[Combat playback visual refresh]', error); }
+          const view=surface();
+          if(typeof view.queuePlaybackRefresh==='function'){
+            const changes=[];
+            a.applySnapshot(snapshot,{deferRender:true,changes});
+            try{view.queuePlaybackRefresh(changes)}catch(error){global.console?.warn?.('[Combat playback visual refresh]',error)}
+          }else{
+            a.applySnapshot(snapshot);
+            try{view.refreshPlayback()}catch(error){global.console?.warn?.('[Combat playback visual refresh]',error)}
+          }
         },
         onEvent: event => {
           surface().acceptEvent(event); a.state.cursor = Number(event.rngCursor) || 0;

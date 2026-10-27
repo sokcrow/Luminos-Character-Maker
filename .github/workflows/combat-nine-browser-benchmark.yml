@@ -25,19 +25,23 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node tests/combat-nine-browser-fixture-smoke.mjs
       - run: node tests/combat-spectator-presentation-smoke.mjs
+      - run: node tests/combat-playback-dirty-render-smoke.mjs
+      - run: node scripts/build-combat-live.mjs --check
       - run: python -m pip install matplotlib
-      - name: Exact pre-fix baseline
+      - name: Exact pre-optimization baseline
         run: |
-          git fetch --no-tags --depth=1 origin f4a66cddd3ea8a767f5b9614d5a2fc4e47b6d3e7
-          git worktree add "$RUNNER_TEMP/combat-baseline" f4a66cddd3ea8a767f5b9614d5a2fc4e47b6d3e7
+          git fetch --no-tags --depth=1 origin cbba1548679606ed67a2d875ba27060920764dd1
+          git worktree add "$RUNNER_TEMP/combat-baseline" cbba1548679606ed67a2d875ba27060920764dd1
       - name: Full combat with eight players and one DM
         env:
           COMBAT_BENCH_BASELINE_ROOT: ${{ runner.temp }}/combat-baseline
-          COMBAT_BENCH_BASELINE_SHA: f4a66cddd3ea8a767f5b9614d5a2fc4e47b6d3e7
+          COMBAT_BENCH_BASELINE_SHA: cbba1548679606ed67a2d875ba27060920764dd1
           COMBAT_BENCH_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: npx firebase emulators:exec --project demo-combat-results --only auth,database --config combat-results-firebase.json 'npx playwright test tests/combat-nine-browser-benchmark.spec.mjs --workers=1 --reporter=line --output=artifacts/combat-nine/playwright'
       - name: Measured latency and phase charts
         if: always()
+        env:
+          COMBAT_BENCH_CLASH_BUDGET_MS: '100'
         run: python tests/combat-nine-browser-report.py artifacts/combat-nine
       - uses: actions/upload-artifact@v4
         if: always()

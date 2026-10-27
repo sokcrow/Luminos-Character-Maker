@@ -6,7 +6,7 @@ Ocho cuentas de Player y una cuenta DM, cada una en un contexto Chromium aislado
 
 La carga contiene ocho combatientes jugador, dos NPC, tres Coins por Skill, ocho acciones de Player y dos acciones NPC opuestas. La semilla de reglas está fijada, las Skills de los tres tiers tienen la misma potencia y la iniciativa de la fixture conserva el mismo orden. Las animaciones usan sus duraciones normales, sin aceleración ni multiplicador. No se introduce retraso WAN artificial ni throttling de CPU. Los diez combatientes usan sprites SVG simples de la fixture; esta comparación no mide el coste de los assets de una campaña concreta.
 
-Baseline anterior a las correcciones: `f4a66cddd3ea8a767f5b9614d5a2fc4e47b6d3e7`. El candidato usa el código actual del PR. Se ejecutan cuatro rondas independientes en orden **antes, ahora, ahora, antes**, con cuentas y viewports equivalentes. La comparación comprueba igualdad de semilla, secuencia de resultados del DM y estado final; una carga distinta no se presenta como mejora de rendimiento. La equivalencia excluye únicamente `actionApproach` de la lista de cues: es una nueva presentación de un acercamiento que ya ejecutaba el DM, sin reglas ni tiradas adicionales. Su latencia actual se muestra sin inventar una barra anterior.
+Baseline de la optimización de Players: `cbba1548679606ed67a2d875ba27060920764dd1` (versión de escena compartida con P95 previo de 220,8 ms). La comparación histórica de escena usó `f4a66cddd3ea8a767f5b9614d5a2fc4e47b6d3e7`. El candidato usa el código actual del PR. Se ejecutan cuatro rondas independientes en orden **antes, ahora, ahora, antes**, con cuentas y viewports equivalentes. La comparación comprueba igualdad de semilla, secuencia de resultados del DM y estado final; una carga distinta no se presenta como mejora de rendimiento. La equivalencia excluye únicamente `actionApproach` de la lista de cues: es una nueva presentación de un acercamiento que ya ejecutaba el DM, sin reglas ni tiradas adicionales. Su latencia actual se muestra sin inventar una barra anterior.
 
 ## Comprobación visual
 
@@ -37,3 +37,7 @@ Mediana, P95 y máximo se calculan sobre datos crudos. P95 significa que el 95% 
 ## Interpretación
 
 Nueve contextos Chromium comparten un runner CI. No son nueve dispositivos físicos ni nueve conexiones WAN. Los resultados sirven para comparar estas dos versiones bajo una carga reproducible y localizar fases problemáticas. No certifican el rendimiento de los teléfonos de los jugadores ni latencia de una campaña desplegada. La ejecución de esta comparación tampoco autoriza merge: el PR continúa como borrador.
+
+## Presupuesto de Players
+
+El workflow exige P95 de desfase absoluto en Clashes estrictamente menor de 100 ms. Con `COMBAT_BENCH_CLASH_BUDGET_MS=100` el reporte falla aunque resultados y escena sean correctos si se rebasa ese límite; no se ajusta la velocidad, calidad ni cantidad de animaciones. Se mide también el coste síncrono de applySnapshot, render, refreshPlayback, Stage y HUD por DM/Players. Los perfiles son inclusivos: sus duraciones no se suman entre APIs anidadas. Los cambios canónicos se aplican inmediatamente; solo su refresco DOM se agrupa por unidad/campo y se drena antes de cada cue, al finalizar o en el próximo RAF.
