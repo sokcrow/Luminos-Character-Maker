@@ -163,7 +163,9 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
         result.batches=await admin('campaña/combate/playback/current/batches');
         result.canonical=await admin('campaña/combate/combatants');
         result.clients=await Promise.all(frames.map(snapshot));
-        const checkpoint=JSON.parse(result.authority.checkpoint.stateJson);
+        const saved=result.authority.checkpoint;
+        const checkpoint=saved.stateJson?JSON.parse(saved.stateJson):saved.combatants;
+        expect(checkpoint,'Authoritative final combatant snapshot').toBeTruthy();
         const canonical=id=>{const u=checkpoint[id];return {hp:u.hp,sp:u.sp,lifeState:u.lifeState||null,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],shieldPools:u.shieldPools||{}}};
         const dmCues=new Map(result.clients[0].telemetry.cues.map(cue=>[cue.sequence,cue]));
         for(const client of result.clients){
