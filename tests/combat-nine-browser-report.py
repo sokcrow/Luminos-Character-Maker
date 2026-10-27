@@ -91,6 +91,16 @@ for label in ['before','after']:
             role='dm' if index==0 else 'players'
             for mark in client.get('telemetry',{}).get('profile',[]):grouped[role][mark['name']].append(mark['ms'])
     report['profiles'][label]={role:{name:{'calls':len(values),'totalMs':sum(values),'durationMs':summary(values)} for name,values in by_name.items()} for role,by_name in grouped.items()}
+report['gpu']={}
+for label in ['before','after']:
+    report['gpu'][label]={}
+    for role in ['dm','players']:
+        values=[client.get('telemetry',{}).get('gpu',{}) for case in raw if case['label']==label for index,client in enumerate(case.get('clients',[])) if (index==0)==(role=='dm')]
+        frames=sum(g.get('frames',0) for g in values)
+        drawing=sum(g.get('drawingFrames',0)+int(bool(g.get('lastFrameDraws',0))) for g in values)
+        draws=sum(g.get('draws',0) for g in values)
+        area=sum(g.get('pixelAreaSum',0) for g in values)
+        report['gpu'][label][role]={'clientRounds':len(values),'frames':frames,'drawingFrames':drawing,'draws':draws,'drawsPerDrawingFrame':draws/drawing if drawing else None,'meanPixelsPerFrame':area/frames if frames else None,'maxPixels':max((g.get('maxPixelArea',0) for g in values),default=0)}
 root.mkdir(parents=True, exist_ok=True)
 (root/'summary.json').write_text(json.dumps(report, indent=2, ensure_ascii=False))
 if samples:
@@ -151,4 +161,4 @@ for cue in cues:
 lines+=['',f"Presupuesto de rendimiento: {json.dumps(report['performanceBudget'],ensure_ascii=False)}",'', 'Las duraciones de perfiles API son inclusivas y pueden anidarse: no se suman para atribuir CPU. Consultar summary.json para conteos y percentiles por DM/Players.']
 (root/'RESULTADO.md').write_text('\n'.join(lines)+'\n')
 print(json.dumps({'valid':valid,'sameWorkloadAndOutcome':comparable,'beforeAbsoluteClashP95':before,'afterAbsoluteClashP95':after,'performanceBudget':report['performanceBudget'],'cases':cases},ensure_ascii=False))
-if not valid or (budget is not None and not report['performanceBudget']['passed']): sys.exit(1)
+if not valid or not accepted or (budget is not None and not report['performanceBudget']['passed']): sys.exit(1)

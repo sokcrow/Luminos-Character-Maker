@@ -262,8 +262,8 @@ function smartTargetForPlan(owner,plan){
   const domSpriteMode=true;
   const intentPathCache=new WeakMap();
   let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
-    const webglResizeNeedle="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),nextDpr=Math.min(2,window.devicePixelRatio||1);";
-    const webglResizePatch="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),dprCap=lowPowerDevice?1:1.5,nextDpr=Math.min(dprCap,window.devicePixelRatio||1);";
+    const webglResizeNeedle="  function resize(){\n    const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),nextDpr=Math.min(2,window.devicePixelRatio||1);\n    if(w===cssW&&h===cssH&&nextDpr===dpr)return;\n    cssW=w;cssH=h;dpr=nextDpr;\n    canvas.style.width=w+'px';canvas.style.height=h+'px';\n    canvas.width=Math.max(1,Math.round(w*dpr));canvas.height=Math.max(1,Math.round(h*dpr));\n    gl.viewport(0,0,canvas.width,canvas.height)\n  }\n\n";
+    const webglResizePatch="let overlayViewportBox=null;\n  function overlayViewport(w,h,scale,now){\n    const fullW=Math.max(1,Math.round(w*scale)),fullH=Math.max(1,Math.round(h*scale));\n    const full={left:0,top:0,width:fullW,height:fullH,fullW,fullH};\n    if(!host.classList.contains('round-running'))return full;\n    const live=particles.filter(p=>now-p.start<p.life&&Number.isFinite(p.x)&&Number.isFinite(p.y));\n    if(!live.length)return {...full,width:1,height:1};\n    // The original rays reach at most 58 CSS px from their center.\n    // Keep a margin without changing vertices, sample density or lifetime.\n    const sx=fullW/w,sy=fullH/h;\n    const left=Math.max(0,Math.floor(Math.min(...live.map(p=>p.x-64))*sx/8)*8);\n    const right=Math.min(fullW,Math.ceil(Math.max(...live.map(p=>p.x+64))*sx/8)*8);\n    const low=Math.max(0,Math.floor((fullH-Math.max(...live.map(p=>p.y+64))*sy)/8)*8);\n    const high=Math.min(fullH,Math.ceil((fullH-Math.min(...live.map(p=>p.y-64))*sy)/8)*8);\n    if(right<=left||high<=low)return {...full,width:1,height:1};\n    return {left,top:fullH-high,width:right-left,height:high-low,fullW,fullH}\n  }\n  function resize(now=performance.now()){\n    const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),nextDpr=Math.min(lowPowerDevice?1:1.5,window.devicePixelRatio||1);\n    const box=overlayViewport(w,h,nextDpr,now),old=overlayViewportBox;\n    if(w===cssW&&h===cssH&&nextDpr===dpr&&old&&old.left===box.left&&old.top===box.top&&old.width===box.width&&old.height===box.height)return;\n    cssW=w;cssH=h;dpr=nextDpr;overlayViewportBox=box;\n    const sx=box.fullW/w,sy=box.fullH/h;\n    for(const [key,value]of Object.entries({left:box.left/sx+'px',top:box.top/sy+'px',right:'auto',bottom:'auto',width:box.width/sx+'px',height:box.height/sy+'px'})){\n      if(canvas.style[key]!==value)canvas.style[key]=value\n    }\n    if(canvas.width!==box.width)canvas.width=box.width;\n    if(canvas.height!==box.height)canvas.height=box.height;\n    // Retain the full-screen projection. Integer viewport offsets make the\n    // cropped framebuffer an exact subrectangle of the original pixel grid.\n    gl.viewport(-box.left,box.top+box.height-box.fullH,box.fullW,box.fullH)\n  }\n\n";
     const webglTextureCacheNeedle="if(entry){if(entry.ready&&onReady)onReady(entry);return entry}";
     const webglTextureCachePatch="if(entry)return entry";
     const webglBackgroundNeedle="const bg=requestTexture(BG_URL,()=>host.classList.add('webgl2-background-ready'));";
@@ -342,7 +342,7 @@ function smartTargetForPlan(owner,plan){
     rafId=0;if(!enabled)return;
     if(!surfaceActive){dirty=true;return}
     const continuous=needsContinuous(now);if(!dirty&&!continuous)return;
-    dirty=false;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
+    dirty=false;resize(now);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
     renderOverlayBatch(now);
     lastFrame=now;if(enabled&&(dirty||needsContinuous(now))&&!rafId)rafId=requestAnimationFrame(frame)
   }
@@ -448,7 +448,7 @@ function smartTargetForPlan(owner,plan){
     }
     // Apply after every legacy cache rewrite, including the fixed timing CSS.
     html=html.replace(/(js\/combat-v073-(?:steps|playback|playback-sync|authority|hud-motion|audiovisual)\.js|css\/combat-v073-audiovisual\.css)(?:\?v=[^"']+)?/g,
-      '$1?v=20261026-batched-overlay-7');
+      '$1?v=20261026-sparse-overlay-8');
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();
