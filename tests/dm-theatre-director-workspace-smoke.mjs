@@ -45,3 +45,31 @@ assert.match(css, /\.dm-director-view\[hidden\]/, "only one drawer tab may be vi
 assert.doesNotMatch(workspace, /enqueueIntervention\(/, "do not add a second message pipeline");
 
 console.log("Director workspace smoke: HTML wiring, real actor sources, modal, queue and responsive contracts OK");
+
+// Execute the real Studio mount with both the nested Workspace and legacy DOM.
+const studio = fs.readFileSync(new URL('../js/theatre-actor-studio.js', import.meta.url), 'utf8');
+const mountSource = studio.slice(studio.indexOf('  function mountMasterPanel()'), studio.indexOf('  function bindMasterPanel()'));
+for (const mode of ['slot', 'nested', 'legacy']) {
+  const node = () => ({ children: [], parentNode: null, classList: { add() {} },
+    appendChild(child) { child.parentNode = this; this.children.push(child); },
+    prepend(child) { child.parentNode = this; this.children.unshift(child); },
+    insertBefore(child, reference) {
+      assert.equal(reference.parentNode, this, 'insertBefore requires a direct child');
+      child.parentNode = this; this.children.splice(this.children.indexOf(reference), 0, child);
+    }
+  });
+  const director = node(), cast = node(), quick = node(), slot = node();
+  director.id = 'theatre-director-panel'; slot.id = 'theatre-actor-studio-slot';
+  if (mode === 'legacy') director.appendChild(quick);
+  else { director.appendChild(cast); cast.appendChild(quick); }
+  if (mode === 'slot') cast.appendChild(slot);
+  const find = (root, id) => root.id === id ? root : root.children.map(child => find(child, id)).find(Boolean);
+  let bound = 0;
+  const context = { doc: { getElementById: id => find(director, id), querySelector: () => quick, createElement: node },
+    bindMasterPanel: () => { bound++; }, renderPlayerLinkOptions() {}, renderSourceList() {}, beginNewActor() {} };
+  vm.runInNewContext(mountSource + '\nmountMasterPanel(); mountMasterPanel();', context);
+  const panel = find(director, 'theatre-actor-master-panel');
+  assert.equal(panel.parentNode, mode === 'slot' ? slot : quick.parentNode);
+  assert.equal(bound, 1, 'Studio initialization must remain idempotent');
+}
+console.log('Actor Studio mount: lazy slot, nested cast and legacy director passed');

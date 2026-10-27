@@ -7,6 +7,9 @@ on:
       - 'hoja_de_DM.html'
       - 'js/theatre-dm-workspace.js'
       - 'js/theatre-controls.js'
+      - 'js/theatre-actor-studio.js'
+      - 'js/theatre-director-menu-guard.js'
+      - 'css/theatre-actor-studio.css'
       - 'css/theatre-dm-workspace.css'
       - 'tests/dm-theatre-director-workspace*'
       - '.github/workflows/dm-theatre-director-workspace.yml'
@@ -24,6 +27,8 @@ jobs:
         run: |
           node --check js/theatre-dm-workspace.js
           node --check js/theatre-controls.js
+          node --check js/theatre-actor-studio.js
+          node --check js/theatre-director-menu-guard.js
           node tests/dm-theatre-director-workspace-smoke.mjs
           node tests/dm-dialogue-composer-layout-smoke.mjs
           node tests/dm-dialogue-input-visible-smoke.mjs

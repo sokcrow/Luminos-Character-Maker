@@ -9,7 +9,7 @@ const sample = {
 
 async function mount(page) {
   await page.setContent(`<!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<html lang="es"><head><base href="http://dm-workspace.test/"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body class="on-game-dashboard">
 <section id="modulo-teatro">
   <details class="theatre-dm-menu" open>
@@ -84,6 +84,11 @@ body { margin: 0; background: #080808; }
   await page.addStyleTag({ path: "css/theatre-hud.css" });
   await page.addStyleTag({ path: "css/theatre-message-policy.css" });
   await page.addStyleTag({ path: "css/theatre-dm-workspace.css" });
+  await page.route("http://dm-workspace.test/js/theatre-actor-studio.js", route => route.fulfill({
+    path: "js/theatre-actor-studio.js", contentType: "application/javascript"
+  }));
+  await page.addStyleTag({ path: "css/theatre-actor-studio.css" });
+  await page.addScriptTag({ path: "js/theatre-director-menu-guard.js" });
   await page.addScriptTag({ path: "js/theatre-dm-workspace.js" });
 }
 
@@ -149,5 +154,23 @@ for (const [width, height] of [[360, 800], [390, 844], [844, 390], [768, 1024], 
     await expect(page.locator("#theatre-speaker-select")).toHaveValue("narrador");
     await page.keyboard.press("Escape");
     await expect(page.locator("#dm-theatre-composer-modal")).toBeHidden();
+  });
+}
+
+for (const [width, height] of [[360, 800], [390, 844], [844, 390], [768, 1024], [1280, 720], [1920, 1080]]) {
+  test(`Actor Studio loads from workspace Elenco at ${width}x${height}`, async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.setViewportSize({ width, height });
+    await mount(page);
+    await page.getByRole("tab", { name: "Elenco" }).click();
+    await page.locator("#theatre-actor-studio-loader > summary").click();
+    await expect(page.locator("#theatre-actor-studio-slot > #theatre-actor-master-panel")).toBeVisible();
+    await expect(page.locator("#theatre-master-name")).toBeVisible();
+    expect(await page.evaluate(() => Boolean(window.LuminousTheatreActorStudio))).toBe(true);
+    expect(errors).toEqual([]);
+    await page.locator("#theatre-actor-studio-loader > summary").click();
+    await page.locator("#theatre-actor-studio-loader > summary").click();
+    await expect(page.locator("#theatre-actor-master-panel")).toHaveCount(1);
   });
 }
