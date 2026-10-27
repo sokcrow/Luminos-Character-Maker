@@ -13,7 +13,7 @@ const frames=new Map();const c=vm.createContext({console,Math,WeakMap,Map,Set,
  requestAnimationFrame:fn=>{frames.set(++serial,fn);return serial},cancelAnimationFrame:id=>frames.delete(id),
  resize(){},gl:{COLOR_BUFFER_BIT:1,clearColor(){},clear(){clears++}},
  renderBackground(){throw Error('Base scene must remain in DOM')},renderSprites(){throw Error('Do not duplicate DOM sprites in WebGL')},
- renderIntentArrows(){if(!running)arrows++},circle(){},lineSegment(){rays++},
+ renderIntentArrows(){if(!running)arrows++},renderOverlayBatch:at=>{c.renderIntentArrows();c.renderParticles(at)},circle(){},lineSegment(){rays++},
 });c.window=c;
 vm.runInContext(particlesCode+'\n'+frameCode,c);
 function tick(at){now=at;const pending=[...frames];frames.clear();for(const [,fn]of pending)fn(at)}

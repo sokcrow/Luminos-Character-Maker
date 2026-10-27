@@ -28,6 +28,7 @@ jobs:
       - run: node tests/combat-playback-dirty-render-smoke.mjs
       - run: node tests/combat-hud-coalescing-smoke.mjs
       - run: node tests/combat-shared-compositor-smoke.mjs
+      - run: node tests/combat-overlay-batch-smoke.mjs
       - run: node scripts/build-combat-live.mjs --check
       - run: python -m pip install matplotlib
       - name: Exact pre-optimization baseline

@@ -116,6 +116,7 @@ for axis, key, title in [(axes[0], 'clashSkewAbsMs', 'Desfase absoluto frente al
         bars=axis.bar([i+shift for i in x],values,width=.36,color=colors[label],label=title_label)
         axis.bar_label(bars,labels=[f'{v:,.1f}' for v in values],padding=4,fontsize=9)
     axis.set_xticks(list(x),['Mediana','P95','Máximo']);axis.set_title(title,loc='left',fontsize=12);axis.set_ylabel('Milisegundos · menor es mejor');axis.grid(axis='y',alpha=.18);axis.set_axisbelow(True);axis.margins(y=.18)
+if budget is not None:axes[0].axhline(budget,color='#a54836',linestyle='--',linewidth=1,label=f'Límite {budget:g} ms')
 axes[0].legend(frameon=False)
 fig.suptitle('Un DM y ocho jugadores · nueve navegadores',x=.06,ha='left',fontsize=17,fontweight='bold')
 fig.text(.06,.025,('MEDICIÓN INCOMPLETA · ' if not valid else '')+'Battle Viewer completo · mismo ritmo, escenario y semilla · Auth/RTDB Emulator en un runner CI',fontsize=9,color='#566171')
@@ -128,6 +129,7 @@ for offset,label,title_label in [(-.18,'before','Antes'),(.18,'after','Ahora')]:
     present=[i for i,v in enumerate(values) if v is not None]
     bars=axis.barh([i+offset for i in present],[values[i] for i in present],height=.34,color=colors[label],label=title_label)
     axis.bar_label(bars,labels=[f'{values[i]:,.0f}' for i in present],padding=4,fontsize=8)
+if budget is not None:axis.axvline(budget,color='#a54836',linestyle='--',linewidth=1,label=f'Límite {budget:g} ms')
 axis.set_yticks(range(len(cues)),[names.get(c,c) for c in cues]);axis.invert_yaxis()
 axis.set_xlabel('P95 del desfase absoluto frente al DM (ms)');axis.set_title('Desfase por fase',loc='left',fontsize=12,pad=12);axis.margins(x=.23);axis.legend(frameon=False,fontsize=9)
 for offset,key,title_label,color in [(-.24,'wireAfterDeadlineMs','Recepción tras deadline','#b56544'),(0,'queueLateMs','Cola tardía','#5e6eab'),(.24,'paintMs','Inicio a RAF','#429378')]:

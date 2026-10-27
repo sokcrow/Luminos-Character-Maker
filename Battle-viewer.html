@@ -281,6 +281,25 @@ function smartTargetForPlan(owner,plan){
     const webglBurstPatch="particles.push({x,y,kind,range,start:performance.now(),life:310,seed:Math.random()*1000});ensureFrame(340)";
     const webglParticleRaysNeedle="const rays=p.range?7:10;for(let r=0;r<rays;r++){";
     const webglParticleRaysPatch="const rays=p.range?(lowPowerDevice?4:7):(lowPowerDevice?6:10);for(let r=0;r<rays;r++){";
+    const webglTriangleNeedle=`function drawTriangles(points,color){
+    if(!points?.length)return;`;
+    const webglTrianglePatch=`let triangleBatch=null;
+  function renderOverlayBatch(now){
+    const previous=triangleBatch;triangleBatch=[];
+    try{renderIntentArrows();renderParticles(now)}
+    finally{
+      const rows=triangleBatch;triangleBatch=previous;
+      for(const row of rows)drawTriangles(row.points,row.color)
+    }
+  }
+  function drawTriangles(points,color){
+    if(!points?.length)return;
+    if(triangleBatch){
+      const last=triangleBatch[triangleBatch.length-1];
+      if(last&&last.color.length===color.length&&last.color.every((value,index)=>value===color[index]))last.points.push(...points);
+      else triangleBatch.push({points:Array.from(points),color:Array.from(color)});
+      return
+    }`;
     const webglFrameNeedle=`let rafId=0;
   function frame(now){
     rafId=0;if(!enabled)return;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
@@ -324,7 +343,7 @@ function smartTargetForPlan(owner,plan){
     if(!surfaceActive){dirty=true;return}
     const continuous=needsContinuous(now);if(!dirty&&!continuous)return;
     dirty=false;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
-    renderIntentArrows();renderParticles(now);
+    renderOverlayBatch(now);
     lastFrame=now;if(enabled&&(dirty||needsContinuous(now))&&!rafId)rafId=requestAnimationFrame(frame)
   }
   function ensureFrame(animateMs=0){
@@ -362,7 +381,7 @@ function smartTargetForPlan(owner,plan){
   ensureFrame();`;
     const webglApiNeedle="version:'0.8.0',";
     const webglApiPatch="version:'0.8.3-review-fixes',requestRender:ensureFrame,renderMode:()=>rafId?'active':'idle',renderDpr:()=>dpr,spriteMode:()=>domSpriteMode?'dom-hybrid':'webgl',qualityMode:()=>lowPowerDevice?'low-power':'full',surfaceActive:()=>surfaceActive,";
-    const webglNeedles=[webglStateNeedle,webglResizeNeedle,webglTextureCacheNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglRenderSpritesNeedle,webglIntentNeedle,webglBurstNeedle,webglParticleRaysNeedle,webglFrameNeedle,webglApiNeedle];
+    const webglNeedles=[webglStateNeedle,webglResizeNeedle,webglTextureCacheNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglRenderSpritesNeedle,webglIntentNeedle,webglBurstNeedle,webglParticleRaysNeedle,webglTriangleNeedle,webglFrameNeedle,webglApiNeedle];
     if(webglNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_WEBGL_PERF_PATCH_MISSING");
     html=html.replace(webglStateNeedle,webglStatePatch)
       .replace(webglResizeNeedle,webglResizePatch)
@@ -373,6 +392,7 @@ function smartTargetForPlan(owner,plan){
       .replace(webglIntentNeedle,webglIntentPatch)
       .replace(webglBurstNeedle,webglBurstPatch)
       .replace(webglParticleRaysNeedle,webglParticleRaysPatch)
+      .replace(webglTriangleNeedle,webglTrianglePatch)
       .replace(webglFrameNeedle,webglFramePatch)
       .replace(webglApiNeedle,webglApiPatch);
 
@@ -428,7 +448,7 @@ function smartTargetForPlan(owner,plan){
     }
     // Apply after every legacy cache rewrite, including the fixed timing CSS.
     html=html.replace(/(js\/combat-v073-(?:steps|playback|playback-sync|authority|hud-motion|audiovisual)\.js|css\/combat-v073-audiovisual\.css)(?:\?v=[^"']+)?/g,
-      '$1?v=20261026-shared-compositor-6');
+      '$1?v=20261026-batched-overlay-7');
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();
