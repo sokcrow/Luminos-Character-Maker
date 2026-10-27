@@ -3421,23 +3421,104 @@ function initializeCharacterSheet() {
   let notificationChats = {};
   let notificationChatSignature = "";
 
-  window.updateNotifications = function() {
-      const renderBadge = (elementIdOrSelector, hasUnread, checkMuted = false) => {
-          const el = document.querySelector(elementIdOrSelector);
-          if (!el) return;
+  // Badges live in document.body so clipped/overflow-hidden buttons (including
+  // the terminal's clipped modules and the theatre's hexagonal menu) cannot
+  // cut them into an unrecognizable red corner.
+  const notificationBadges = new Map();
+  const originalNotificationLabels = new WeakMap();
+  let notificationPositionQueued = false;
 
-          let badge = el.querySelector('.limbus-badge');
-          const shouldShow = hasUnread && (!checkMuted || !window.isPhoneMuted);
+  const notificationAnchorIsVisible = (anchor, rect) => {
+      if (!anchor.isConnected || !rect.width || !rect.height
+          || rect.bottom <= 0 || rect.right <= 0
+          || rect.top >= window.innerHeight || rect.left >= window.innerWidth) {
+          return false;
+      }
+
+      for (let parent = anchor; parent; parent = parent.parentElement) {
+          const style = window.getComputedStyle(parent);
+          if (style.display === 'none' || style.visibility === 'hidden'
+              || style.contentVisibility === 'hidden' || Number(style.opacity) === 0) {
+              return false;
+          }
+          if (parent !== anchor && /(hidden|auto|scroll|clip)/.test(
+              `${style.overflowX} ${style.overflowY}`
+          )) {
+              const visibleArea = parent.getBoundingClientRect();
+              if (rect.right <= visibleArea.left || rect.left >= visibleArea.right
+                  || rect.bottom <= visibleArea.top || rect.top >= visibleArea.bottom) {
+                  return false;
+              }
+          }
+      }
+      return true;
+  };
+
+  const positionNotificationBadges = () => {
+      notificationPositionQueued = false;
+      const badgeSize = 24;
+      const maxLeft = Math.max(2, window.innerWidth - badgeSize - 2);
+      const maxTop = Math.max(2, window.innerHeight - badgeSize - 2);
+
+      for (const [selector, badge] of notificationBadges) {
+          const anchor = document.querySelector(selector);
+          const rect = anchor?.getBoundingClientRect();
+          const visible = Boolean(anchor && rect && notificationAnchorIsVisible(anchor, rect));
+          badge.hidden = !visible;
+          if (!visible) continue;
+
+          // Center the entire circle ON the top-left corner, rather than
+          // drawing it inside the clipped button. Keep it in the viewport.
+          badge.style.left = `${Math.round(Math.max(2, Math.min(maxLeft, rect.left - badgeSize / 2)))}px`;
+          badge.style.top = `${Math.round(Math.max(2, Math.min(maxTop, rect.top - badgeSize / 2)))}px`;
+      }
+  };
+
+  const scheduleNotificationBadgePosition = () => {
+      if (notificationPositionQueued) return;
+      notificationPositionQueued = true;
+      window.requestAnimationFrame(positionNotificationBadges);
+  };
+
+  // Capture nested scrolling (cellphone), viewport changes, and menu/tab
+  // transitions. No animation loop runs when the UI is idle.
+  window.addEventListener('resize', scheduleNotificationBadgePosition, { passive: true });
+  document.addEventListener('scroll', scheduleNotificationBadgePosition, true);
+  document.addEventListener('click', scheduleNotificationBadgePosition, true);
+  document.addEventListener('change', scheduleNotificationBadgePosition, true);
+  document.addEventListener('transitionend', scheduleNotificationBadgePosition, true);
+
+  window.updateNotifications = function() {
+      const renderBadge = (selector, hasUnread, checkMuted = false) => {
+          const el = document.querySelector(selector);
+          const shouldShow = Boolean(el && hasUnread && (!checkMuted || !window.isPhoneMuted));
+          let badge = notificationBadges.get(selector);
 
           if (shouldShow) {
               if (!badge) {
-                  badge = document.createElement('div');
-                  badge.className = 'limbus-badge';
-                  badge.innerText = '!';
-                  el.appendChild(badge);
+                  badge = document.createElement('span');
+                  badge.className = 'limbus-badge limbus-badge--floating';
+                  badge.textContent = '!';
+                  badge.setAttribute('aria-hidden', 'true');
+                  document.body.appendChild(badge);
+                  notificationBadges.set(selector, badge);
               }
-          } else if (badge) {
-              badge.remove();
+              if (!originalNotificationLabels.has(el)) {
+                  originalNotificationLabels.set(el, el.getAttribute('aria-label'));
+              }
+              const originalLabel = originalNotificationLabels.get(el) || el.textContent.trim();
+              el.setAttribute('aria-label', `${originalLabel} (notificación sin leer)`);
+          } else {
+              if (badge) {
+                  badge.remove();
+                  notificationBadges.delete(selector);
+              }
+              if (el && originalNotificationLabels.has(el)) {
+                  const original = originalNotificationLabels.get(el);
+                  if (original === null) el.removeAttribute('aria-label');
+                  else el.setAttribute('aria-label', original);
+                  originalNotificationLabels.delete(el);
+              }
           }
       };
 
@@ -3447,6 +3528,7 @@ function initializeCharacterSheet() {
       renderBadge('button[name="act_tab_mail"]', unreadMail || unreadChat || groupUnread, false);
       renderBadge('#btn-show-mail', unreadMail, false);
       renderBadge('#btn-show-chat', unreadChat || groupUnread, false);
+      scheduleNotificationBadgePosition();
   };
 
   const refreshUnreadChat = async (chats, onlyChatId = null) => {

@@ -58,6 +58,7 @@
   let firstCueReceived = false;
   let previousCue = null;
   let ownCue = null;
+  let pendingWrite = null;
   let serverOffset = 0;
   let mounted = false;
   let panel = null;
@@ -170,6 +171,9 @@
     if (!token || token === previousCue) return;
     previousCue = token;
     if (token === ownCue) { ownCue = null; return; }
+    // Reconnecting may deliver a newer nonce that is nevertheless long expired.
+    const age = serverNow() - Number(cue.at);
+    if (!Number.isFinite(age) || age < -5000 || age > 5000) return;
     playEffect(cue.cueId);
   }
   function updateStatus() {
@@ -186,7 +190,7 @@
     if (!panel) return;
     const section = panel.querySelector("[data-audio-director]");
     if (section) section.hidden = !isDirector;
-    panel.querySelectorAll("[data-audio-command]").forEach((button) => { button.disabled = !isDirector; });
+    panel.querySelectorAll("[data-audio-command]").forEach((button) => { button.disabled = !isDirector || Boolean(pendingWrite); });
   }
   function showPanel() {
     if (!panel) return;
@@ -209,17 +213,27 @@
       setHint("Sólo el Director puede controlar el audio de campaña.");
       return;
     }
+    const ref = audioRef;
+    const previous = channel === "music" ? musicState : ambienceState;
+    const request = {};
+    pendingWrite = request;
+    updateDirectorView();
     try {
-      await audioRef.child(channel).set(data);
+      await ref.child(channel).set(data);
       setHint("Se envió el cambio a la campaña.");
       return true;
     } catch (_) {
       setHint("No se pudo enviar el audio. Revisa la conexión y permisos del DM.");
       // A click can start local playback before RTDB confirms the write.
       // Always restore the last confirmed session when that write fails.
-      if (channel === "music") { previousMusicKey = null; receiveLoop("music", musicState); }
-      if (channel === "ambience") { previousAmbienceKey = null; receiveLoop("ambience", ambienceState); }
+      if (audioRef === ref && pendingWrite === request) {
+        if (channel === "music") { previousMusicKey = null; receiveLoop("music", previous); }
+        if (channel === "ambience") { previousAmbienceKey = null; receiveLoop("ambience", previous); }
+      }
       return false;
+    } finally {
+      if (pendingWrite === request) pendingWrite = null;
+      updateDirectorView();
     }
   }
   function previewLoopOnGesture(kind, entry) {
@@ -231,7 +245,7 @@
     playSafely(element);
   }
   function command(type) {
-    if (!isDirector || !audioRef) return;
+    if (!isDirector || !audioRef || pendingWrite) return;
     const stamp = global.firebase.database.ServerValue.TIMESTAMP;
     const selects = (kind) => panel.querySelector('[data-audio-select="' + kind + '"]');
     if (type === "play-music") {
@@ -319,8 +333,8 @@
       button.addEventListener("click", () => command(button.dataset.audioCommand));
     });
     panel.querySelector("[data-audio-activate]").addEventListener("click", () => {
-      if (musicState && musicState.active) playSafely(music);
-      if (ambienceState && ambienceState.active) playSafely(ambience);
+      if (musicState && musicState.active) { syncPosition(music, musicState); playSafely(music); }
+      if (ambienceState && ambienceState.active) { syncPosition(ambience, ambienceState); playSafely(ambience); }
       setHint("Intentando activar el audio. Si tu navegador lo bloquea, pulsa otra vez.");
     });
     doc.addEventListener("keydown", (event) => {
@@ -352,6 +366,7 @@
     firstCueReceived = false;
     previousCue = null;
     ownCue = null;
+    pendingWrite = null;
     isDirector = false;
     musicState = null;
     ambienceState = null;

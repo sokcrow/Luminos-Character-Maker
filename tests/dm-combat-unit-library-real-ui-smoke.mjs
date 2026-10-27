@@ -43,6 +43,23 @@ globalThis.LuminousWolfUnitCatalog = {
   firebasePayload: () => ({ wolf: fakeUnits.wolf }),
   firebaseSkillPayload: () => ({ wolf_bite: fakeSkills.wolf_bite }),
 };
+// This smoke test intentionally simulates an already-loaded browser catalog.
+// Keep stubs in sync with the loader's required modules so a fake document
+// without createElement never attempts to inject scripts into Node.
+globalThis.LuminousCaveSapphireSpiderSkillCatalog = {};
+globalThis.LuminousCaveSapphireSpiderRuntime = {};
+globalThis.LuminousCaveSapphireSpiderUnitCatalog = {
+  firebasePayload: () => ({}),
+  firebaseSkillPayload: () => ({}),
+};
+for (const globalName of [
+  'LuminousUnitRankRuntime', 'LuminousActionEconomy',
+  'LuminousUniversalRangedAmmoRuntime', 'LuminousItemHarvestIntegrityEngine',
+  'LuminousUnitLootProfileContract', 'LuminousItemEconomyStandard',
+  'LuminousCreatureTypeCatalog', 'LuminousLootSocialProfileContract',
+  'LuminousGoblinUnitRuntime', 'LuminousWolfUnitRuntime'
+]) globalThis[globalName] = {};
+
 globalThis.LuminousUnitCombatInstantiator = {};
 globalThis.LuminousCombat073UnitDeployBridge = {};
 

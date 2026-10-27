@@ -151,7 +151,6 @@
 
   function bestHelpTarget(actor = {}, options = {}) {
     const committed = visibleCommittedActions(actor, options);
-    if (committed.some(isHelpAction)) return null;
     return committed
       .filter((action) => !isHelpAction(action) && helpEligibleAction(action))
       .map((action) => ({ action, value: actionSupportValue(action) }))
@@ -336,7 +335,7 @@
       };
     }
     const kit = augmentKit(baseKit, actor, kitOptions);
-    const plan = goap.planTurn({ ...input, actor, sources: kit.sources });
+    const plan = goap.planTurn({ ...input, actor, sources:kit.sources.filter(row=>!['quick_action','free_action','reaction'].includes(global.LuminousUnitIndependentActions?.costOf?.(row)||normalizeId(row.definition?.economyCost||row.definition?.activation?.actionCost))) });
     return { ...plan, kit };
   }
 

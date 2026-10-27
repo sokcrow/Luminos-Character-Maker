@@ -376,28 +376,54 @@
     return normalizeId(row.spellId || row.id || row.key || row.definitionId || row.name);
   }
 
-  function spellRowsForPlayer() {
-    const unit = playerUnit() || {};
-    if (!isSpellcaster(unit)) return [];
+  function spellUnavailableLabel(reason){
+    return ({
+      SPELLCASTING_ABILITY_REQUIRED:"Necesita una fuente de magia válida.",
+      SPELL_NOT_SELECTED:"Este hechizo no está asignado.",
+      SPELL_DEFINITION_NOT_FOUND:"El hechizo no está disponible en la Biblioteca.",
+      CONTENT_REGISTRY_REQUIRED:"La Biblioteca de hechizos no está disponible.",
+      SPELL_CASTING_CLASS_NOT_FOUND:"No hay una clase de lanzamiento válida.",
+      SPELL_CLASS_NOT_AVAILABLE:"Tu clase no permite este lanzamiento.",
+      SPELL_CLASS_AMBIGUOUS:"Selecciona una clase de lanzamiento.",
+      SPELL_RUNTIME_NOT_READY:"Los hechizos aún se están preparando."
+    })[reason]||"Este hechizo no puede lanzarse ahora.";
+  }
 
-    const loadout = spellLoadoutRuntime();
-    if (loadout?.spellIdsFor && loadout?.resolveSpellDefinition) {
-      const ids = loadout.spellIdsFor(unit);
-      const resolved = ids.map((id) => {
-        const definition = loadout.resolveSpellDefinition(id);
-        return definition?.ok && definition.spell ? normalizeSpellForMenu(definition.spell, id) : null;
-      }).filter(Boolean);
-      if (resolved.length) return resolved;
+  // Explicit canonical selection takes priority over any legacy/demo Unit kit.
+  function spellRowsForPlayer(){
+    const unit=playerUnit()||{},canonical=global.LuminousSpellLoadout,loadout=spellLoadoutRuntime();
+    const explicit=Boolean(canonical?.hasSelection(unit))||
+      ["spellLoadout","spellIds","spellSelections","spellSelectionIndex"].some(key=>
+        unit[key]!=null||unit.characterBuild?.[key]!=null);
+    if(explicit){
+      const ids=canonical?.selectedIds(unit)||[...selectedSpellIds(unit)];
+      return [...new Set(ids.map(normalizeId).filter(Boolean))].map(id=>{
+        const result=loadout?.resolveSpellForCombatant?.(unit,id)||
+          {ok:false,reason:"SPELL_RUNTIME_NOT_READY"};
+        const definition=loadout?.resolveSpellDefinition?.(id);
+        const row=normalizeSpellForMenu(result.spell||definition?.spell||{id,name:id},id);
+        // Carry the class actually resolved from the canonical combatant into
+        // the plan. The DM still revalidates ownership and class at seal time.
+        if(result.ok)return {...row,classId:result.classId};
+        if(result.reason==="SPELL_CLASS_AMBIGUOUS"&&Array.isArray(result.candidates)&&result.candidates.length)
+          return {...row,__spellClassCandidates:[...new Set(result.candidates.map(normalizeId).filter(Boolean))]};
+        return {...row,__spellUnavailableReason:spellUnavailableLabel(result.reason)};
+      });
     }
-
-    const live = liveActions("spell").map((row) => normalizeSpellForMenu(row, row?.id));
-    if (live.length) return live;
-
-    const selected = selectedSpellIds(unit);
-    if (!selected.size) return [];
-    return asArray(permanent()?.spells)
-      .filter((row) => selected.has(spellIdOf(row)))
-      .map((row) => normalizeSpellForMenu(row, row?.id));
+    if(!isSpellcaster(unit))return [];
+    // Older Wizards keep their learned/prepared spells in classResources.
+    // Consult the same resolver without reviving explicitly cleared selections.
+    const legacyIds=loadout?.rawSpellIdsFor?.(unit)||[];
+    const resolved=legacyIds.map(id=>{
+      const result=loadout.resolveSpellForCombatant(unit,id);
+      const definition=loadout.resolveSpellDefinition(id);
+      const row=normalizeSpellForMenu(result.spell||definition?.spell||{id,name:id},id);
+      if(result.ok)return {...row,classId:result.classId};
+      if(result.reason==="SPELL_CLASS_AMBIGUOUS"&&result.candidates?.length)
+        return {...row,__spellClassCandidates:[...new Set(result.candidates)]};
+      return {...row,__spellUnavailableReason:spellUnavailableLabel(result.reason)};
+    });
+    return resolved.length?resolved:liveActions("spell").map(row=>normalizeSpellForMenu(row,row?.id));
   }
 
   function inventoryEntries(container) {
@@ -590,7 +616,9 @@
   }
 
   function syncSpellMenuVisibility() {
-    const caster = isSpellcaster(playerUnit() || {});
+    const unit=playerUnit()||{};
+    const caster=isSpellcaster(unit)||Boolean(global.LuminousSpellLoadout?.selectedIds(unit)?.length)||
+      selectedSpellIds(unit).size>0;
     spellMenuNodes().forEach((node) => {
       node.hidden = !caster;
       if (node.style) node.style.display = caster ? "" : "none";
@@ -606,11 +634,11 @@
   function rowsFor(menu, tab = state.tabByMenu[menu] || ECONOMY.ACTION) {
     if (menu === "global") {
       const traits = traitDefinitionsForPlayer().filter((row) => economyTabFor(row) === tab);
-      if (tab !== ECONOMY.ACTION) return traits;
       const contextual = lexical("contextualGlobalActions", null);
       const globals = [...asArray(permanent()?.global), ...asArray(typeof contextual === "function" ? contextual() : [])]
-        .filter((row) => economyTabFor(row) === ECONOMY.ACTION);
-      return [...globals, ...traits];
+        .map(row=>lexical('canonicalUniversalRow',value=>value)(row));
+      if(global.LuminousMastermindArchetypeRuntime?.hasMastermindLevel?.(playerUnit(),15)){const help=globals.find(row=>row.actionKey==='help');if(help)globals.push({...help,id:'help',name:'Help · Master of Tactics',universalVariant:'mastermind_quick',economyCost:'quick_action',targetSide:'ally',targeting:{allegiance:'ally',mode:'single'}})}
+      return [...globals.filter(row=>economyTabFor(row)===tab),...traits];
     }
     if (menu === "skills") {
       const deck=global.LuminousCombatSlotDeck073;
@@ -787,6 +815,16 @@
     button.style.setProperty("--sin", sin?.color || "#ff4a22");
     button.innerHTML = markup(row);
     if(row.__deckCard)button.dataset.deckDrawId=row.__deckCard.drawId;
+    if(row.__spellUnavailableReason){
+      button.disabled=true;
+      button.classList.add("spell-unavailable");
+      button.title=row.__spellUnavailableReason;
+      button.setAttribute("aria-label",clean(row.name||row.id)+": "+row.__spellUnavailableReason);
+      const reason=global.document.createElement("small");
+      reason.className="spell-unavailable-reason";
+      reason.textContent=row.__spellUnavailableReason;
+      button.appendChild(reason);
+    }
     button.onclick = () => api.selectAction({ type:row.__deckCard?"deck":type, slotIndex:selectedSlotIndex(), ...(row.__deckCard?{drawId:row.__deckCard.drawId}:{}), data:row });
     return button;
   }
@@ -813,7 +851,46 @@
     if (!rows.length) { body.innerHTML = `<div class="combat-economy-empty">No ${tab.replaceAll("_", " ")} Spells available.</div>`; return; }
     const stack = global.document.createElement("div");
     stack.className = "skill-stack";
-    rows.forEach((row) => stack.appendChild(skillRowButton(row, "spell")));
+    rows.forEach((row) => {
+      if(!row.__spellClassCandidates?.length){
+        stack.appendChild(skillRowButton(row,"spell"));
+        return;
+      }
+      // Ambiguity is a choice, not an unusable Spell. Render only classes
+      // returned by the canonical resolver, and resolve again per choice.
+      const group=global.document.createElement("div");
+      group.className="spell-class-choice";
+      group.setAttribute("role","group");
+      group.setAttribute("aria-label",clean(row.name)+" · clase de lanzamiento");
+      const heading=global.document.createElement("div");
+      heading.className="spell-class-choice-title";
+      heading.textContent=clean(row.name)+" · Selecciona la clase de lanzamiento";
+      group.appendChild(heading);
+      const options=global.document.createElement("div");
+      options.className="spell-class-options";
+      row.__spellClassCandidates.forEach(classId=>{
+        const result=spellLoadoutRuntime()?.resolveSpellForCombatant?.(playerUnit()||{},row.spellId,{classId})||
+          {ok:false,reason:"SPELL_RUNTIME_NOT_READY"};
+        const permitted=result.ok&&normalizeId(result.classId)===classId;
+        const choice=permitted
+          ? {...normalizeSpellForMenu(result.spell,row.spellId),classId:result.classId}
+          : {...row,__spellUnavailableReason:spellUnavailableLabel(result.reason)};
+        const button=skillRowButton(choice,"spell");
+        button.type="button";
+        button.classList.add("spell-class-option");
+        const className=classId.replace(/(^|_)([a-z])/g,(_,space,letter)=>
+          (space?" ":"")+letter.toUpperCase());
+        const label=global.document.createElement("span");
+        label.className="spell-class-option-name";
+        label.textContent="Lanzar como "+className;
+        button.appendChild(label);
+        button.setAttribute("aria-label",clean(row.name)+" · Lanzar como "+className+
+          (permitted?"":": "+choice.__spellUnavailableReason));
+        options.appendChild(button);
+      });
+      group.appendChild(options);
+      stack.appendChild(group);
+    });
     body.appendChild(stack);
   }
 
@@ -1261,6 +1338,7 @@
     if (allegiance === "self") return [unit];
     return Object.values(combatData()).filter((candidate) => {
       if (!candidate || candidate.dead || candidate.defeated || candidate.battleActive === false || Number(candidate.hp) <= 0) return false;
+      if(source.actionKey==='help'&&candidate.id===unit.id)return false;
       if (allegiance === "neutral") return candidate.id !== unit.id;
       return allegiance === "ally" ? candidate.faction === unit.faction : candidate.faction !== unit.faction;
     });
@@ -1366,6 +1444,7 @@
   }
 
   function independentMessage(reason) {
+    if (/permission_denied/i.test(reason)) return "Esta acción todavía no está habilitada en la partida. Avisa al DM.";
     if (/quick.*spent|No quick/.test(reason)) return "Ya usaste tu Quick Action este turno.";
     if (/invalid_target/.test(reason)) return "Elige un objetivo válido.";
     if (/uses remaining|Count remaining|not_enough|No .*remaining/.test(reason)) return "No tienes usos o recursos suficientes.";
@@ -1373,17 +1452,19 @@
     if (/timeout|pending/.test(reason)) return "La habilidad sigue pendiente de confirmación del DM.";
     return "No se pudo usar la habilidad. Revisa sus requisitos e inténtalo de nuevo.";
   }
-  async function useQuickAction(sel, targetId = null) {
+  async function useQuickAction(sel, targetId = null, targetSlotIndex = null) {
     const unit = playerUnit(), independent = global.LuminousUnitIndependentActions;
     if (!unit || !independent) return false;
     const type = normalizeId(sel?.type === "items" ? "item" : sel?.type), source = sel?.data || {};
+    if(source.actionKey==='analyse'){lexical('goRoot',()=>{})();lexical('enterAnalyseMode',()=>{})();return true}
     const label = economyTabFor(source) === ECONOMY.FREE ? "FREE ACTION" : "QUICK ACTION";
     if (state.independentPending) return false;
     state.independentPending = true;
     lexical("setStatus", () => {})(`${label} · Confirmando ${source.name || "habilidad"}…`);
     try {
       const sync = global.LuminousCombatPlanSync073, online = global.LuminousCombatLiveAdapter073?.state?.db;
-      const result = online
+      const result = source.actionKey&&global.LuminousUnitUniversalActionPolicy?.definitionFor(source.actionKey)
+        ?await lexical('requestUniversalInstant',()=>({used:false}))(source.actionKey,{targetId:targetId||unit.id,targetSlotIndex,variant:source.universalVariant||null}):online
         ? await sync.requestIndependentAction({ unitId: unit.id, sourceId: clean(source.instanceId || source.id), sourceType: type,
           cost: independent.costOf(source), targetId: targetId || unit.id, round: roundNumber() })
         : independent.execute(unit, { sourceType: type, definition: source }, { round: roundNumber(), phase: "planning", target: combatData()?.[targetId] || unit, units: Object.values(combatData() || {}) });
@@ -1403,6 +1484,7 @@
 
   function beginQuickAction(sel) {
     const source = sel?.data || {};
+    if(source.actionKey==='analyse')return useQuickAction(sel,playerId());
     if (needsTarget(source)) return beginTargetPick(sel);
     return useQuickAction(sel, playerId());
   }
@@ -1537,8 +1619,9 @@
       const targetId = clean(token.id).replace(/^token-/, "");
       if (!state.pendingTarget.candidateIds.has(targetId)) return;
       event.preventDefault(); event.stopPropagation();
-      const pending = state.pendingTarget;
-      cancelEconomyTargeting(); useQuickAction(pending.sel, targetId);
+      const pending=state.pendingTarget,slot=event.target?.closest?.('.action-slot-wrapper');
+      if(pending.sel.data?.actionKey==='help'&&!slot){lexical('setStatus',()=>{})('Selecciona el Slot de la acción aliada que quieres ayudar.');return}
+      cancelEconomyTargeting();useQuickAction(pending.sel,targetId,slot?Number(slot.dataset.slotIndex):null);
     }, true);
     global.addEventListener?.("keydown", (event) => {
       if (event.key !== "Escape" || !state.pendingTarget) return;
@@ -1614,6 +1697,10 @@
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
   global.LuminousCombatEconomyMenu073 = Object.freeze(api);
+  global.addEventListener?.("luminous:combat073-spells-ready",()=>{
+    syncSpellMenuVisibility();
+    if(activeMenu()==="spells")renderSpells();
+  });
   global.addEventListener?.("luminous:combat073-hydrated", () => { ensureTraitLibrarySubscriptions(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
   global.addEventListener?.("luminous:combat073-runtime-ready", () => global.setTimeout(boot, 0));
   global.addEventListener?.("luminous:class-runtime-bootstrap-ready", refreshTraitActionMenu);
@@ -1624,4 +1711,3 @@
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
-

@@ -24,7 +24,8 @@ Ambos se guardan en `localStorage` y nunca se escriben en Firebase.
 - `music` y `ambience` son estados duraderos con `startedAt` basado
   en `ServerValue.TIMESTAMP`; las conexiones tardías buscan una posición
   acorde al tiempo del servidor. `cue` es un evento puntual con nonce;
-  el último evento guardado **no se reproduce** al reconectar.
+  el último evento guardado **no se reproduce** al entrar. También se descartan efectos con más de cinco segundos de antigüedad al recuperar la conexión.
+- En encuentros aislados se usa `campaña/encuentros/{id}/state/campaña/audio_director`, con permisos del DM y membresía del propio encuentro.
 - Los volúmenes son preferencias personales independientes del estado
   compartido. La UI no revela UID, tokens ni datos de depuración.
 - Los iframes de combate embebidos heredan el soundtrack de la página

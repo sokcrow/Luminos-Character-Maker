@@ -239,7 +239,7 @@
             if (!liveActorsList) return;
             liveActorsList.innerHTML = "";
             const panelTitle = directorPanel?.querySelector(".panel-title");
-            if (panelTitle) {
+            if (panelTitle && directorPanel?.dataset.workspace !== "true") {
                 panelTitle.textContent = `CONTROL DE CASTING (${Object.keys(liveActors).length} disponibles · ${visibleActors.length}/${maxVisibleActors} visibles)`;
             }
 
@@ -247,6 +247,7 @@
             for (const [actorId, actorData] of Object.entries(liveActors)) {
                 const card = document.createElement("div");
                 card.className = "actor-control-card";
+                card.dataset.actorId = actorId;
                 card.dataset.visible = visibleActors.includes(actorId) ? "true" : "false";
 
                 let expressionsHtml = "";

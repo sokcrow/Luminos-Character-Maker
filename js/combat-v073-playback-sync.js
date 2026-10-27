@@ -5,10 +5,11 @@
   const session = global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const state = { generation: null, consumer: null, ref: null, handler: null, eventCursor: 0, batchSeq: 0,
     connected: true, connectionRef: null, connectionHandler: null, offsetRef:null,offsetHandler:null,serverOffset:0,
-    authority: null, starting: false, transmittedSnapshot: {}, recoveryButton:null, stagedUpdates:{}, presentationClock:null, viewerClock:null };
+    authority: null, starting: false, transmittedSnapshot: {}, recoveryButton:null, stagedUpdates:{}, presentationClock:null, viewerClock:null,
+    viewerRecoveryTimer:null, viewerRecoveryAttempts:0, viewerFinishTimer:null };
   const adapter = () => global.LuminousCombatLiveAdapter073?.state;
   const surface = () => global.LuminousCombatStepRuntime;
-  const status = text => { const node = global.document?.getElementById?.('status'); if (node) node.textContent = text; };
+  const status = text => { const node = global.document?.getElementById?.('status'); if (node && node.textContent !== text) node.textContent = text; };
   const protocol = () => global.LuminousCombatPlayback;
   function createPresentationGate(now = () => Date.now() + state.serverOffset) {
     const decisions = new WeakMap();
@@ -33,11 +34,11 @@
     state.presentationClock?.stop();
     state.presentationClock = data?.playback?.timelineVersion === 1 ? protocol().createPresentationClock({ now: serverNow }) : null;
   }
-  function schedulePresentation() {
+  function schedulePresentation(cue, args) {
     const current = state.authority?.state.current;
     if (current?.playback?.timelineVersion !== 1) return null;
     assertOwner(current);
-    return state.presentationClock?.stamp() || null;
+    return state.presentationClock?.stamp(cue, args) || null;
   }
   function presentScheduled(event, render) {
     if (!event?.timing || !state.presentationClock) return render();
@@ -112,7 +113,11 @@
     return { [`${ROOT}/batches/${String(row.seq).padStart(6, '0')}`]: batch };
   }
   function disconnectConsumer() {
+    if (state.viewerRecoveryTimer != null) global.clearTimeout?.(state.viewerRecoveryTimer);
+    if (state.viewerFinishTimer != null) global.clearTimeout?.(state.viewerFinishTimer);
+    state.viewerRecoveryTimer = state.viewerFinishTimer = null;
     state.viewerClock?.stop(); state.viewerClock = null;
+    surface()?.cancelPlaybackRefresh?.();
     global.LuminousCombatAudiovisual073?.clear();
     state.consumer?.stop(); state.consumer = null;
     if (state.ref && state.handler) state.ref.off('child_added', state.handler);
@@ -197,17 +202,68 @@
     status('Reanudando el turno…');refreshRecoveryControl(current);
     return a.requestStartRound();
   }
-  async function observe(data) {
+  function scheduleViewerRecovery(generation, reason) {
+    if (state.generation !== generation || state.viewerRecoveryTimer !== null) return false;
+    if (state.viewerRecoveryAttempts >= 3 || typeof global.setTimeout !== 'function') {
+      status('No se pudo recuperar la conexión del combate. Vuelve a abrir el visor.');
+      return false;
+    }
+    const attempt = ++state.viewerRecoveryAttempts;
+    status('Recuperando sincronización del combate…');
+    state.viewerRecoveryTimer = global.setTimeout(async () => {
+      state.viewerRecoveryTimer = null;
+      if (state.generation !== generation || adapter()?.role !== 'player') return;
+      try {
+        // A cancelled RTDB listener can be caused by an Auth token restored
+        // after the initial subscription. Refresh it before the first retry.
+        if (reason?.code === 'PERMISSION_DENIED') await adapter()?.user?.getIdToken?.(true);
+        // Rejoin at the canonical DM checkpoint. Never replay combat rules locally.
+        const snapshot = await adapter().db.ref(state.authority.ROOT.current).once('value');
+        const latest = snapshot.val();
+        if (!latest?.playback) throw new Error('PLAYBACK_RECOVERY_NO_AUTHORITY');
+        if (state.generation !== generation) return;
+        disconnectConsumer();
+        await observe(latest, { recoveryGeneration: generation });
+      } catch (error) {
+        global.console?.warn?.('[Combat playback recovery]', reason, error);
+        if (state.generation === generation) scheduleViewerRecovery(generation, error);
+      }
+    }, [350, 1000, 2500][attempt - 1]);
+    return true;
+  }
+  function scheduleViewerFinishRepair(data) {
+    if (state.viewerFinishTimer !== null || !data.checkpoint?.combatants ||
+        !state.authority?.state.runningLocal || typeof global.setTimeout !== 'function') return;
+    state.viewerFinishTimer = global.setTimeout(async () => {
+      state.viewerFinishTimer = null;
+      if (state.generation !== data.id || !state.authority?.state.runningLocal) return;
+      // A missing final batch cannot leave the player in a permanent Clash.
+      global.console?.warn?.('[Combat playback] applying final authoritative checkpoint after transport stall');
+      disconnectConsumer();
+      try { await observe(data); } catch (error) {
+        global.console?.error?.('[Combat playback final checkpoint]', error);
+      }
+    }, 10000);
+  }
+  async function observe(data, { recoveryGeneration = null } = {}) {
     const a = state.authority, s = adapter();
     refreshRecoveryControl(data);
     if (!enabled(data) || s?.role !== 'player' || s?.isAuthority || !surface() || !global.LuminousCombat073?.combatants?.() || !s.hydratedOnce) return;
     if (data.playback.schemaVersion !== 1 || data.playback.engineVersion !== protocol()?.engineVersion) {
       surface().lockPlanning(true); status('Actualiza el visor para continuar este combate.'); return;
     }
-    if (state.generation === data.id || state.starting) return;
+    if (state.generation === data.id) {
+      if (data.phase === 'complete') scheduleViewerFinishRepair(data);
+      return;
+    }
+    if (state.starting) return;
     state.starting = true;
     try {
-      disconnectConsumer(); state.generation = data.id;
+      // Disconnect clears generation; retain the retry budget for this round.
+      const previousGeneration = state.generation || recoveryGeneration;
+      disconnectConsumer();
+      if (previousGeneration !== data.id) state.viewerRecoveryAttempts = 0;
+      state.generation = data.id;
       const checkpoint = data.checkpoint;
       if (data.phase === 'complete') {
         if (checkpoint?.combatants) a.applySnapshot(checkpoint.stateJson?JSON.parse(checkpoint.stateJson):checkpoint.combatants);
@@ -224,7 +280,8 @@
       surface().beginPlayback(data.round);
       if(data.initialStateJson&&!checkpoint)a.applySnapshot(JSON.parse(data.initialStateJson));
       if (checkpoint?.combatants) { a.applySnapshot(checkpoint.stateJson?JSON.parse(checkpoint.stateJson):checkpoint.combatants); a.state.cursor = Number(checkpoint.rngCursor) || 0; }
-      state.consumer = protocol().createConsumer({ generation: data.id, checkpoint,
+      const consumer = protocol().createConsumer({ generation: data.id, checkpoint,
+        waitForPresentation: !scheduled,
         beforeEvents: async (group, row, following) => {
           if (!scheduled || !shouldPresent(row)) return;
           const event = [...group, ...following].find(event => event.type === 'Presentation');
@@ -233,39 +290,73 @@
             await viewerClock.wait(event.timing.playAt);
           }
         },
-        apply: snapshot => { a.applySnapshot(snapshot); surface().refreshPlayback(); },
+        apply: snapshot => {
+          const view=surface();
+          if(typeof view.queuePlaybackRefresh==='function'){
+            const changes=[];
+            a.applySnapshot(snapshot,{deferRender:true,changes});
+            try{view.queuePlaybackRefresh(changes)}catch(error){global.console?.warn?.('[Combat playback visual refresh]',error)}
+          }else{
+            a.applySnapshot(snapshot);
+            try{view.refreshPlayback()}catch(error){global.console?.warn?.('[Combat playback visual refresh]',error)}
+          }
+        },
         onEvent: event => {
           surface().acceptEvent(event); a.state.cursor = Number(event.rngCursor) || 0;
           if(event.type==='QueueEntryStarted'||event.type==='CoinRolled')status('Resolviendo turno…');
           else if(event.type==='ClashStarted')status('Choque de habilidades…');
           else if(event.type==='RoundFinished')status('Preparando el próximo turno…');
         },
-        present: async (cue, args, row, event) => {
+        present: (cue, args, row, event) => {
           // Slow/reconnected viewers catch up by applying states, without waiting
           // through old animation holds. Visual mode never changes the result.
           // Every state/event is still consumed, even when its animation is skipped.
           if (!shouldPresent(row)) return;
           if (scheduled) {
-            if (!(await viewerClock.wait(event.timing.playAt))) return;
+            // beforeEvents already waited for this deadline. Register the
+            // visual synchronously so a final batch cannot drain an empty clock
+            // just before its last animation is added.
             // A suspended/slow device rejoins the current phase instead of
             // carrying its accumulated animation delay through the Clash.
             if (serverNow() - event.timing.playAt > 800 &&
                 ['powerCoin','hitCoin','hitMotion','clashContact','clashOutcome','wait'].includes(cue)) return;
           }
-          await surface().present(cue, args);
+          if (scheduled) return viewerClock.run(cue, event.timing, visual => surface().present(cue, args, visual, event));
+          return surface().present(cue, args);
         },
-        finish: row => {
+        finish: async row => {
+          // The queue follows deadlines without waiting for visual holds. Keep
+          // cleanup behind the final scheduled visuals, with the clock's bounded
+          // timeout, and never let an abandoned generation finish a new round.
+          await viewerClock?.drain();
+          if (state.generation !== data.id || state.consumer !== consumer) return;
           a.state.cursor = Number(row.rngCursor) || 0;
-          surface().finishPlayback(row.nextRound);
-          a.state.runningLocal = false;
-          global.LuminousCombatLiveAdapter073?.scheduleHydrate?.();
+          try { surface().finishPlayback(row.nextRound); }
+          catch (error) { global.console?.warn?.('[Combat playback visual finish]', error); }
+          finally {
+            a.state.runningLocal = false;
+            global.LuminousCombatLiveAdapter073?.scheduleHydrate?.();
+          }
         },
-        onError: error => { console.error('[Combat playback]', error); status('No se pudo sincronizar el combate. Vuelve a abrir el visor.'); },
+        onVisualError: error => global.console?.warn?.('[Combat playback visual]', error),
+        onError: error => {
+          global.console?.error?.('[Combat playback]', error);
+          scheduleViewerRecovery(data.id, error);
+        },
       });
+      state.consumer = consumer;
       state.ref = s.db.ref(`${ROOT}/batches`).orderByKey().startAt(String((Number(checkpoint?.seq) || 0) + 1).padStart(6, '0'));
-      state.handler = snapshot => { state.consumer?.receive(snapshot.val()); };
+      state.handler = snapshot => {
+        const consumer = state.consumer;
+        if (!consumer) return;
+        const cursor = consumer.cursor();
+        Promise.resolve(consumer.receive(snapshot.val())).then(() => {
+          if (state.consumer === consumer && consumer.cursor() > cursor) state.viewerRecoveryAttempts = 0;
+        }).catch(error => scheduleViewerRecovery(data.id, error));
+      };
       state.ref.on('child_added', state.handler, error => {
-        console.error('[Combat playback subscription]', error); status('No se pudo conectar al combate. Vuelve a abrir el visor.');
+        global.console?.error?.('[Combat playback subscription]', error);
+        scheduleViewerRecovery(data.id, error);
       });
       status(state.connected ? 'Esperando los resultados del DM…' : 'Reconectando…');
     } finally { state.starting = false; }

@@ -50,12 +50,17 @@
     const members=global.LuminousCombatParticipants?.players(raw.combatants)||[];
     if(members.length!==Object.keys(payload.plans||{}).length)return false;
     const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>k!=='updatedAt').map(k=>[k,stable(v[k])])):v;
-    return members.every(member=>{
+    const membersValid=members.every(member=>{
       const ready=raw.readyPlayers?.[member.playerId];
       if(!ready?.ready||Number(ready.round)!==payload.round||ready.unitId!==member.unitId)return false;
       const plans=Object.fromEntries(Object.entries(raw.plannedActions?.[member.playerId]||{}).filter(([,p])=>p?.unitId===member.unitId&&Number(p.round)===payload.round));
       return JSON.stringify(stable(plans))===JSON.stringify(stable((payload.planningWitness||payload.plans)[member.playerId]||{}));
     });
+    if(!membersValid)return false;
+    const runtime=global.LuminousUnitUniversalActionRuntime;
+    if(runtime){const sealed=runtime.prepareSealed(raw,payload);if(!sealed.ok)return false;payload.universalActionLedgers=sealed.ledgers;
+      if(payload.initialStateJson){const units=JSON.parse(payload.initialStateJson),compact=global.LuminousCombatAuthority073?.compactUnit;for(const [id,row]of Object.entries(raw.combatants||{}))if(units[id]&&compact)units[id]=compact({...units[id],...row});for(const [id,ledger]of Object.entries(sealed.ledgers))if(units[id])units[id].universalActionPhaseLedger=ledger;payload.initialStateJson=JSON.stringify(units);if(payload.initialExecutionJson){const execution=JSON.parse(payload.initialExecutionJson);execution.units=units;payload.initialExecutionJson=JSON.stringify(execution);}}
+    }return true;
   }
   async function start({db,uid}){
     // Returning from a mid-combat Theatre interlude must never create a new

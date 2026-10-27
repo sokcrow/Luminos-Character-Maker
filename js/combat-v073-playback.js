@@ -7,8 +7,33 @@
   // Only presentation uses this clock. Rule results and RNG stay authoritative.
   function createPresentationClock({ now = () => Date.now(), leadMs = 120,
     setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
-    let stopped = false, failure = null, instantTail = Promise.resolve();
+    let stopped = false, instantTail = Promise.resolve(), phase = 0, stampKey = null, activePhase = null, activeVisual = null;
     const timers = new Map(), pending = new Set();
+    const visuals = new Set();
+    function visualContext() {
+      let cancelled = false;
+      const holds = new Map();
+      const check = () => { if (cancelled || stopped) { const error = new Error('PLAYBACK_VISUAL_CANCELLED'); error.code = 'PLAYBACK_VISUAL_CANCELLED'; throw error; } };
+      const context = { check, isActive: () => !cancelled && !stopped,
+        async wait(ms) {
+          check();
+          await new Promise((resolve, reject) => {
+            const id = setTimer(() => { holds.delete(id); resolve(); }, Math.max(0, Number(ms) || 0));
+            holds.set(id, reject);
+          });
+          check();
+        },
+        cancel() {
+          cancelled = true;
+          for (const [id, reject] of holds) {
+            clearTimer(id);
+            const error = new Error('PLAYBACK_VISUAL_CANCELLED'); error.code = 'PLAYBACK_VISUAL_CANCELLED'; reject(error);
+          }
+          holds.clear(); visuals.delete(context);
+        },
+      };
+      visuals.add(context); return context;
+    }
     async function wait(playAt) {
       while (!stopped && Number.isFinite(playAt) && playAt > now()) {
         await new Promise(resolve => {
@@ -18,32 +43,101 @@
       }
       return !stopped;
     }
+    async function renderVisual(cue, render, visual) {
+      let deadline = null;
+      const timeout = { timedOut: true };
+      try {
+        const outcome = await Promise.race([
+          Promise.resolve(render()),
+          new Promise(resolve => { deadline = setTimer(() => resolve(timeout), 8000); }),
+        ]);
+        if (outcome === timeout) { visual.cancel(); global.console?.warn?.('[Combat visual timeout]', cue); }
+      } finally {
+        if (deadline !== null) clearTimer(deadline);
+      }
+    }
     return Object.freeze({
-      stamp() { if (failure) throw failure; return { schemaVersion: 1, playAt: now() + leadMs }; },
+      stamp(cue, args = []) {
+        // Both sides of one Coin share a phase even when sent separately.
+        // Instant HUD preparation for both sides also belongs together.
+        const key = cue === 'powerCoin' ? `${cue}:${args[1]?.index}` : instantCues.has(cue) ? cue : null;
+        if (key === null || key !== stampKey) phase++;
+        stampKey = key;
+        return { schemaVersion: 1, playAt: now() + leadMs, phase };
+      },
       wait,
       run(cue, timing, render) {
-        if (failure) throw failure;
         const previous = instantTail;
         const task = (async () => {
           if (!(await wait(timing.playAt))) return;
           await previous;
-          if (!stopped) await render();
-        })();
+          if (stopped) return;
+          if (Number.isInteger(timing.phase)) {
+            if (activePhase !== null && timing.phase < activePhase) return;
+            if (timing.phase !== activePhase) {
+              activeVisual?.cancel(); activeVisual = visualContext(); activePhase = timing.phase;
+            }
+          } else if (!activeVisual) activeVisual = visualContext();
+          const visual = activeVisual;
+          await renderVisual(cue, () => render(visual), visual);
+        })().catch(error => {
+          // A broken sprite/HUD must never poison the authority's presentation clock.
+          if (error?.code !== 'PLAYBACK_VISUAL_CANCELLED') global.console?.warn?.('[Combat visual]', cue, error);
+        });
         pending.add(task);
-        task.then(() => pending.delete(task), error => { pending.delete(task); failure = error; });
+        task.then(() => pending.delete(task));
         // DOM preparation has no hold. Queue it at the same server time as the
         // next animated cue, without charging a network buffer for each label.
         if (instantCues.has(cue)) { instantTail = task; return Promise.resolve(); }
         return task;
       },
-      async drain() { await Promise.all([...pending]); if (failure) throw failure; },
-      stop() { stopped = true; for (const [id, resolve] of timers) { clearTimer(id); resolve(); } timers.clear(); },
+      async drain() { await Promise.all([...pending]); },
+      stop() { stopped = true; for (const visual of [...visuals]) visual.cancel(); for (const [id, resolve] of timers) { clearTimer(id); resolve(); } timers.clear(); },
     });
   }
-  function createConsumer({ generation, checkpoint, apply, present, finish, onEvent = () => {}, onError = () => {}, beforeEvents = async () => {} }) {
+  function createConsumer({ generation, checkpoint, apply, present, finish, onEvent = () => {}, onError = () => {}, onVisualError = () => {}, beforeEvents = async () => {}, visualTimeoutMs = 7000, batchGapTimeoutMs = 3000, waitForPresentation = true }) {
     let cursor = Number(checkpoint?.seq) || 0, eventCursor = Number(checkpoint?.eventCursor) || 0;
     let chain = Promise.resolve(), stopped = false;
     const pending = new Map(), seen = new Map();
+    let gapTimer = null;
+    function trackBatchGap() {
+      const gap = !pending.has(cursor + 1) && [...pending.keys()].some(seq => seq > cursor + 1);
+      if (!gap) {
+        if (gapTimer !== null) global.clearTimeout?.(gapTimer);
+        gapTimer = null;
+        return;
+      }
+      if (gapTimer !== null || typeof global.setTimeout !== 'function') return;
+      // Out-of-order delivery is tolerated briefly. A truly missing batch must
+      // force canonical checkpoint recovery instead of silently freezing forever.
+      gapTimer = global.setTimeout(() => {
+        gapTimer = null;
+        if (!stopped && !pending.has(cursor + 1) && [...pending.keys()].some(seq => seq > cursor + 1)) {
+          stopped = true;
+          onError(new Error('PLAYBACK_BATCH_GAP'));
+        }
+      }, batchGapTimeoutMs);
+    }
+    function visualError(error) {
+      try { onVisualError(error); } catch (_) {}
+    }
+    async function awaitVisual(callback, label) {
+      let deadline = null;
+      const timeout = { timedOut: true };
+      try {
+        const operation = Promise.resolve(callback());
+        if (typeof global.setTimeout !== 'function') return await operation;
+        const outcome = await Promise.race([
+          operation,
+          new Promise(resolve => { deadline = global.setTimeout(() => resolve(timeout), visualTimeoutMs); }),
+        ]);
+        if (outcome === timeout) visualError(new Error('PLAYBACK_VISUAL_TIMEOUT:' + label));
+      } catch (error) {
+        visualError(error);
+      } finally {
+        if (deadline !== null) global.clearTimeout?.(deadline);
+      }
+    }
     async function drain() {
       while (!stopped && pending.has(cursor + 1)) {
         const row = pending.get(cursor + 1);
@@ -61,24 +155,33 @@
             if(next.type!=='Presentation'||next.cue!=='powerCoin'||next.args?.[1]?.index!==first.args?.[1]?.index)break;
             group.push(next);index++;
           }
-          await beforeEvents(group, row, events.slice(index));
+          await awaitVisual(() => beforeEvents(group, row, events.slice(index)), 'schedule');
           if (stopped) return;
           const presentations=[];
           for(const event of group){
             if (event.sequence !== eventCursor + 1) throw new Error('PLAYBACK_EVENT_GAP');
             if (event.combatants) apply(copy(event.combatants));
             else if(event.changes?.length) apply(Object.fromEntries(event.changes.filter(change=>change.after).map(change=>[change.unitId,copy(change.after)])));
-            await onEvent(copy(event));
+            // Journal notifications are presentation-only; canonical snapshots
+            // and strict sequence validation must not depend on a HUD callback.
+            try { await onEvent(copy(event)); } catch (error) { visualError(error); }
             if(stopped)return;
-            if (event.type === 'Presentation') presentations.push(present(event.cue, copy(event.args || []), row, event));
+            if (event.type === 'Presentation')
+              presentations.push(awaitVisual(() => present(event.cue, copy(event.args || []), row, event), event.cue));
             eventCursor = event.sequence;
           }
-          await Promise.all(presentations);
+          // Scheduled playback advances on server deadlines, just like the DM.
+          // A local animation's duration must not hold the transport queue: two
+          // simultaneous Coins may arrive in different batches, and a phone may
+          // render a longer animation than the authority. Legacy playback has
+          // no deadlines and retains its sequential presentation contract.
+          if (waitForPresentation) await Promise.all(presentations);
         }
         if(stopped)return;
         if (Number(row.eventCursor) !== eventCursor) throw new Error('PLAYBACK_CHECKPOINT_CURSOR');
         if(row.combatants) apply(copy(row.combatants));
         pending.delete(row.seq); cursor = row.seq;
+        trackBatchGap();
         if (row.type === 'round_complete') await finish(row);
       }
     }
@@ -98,11 +201,12 @@
         }
         if (seq <= cursor) return chain;
         seen.set(seq, signature); pending.set(seq, row);
+        trackBatchGap();
         chain = chain.then(drain).catch(error => { stopped = true; onError(error); });
         return chain;
       },
       cursor: () => cursor, eventCursor: () => eventCursor, idle: () => chain,
-      stop() { stopped = true; pending.clear(); seen.clear(); },
+      stop() { stopped = true; if (gapTimer !== null) global.clearTimeout?.(gapTimer); gapTimer = null; pending.clear(); seen.clear(); },
     });
   }
   global.LuminousCombatPlayback = Object.freeze({ schemaVersion: SCHEMA, engineVersion: ENGINE, timelineVersion: 1,

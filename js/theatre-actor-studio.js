@@ -162,7 +162,10 @@
       </div>
     `;
 
-    director.insertBefore(panel, quickCast);
+    // Workspace moves quick cast into Elenco; the lazy loader owns its slot.
+    const slot = doc.getElementById("theatre-actor-studio-slot");
+    if (slot) slot.appendChild(panel);
+    else quickCast.parentNode.insertBefore(panel, quickCast);
     quickCast.classList.add("theatre-quick-cast");
     const quickTitle = doc.createElement("div");
     quickTitle.className = "theatre-quick-cast-title";

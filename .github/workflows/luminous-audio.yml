@@ -1,0 +1,36 @@
+name: Luminous Audio
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'js/luminous-audio-director.js'
+      - 'css/luminous-audio-director.css'
+      - 'tests/luminous-audio-*'
+      - 'database.rules.json'
+      - 'index.html'
+      - 'hoja_personaje.html'
+      - 'hoja_de_DM.html'
+      - 'pantalla_dm.html'
+      - 'combate.html'
+      - 'Battle-viewer.html'
+      - '.github/workflows/luminous-audio.yml'
+jobs:
+  audio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Audio state and authority regressions
+        run: |
+          node --check js/luminous-audio-director.js
+          node tests/luminous-audio-director-smoke.mjs
+          node tests/unit-independent-rules-smoke.mjs
+      - name: Install browser
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Audio options for player and DM at six screen sizes
+        run: node tests/luminous-audio-responsive.mjs

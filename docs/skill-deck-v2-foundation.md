@@ -33,4 +33,3 @@ This is a **Unit skill deck** contract shared by players, allied NPCs and hostil
 4. End-to-end RTDB and Viewer/DM/Player tests, including mobile viewport checks (360×800, 390×844, 844×390, 768×1024, 1280×720, 1920×1080). This foundational PR includes responsive CSS but does **not** claim device-browser visual validation.
 
 Legacy decks remain readable and are upgraded to schemaVersion 2 only when saved from the manager. No mass RTDB migration is performed.
-

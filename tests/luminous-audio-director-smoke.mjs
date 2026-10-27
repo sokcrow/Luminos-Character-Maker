@@ -78,3 +78,43 @@ assert.match(rules.ambience[".validate"], /'bus'/);
 assert.match(rules.cue[".validate"], /coin-heads/);
 assert.match(rules.cue[".validate"], /coin-tails/);
 console.log("Luminous audio director: preferences, sources, responsive entrypoints and RTDB authority OK");
+
+// Exercise real event/rollback handlers without connecting to production.
+let plays = 0;
+class ObservedAudio extends FakeAudio {
+  play() { plays++; return Promise.resolve(); }
+}
+const sandbox = {
+  document: { readyState: 'loading', addEventListener() {} },
+  location: { href: 'https://example.test/hoja_personaje.html' },
+  localStorage: { getItem: () => null }, addEventListener() {}
+};
+const instrumented = js.replace('  global.LuminousAudio = Object.freeze({', `
+  global.audioTest = {receiveCue, receiveLoop, directorWrite,
+    setRef(ref){audioRef=ref;isDirector=true;authenticatedUser={uid:'dm'};},
+    state:()=>musicState};
+  global.LuminousAudio = Object.freeze({`);
+runInNewContext(instrumented, {window:sandbox, Audio:ObservedAudio, URL});
+const handlers = sandbox.audioTest;
+handlers.receiveCue(null);
+handlers.receiveCue({nonce:'stale',cueId:'coin-heads',at:Date.now()-60000});
+assert.equal(plays,0,'Reconnection must not replay expired sound effects');
+handlers.receiveCue({nonce:'fresh',cueId:'coin-heads',at:Date.now()});
+handlers.receiveCue({nonce:'fresh',cueId:'coin-heads',at:Date.now()});
+assert.equal(plays,1,'A fresh nonce plays exactly once');
+const original = {active:true,trackId:'lament',startedAt:100};
+handlers.receiveLoop('music',original);
+handlers.setRef({child(){return {set:async data=>{
+  handlers.receiveLoop('music',data); // Firebase local optimistic event.
+  throw new Error('PERMISSION_DENIED');
+}};}});
+assert.equal(await handlers.directorWrite('music',{active:true,trackId:'lament',startedAt:200}),false);
+assert.equal(handlers.state().startedAt,100,'Rejected writes restore the state before the optimistic event');
+
+const scopedAudio=JSON.parse(read('database.rules.json')).rules.campaña.encuentros.$encounterId.state.campaña.audio_director;
+const dbState={campaña:{config:{dm_uid:'global-dm'},encuentros:{room:{members:{host:true,player:true},state:{campaña:{config:{dm_uid:'host'}}}}}}};
+function snapshot(v){return{val:()=>v??null,child:path=>snapshot(path.split('/').reduce((n,k)=>n?.[k],v))};}
+const allowed=uid=>new Function('auth','root','$encounterId',`return (${scopedAudio['.write']});`)({uid},snapshot(dbState),'room');
+assert.equal(allowed('host'),true);
+for(const uid of ['player','global-dm','outsider'])assert.equal(allowed(uid),false);
+console.log('Audio reconnect freshness, rejected-write rollback and isolated authority: OK');

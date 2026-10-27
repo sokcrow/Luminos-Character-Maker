@@ -3,6 +3,15 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const source = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
+// Load the same AI and universal-action validators used by the encounter.
+// A READY/subscription regression must not silently bypass roster validation.
+function loadUniversalAi(context) {
+  for (const name of [
+    'combat-action-schema', 'combat-action-adapters', 'individual-goap-combat-ai',
+    'unit-ai-kit-adapter', 'unit-ai-universal-actions', 'unit-independent-actions',
+    'unit-universal-action-policy', 'unit-universal-action-runtime',
+  ]) vm.runInContext(source('js/' + name + '.js'), context, { filename: name + '.js' });
+}
 function harness() {
   const timers = [], errors = [];
   const status = { textContent: '' };
@@ -17,6 +26,7 @@ function harness() {
   c.window = c;
   c.globalThis = c;
   vm.runInContext(source('js/combat-participants.js'), c);
+  loadUniversalAi(c);
   return { c, timers, errors, status };
 }
 
@@ -31,7 +41,7 @@ function harness() {
       skillIds: ['player-only-unavailable'] };
   }
   units.enemy = { id: 'enemy', battleActive: true, controlled: 'ai',
-    skillIds: ['bite'], faction: 'enemy', hp: 10, maxHp: 10, autoPlans: [] };
+    skillIds: ['bite'], faction: 'enemy', hp: 10, maxHp: 10, autoPlans: [], aiUniversalActions: [] };
   let published = 0, rechecked = 0;
   const db = { ref() { return {
     on() {}, off() {}, async set() { published++; },
@@ -39,9 +49,11 @@ function harness() {
   }; } };
   c.LuminousCombatLiveAdapter073 = { state: { role: 'dm', user: {}, uid: 'dm',
     round: 2, combatState: 'PRE_COMBAT_PLANNING', hydratedOnce: true,
-    combatants: units, db, skills: { bite: { id: 'bite', name: 'Bite' } } },
+    combatants: units, db, skills: { bite: { id: 'bite', name: 'Bite', kind: 'skill', basePower: 8, coinAmount: 1 } } },
     skillIdsFor(unit) { return unit.skillIds || []; } };
-  c.LuminousCombat073 = { combatants: () => units, render() {}, kit() { return { actions: [] }; } };
+  c.LuminousCombat073 = { combatants: () => units, render() {},
+    kit(id) { return { actions: (units[id]?.skillIds || [])
+      .map(skillId => c.LuminousCombatLiveAdapter073.state.skills?.[skillId]).filter(Boolean) }; } };
   c.LuminousCombatAuthority073 = { state: { readyRows: {} },
     serializeRuntimePlan() { return {}; }, maybeAutoStart() { rechecked++; } };
   vm.runInContext(source('js/combat-v073-remote-intents.js'), c);
@@ -71,8 +83,9 @@ async function subscribedEncounter({ cancelReady = false, staleUnit = false, sto
     document: { getElementById(id) { return id === 'status' ? status : id === 'round' ? { textContent: String(currentTurn) } : null; } },
   });
   c.window = c; c.globalThis = c;
-  for (const file of ['combat-participants', 'combat-session-lifecycle', 'skill-catalog-kobold-tier1', 'unit-independent-actions'])
+  for (const file of ['combat-participants', 'combat-session-lifecycle', 'skill-catalog-kobold-tier1'])
     vm.runInContext(source('js/' + file + '.js'), c);
+  loadUniversalAi(c);
   const skills = c.LuminousKoboldTier1SkillCatalog.firebasePayload();
   const units = {}, readyPlayers = {}, plannedActions = {};
   const kinds = ['skill', 'defense', 'item', 'global', 'spell', 'skill'];
@@ -87,6 +100,12 @@ async function subscribedEncounter({ cancelReady = false, staleUnit = false, sto
       skillId: 'player-exclusive-' + i, spellId: 'magic_missile', itemId: 'potion', actionKey: 'dodge',
       actionData: { id: 'chosen-' + i, name: 'Elección ' + i, kind }, targetId: 'kobold:1' } };
   }
+  // The global fixture must use an actual Universal Action. Help targets an
+  // existing allied Skill/Slot rather than an enemy or an unsupported dodge key.
+  plannedActions.p4[0].actionKey = 'help';
+  plannedActions.p4[0].actionData.actionKey = 'help';
+  plannedActions.p4[0].targetId = 'player:p1';
+  plannedActions.p4[0].targetSlotIndex = 0;
   plannedActions.p6[1] = { ...plannedActions.p6[0], skillId: 'player-exclusive-second',
     actionData: { id: 'second-choice', name: 'Segunda Skill', kind: 'skill' }, sourceSlotIndex: 1 };
   const delayed = clone(plannedActions.p6);
@@ -95,7 +114,7 @@ async function subscribedEncounter({ cancelReady = false, staleUnit = false, sto
     const id = 'kobold:' + i, skillId = i === 2 ? 'kobold_sling_shot' : 'kobold_dagger_jab';
     units[id] = { id, name: 'Kobold ' + i, controlled: 'ai', faction: 'enemy',
       battleActive: true, hp: 12, maxHp: 12, actionSlots: 1, speed: i,
-      skillIds: [skillId], autoPlans: [{ type: 'auto', data: skills[skillId], targetId: 'player:p' + i }] };
+      skillIds: [skillId], aiUniversalActions: [], autoPlans: [{ type: 'auto', data: skills[skillId], targetId: 'player:p' + i }] };
   }
   let data = { campaña: { combate: { estado: { phase: 'PRE_COMBAT_PLANNING', active: true, round: 2 },
     combatants: clone(units), readyPlayers, plannedActions } } };
@@ -132,6 +151,17 @@ async function subscribedEncounter({ cancelReady = false, staleUnit = false, sto
     db, round: 2, combatState: 'PRE_COMBAT_PLANNING', firebaseReady: true, hydratedOnce: true,
     combatants: clone(units), skills }, skillIdsFor: unit => unit.skillIds || [] };
   c.LuminousSpellcastingRuntime = { getClassSpellcastingProfile: () => ({ spellcastingStartLimbusLevel: 1 }) };
+  // The authority now requires a canonical Spell resolver before sealing ANY
+  // READY roster containing a caster. The old test omitted this dependency,
+  // so it never reached the six-Player subscription or Clash queue assertions.
+  c.LuminousCombatSpellLoadout074 = {
+    resolveSpellForCombatant(unit, spellId, { classId } = {}) {
+      if (unit.id !== 'player:p5' || spellId !== 'magic_missile' || (classId && classId !== 'wizard'))
+        return { ok: false, reason: 'SPELL_NOT_ASSIGNED' };
+      return { ok: true, classId: 'wizard',
+        spell: { spellId: 'magic_missile', id: 'magic_missile', name: 'Magic Missile', kind: 'spell' } };
+    },
+  };
   c.LuminousCombat073 = { combatants: () => units, plans: () => [], render() {},
     kit: id => ({ actions: (units[id].skillIds || []).map(key => skills[key]).filter(Boolean) }) };
   c.combatData = units; c.PLAYER_ID = 'observer'; c.AUTO_UNIT_IDS = Object.keys(units);
@@ -177,7 +207,7 @@ async function subscribedEncounter({ cancelReady = false, staleUnit = false, sto
     assert.equal(seals, 1, 'READY and plan notifications must seal exactly once');
     assert.equal(queue.length, 10, 'Seven Player actions and three Kobold actions reach the actual queue builder');
     for (let i = 1; i <= 6; i++)
-      assert.equal(queue.find(row => row.ownerId === 'player:p' + i && row.localIndex === 0)?.plan.data.name, 'Elección ' + i);
+      assert.equal(queue.find(row => row.ownerId === 'player:p' + i && row.localIndex === 0)?.plan.data.name, i === 5 ? 'Magic Missile' : 'Elección ' + i);
     assert.equal(queue.find(row => row.ownerId === 'player:p6' && row.localIndex === 1)?.plan.data.name, 'Segunda Skill');
     assert.equal(queue.filter(row => row.ownerId.startsWith('kobold:')).length, 3);
     assert.equal(get(root + '/authority/current/phase'), 'complete');

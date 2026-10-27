@@ -42,13 +42,13 @@
       const data={...(source||{}),kind,skillId,id:skillId||clean(source?.id||raw.actionName),name:clean(raw.actionName||source?.name||skillId)};if(targetSide)data.targetSide=targetSide;return{...common,type:kind==='defense'?'defense':raw.planType==='deck'||raw.drawId?'deck':raw.planType==='auto'?'auto':'granted',data};
     }
     if(kind==='spell'){
-      const spellId=clean(raw.spellId),data={...embedded,kind:'spell',spellId,id:spellId||clean(embedded.id),name:clean(raw.actionName||embedded.name||spellId),targetSide:targetSide||embedded.targetSide||'enemy',slotLevel:Number(raw.slotLevel??embedded.slotLevel)||0,overcast:Boolean(raw.overcast??embedded.overcast)};return{...common,type:'spells',data};
+      const spellId=clean(raw.spellId),data={...embedded,classId:raw.classId||embedded.classId||null,kind:'spell',spellId,id:spellId||clean(embedded.id),name:clean(raw.actionName||embedded.name||spellId),targetSide:targetSide||embedded.targetSide||'enemy',slotLevel:Number(raw.slotLevel??embedded.slotLevel)||0,overcast:Boolean(raw.overcast??embedded.overcast)};return{...common,type:'spells',data};
     }
     if(kind==='item'){
       const itemId=clean(raw.itemId),itemType=clean(raw.itemType||embedded.itemType||embedded.item_type)||(targetSide==='ally'?'hp_healing':'offensive'),data={...embedded,kind:'item',itemId,id:itemId||clean(embedded.id),name:clean(raw.actionName||embedded.name||itemId),itemType,targetSide:targetSide||embedded.targetSide};return{...common,type:'items',data};
     }
     if(kind==='global'){
-      const actionKey=clean(raw.actionKey),data={...embedded,kind:'global',actionKey,id:actionKey||clean(embedded.id),name:clean(raw.actionName||embedded.name||actionKey),targetSide:targetSide||embedded.targetSide};return{...common,type:'global',data};
+      const actionKey=clean(raw.actionKey)||clean(embedded.actionKey),data={...embedded,kind:'global',actionKey,id:actionKey||clean(embedded.id),name:clean(raw.actionName||embedded.name||actionKey),targetSide:targetSide||embedded.targetSide};return{...common,type:'global',data};
     }
     if(kind==='trait'){
       const traitId=clean(raw.traitId),data={...embedded,kind:'trait',traitId,id:traitId||clean(embedded.id),name:clean(raw.actionName||embedded.name||traitId),targetSide:targetSide||embedded.targetSide};return{...common,type:'traits',data};
@@ -132,6 +132,7 @@
     // one Player Skill is still unavailable from the sparse library.
     for(const unit of Object.values(s.combatants||{}).filter(unit=>global.LuminousCombatParticipants?.isField(unit)&&!global.LuminousCombatParticipants?.isPlayer(unit)))if(bridge?.skillIdsFor?.(unit).some(id=>!s.skills?.[id])){retryPlanningAi();return false;}
     const serialize=global.LuminousCombatAuthority073?.serializeRuntimePlan;if(!serialize){retryPlanningAi();return false;}
+    if(!global.LuminousUnitUniversalActionRuntime?.planAiRoster(runtime()?.combatants?.()||{},{round:Number(s.round)||1})){retryPlanningAi();return false;}
     const plans={};
     for(const unit of Object.values(runtime()?.combatants?.()||{}))if(unit.controlled==='ai'){
       plans[unit.id]={};(unit.autoPlans||[]).forEach((plan,index)=>{if(plan)plans[unit.id][index]=serialize(plan,unit.id,index);});
@@ -278,12 +279,13 @@
         if(raw.independentReceipts?.[playerId]?.[intentId]){await finishInventory(s,playerId,intentId,raw.independentReceipts[playerId][intentId]);committed=true;break;}
         const row=raw.independentIntents?.[playerId]?.[intentId];
         if(!row){committed=true;break;}
-        const phase=norm(raw.estado?.phase||raw.estado?.state||raw.estado),turn=Number(raw.estado?.round||s.round)||1;
+        const phase=norm(raw.estado?.phase||raw.estado?.state||raw.estado?.status||raw.estado),turn=Number(raw.estado?.round||s.round)||1;
         const sealed=['sealed','running'].includes(norm(raw.authority?.current?.phase));
         const live=runtime()?.combatants?.()||{};
         let units=Object.entries(raw.combatants||{}).map(([id,unit])=>({...clone(live[id]||{}),...clone(unit),id}));
         let unit=units.find(unit=>unit.id===clean(row.unitId)),result,inventoryBefore=null;
         if(!['planning','pre_combat_planning'].includes(phase)||sealed||Number(row.round)!==turn||row.encounterId!==(raw.estado?.encounterId||s.encounterId))result={used:false,reason:'turn_closed'};
+        else if(raw.readyPlayers?.[playerId]?.ready===true&&Number(raw.readyPlayers[playerId].round)===turn)result={used:false,reason:'turn_closed'};
         else if(!unit||clean(row.playerId)!==playerId||clean(unit.canonicalPlayerKey||unit.ownerPlayerId||unit.playerId)!==playerId||clean(unit.canonicalOwnerUid||unit.ownerUid)!==clean(row.schedulerUid))result={used:false,reason:'not_owner'};
         else {
           if(norm(row.sourceType)==='item'){
@@ -298,19 +300,25 @@
             units=(await global.LuminousCombatEventRuntime.planEncounterStart(units,{encounterId,round:turn})).units;
             unit=units.find(entry=>entry.id===clean(row.unitId));
           }
+          if(norm(row.sourceType)==='universal'){
+            Object.assign(unit,controller.characterFor(unit));
+            const u=global.LuminousUnitUniversalActionRuntime,key=clean(row.sourceId),variant=row.variant||null,allowed=(['analyse','find'].includes(key)&&row.cost==='free_action'&&!variant)||(key==='help'&&row.cost==='quick_action'&&variant==='mastermind_quick'),drafts=Object.fromEntries(units.map(entry=>[entry.id,entry])),plans=u?.plansFromRaw(raw),target=units.find(entry=>entry.id===clean(row.targetId));
+            result=!allowed||!u?{used:false,reason:'unknown_universal_action'}:u.useInstant(unit,key,{round:turn,phase:'planning',variant,choice:row.choice,target,targetSlotIndex:row.targetSlotIndex,targetActionSlotId:row.targetSlotIndex==null?null:u.slotId(row.targetId,row.targetSlotIndex),units:drafts,plans,resolve:global.resolveUniversalFreeDraft,random:authority.random});
+          }else{
           const choice=trustedIndependentSources(unit).find(candidate=>norm(candidate.sourceType)===norm(row.sourceType)&&clean(candidate.definition?.instanceId||candidate.definition?.id)===clean(row.sourceId)&&candidate.cost===row.cost);
           const target=units.find(entry=>entry.id===clean(row.targetId));
           result=!choice?{used:false,reason:'ability_not_granted'}:row.targetId&&!target?{used:false,reason:'invalid_target'}:
             controller.execute(unit,choice,{round:turn,phase:'planning',units,target,silent:true});
+          }
         }
         const snapshot=result.used?Object.fromEntries(units.map(entry=>{
           if(Number(entry.speedRollTurn)===turn&&Number(entry.speedBaseRoll)>0&&runtime()?.speedForBaseRoll)entry.speed=runtime().speedForBaseRoll(entry,turn,Number(entry.speedBaseRoll));
           return [entry.id,authority.compactUnit(entry)];
         })):null;
         const delivery=result.used&&inventoryBefore?inventoryDelivery(inventoryBefore,unit.inventario_activo,row.encounterId,intentId):null;
-        const expected=stable([raw.combatants,raw.estado,row]);
+        const expected=stable([raw.combatants,raw.estado,row,raw.readyPlayers,raw.plannedActions,raw.planningAi]);
         const transaction=await session.updateRoot(s.db,current=>{
-          if(!current||current.independentReceipts?.[playerId]?.[intentId]||stable([current.combatants,current.estado,current.independentIntents?.[playerId]?.[intentId]])!==expected)return;
+          if(!current||current.independentReceipts?.[playerId]?.[intentId]||stable([current.combatants,current.estado,current.independentIntents?.[playerId]?.[intentId],current.readyPlayers,current.plannedActions,current.planningAi])!==expected)return;
           if(result.used&&['sealed','running'].includes(norm(current.authority?.current?.phase)))return;
           const next=clone(current);
           if(snapshot)for(const [id,canonical]of Object.entries(snapshot)){

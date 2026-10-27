@@ -311,7 +311,7 @@
           targetActionId: options.targetActionId || null,
           modifier: { source: "help_final_power", type: "final_power", amount: 1 },
         }],
-        metadata: { ...(options.metadata || {}), universalRule: "help", targetActionSlotId: options.targetActionSlotId || null, oncePerTurnPerTeam: true },
+        metadata: { ...(options.metadata || {}), universalRule: "help", targetActionSlotId: options.targetActionSlotId || null, oncePerTurnPerUnit: true },
       });
     }
     if (id === "retreat") {
