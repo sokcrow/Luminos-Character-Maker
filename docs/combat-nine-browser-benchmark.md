@@ -41,3 +41,11 @@ Nueve contextos Chromium comparten un runner CI. No son nueve dispositivos físi
 ## Presupuesto de Players
 
 El workflow exige P95 de desfase absoluto en Clashes estrictamente menor de 100 ms. Con `COMBAT_BENCH_CLASH_BUDGET_MS=100` el reporte falla aunque resultados y escena sean correctos si se rebasa ese límite; no se ajusta la velocidad, calidad ni cantidad de animaciones. Se mide también el coste síncrono de applySnapshot, render, refreshPlayback, Stage y HUD por DM/Players. Los perfiles son inclusivos: sus duraciones no se suman entre APIs anidadas. Los cambios canónicos se aplican inmediatamente; solo su refresco DOM se agrupa por unidad/campo y se drena antes de cada cue, al finalizar o en el próximo RAF.
+
+## Composición compartida y GPU bajo demanda
+
+La primera optimización de snapshots (43d3c05, ejecución 40450950772) redujo el tiempo acumulado de applySnapshot en Players de 20.518,6 a 920,4 ms en dos rondas por versión; los tiempos API son inclusivos. No bastó: el P95 absoluto de Clashes fue 293,7→301,4 ms y el presupuesto falló.
+
+El siguiente candidato conserva los assets DOM/CSS que ya usa el DM como base para todos los roles y reserva WebGL para flechas y VFX, sin subir otra copia del fondo y personajes como texturas. Durante resolución, las flechas ya estaban ocultas; un canvas sin partículas no necesita dibujarse continuamente. Las partículas conservan duración y geometría, y las flechas de planificación siguen su animación cuando la cámara/DOM cambian. Se conserva el nivel de partículas por hardware existente, sin forzar calidad baja ni cambiar duraciones. La prueba de navegador exige composición dom-hybrid y cero texturas duplicadas en el candidato.
+
+El presupuesto se comprueba también por cada fase crítica (entrada, contacto, Coins/poder, resultado, derrota/salida, acercamiento e impacto): un P95 agregado menor de 100 ms no oculta una fase por encima del límite.

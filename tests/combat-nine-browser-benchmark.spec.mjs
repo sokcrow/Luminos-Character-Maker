@@ -38,7 +38,7 @@ function instrument(){
     };
     Object.defineProperty(wrapped,'__nineProfile',{value:true});return wrapped;
   }
-  for(const [name,methods]of [['LuminousCombatAuthority073',['applySnapshot']],['LuminousCombat073',['render']],['LuminousCombatStage073',['refresh','refreshUnit']],['LuminousCombatHudMotion073',['refresh','scheduleStatusLayout']]]){
+  for(const [name,methods]of [['LuminousCombatAuthority073',['applySnapshot']],['LuminousCombat073',['render']],['LuminousCombatStage073',['refresh','refreshUnit']],['LuminousCombatHudMotion073',['refresh','event','cue','scheduleStatusLayout']]]){
     let value;
     Object.defineProperty(window,name,{configurable:true,get:()=>value,set(api){
       const wrapped={...api};for(const method of methods)if(typeof api[method]==='function')wrapped[method]=measured(name+'.'+method,api[method]);value=Object.freeze(wrapped);
@@ -134,7 +134,7 @@ async function choose(frame,index){
   },index);
   await frame.locator('#ready').click({timeout:30000});
 }
-async function snapshot(frame){return frame.evaluate(()=>({ui:LuminousCombat073.uiState(),authority:{phase:LuminousCombatAuthority073.state.current?.phase,error:LuminousCombatAuthority073.state.lastStartError},domVitals:Object.fromEntries([...document.querySelectorAll('.sprite-container')].map(n=>[n.id.replace(/^token-/,''),{hp:n.querySelector('.hp-number')?.textContent,sp:n.querySelector('.floating-sp-group')?.textContent}])),units:Object.fromEntries(Object.entries(LuminousCombat073.combatants()).map(([id,u])=>[id,{hp:u.hp,sp:u.sp,lifeState:u.lifeState||null,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],shieldPools:u.shieldPools||{}}])),telemetry:window.__nine}));}
+async function snapshot(frame){return frame.evaluate(()=>({renderer:{spriteMode:window.LuminousWebGL2Renderer?.spriteMode?.(),quality:window.LuminousWebGL2Renderer?.qualityMode?.(),cores:navigator.hardwareConcurrency,textureCount:window.LuminousWebGL2Renderer?.textureCount?.()},ui:LuminousCombat073.uiState(),authority:{phase:LuminousCombatAuthority073.state.current?.phase,error:LuminousCombatAuthority073.state.lastStartError},domVitals:Object.fromEntries([...document.querySelectorAll('.sprite-container')].map(n=>[n.id.replace(/^token-/,''),{hp:n.querySelector('.hp-number')?.textContent,sp:n.querySelector('.floating-sp-group')?.textContent}])),units:Object.fromEntries(Object.entries(LuminousCombat073.combatants()).map(([id,u])=>[id,{hp:u.hp,sp:u.sp,lifeState:u.lifeState||null,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],shieldPools:u.shieldPools||{}}])),telemetry:window.__nine}));}
 
 test('Nine real Battle Viewers compare identical Clashes before and after',async({browser})=>{
   test.setTimeout(1200000);fs.mkdirSync(output,{recursive:true});
@@ -207,6 +207,8 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
           for(const cue of client.telemetry.cues)expect(cue.result,`rendered result of event ${cue.sequence}`).toEqual(dmCues.get(cue.sequence)?.result);
         }
         if(label==='after')for(const client of result.clients){
+          expect(client.renderer?.spriteMode,'Shared DOM base composition for DM and Players').toBe('dom-hybrid');
+          expect(client.renderer?.textureCount,'No duplicate scene textures in the VFX canvas').toBe(0);
           for(const cue of client.telemetry.cues.filter(c=>c.cue==='clashStart')){
             expect(cue.scene?.camera,'Spectators follow the same Clash camera').toBe('combat');
             expect(cue.scene?.participants,'Real DOM highlights both Clash participants').toEqual([cue.owner,cue.opponent].sort());

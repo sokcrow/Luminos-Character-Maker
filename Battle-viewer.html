@@ -251,15 +251,15 @@ function smartTargetForPlan(owner,plan){
       '<link rel="stylesheet" href="css/combat-target-feedback-073.css?v=20261025-accepted-target-1"></head>');
     stage('patch-renderer','Applying Combat renderer patch');
     // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
-    // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
-    // The DM always uses DOM for battlefield base layers and WebGL only for arrows/VFX;
-    // this prevents an active-but-black WebGL canvas from hiding the Battle from the observer.
+    // All roles use the DM's DOM/CSS base composition. WebGL is reserved for
+    // intent arrows and transient VFX, without uploading/redrawing scene textures.
+    // The same assets, CSS motion, Coins and particle quality remain in use.
     const webglStateNeedle=`const particles=[];
   let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
     const webglStatePatch=`const particles=[];
   const coarsePointer=window.matchMedia?.('(pointer:coarse)')?.matches===true;
   const lowPowerDevice=coarsePointer||((navigator.hardwareConcurrency||8)<=4)||((navigator.deviceMemory||8)<=4);
-  const domSpriteMode=lowPowerDevice;
+  const domSpriteMode=true;
   const intentPathCache=new WeakMap();
   let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
     const webglResizeNeedle="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),nextDpr=Math.min(2,window.devicePixelRatio||1);";
@@ -267,7 +267,7 @@ function smartTargetForPlan(owner,plan){
     const webglTextureCacheNeedle="if(entry){if(entry.ready&&onReady)onReady(entry);return entry}";
     const webglTextureCachePatch="if(entry)return entry";
     const webglBackgroundNeedle="const bg=requestTexture(BG_URL,()=>host.classList.add('webgl2-background-ready'));";
-    const webglBackgroundPatch="const bg=requestTexture(BG_URL,()=>{if(host.dataset.viewerRole!=='dm')host.classList.add('webgl2-background-ready');ensureFrame()});";
+    const webglBackgroundPatch="const bg=null; // Background stays in the DOM for every role.";
     const webglSpriteNeedle="const entry=requestTexture(url,()=>img.classList.add('webgl2-texture-backed'));";
     const webglSpritePatch="const entry=requestTexture(url,()=>{if(host.dataset.viewerRole!=='dm')img.classList.add('webgl2-texture-backed');ensureFrame()});";
     const webglRenderSpritesNeedle=`function renderSprites(){
@@ -318,13 +318,13 @@ function smartTargetForPlan(owner,plan){
       while(node&&node.nodeType===1){parentVisibilityObserver.observe(node,{attributes:true,attributeFilter:['class','style','aria-hidden']});node=node.parentElement}
     }catch(_){}
   }
-  function needsContinuous(now){return surfaceActive&&!document.hidden&&(particles.length>0||host.classList.contains('round-running')||cameraTransitionActive||now<continuousUntil)}
+  function needsContinuous(now){return surfaceActive&&!document.hidden&&(particles.length>0||(!host.classList.contains('round-running')&&(cameraTransitionActive||now<continuousUntil)))}
   function frame(now){
     rafId=0;if(!enabled)return;
     if(!surfaceActive){dirty=true;return}
     const continuous=needsContinuous(now);if(!dirty&&!continuous)return;
     dirty=false;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
-    if(host.dataset.viewerRole!=='dm')renderBackground();renderSprites();renderIntentArrows();renderParticles(now);
+    renderIntentArrows();renderParticles(now);
     lastFrame=now;if(enabled&&(dirty||needsContinuous(now))&&!rafId)rafId=requestAnimationFrame(frame)
   }
   function ensureFrame(animateMs=0){
@@ -427,8 +427,8 @@ function smartTargetForPlan(owner,plan){
         asset+'?v=20261026-sp01-repair-1');
     }
     // Apply after every legacy cache rewrite, including the fixed timing CSS.
-    html=html.replace(/(js\/combat-v073-(?:steps|playback|playback-sync|authority|audiovisual)\.js|css\/combat-v073-audiovisual\.css)(?:\?v=[^"']+)?/g,
-      '$1?v=20261026-dirty-playback-5');
+    html=html.replace(/(js\/combat-v073-(?:steps|playback|playback-sync|authority|hud-motion|audiovisual)\.js|css\/combat-v073-audiovisual\.css)(?:\?v=[^"']+)?/g,
+      '$1?v=20261026-shared-compositor-6');
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();

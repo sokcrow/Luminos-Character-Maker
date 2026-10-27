@@ -9,7 +9,7 @@
     viewerRecoveryTimer:null, viewerRecoveryAttempts:0, viewerFinishTimer:null };
   const adapter = () => global.LuminousCombatLiveAdapter073?.state;
   const surface = () => global.LuminousCombatStepRuntime;
-  const status = text => { const node = global.document?.getElementById?.('status'); if (node) node.textContent = text; };
+  const status = text => { const node = global.document?.getElementById?.('status'); if (node && node.textContent !== text) node.textContent = text; };
   const protocol = () => global.LuminousCombatPlayback;
   function createPresentationGate(now = () => Date.now() + state.serverOffset) {
     const decisions = new WeakMap();

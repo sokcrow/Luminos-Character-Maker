@@ -79,7 +79,9 @@ accepted=valid and all(c['renderCoverageComplete'] and c.get('scene',{}).get('cl
 report = {'valid': valid, 'acceptedAfterWithVisualChecks':accepted,'coverage':coverage, 'sameWorkloadAndOutcome': comparable, 'cases': cases, 'metrics': metrics, 'definition': 'Desfase absoluto = magnitud de la diferencia del primer requestAnimationFrame tras iniciar la presentación respecto al mismo evento del DM. Incluye adelantos y retrasos; lagMs conserva solo retrasos y signedSkewMs su signo. Es una oportunidad de pintar, no una lectura de píxeles. El tiempo entre frames se mide aparte. Los percentiles usan muestras observadas; omisiones y muestras sin RAF se cuentan por separado, nunca como latencia cero. Cuatro rondas con ritmo normal, mismo escenario, semilla y viewports, orden ABBA, Auth/RTDB Emulator y una pareja de capturas en vivo por ronda. Nueve contextos comparten un runner CI: no son nueve dispositivos físicos ni una medición de Internet.'}
 budget=float(os.environ['COMBAT_BENCH_CLASH_BUDGET_MS']) if os.environ.get('COMBAT_BENCH_CLASH_BUDGET_MS') else None
 observed=metrics['after']['clashSkewAbsMs']['p95']
-report['performanceBudget']={'maxClashP95Ms':budget,'observedClashP95Ms':observed,'passed':observed is not None and observed < budget if budget is not None else None}
+critical=clash|{'powerEnd','hitCoin','hitMotion','actionApproach'}
+phase_budget={cue:metrics['after']['byPhase'].get(cue,{}).get('absoluteSkewMs',{}).get('p95') for cue in sorted(critical)}
+report['performanceBudget']={'maxClashP95Ms':budget,'observedClashP95Ms':observed,'criticalPhaseP95Ms':phase_budget,'passed':(observed is not None and observed<budget and all(value is not None and value<budget for value in phase_budget.values())) if budget is not None else None}
 report['profiles']={}
 for label in ['before','after']:
     grouped={'dm':defaultdict(list),'players':defaultdict(list)}
