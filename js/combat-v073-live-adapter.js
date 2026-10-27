@@ -298,8 +298,11 @@
 
   function normalizeSkill(id, skill = {}) {
     const kindRaw = normalizeId(skill.kind || skill.type || skill.actionType || "skill");
-    const defenseTypes = new Set(["defense", "guard", "evade", "counter", "clashableguard", "clashablecounter"]);
-    const kind = defenseTypes.has(kindRaw) ? "defense" : (kindRaw.includes("spell") ? "spell" : "skill");
+    const defenseTypes = new Set(["defense", "guard", "evade", "counter", "clashableguard", "clashablecounter", "clashable_guard", "clashable_counter"]);
+    const defensive = skill.isDefense === true || skill.is_defense === true
+      || Boolean(skill.defenseType || skill.defenseSubtype)
+      || [kindRaw, normalizeId(skill.type), normalizeId(skill.actionType)].some(type => defenseTypes.has(type));
+    const kind = defensive ? "defense" : (kindRaw.includes("spell") ? "spell" : "skill");
     const affinity = normalizeId(skill.sinAffinity || skill.affinity || skill.sin || "sinless") || "sinless";
     const result = {
       ...clone(skill),
@@ -320,7 +323,12 @@
       coins: clone(skill.coins || []),
       cost: clean(skill.cost || "1 Action Slot"),
     };
-    if (kind === "defense") result.defenseType = normalizeId(skill.defenseType || skill.defenseSubtype || skill.type || "guard");
+    if (kind === "defense") {
+      const subtype = [skill.defenseType, skill.defenseSubtype, skill.type, skill.actionType, skill.kind]
+        .map(normalizeId).find(type => defenseTypes.has(type) && type !== "defense");
+      result.defenseType = subtype || "guard";
+      result.isDefense = true;
+    }
     if (skill.range === true || skill.isRanged === true || finite(skill.skillRange, 1) > 1) result.range = true;
     return result;
   }

@@ -162,7 +162,7 @@
         const retry=delivery.status==='error',button=byId('ready');
         if(retry){
           const error=clean(delivery.error).toUpperCase();
-          phase=error.includes('PERMISSION_DENIED')?'Firebase rechazó tu selección · pulsa READY para reintentar':
+          phase=error.includes('PERMISSION_DENIED')?'Firebase rechazó tu selección · revisa tus acciones y vuelve a pulsar READY':
             error==='READY_CONTEXT_UNAVAILABLE'?'El encuentro aún no permite confirmar · pulsa READY para reintentar':
             error==='READY_CONFIRMATION_TIMEOUT'?'Sin confirmación de conexión · pulsa READY para reintentar':
             'No se pudo guardar tu selección · pulsa READY para reintentar';

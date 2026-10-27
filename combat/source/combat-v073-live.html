@@ -7981,8 +7981,11 @@ function renderDefenseSkills(){
   const equipped=(UNIT_KITS[PLAYER_ID]?.actions||[]).filter(d=>d?.kind==='defense'||d?.isDefense===true||
     String(d?.type||'').toLowerCase()==='defense'||Boolean(d?.defenseType||d?.defenseSubtype));
   const seen=new Set();
-  [...equipped,...permanent.defense].forEach(raw=>{
-    const key=String(raw.id||raw.name||'').toLowerCase();
+  // Live plans must use the equipped catalog IDs authorized by Firebase.
+  const defenses=window.LuminousCombatLiveMode?equipped:[...equipped,...permanent.defense];
+  if(!defenses.length){const empty=document.createElement('div');empty.className='separator-label';empty.textContent='No tienes habilidades defensivas equipadas.';stack.appendChild(empty)}
+  defenses.forEach(raw=>{
+    const key=String(raw.skillId||raw.id||raw.name||'');
     if(seen.has(key))return;
     seen.add(key);
     const defenseType=window.LuminousClashableDefenses073?.defenseTypeOf(raw)||'guard';

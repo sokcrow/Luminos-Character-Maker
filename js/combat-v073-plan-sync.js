@@ -200,6 +200,13 @@
         return saved;
       }catch(error){
         console.error('[Combat073 PlanSync]',error);
+        // A rejected write cannot later be acknowledged. Unlock this selection
+        // for editing; keep timeout/offline writes pending until acknowledged.
+        const denied=String(error?.code||error?.message||'').toUpperCase().includes('PERMISSION_DENIED');
+        if(request===delivery.request&&detail.ready===true&&denied&&!global.LuminousCombat073?.uiState?.().running&&Number(global.LuminousCombat073?.uiState?.().round)===Number(detail.round)){
+          forgetReady(detail.readyIntentId);
+          global.LuminousCombat073?.restorePlanning?.(clone(detail.plans||[]),false);
+        }
         if(request)reportDelivery('error',detail.round,request,error?.code||error?.message||'READY_SAVE_FAILED');
         return false;
       }
