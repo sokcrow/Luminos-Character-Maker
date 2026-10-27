@@ -33,6 +33,29 @@
   }
   // Metrics may be published by the authoritative combat resolver. Never infer
   // invented damage or healing from final HP; missing metrics count as zero.
+  let metrics={},seenEvents=new Set(),roundOneStarted=false;
+  function resetMetrics(){metrics={};seenEvents=new Set();roundOneStarted=false;}
+  function recordEvent(event={}){
+    if(!global.LuminousCombatAuthority073?.isDm?.())return;
+    const round=Math.max(0,Math.floor(Number(event.round)||0));
+    if(event.type==='RoundSealed'&&round===1&&!roundOneStarted){resetMetrics();roundOneStarted=true;}
+    const key=round+':'+event.sequence+':'+event.type;
+    if(seenEvents.has(key))return;
+    seenEvents.add(key);
+    const owner=clean(event.ownerId),target=clean(event.unitId);
+    if(!owner)return;
+    const row=metrics[owner]||(metrics[owner]={damage:0,healing:0,protection:0,control:0,support:0,objective:0});
+    const amount=Math.abs((Number(event.after)||0)-(Number(event.before)||0));
+    if(event.type==='DamageApplied'&&owner!==target&&Number(event.before)>Number(event.after))row.damage+=amount;
+    if(event.type==='HealingApplied'&&owner!==target&&Number(event.after)>Number(event.before))row.healing+=amount;
+    if(event.type==='ShieldApplied')row.protection+=Math.max(0,Number(event.power||event.shield||event.result?.shield)||0);
+    if(event.type==='UnitStaggered')row.control+=1;
+    if(event.type==='StatusChanged'&&owner!==target)row.control+=0.25;
+    if(event.type==='UnitDefeated'&&owner!==target)row.objective+=1;
+    if(event.type==='HitEvaded'||event.type==='EvadeResolved'&&event.evaded)row.protection+=1;
+    if(event.type==='ActionFinished'&&event.result?.support)row.support+=1;
+  }
+  function snapshotMetrics(){return JSON.parse(JSON.stringify(metrics));}
   function selectMvp(encounter={}){
     const actors=eligibleActors(encounter);
     if(!actors.length)return null;
@@ -50,7 +73,7 @@
     return victory&&isWinner?Math.floor(xp*1.15):xp;
   }
   function sessionXp(level){return Math.max(100,100*Math.floor(Math.max(1,Math.floor(finite(level)||1))/5));}
-  const api=Object.freeze({WEIGHTS,eligibleActors,selectMvp,bonus,sessionXp});
+  const api=Object.freeze({WEIGHTS,eligibleActors,selectMvp,bonus,sessionXp,recordEvent,snapshotMetrics,resetMetrics});
   global.LuminousCombatMvpRuntime=api;
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
