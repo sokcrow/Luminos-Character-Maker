@@ -87,6 +87,23 @@
           }
         }
       },
+      "mvp_sesion": {
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+        "actual": {
+          "votes": {
+            "$voterId": {
+              ".write": "auth != null && root.child('campaña').child('mvp_sesion').child('actual').child('phase').val() === 'voting' && root.child('campaña').child('mvp_sesion').child('actual').child('candidates').child($voterId).child('uid').val() === auth.uid && !data.exists()",
+              ".validate": "newData.isString() && newData.val() !== $voterId && root.child('campaña').child('mvp_sesion').child('actual').child('candidates').child(newData.val()).exists()"
+            }
+          },
+          "coinClicks": {
+            "$voterId": {
+              ".write": "auth != null && root.child('campaña').child('mvp_sesion').child('actual').child('phase').val() === 'coins' && root.child('campaña').child('mvp_sesion').child('actual').child('candidates').child($voterId).child('uid').val() === auth.uid && root.child('campaña').child('mvp_sesion').child('actual').child('tiedIds').hasChild($voterId) && !data.exists()",
+              ".validate": "newData.isNumber() && newData.val() === root.child('campaña').child('mvp_sesion').child('actual').child('coinRound').val()"
+            }
+          }
+        }
+      },
       "teatro": {
         ".write": "auth != null"
       },
