@@ -151,6 +151,17 @@ async function subscribedEncounter({ cancelReady = false, staleUnit = false, sto
     db, round: 2, combatState: 'PRE_COMBAT_PLANNING', firebaseReady: true, hydratedOnce: true,
     combatants: clone(units), skills }, skillIdsFor: unit => unit.skillIds || [] };
   c.LuminousSpellcastingRuntime = { getClassSpellcastingProfile: () => ({ spellcastingStartLimbusLevel: 1 }) };
+  // The authority now requires a canonical Spell resolver before sealing ANY
+  // READY roster containing a caster. The old test omitted this dependency,
+  // so it never reached the six-Player subscription or Clash queue assertions.
+  c.LuminousCombatSpellLoadout074 = {
+    resolveSpellForCombatant(unit, spellId, { classId } = {}) {
+      if (unit.id !== 'player:p5' || spellId !== 'magic_missile' || (classId && classId !== 'wizard'))
+        return { ok: false, reason: 'SPELL_NOT_ASSIGNED' };
+      return { ok: true, classId: 'wizard',
+        spell: { spellId: 'magic_missile', id: 'magic_missile', name: 'Magic Missile', kind: 'spell' } };
+    },
+  };
   c.LuminousCombat073 = { combatants: () => units, plans: () => [], render() {},
     kit: id => ({ actions: (units[id].skillIds || []).map(key => skills[key]).filter(Boolean) }) };
   c.combatData = units; c.PLAYER_ID = 'observer'; c.AUTO_UNIT_IDS = Object.keys(units);
@@ -196,7 +207,7 @@ async function subscribedEncounter({ cancelReady = false, staleUnit = false, sto
     assert.equal(seals, 1, 'READY and plan notifications must seal exactly once');
     assert.equal(queue.length, 10, 'Seven Player actions and three Kobold actions reach the actual queue builder');
     for (let i = 1; i <= 6; i++)
-      assert.equal(queue.find(row => row.ownerId === 'player:p' + i && row.localIndex === 0)?.plan.data.name, 'Elección ' + i);
+      assert.equal(queue.find(row => row.ownerId === 'player:p' + i && row.localIndex === 0)?.plan.data.name, i === 5 ? 'Magic Missile' : 'Elección ' + i);
     assert.equal(queue.find(row => row.ownerId === 'player:p6' && row.localIndex === 1)?.plan.data.name, 'Segunda Skill');
     assert.equal(queue.filter(row => row.ownerId.startsWith('kobold:')).length, 3);
     assert.equal(get(root + '/authority/current/phase'), 'complete');

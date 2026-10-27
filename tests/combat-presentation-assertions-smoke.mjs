@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { comparePresentations } from './helpers/combat-presentation-assertions.mjs';
+const cue = (sequence, owner, phase, name, at) => ({sequence, owner, phase, cue:name, at});
+const dm=[cue(1,'a',1,'powerStart',0),cue(2,'b',1,'powerStart',0),cue(3,'a',2,'powerCoin',100),cue(4,'b',2,'powerCoin',100),cue(5,'a',3,'powerEnd',400),cue(6,'b',3,'powerEnd',400)];
+const parallel=[dm[0],dm[1],dm[3],dm[2],dm[4],dm[5]].map(row=>({...row,at:row.at+97}));
+assert.equal(comparePresentations(dm,parallel),97,'parallel Coin callbacks may wake in either order');
+assert.throws(()=>comparePresentations(dm,parallel.slice(1)),/lost/);
+assert.throws(()=>comparePresentations(dm,[...parallel.slice(0,5),parallel[4]]),/duplicate/);
+assert.throws(()=>comparePresentations(dm,[dm[0],dm[1],dm[4],dm[2],dm[3],dm[5]]),/phase boundary/);
+assert.throws(()=>comparePresentations(dm,parallel.map(row=>({...row,at:row.at+500}))),/live budget/);
+assert.throws(()=>comparePresentations(dm,parallel.map(row=>row.sequence===4?{...row,owner:'a'}:row)),/owner/);
+console.log('Parallel Coin comparison: either side may start first; missing, duplicate, misidentified, late or cross-phase commands fail.');

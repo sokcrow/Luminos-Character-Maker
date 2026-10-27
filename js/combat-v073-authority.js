@@ -274,13 +274,27 @@
     }
     combat.render?.();global.LuminousWebGL2Renderer?.requestRender?.(80);return true;
   }
-  function applySnapshot(snapshot={}){
+  function applySnapshot(snapshot={}, {deferRender=false,changes=null}={}){
     const combat=runtime(),units=combat?.combatants?.()||{};let changed=false;
-    for(const [id,canonical] of Object.entries(snapshot||{})){const unit=units[id];if(!unit)continue;for(const [key,value] of Object.entries(canonical||{})){if(key==='actionSlots'||key==='activeSlots')continue;if(JSON.stringify(unit[key])!==JSON.stringify(value)){unit[key]=clone(value);changed=true;}}
-      Object.assign(unit,clone(canonical.combatIndependentActionState?.runtimeFields||{}));
-      const economy=global.LuminousActionEconomy?.ensureState?.(unit);if(economy){economy.quickActionRemaining=Number(canonical.quickActionRemaining??economy.quickActionRemaining);economy.reactionRemaining=Number(canonical.reactionRemaining??economy.reactionRemaining);}
-      const count=Math.max(1,Math.trunc(Number(canonical.actionSlots||canonical.activeSlots)||1));if(Number(unit.actionSlots)!==count){global.setUnitActionSlotCount?.(id,count);unit.actionSlots=count;unit.activeSlots=count;changed=true;}}
-    if(changed){combat.render?.();global.LuminousCombatStepRuntime?.refreshPlayback?.();global.LuminousWebGL2Renderer?.requestRender?.(120);}return changed;
+    for(const [id,canonical] of Object.entries(snapshot||{})){
+      const unit=units[id];if(!unit)continue;const fields=new Set();
+      for(const [key,value] of Object.entries(canonical||{})){
+        if(key==='actionSlots'||key==='activeSlots')continue;
+        if(JSON.stringify(unit[key])!==JSON.stringify(value)){unit[key]=clone(value);fields.add(key);}
+      }
+      for(const [key,value] of Object.entries(canonical.combatIndependentActionState?.runtimeFields||{})){
+        if(JSON.stringify(unit[key])!==JSON.stringify(value)){unit[key]=clone(value);fields.add(key);}
+      }
+      const economy=global.LuminousActionEconomy?.ensureState?.(unit);
+      if(economy){economy.quickActionRemaining=Number(canonical.quickActionRemaining??economy.quickActionRemaining);economy.reactionRemaining=Number(canonical.reactionRemaining??economy.reactionRemaining);}
+      const count=Math.max(1,Math.trunc(Number(canonical.actionSlots||canonical.activeSlots)||1));
+      if(Number(unit.actionSlots)!==count){global.setUnitActionSlotCount?.(id,count);unit.actionSlots=count;unit.activeSlots=count;fields.add('actionSlots');}
+      if(fields.size){changed=true;changes?.push({unitId:id,fields:[...fields]});}
+    }
+    // A playback burst commits every canonical mutation immediately. The viewer
+    // paints its changed fields once, before the cue or next frame, rather than
+    // rebuilding planning slots and the entire roster for each event.
+    if(changed&&!deferRender){combat.render?.();global.LuminousCombatStepRuntime?.refreshPlayback?.();global.LuminousWebGL2Renderer?.requestRender?.(120);}return changed;
   }
   function reconcileCheckpoint(seq){
     const row=state.pendingRemoteCheckpoints.get(seq);if(!row)return false;const localDigest=state.localDigests.get(seq);if(!localDigest)return false;

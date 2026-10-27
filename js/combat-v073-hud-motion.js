@@ -2,7 +2,7 @@
 (function(global){
   'use strict';
   if(global.LuminousCombatHudMotion073)return;
-  const state={mounted:false,animations:new Map(),generation:null,lastSequence:0,savedPresentation:null,statusFrame:null};
+  const state={mounted:false,animations:new Map(),generation:null,lastSequence:0,savedPresentation:null,statusFrame:null,refreshFrame:null};
   const doc=global.document, byId=id=>doc?.getElementById(id), runtime=()=>global.LuminousCombat073;
   const units=()=>runtime()?.combatants?.()||{};
   const ui=()=>runtime()?.uiState?.()||{};
@@ -47,6 +47,10 @@
     else if(cue==='evadeEnd')pose(a?.ownerId,'evade');
     else if(cue==='clashEnd'){pose(a?.ownerId,stablePose(a?.ownerId),{transient:false});pose(b?.ownerId,stablePose(b?.ownerId),{transient:false});}
   }
+  function scheduleRefresh(){
+    if(!state.mounted||state.refreshFrame!==null)return;
+    state.refreshFrame=global.requestAnimationFrame(()=>{state.refreshFrame=null;refresh()});
+  }
   function event(event){
     const generation=event.roundId||`${event.encounterId||''}:${event.round}`;
     if(generation!==state.generation){state.generation=generation;state.lastSequence=0;clearMotion();}
@@ -54,7 +58,7 @@
     state.lastSequence=Number(event.sequence)||0;
     if(event.type==='UnitStaggered'||event.type==='UnitDefeated')pose(event.unitId,event.type==='UnitDefeated'?'defeated':'stagger',{transient:false});
     else if(event.type==='QueueEntryFinished'||event.type==='RoundFinished'){clearMotion();for(const unit of Object.values(units()))pose(unit.id,stablePose(unit.id),{transient:false});}
-    refresh();
+    scheduleRefresh();
   }
   // Reuse the live ribbon, heptagon and animated Coins. On small screens they
   // belong to screen space so camera zoom cannot crop or magnify the readout.
@@ -190,6 +194,7 @@
     const phase=doc.createElement('div');phase.id='combat-phase-label';phase.setAttribute('role','status');host.appendChild(phase);
     const targets=doc.createElement('div');targets.id='combat-target-list';targets.hidden=true;targets.setAttribute('aria-label','Objetivos disponibles');host.appendChild(targets);
     const layer=doc.createElement('div');layer.id='combat-mobile-clash-layer';host.appendChild(layer);
+    global.addEventListener('beforeunload',()=>{if(state.refreshFrame!==null)global.cancelAnimationFrame(state.refreshFrame);if(state.statusFrame!==null)global.cancelAnimationFrame(state.statusFrame);state.refreshFrame=state.statusFrame=null;clearMotion();},{once:true});
     global.addEventListener('resize',refresh);global.addEventListener('luminous:combat073-hydrated',()=>{layer.replaceChildren();clearMotion();applyPreference();});
     global.addEventListener('luminous:combat073-runtime-ready',applyPreference);
     global.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener?.('change',applyPreference);
