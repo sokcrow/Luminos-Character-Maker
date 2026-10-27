@@ -31,6 +31,8 @@ jobs:
       - run: node tests/combat-overlay-batch-smoke.mjs
       - run: node scripts/build-combat-live.mjs --check
       - run: python -m pip install matplotlib
+      - name: Reporter rejects incomplete visual coverage
+        run: python tests/combat-nine-browser-report-test.py
       - name: Exact pre-optimization baseline
         run: |
           git fetch --no-tags --depth=1 origin cbba1548679606ed67a2d875ba27060920764dd1

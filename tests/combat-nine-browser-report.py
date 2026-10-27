@@ -150,5 +150,5 @@ for cue in cues:
     lines.append('| '+names.get(cue,cue)+' | '+' | '.join('Sin dato' if v is None else f'{v:.1f} ms' for v in values)+' |')
 lines+=['',f"Presupuesto de rendimiento: {json.dumps(report['performanceBudget'],ensure_ascii=False)}",'', 'Las duraciones de perfiles API son inclusivas y pueden anidarse: no se suman para atribuir CPU. Consultar summary.json para conteos y percentiles por DM/Players.']
 (root/'RESULTADO.md').write_text('\n'.join(lines)+'\n')
-print(json.dumps({'valid':valid,'sameWorkloadAndOutcome':comparable,'beforeAbsoluteClashP95':before,'afterAbsoluteClashP95':after,'performanceBudget':report['performanceBudget'],'cases':cases},ensure_ascii=False))
-if not valid or (budget is not None and not report['performanceBudget']['passed']): sys.exit(1)
+print(json.dumps({'valid':valid,'acceptedAfterWithVisualChecks':accepted,'sameWorkloadAndOutcome':comparable,'beforeAbsoluteClashP95':before,'afterAbsoluteClashP95':after,'performanceBudget':report['performanceBudget'],'cases':cases},ensure_ascii=False))
+if not valid or not accepted or (budget is not None and not report['performanceBudget']['passed']): sys.exit(1)
