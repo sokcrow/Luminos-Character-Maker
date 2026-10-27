@@ -48,7 +48,7 @@
      const {counts,leaders}=tally(old);
      if(!Object.keys(old.votes||{}).length)return;
      return {...old,counts,phase:leaders.length===1?'awarding':'coins',
-       winnerId:leaders.length===1?leaders[0]:null,tiedIds:leaders.length>1?leaders:null,
+       winnerId:leaders.length===1?leaders[0]:null,tiedIds:leaders.length>1?leaders:null,tiedCandidates:leaders.length>1?Object.fromEntries(leaders.map(id=>[id,true])):null,
        coinRound:leaders.length>1?1:0,coinClicks:null,coinFaces:null};
    },undefined,false);
    if(!tx.committed)throw Error('MVP_VOTING_NOT_CLOSED');
@@ -80,7 +80,7 @@
      return {...old,previousCoinRound:old.coinRound,coinFaces:faces,
        coinHistory:{...(old.coinHistory||{}),['round_'+old.coinRound]:faces},
        phase:winnerId?'awarding':'coins',winnerId,
-       tiedIds:winnerId?null:next,coinRound:winnerId?old.coinRound:old.coinRound+1,
+       tiedIds:winnerId?null:next,tiedCandidates:winnerId?null:Object.fromEntries(next.map(id=>[id,true])),coinRound:winnerId?old.coinRound:old.coinRound+1,
        coinClicks:null};
    },undefined,false);
    if(!tx.committed)throw Error('MVP_COINS_PENDING');
