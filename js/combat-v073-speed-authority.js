@@ -12,36 +12,54 @@
   function adapterState(){return adapter()?.state||null}
   function isDm(){return (adapterState()?.role==='dm'||adapterState()?.isAuthority===true)}
 
+  function hasUsableRange(range){
+    return Array.isArray(range)&&range.length>=2&&
+      Number.isFinite(Number(range[0]))&&Number.isFinite(Number(range[1]))&&
+      Number(range[0])>=1&&Number(range[1])>=2&&Number(range[1])>=Number(range[0]);
+  }
+
   function rangeFor(unit={}){
+    const canonical=global.LuminousMovementSpeedRuntime?.combatRangeForEntity?.(unit);
+    if(canonical)return[canonical.min,canonical.max];
     const movementRange=global.LuminousMovementSpeedRuntime?.rangeForEntity?.(unit)||null;
-    let min,max;
-    if(Array.isArray(unit.speedRange)&&unit.speedRange.length>=2){
-      min=finite(unit.speedRange[0],1);max=finite(unit.speedRange[1],6);
-    }else if(movementRange){
-      min=finite(movementRange.min,1);max=finite(movementRange.max,6);
-    }else{
-      min=finite(unit.speedMin,1);max=finite(unit.speedMax,6);
-    }
-    min=Math.max(1,Math.trunc(min??1));max=Math.max(2,Math.trunc(max??6));
-    if(max<min)max=min;
-    return[min,Math.min(999,max)];
+    const authoredRange=hasUsableRange(unit.speedRange)?unit.speedRange:null;
+    const legacyBounds=[unit.speedMin,unit.speedMax];
+    const bounds=movementRange?[movementRange.min,movementRange.max]:
+      authoredRange||(hasUsableRange(legacyBounds)?legacyBounds:[1,6]);
+    const min=Math.max(1,Math.trunc(Number(bounds[0])));
+    const max=Math.max(2,min,Math.min(999,Math.trunc(Number(bounds[1]))));
+    return[min,max];
+  }
+
+  function legacyOneSpeedRoll(unit={},round=state.round){
+    // Old Player combatants could be rolled with [1,1] because the packed
+    // engine defaulted missing speedRange to [1,1]. Repair only that case:
+    // A movement profile did not protect old Players from the packed [1,1]
+    // fallback. Only a valid persisted range proves the old roll was usable.
+    return Math.trunc(finite(unit.speedRollTurn,0)||0)===round&&
+      finite(unit.speed,null)===1&&finite(unit.speedBaseRoll,0)<=1&&
+      !hasUsableRange(unit.speedRange);
   }
 
   function rollFor(unit={}){
-    // The packed runtime already owns the exact turn-start Speed rules
-    // (Exhaustion max penalty, Chill, Haste, Bind, forced Speed=1, etc.).
-    // Run that original roller only on the DM against a detached clone, then
-    // persist its result as the canonical Speed for every connected viewer.
+    // The packed runtime owns the exact turn-start Speed modifiers
+    // (Exhaustion, Chill, Haste, Bind, forced Speed=1, etc.).
+    // Always supply its complete roll range before calling it: without one,
+    // the packed engine silently treats every Player as a [1,1] roll.
+    const [min,max]=rangeFor(unit);
+    const profile=global.LuminousMovementSpeedRuntime?.combatRangeForEntity?.(unit);
+    const rangeMetadata={speedRange:[min,max],speedMin:min,speedMax:max,
+      ...(profile?{speedRangeSource:profile.source}:{}),
+      ...(profile?.mode?{speedProfileMode:profile.mode}:{})};
     const original=state.originalRollUnitSpeed;
     if(typeof original==='function'){
       const draft=clone(unit)||{};
+      Object.assign(draft,rangeMetadata);
+      // A legacy [1,1] roll may already be stamped with this round. The
+      // detached draft must actually roll again, never return that old 1.
+      draft.speedRollTurn=0;
       const derivedRange=global.LuminousMovementSpeedRuntime?.rangeForEntity?.(draft)||null;
-      if(derivedRange){
-        draft.speedRange=[derivedRange.min,derivedRange.max];
-        draft.speedMin=derivedRange.min;
-        draft.speedMax=derivedRange.max;
-        draft.speedProfileMode=derivedRange.mode;
-      }
+      if(derivedRange)draft.speedProfileMode=derivedRange.mode;
       try{
         const result=original(draft,state.round);
         const rawSpeed=finite(draft.speed,finite(result,null));
@@ -50,6 +68,7 @@
         const tie=finite(draft.speedTie,null);
         if(speed!=null&&base!=null&&tie!=null){
           return{
+            ...rangeMetadata,
             speed,
             speedBaseRoll:base,
             speedRollTurn:state.round,
@@ -61,9 +80,13 @@
         console.error('[Combat073 SpeedAuthority] original Speed rule evaluation failed',error);
       }
     }
-    const [min,max]=rangeFor(unit);
-    const speed=min+Math.floor(Math.random()*(max-min+1));
-    return{speed,speedBaseRoll:speed,speedRollTurn:state.round,speedTie:Math.random(),speedRolledAt:global.firebase.database.ServerValue.TIMESTAMP};
+    const exhaustion=typeof global.statusModifier==='function'?global.statusModifier(unit,'exhaustion'):0;
+    const rollMax=Math.max(1,max-(exhaustion>=2?2:0));
+    const rollMin=Math.min(min,rollMax);
+    const baseRoll=rollMin+Math.floor(Math.random()*(rollMax-rollMin+1));
+    const speed=typeof global.speedForBaseRoll==='function'
+      ?Math.max(1,finite(global.speedForBaseRoll(unit,state.round,baseRoll),baseRoll)):baseRoll;
+    return{...rangeMetadata,speed,speedBaseRoll:baseRoll,speedRollTurn:state.round,speedTie:Math.random(),speedRolledAt:global.firebase.database.ServerValue.TIMESTAMP};
   }
 
   function speedSignature(combatants=state.combatants){
@@ -99,6 +122,12 @@
       unit.speedBaseRoll=finite(canonical.speedBaseRoll,speed);
       unit.speedRollTurn=rolledTurn;
       unit.speedTie=tie;
+      if(hasUsableRange(canonical.speedRange)){
+        unit.speedRange=canonical.speedRange.slice(0,2);
+        unit.speedMin=canonical.speedRange[0];unit.speedMax=canonical.speedRange[1];
+        if(canonical.speedRangeSource)unit.speedRangeSource=canonical.speedRangeSource;
+        if(canonical.speedProfileMode)unit.speedProfileMode=canonical.speedProfileMode;
+      }
       if(canonical.speedRolledAt!==undefined)unit.speedRolledAt=canonical.speedRolledAt;
       const after=[finite(unit.speed,null),finite(unit.speedBaseRoll,null),Math.trunc(finite(unit.speedRollTurn,0)||0),finite(unit.speedTie,null)];
       if(JSON.stringify(before)!==JSON.stringify(after))changed++;
@@ -205,7 +234,7 @@
           const rolledTurn=Math.trunc(finite(unit.speedRollTurn,0)||0);
           const speed=finite(unit.speed,null);
           const tie=finite(unit.speedTie,null);
-          if(rolledTurn===expectedRound&&speed!=null&&speed>=1&&tie!=null)continue;
+          if(rolledTurn===expectedRound&&speed!=null&&speed>=1&&tie!=null&&!legacyOneSpeedRoll(unit,expectedRound))continue;
           next[key]={...unit,...rollFor(unit)};
           changed=true;
         }
@@ -273,3 +302,4 @@
   global.addEventListener('beforeunload',stop,{once:true});
   global.LuminousCombatSpeedAuthority073=Object.freeze({state,start,stop,rangeFor,rollFor,speedSignature,runtimeCombatants,canonicalRowFor,syncRuntimeSpeedsFromCanonical,canonicalRoundComplete,applyRoundSideEffectsOnce,refreshRuntimeSpeedView,patchLegacySpeedRollers,ensureRoundSpeeds,forceRuntimeRefresh});
 })(window);
+

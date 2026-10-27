@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import {readFileSync,existsSync} from "node:fs";
 const calls=[];
 globalThis.document={readyState:"loading",addEventListener:(name,callback)=>calls.push(name)};
+await import("../js/skill-deck-rules-v2.js");
 await import("../js/player-skill-deck-manager.js");
 const hud=globalThis.LuminousPlayerDeckManager;
 assert.ok(hud,"The interactive player Skill Deck Manager is registered");
 assert.deepEqual(hud.expandDeck({tier1:"attack_a",tier2:"attack_b",tier3:"attack_c"}),
   ["attack_a","attack_a","attack_a","attack_b","attack_b","attack_c"]);
-assert.deepEqual(hud.normalizeDeck({t1:"Attack A",tier2:"ATTACK_B",3:"ATTACK-C"}),
-  {tier1:"attack_a",tier2:"attack_b",tier3:"attack_c"});
+assert.deepEqual(hud.normalizeDeck({t1:"Attack A",tier2:"ATTACK_B",3:"ATTACK-C"}).entries.map(e=>e.skillId),
+  ["attack_a","attack_a","attack_a","attack_b","attack_b","attack_c"]);
+assert.equal(hud.normalizeDeck({tier1:"attack_a"}).schemaVersion,2);
 const skills=[
   {id:"attack_a",name:"Attack I",tier:1,type:"Attack",damageType:"Slash"},
   {id:"attack_b",name:"Attack II",tier:2,type:"Attack",damageType:"Pierce"},
@@ -54,6 +56,7 @@ for(const path of [
 const sheet=readFileSync(new URL("../hoja_personaje.html",import.meta.url),"utf8");
 const src=readFileSync(new URL("../js/player-skill-deck-manager.js",import.meta.url),"utf8");
 const css=readFileSync(new URL("../css/player-skill-deck-manager.css",import.meta.url),"utf8");
+assert.match(sheet,/skill-deck-rules-v2\.js/);
 assert.match(sheet,/player-skill-deck-manager\.js/);
 assert.match(sheet,/player-skill-deck-manager\.css/);
 assert.match(src,/campaña\/jugadores\//);
@@ -61,8 +64,12 @@ assert.match(src,/sheetArtFraming/);
 assert.match(src,/skillDeckPresets/);
 assert.match(src,/skillLoadoutSource:"player_skill_deck_manager"/);
 assert.match(src,/data-psdm-slot/);
+assert.match(src,/data-psdm-remove/);
+assert.match(src,/psdm-budget/);
 assert.match(src,/data-psdm-equip/);
 assert.match(src,/transaction\(player=>/);
 assert.match(css,/max-width:640px/);
 assert.match(css,/psdm-library-grid/);
+assert.match(css,/psdm-remove/);
+assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 console.log("Player Skill Deck HUD: canonical loadout + project assets + character splash: OK");

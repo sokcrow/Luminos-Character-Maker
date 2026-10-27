@@ -109,6 +109,8 @@
 
   function baseSpeedRange(character, unit, baseSpeed, options = {}) {
     ensureMovementSpeedRuntime();
+    const canonical = global.LuminousMovementSpeedRuntime?.combatRangeForEntity?.(unit || character, options);
+    if (canonical) return { ...canonical, movementRange: canonical };
     const explicit = Array.isArray(unit?.speedRange) && unit.speedRange.length >= 2
       ? { min: Number(unit.speedRange[0]), max: Number(unit.speedRange[1]) }
       : null;
@@ -129,6 +131,11 @@
   function effectiveSpeed(unit, options = {}) {
     const fixed = global.LuminousConditionRuntime?.fixedSpeedFor?.(unit);
     if (fixed != null && Number.isFinite(Number(fixed))) return Math.max(1, Number(fixed));
+    // A round roll already contains Haste/Bind/Chill. Its final result may
+    // legally be outside the base range; never clamp it back or add DEX twice.
+    if (Number(unit?.speedRollTurn) > 0 && Number(unit?.speedBaseRoll) > 0) {
+      return Math.max(1, numberOr(options.baseSpeed ?? rawSpeed(unit, 1), 1));
+    }
     const derived = global.LuminousDerivedStatsRuntime?.snapshot?.(
       options.character || (isCurrentPlayerUnit(unit) ? currentPlayerCharacter() : unit) || unit || {},
       { unit, traits: options.traits || traitsForUnit(unit), context: "combat", baseSpeed: options.baseSpeed },
@@ -273,3 +280,4 @@
     global.setInterval?.(install, 800);
   }
 })(typeof window !== "undefined" ? window : globalThis);
+

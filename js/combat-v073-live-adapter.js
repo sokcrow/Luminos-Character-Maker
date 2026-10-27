@@ -232,12 +232,23 @@
       result.push({
         ...clone(raw),
         ...(global.LuminousSpellLoadout?.hasSelection(authoritativePlayer || {}) ? {
-          spellLoadout: { schemaVersion: 1, spellIds: global.LuminousSpellLoadout.selectedIds(authoritativePlayer) },
+          spellLoadout: clone(global.LuminousSpellLoadout.canonical(authoritativePlayer))||
+            {schemaVersion:1,spellIds:global.LuminousSpellLoadout.selectedIds(authoritativePlayer)},
           spellCastOverrides: clone(authoritativePlayer.spellCastOverrides || authoritativePlayer.characterBuild?.spellCastOverrides || {})
         } : {}),
         inventario_activo: clone(liveActiveInventory),
-        equipment: linkedEquipment ? clone(linkedEquipment.equipment) : clone(raw.equipment || {}),
-        augmentations: clone(raw.augmentations || raw.augments || raw.bodyAugmentations || authoritativePlayer?.augmentations || authoritativePlayer?.augments || authoritativePlayer?.bodyAugmentations || []),
+        equipment: global.LuminousEquipmentLoadouts?.hydratedEquipment?.(
+          { ...raw, equipment: linkedEquipment?.equipment || raw.equipment || {} },
+          authoritativePlayer || raw
+        ) || (linkedEquipment ? clone(linkedEquipment.equipment) : clone(raw.equipment || {})),
+        activeEquipmentModes: clone(authoritativePlayer?.activeEquipmentModes || raw.activeEquipmentModes || {}),
+        // Prefer the authoritative Player anatomy (including an explicit empty
+        // list after DM extraction); stale Combat copies must not revive implants.
+        augmentations: clone(
+          authoritativePlayer?.augmentations ?? authoritativePlayer?.augments ??
+          authoritativePlayer?.bodyAugmentations ??
+          raw.augmentations ?? raw.augments ?? raw.bodyAugmentations ?? []
+        ),
         attunedItemInstanceIds: linkedEquipment
           ? clone(linkedEquipment.attunedItemInstanceIds)
           : clone(raw.attunedItemInstanceIds || []),
@@ -287,8 +298,11 @@
 
   function normalizeSkill(id, skill = {}) {
     const kindRaw = normalizeId(skill.kind || skill.type || skill.actionType || "skill");
-    const defenseTypes = new Set(["defense", "guard", "evade", "counter", "clashableguard", "clashablecounter"]);
-    const kind = defenseTypes.has(kindRaw) ? "defense" : (kindRaw.includes("spell") ? "spell" : "skill");
+    const defenseTypes = new Set(["defense", "guard", "evade", "counter", "clashableguard", "clashablecounter", "clashable_guard", "clashable_counter"]);
+    const defensive = skill.isDefense === true || skill.is_defense === true
+      || Boolean(skill.defenseType || skill.defenseSubtype)
+      || [kindRaw, normalizeId(skill.type), normalizeId(skill.actionType)].some(type => defenseTypes.has(type));
+    const kind = defensive ? "defense" : (kindRaw.includes("spell") ? "spell" : "skill");
     const affinity = normalizeId(skill.sinAffinity || skill.affinity || skill.sin || "sinless") || "sinless";
     const result = {
       ...clone(skill),
@@ -309,7 +323,12 @@
       coins: clone(skill.coins || []),
       cost: clean(skill.cost || "1 Action Slot"),
     };
-    if (kind === "defense") result.defenseType = normalizeId(skill.defenseType || skill.defenseSubtype || skill.type || "guard");
+    if (kind === "defense") {
+      const subtype = [skill.defenseType, skill.defenseSubtype, skill.type, skill.actionType, skill.kind]
+        .map(normalizeId).find(type => defenseTypes.has(type) && type !== "defense");
+      result.defenseType = subtype || "guard";
+      result.isDefense = true;
+    }
     if (skill.range === true || skill.isRanged === true || finite(skill.skillRange, 1) > 1) result.range = true;
     return result;
   }
@@ -368,19 +387,29 @@
   function kitsFor(combatants) {
     const kits = {};
     for (const unit of combatants) {
-      const source = state.combatants?.[unit.id] || Object.values(state.combatants || {}).find((raw) => clean(raw?.id || raw?.combatId) === unit.id) || unit;
-      const equippedGrants = new Set(global.LuminousEquipmentEffects?.grantedSkillIds?.(unit) || []);
-      const actions = [...new Set(skillIdsFor(source))].map((skillId) => {
-        if (!state.skills?.[skillId]) return null;
-        return normalizeSkill(skillId, state.skills[skillId]);
+      const source = unit;
+      const embeddedSkills=Array.isArray(source.resolvedSkills)?source.resolvedSkills:[];
+      const library = { ...Object.fromEntries(embeddedSkills.filter(row=>row?.id).map(row=>[row.id,row])),
+        ...(state.skills || {}), ...(global.LuminousPlayerSignatureSkillCatalog?.DEFINITIONS || {}),
+        ...(global.LuminousBuildSkillCatalog?.DEFINITIONS || {}) };
+      const equippedGrants = new Set(global.LuminousCombatSkillLoadout074?.grantedSkillIdsFor?.(unit) ||
+        global.LuminousEquipmentEffects?.grantedSkillIds?.(unit) || []);
+      const deckIds=new Set(global.LuminousCombatSkillLoadout074?.skillSlotIdsFor?.(unit)||[]);
+      const selection=unit.characterBuild?.skillDeck||unit.skillDeck;
+      const explicit=Number(selection?.schemaVersion)>=2;
+      const actions = [...new Set(skillIdsFor(unit))].map((skillId) => {
+        if (!library[skillId]) return null;
+        const skill=normalizeSkill(skillId, library[skillId]);
+        return equippedGrants.has(skillId)&&!deckIds.has(skillId)
+          ?{...skill,inDeck:false,availability:{type:'granted'},deck:{enabled:false}}:skill;
       }).filter(Boolean);
       const embedded = Array.isArray(source.actions) ? source.actions.map((row, index) => normalizeSkill(clean(row?.id || `${unit.id}:action:${index}`), row || {})) : [];
       // Resolve the ordinary kit first: a grant must never suppress embedded attacks.
-      const combined = [...(actions.length ? actions : embedded)];
+      const combined = [...(actions.length||explicit ? actions : embedded)];
       const seen = new Set(combined.map(skill => skill.id));
       for (const skillId of equippedGrants) {
-        if (seen.has(skillId) || !state.skills?.[skillId]) continue;
-        const skill = normalizeSkill(skillId, state.skills[skillId]);
+        if (seen.has(skillId) || !library[skillId]) continue;
+        const skill = normalizeSkill(skillId, library[skillId]);
         // Only equipment-only Skills stay outside the offensive 3/2/1 deck.
         combined.push({ ...skill, inDeck: false, availability: { type: "granted" }, deck: { enabled: false } });
         seen.add(skillId);
@@ -419,11 +448,14 @@
       unit.actionSlots,
       unit.img,
       unit.battleActive,
+      unit.lifeState,unit.isDowned,unit.isDead,unit.isRetreated,unit.isStable,unit.deathSaves,
       unit.statusEffects,
       unit.combatDeck,
+      unit.combatDeckModes,
       unit.proneSpeedRound,
       unit.confusionTurnMode,
       unit.equipment,
+      unit.activeEquipmentModes,
       unit.augmentations,
       unit.equipmentInactive,
       unit.scores,unit.abilityScores,unit.stats,unit.attributes,

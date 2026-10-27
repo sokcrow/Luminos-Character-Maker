@@ -218,7 +218,7 @@
   function ensureStudioExtensionAssets() {
     const styles = [
       ["dm-player-dnd-studio-tabs-style", "css/dm-player-dnd-studio-tabs.css"],
-      ["dm-player-loadout-manager-style", "css/dm-player-loadout-manager.css?v=20261022-unified-spells-1"],
+      ["dm-player-loadout-manager-style", "css/dm-player-loadout-manager.css?v=20261024-deck-presets-1"],
     ];
     styles.forEach(([id, href]) => {
       if (doc.getElementById(id)) return;
@@ -230,9 +230,9 @@
     });
 
     const scripts = [
-      ["dm-player-loadout-core-script", "js/dm-player-loadout-core.js"],
+      ["dm-player-loadout-core-script", "js/dm-player-loadout-core.js?v=20261024-live-presets-2"],
       ["dm-player-dnd-studio-tabs-script", "js/dm-player-dnd-studio-tabs.js"],
-      ["dm-player-loadout-manager-script", "js/dm-player-loadout-manager.js?v=20261022-unified-spells-1"],
+      ["dm-player-loadout-manager-script", "js/dm-player-loadout-manager.js?v=20261024-live-presets-2"],
     ];
     scripts.forEach(([id, src]) => {
       if (doc.getElementById(id)) return;

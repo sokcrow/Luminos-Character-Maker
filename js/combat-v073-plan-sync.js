@@ -59,7 +59,7 @@
     if(!plan)return null;const d=plan.data||{},targetId=clean(plan.targetId),additionalTargets=Array.isArray(plan.additionalTargets)?plan.additionalTargets.map(t=>({targetId:clean(t?.targetId),targetSlotIndex:Number.isInteger(Number(t?.targetSlotIndex))?Number(t.targetSlotIndex):0})).filter(t=>t.targetId):[];
     if(!targetId&&!additionalTargets.length)return null;
     const out={unitId,scheduledBy:s.playerId,round:Math.max(1,Math.trunc(finite(s.round,1))),sourceSlotIndex:Number.isInteger(plan.sourceSlotIndex)?plan.sourceSlotIndex:index,targetId:targetId||null,targetSlotIndex:plan.targetSlotIndex==null?null:Math.max(0,Number(plan.targetSlotIndex)||0)};
-    const targetSide=clean(d.targetSide||d.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(additionalTargets.length)out.additionalTargets=additionalTargets;return out;
+    const targetSide=clean(d.targetSide||d.targetRule||plan.targetSide||plan.targetRule);if(targetSide)out.targetSide=targetSide;if(additionalTargets.length)out.additionalTargets=additionalTargets;Object.assign(out,{kind:kindOf(plan),planType:plan.type,actionData:clone(plan.data||{}),...(plan.drawId?{drawId:plan.drawId}:{})});if(out.kind==='global')out.actionKey=idOf(plan,'global');return out;
   }
   function spellSelectionKeyFor(id,data,s){
     const selections=s?.players?.[s.playerId]?.characterBuild?.spellSelections||{};
@@ -78,7 +78,7 @@
     const targetSide=clean(d.targetSide||d.targetRule||plan?.targetSide||plan?.targetRule);if(targetSide)out.targetSide=targetSide;
     const displayName=clean(d.name||d.nombre||d.label);if(displayName)out.actionName=displayName;
     if(Array.isArray(plan?.additionalTargets)&&plan.additionalTargets.length)out.additionalTargets=plan.additionalTargets.map(t=>({targetId:clean(t?.targetId),targetSlotIndex:Number.isInteger(Number(t?.targetSlotIndex))?Number(t.targetSlotIndex):0})).filter(t=>t.targetId);
-    if(kind==='spell'){out.spellId=id;out.spellSelectionKey=spellSelectionKeyFor(id,d,s);out.classId=clean(d.classId||d.class||'unknown');out.slotLevel=Math.max(0,Math.min(9,Math.trunc(finite(d.slotLevel??d.level,0))));out.overcast=Boolean(d.overcast);}
+    if(kind==='spell'){out.spellId=id;out.spellSelectionKey=spellSelectionKeyFor(id,d,s);out.classId=clean(d.classId||d.class)||null;out.slotLevel=Math.max(0,Math.min(9,Math.trunc(finite(d.slotLevel??d.level,0))));out.overcast=Boolean(d.overcast);}
     else if(kind==='trait')out.traitId=id;
     else if(kind==='item'){out.itemId=id;const itemType=clean(d.itemType||d.item_type||d.type);if(itemType)out.itemType=itemType;}
     else if(kind==='global')out.actionKey=id;
@@ -200,6 +200,13 @@
         return saved;
       }catch(error){
         console.error('[Combat073 PlanSync]',error);
+        // A rejected write cannot later be acknowledged. Unlock this selection
+        // for editing; keep timeout/offline writes pending until acknowledged.
+        const denied=String(error?.code||error?.message||'').toUpperCase().includes('PERMISSION_DENIED');
+        if(request===delivery.request&&detail.ready===true&&denied&&!global.LuminousCombat073?.uiState?.().running&&Number(global.LuminousCombat073?.uiState?.().round)===Number(detail.round)){
+          forgetReady(detail.readyIntentId);
+          global.LuminousCombat073?.restorePlanning?.(clone(detail.plans||[]),false);
+        }
         if(request)reportDelivery('error',detail.round,request,error?.code||error?.message||'READY_SAVE_FAILED');
         return false;
       }
@@ -243,7 +250,7 @@
       loadBridge('combat-deployment-runtime-script','js/combat-deployment-runtime.js',()=>Boolean(global.LuminousCombatDeploymentRuntime)),
       loadBridge('combat-v073-deployment-bridge-script','js/combat-v073-deployment-bridge.js?v=20261024-creature-space-1',()=>Boolean(global.LuminousCombatDeploymentBridge073)),
       loadBridge('unit-rank-runtime-script','js/unit-rank-runtime.js',()=>Boolean(global.LuminousUnitRankRuntime)),
-      loadBridge('combat-v073-authority-script','js/combat-v073-authority.js?v=20261022-shared-clock-1',()=>Boolean(global.LuminousCombatAuthority073)),
+      loadBridge('combat-v073-authority-script','js/combat-v073-authority.js?v=20261024-six-ready-2',()=>Boolean(global.LuminousCombatAuthority073)),
       loadBridge('combat-v073-runtime-hotfix-script','js/combat-v073-runtime-hotfix.js?v=20261021-encounter-3',()=>Boolean(global.LuminousCombatRuntimeHotfix073)),
     ]);
     return Boolean(global.LuminousUniversalLibrary&&global.LuminousCombatLibraryClient073&&global.LuminousCombatDeploymentRuntime&&global.LuminousCombatDeploymentBridge073&&global.LuminousUnitRankRuntime&&global.LuminousCombatAuthority073&&global.LuminousCombatRuntimeHotfix073);
@@ -251,7 +258,7 @@
   let independentIntentCounter=0,independentDeliveryFailed=false;
   const independentOutbox=new Map();
   function independentKey(s){return `luminous:combat-independent:${s.uid}:${s.playerId}:${s.encounterId}`;}
-  function independentFingerprint(payload){return JSON.stringify(['encounterId','unitId','round','sourceId','sourceType','cost','targetId'].map(key=>payload[key]??null));}
+  function independentFingerprint(payload){return JSON.stringify(['encounterId','unitId','round','sourceId','sourceType','cost','targetId','targetSlotIndex','choice','variant'].map(key=>payload[key]??null));}
   function independentPending(s){
     const key=independentKey(s);
     try{const saved=JSON.parse(global.localStorage?.getItem(key)||'null');if(saved&&typeof saved==='object')return saved;}catch(_){}
@@ -268,18 +275,26 @@
     if(s?.role!=='player'||!s?.db||!own||!s.encounterId||!planning(s)||Number(detail.round)!==Number(s.round)||clean(own[0])!==clean(detail.unitId))return {used:false,reason:'player_not_available'};
     const payload={schemaVersion:1,encounterId:s.encounterId,playerId:s.playerId,schedulerUid:s.uid,unitId:detail.unitId,
       round:Number(s.round),sourceId:clean(detail.sourceId),sourceType:clean(detail.sourceType),
-      cost:clean(detail.cost),targetId:clean(detail.targetId)||null,createdAt:Date.now()};
+      cost:clean(detail.cost),targetId:clean(detail.targetId)||null,...(detail.sourceType==='universal'?{targetSlotIndex:detail.targetSlotIndex??null,choice:detail.choice??null,variant:detail.variant??null}:{}),createdAt:Date.now()};
     const fingerprint=independentFingerprint(payload);
     const execute=async()=>{
       const intents=(await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}`).once('value')).val()||{};
       const receipts=(await s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}`).once('value')).val()||{};
       // Keep the unacknowledged identity even if its server receipt arrived
       // after timeout. A matching receipt is recovery, not a new activation.
-      const previous=Object.entries(intents).find(([key,row])=>(!receipts[key]||receipts[key].pendingInventory)&&['encounterId','unitId','round','sourceId','sourceType','targetId','cost'].every(key=>row[key]===payload[key]));
+      const previous=Object.entries(intents).find(([key,row])=>(!receipts[key]||receipts[key].pendingInventory)&&['encounterId','unitId','round','sourceId','sourceType','targetId','cost','targetSlotIndex','choice','variant'].every(key=>(row[key]??null)===(payload[key]??null)));
       const remembered=independentPending(s)[fingerprint];
       const requestId=remembered?.id||previous?.[0]||(global.crypto?.randomUUID?.()||`${Date.now()}-${++independentIntentCounter}`).replace(/[.#$\[\]\/]/g,'_');
       rememberIndependent(s,fingerprint,{id:requestId,round:payload.round});
-      if(!intents[requestId])await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(requestId)}`).set(payload);
+      try {
+        if(!intents[requestId])await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(requestId)}`).set(payload);
+      } catch(error) {
+        // The server never accepted this request: do not retain a phantom Free
+        // Action in the outbox or block READY as if a receipt were pending.
+        rememberIndependent(s,fingerprint,null);
+        if(String(error?.code||'').toLowerCase()==='permission_denied')return {used:false,reason:'permission_denied'};
+        throw error;
+      }
       independentDeliveryFailed=false;
       const receiptRef=s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}/${safe(requestId)}`);
       const receipt=await new Promise((resolve,reject)=>{

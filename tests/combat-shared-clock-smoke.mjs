@@ -39,18 +39,18 @@ function client({ role = 'player', skew = 0, latency = 0, stall = false } = {}) 
   const data = { id: 'round', round: 1, phase: 'running', initialStateJson: '{}',
     playback: { session: sync.session, schemaVersion: 1, engineVersion: c.LuminousCombatPlayback.engineVersion, timelineVersion: 1 } };
   authority.state.current = data;
-  let flushTimer = null;
   const flush = () => {
-    flushTimer = null;
     const row = Object.values(sync.batchUpdates({ type: 'presentation', updatedAt: wall }))[0];
     for (const peer of clients) if (peer.role === 'player') {
       // Same event arrives at independent clocks over different connections.
       timer(() => peer.deliver(row), peer.latency + (row.seq % 2 ? 15 : 0));
     }
   };
-  const publish = () => { if (flushTimer === null) flushTimer = timer(flush, 16); };
+  // Deliberately split simultaneous Coins across envelopes. RTDB/CPU timing
+  // cannot be relied upon to preserve the authority's 16ms coalescing window.
+  const publish = flush;
   engine = c.LuminousCombatSteps.create({ rules: {}, snapshot: () => ({ ally: { hp: 100 } }),
-    schedulePresentation: () => sync.schedulePresentation(), presentScheduled: (event, draw) => sync.presentScheduled(event, draw),
+    schedulePresentation: (cue, args) => sync.schedulePresentation(cue, args), presentScheduled: (event, draw) => sync.presentScheduled(event, draw),
     publish, presentation: Object.fromEntries(['powerStart', 'powerCoin', 'powerEnd', 'clashOutcome'].map(cue => [cue, (...args) => render(cue, args)])) });
   const peer = { role, latency, played, applied, consumed, errors, c, sync, engine,
     deliver(row) { handler({ val: () => row }); } };
@@ -61,7 +61,9 @@ const dm = client({ role: 'dm', skew: 180000 });
 const pc = client({ skew: -90000, latency: 45 });
 const phone = client({ skew: 360000, latency: 190 });
 const slow = client({ skew: -120000, latency: 30, stall: true });
-await Promise.all([dm, pc, phone, slow].map(peer => peer.start()));
+const others = [client({ latency: 75 }), client({ latency: 130 }), client({ latency: 210 })];
+const viewers = [pc, phone, slow, ...others];
+await Promise.all([dm, ...viewers].map(peer => peer.start()));
 let done = false;
 const execution = (async () => {
   await dm.engine.show('powerStart', 'setup');
@@ -72,30 +74,32 @@ const execution = (async () => {
   await dm.engine.show('powerEnd', 'cleanup');
   await dm.sync.drainPresentation();
   const row = Object.values(dm.sync.batchUpdates({ type: 'round_complete', updatedAt: wall, combatants: { ally: { hp: 77 } } }))[0];
-  for (const peer of [pc, phone, slow]) timer(() => peer.deliver(row), peer.latency);
+  for (const peer of viewers) timer(() => peer.deliver(row), peer.latency);
 })();
 execution.then(() => { done = true; });
 for (let i = 0; i < 10000; i++) {
-  for (let turn = 0; turn < 30; turn++) await Promise.resolve();
+  // Let all pending Promise work settle before advancing simulated wall time.
+  // A fixed microtask count depends on the consumer's internal async depth.
+  await new Promise(resolve => setImmediate(resolve));
   if (!timers.size) { if (done) break; throw Error('Scheduled playback deadlocked'); }
   const [id, next] = [...timers].sort((a, b) => a[1].at - b[1].at || a[0] - b[0])[0];
   wall = next.at; timers.delete(id); next.fn();
 }
 await execution;
-await Promise.all([pc, phone, slow].map(peer => peer.sync.state.consumer.idle()));
-for (const peer of [pc, phone]) {
+await Promise.all(viewers.map(peer => peer.sync.state.consumer.idle()));
+for (const peer of viewers) {
   assert.equal(peer.played.length, dm.played.length, 'healthy viewers see every cue');
   for (const cue of dm.played) {
     const received = peer.played.find(row => row.cue === cue.cue && row.label === cue.label);
     assert.ok(Math.abs(received.at - cue.at) <= 150, `${cue.label}: ${received.at - cue.at}ms skew must not accumulate across exchanges`);
   }
 }
-for (const peer of [pc, phone, slow]) {
+for (const peer of viewers) {
   assert.equal(peer.applied.at(-1).ally.hp, 77);
   assert.equal(peer.consumed.at(-1), 'finished');
   assert.equal(peer.sync.state.authority.state.runningLocal, false);
 }
-assert.ok(slow.played.length < dm.played.length, 'a suspended viewer skips expired animations, but consumes their states');
+assert.equal(slow.played.length, dm.played.length, 'a long local visual must not block later server deadlines');
 assert.equal(slow.played.at(-1).label, 'cleanup', 'catch-up preserves final cleanup');
 assert.ok(Math.abs(slow.played.at(-1).at - dm.played.at(-1).at) <= 100, 'slow viewer rejoins the live timeline');
 assert.equal(dm.sync.canSchedule({ p: { playback: { schemaVersion: 1, engineVersion: dm.c.LuminousCombatPlayback.engineVersion } } }, ['p']), false, 'old viewers keep the legacy contract');
@@ -120,4 +124,4 @@ callbacks.reverse().forEach(fn => fn());
 await outcome;
 assert.deepEqual(order, ['a', 'b', 'result']);
 await orderedClock.drain(); orderedClock.stop();
-console.log('Shared clock: DM, PC and phone stay within 150ms over eight exchanges with 190ms delivery and clocks skewed by minutes; suspended viewer catches up, state converges, teardown cancels future cues.');
+console.log('Shared clock: DM + six viewers, separate Coin batches, 210ms delivery, skewed clocks and a 2200ms local visual: every cue within 150ms, identical final states, teardown cancels future cues.');

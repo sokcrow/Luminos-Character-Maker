@@ -350,6 +350,8 @@
   }
 
   function canUseCandidateThisTurn(candidate, state) {
+    const phase=row=>row.sourceType==='universal'?(global.LuminousUnitUniversalActionPolicy?.definitionFor(row.sourceId)?.phase||(['retreat','escape','wake_up'].includes(row.sourceId)?'on_turn_end':['help','grapple','calm','liberate'].includes(row.sourceId)?'combat_phase':null)):null;
+    if(phase(candidate)&&state.sequence.some(row=>phase(row)===phase(candidate)))return false;
     const used = state.sequence.filter((entry) => entry.key === candidate.key).length;
     return used < candidate.maxUsesPerTurn;
   }
@@ -403,6 +405,15 @@
     const actor = input.actor || {};
     const actorId = actorIdOf(actor);
     if (!actorId) return { planned: false, reason: "actor_id_required", actions: [] };
+    // A sealed plan must not invent an Escape or consume slots for a downed unit.
+    const life = normalizeId(actor.lifeState || actor.deploymentState);
+    const hp = Number(actor.hp ?? actor.currentHp ?? actor.currentHP);
+    if (actor.isDowned === true || actor.isDead === true || actor.dead === true ||
+        actor.isRetreated === true || actor.escaped === true ||
+        ["downed", "dead", "retreated", "escaped", "defeated"].includes(life) ||
+        (Number.isFinite(hp) && hp <= 0)) {
+      return { planned: false, reason: "actor_unavailable", actorId, actions: [], sequence: [], slotsUsed: 0 };
+    }
     const slots = resolveSlots(input);
     if (!slots.length) return { planned: true, reason: "no_action_slots", actorId, actions: [], sequence: [], slotsRequested: 0, slotsUsed: 0, unusedSlots: 0 };
 
@@ -434,10 +445,20 @@
       if (withdrawal.length) candidates = withdrawal;
     } else {
       candidates.sort((a, b) => quickCandidateScore(b) - quickCandidateScore(a) || a.key.localeCompare(b.key));
-      candidates = candidates.slice(0, intp.candidateLimit);
+      if (typeof input.isSourceAllowedInSlot !== "function") candidates = candidates.slice(0, intp.candidateLimit);
       if (hasEscape && !candidates.some((candidate) => candidate.role === "escape")) candidates.push(makeEscapeDescriptor());
     }
 
+    // Prune each Slot's legal pool separately: globally high-scoring cards in
+    // other hands must not crowd the current hand out of the search.
+    const candidatesBySlot = slots.map((slotId, slotIndex) => {
+      if (typeof input.isSourceAllowedInSlot !== "function") return candidates;
+      const legal = candidates.filter(candidate => input.isSourceAllowedInSlot(candidate, slotId, slotIndex));
+      const limited = legal.slice(0, intp.candidateLimit);
+      const escape = legal.find(candidate => candidate.role === "escape");
+      if (escape && !limited.includes(escape)) limited.push(escape);
+      return limited;
+    });
     let beam = [{ sequence: [], score: 0, producedTags: new Set(), resourceSpent: {}, terminal: false }];
     for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 1) {
       const next = [];
@@ -447,10 +468,10 @@
           continue;
         }
         let expanded = false;
-        for (const candidate of candidates) {
+        for (const candidate of candidatesBySlot[slotIndex]) {
           if (!canUseCandidateThisTurn(candidate, state)) continue;
           if (!canAffordPlanningResources(candidate, state)) continue;
-          next.push(expandState(state, candidate, candidateScore(candidate, state, context), context));
+          next.push(expandState(state, { ...candidate, plannedSlotIndex: slotIndex }, candidateScore(candidate, state, context), context));
           expanded = true;
         }
         if (!expanded) next.push(state);
@@ -463,7 +484,7 @@
     const best = beam[0] || { sequence: [], score: 0, producedTags: new Set(), resourceSpent: {} };
     const perActionScore = best.sequence.length ? best.score / best.sequence.length : 0;
     const actions = best.sequence.map((candidate, index) => compileCandidate(actor, candidate, {
-      actionSlotId: slots[index],
+      actionSlotId: slots[candidate.plannedSlotIndex ?? index],
       targetId,
       goal,
       score: perActionScore,
@@ -479,7 +500,7 @@
       unusedSlots: Math.max(0, slots.length - actions.length),
       actions,
       sequence: best.sequence.map((candidate, index) => ({
-        slotId: slots[index],
+        slotId: slots[candidate.plannedSlotIndex ?? index],
         sourceType: candidate.sourceType,
         sourceId: candidate.sourceId,
         role: candidate.role,

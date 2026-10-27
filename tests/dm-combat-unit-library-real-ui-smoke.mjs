@@ -24,6 +24,13 @@ globalThis.LuminousBeastCr0UnitCatalog = {
 globalThis.LuminousKoboldTier1SkillCatalog = {};
 globalThis.LuminousGoblinTier1SkillCatalog = {};
 globalThis.LuminousWolfSkillCatalog = {};
+// This fixture covers three families; the additional canonical family is empty.
+globalThis.LuminousCaveSapphireSpiderSkillCatalog = {};
+globalThis.LuminousCaveSapphireSpiderRuntime = {};
+globalThis.LuminousCaveSapphireSpiderUnitCatalog = {
+  firebasePayload: () => ({}),
+  firebaseSkillPayload: () => ({}),
+};
 globalThis.LuminousKoboldUnitCatalog = {
   firebasePayload: () => ({ kobold_dagger: fakeUnits.kobold_dagger }),
   firebaseSkillPayload: () => ({ kobold_dagger_jab: fakeSkills.kobold_dagger_jab }),

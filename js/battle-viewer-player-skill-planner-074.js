@@ -65,7 +65,11 @@
     if (!link) return { unit, weapons: [] };
     const inventory = player?.inventario_activo || unit?.inventario_activo || {};
     const linked = link.resolveEquipment(unit, player, inventory);
-    const combatUnit = { ...unit, ...linked };
+    const combatUnit = { ...unit, ...linked,
+      equipment: global.LuminousEquipmentLoadouts?.hydratedEquipment?.(
+        {...unit,equipment:linked.equipment},player) || linked.equipment,
+      activeEquipmentModes: player?.activeEquipmentModes || unit?.activeEquipmentModes || {}
+    };
     return { unit: combatUnit, weapons: link.equippedWeapons(combatUnit) };
   }
 
@@ -149,7 +153,9 @@
     const combatant = resolveOwnedCombatant(owner.playerId);
     if (!combatant.ok) return [];
     const loadout = skillLoadoutRuntime();
-    const ids = loadout?.skillIdsFor ? loadout.skillIdsFor(combatant.unit) : Array.isArray(combatant.unit?.skillIds) ? combatant.unit.skillIds : [];
+    const player = state.players?.[owner.playerId] || {};
+    const hydrated = trustedWeaponContext(combatant.unit, player).unit;
+    const ids = loadout?.skillIdsFor ? loadout.skillIdsFor(hydrated) : Array.isArray(hydrated.skillIds) ? hydrated.skillIds : [];
     const library = loadout?.skillLibrary?.() || {};
     return [...new Set(ids.map(clean).filter(Boolean))].map((id) => {
       const raw = library[id] || {};
@@ -188,14 +194,14 @@
     const loadout = skillLoadoutRuntime();
     const selectedSkillId = clean(skillId);
     if (!selectedSkillId) return { ok: false, reason: "SKILL_ID_REQUIRED", payload: null };
-    if (!loadout?.ownsSkill?.(resolved.unit, selectedSkillId)) return { ok: false, reason: "SKILL_NOT_EQUIPPED", payload: null };
+    const source = trustedWeaponContext(resolved.unit, player.player || state.players?.[player.playerId] || {});
+    if (!loadout?.ownsSkill?.(source.unit, selectedSkillId)) return { ok: false, reason: "SKILL_NOT_EQUIPPED", payload: null };
     const link = itemWeaponLink();
     const trustedSkill = loadout?.skillLibrary?.()?.[selectedSkillId] || null;
     let binding = null;
     if (!link?.bindTrustedSkill || !trustedSkill) {
       return { ok: false, reason: "SKILL_WEAPON_VALIDATION_UNAVAILABLE", payload: null };
     }
-    const source = trustedWeaponContext(resolved.unit, player.player || state.players?.[player.playerId] || {});
     binding = link.bindTrustedSkill(source.unit, trustedSkill, weaponInstanceId);
     const needsWeapon = link.requiresEquippedWeapon(source.unit, trustedSkill);
     if (needsWeapon && !binding.bound) return { ok: false, reason: binding.reason || "WEAPON_SOURCE_REQUIRED", payload: null };
@@ -308,6 +314,39 @@
     return { ok: true, reason: null, skillId: id };
   }
 
+  async function switchEquipmentMode(instanceId, modeId, options = {}) {
+    const context = currentOwnerContext();
+    if (!context.ok || !context.combatant?.ok) return {ok:false,reason:"not_owner"};
+    const change = global.LuminousEquipmentLoadouts;
+    if (!change?.changeMode) return {ok:false,reason:"loadout_engine_unavailable"};
+    const phase = clean(state.combatState).toLowerCase();
+    if (!["pre_combat_planning","planning","player_planning"].includes(phase))
+      return {ok:false,reason:"mode_switch_only_in_planning"};
+    if (Object.values(state.plans?.[context.playerId]||{}).some(plan=>plan?.status==="planned"))
+      return {ok:false,reason:"cancel_planned_actions_before_switch"};
+    const encounter = global.LuminousCombatLiveAdapter073?.state || {};
+    const round = Number(options.round ?? encounter.round) || 0;
+    const encounterId = clean(options.encounterId ?? encounter.encounterId);
+    const db = options.db || state.db;
+    if (!db?.ref) return {ok:false,reason:"database_unavailable"};
+    let error="not_equipped_or_mode_missing";
+    const uid=currentAuthUid();
+    const result=await db.ref(ROOTS.players+"/"+context.playerId).transaction(player=>{
+      if (!player || playerUid(player)!==uid) {error="not_owner";return;}
+      const attempt=change.changeMode(player,instanceId,modeId,
+        {combat:true,phase,round,encounterId});
+      if(!attempt.ok){error=attempt.reason;return;}
+      if(!attempt.changed){error="same_mode";return;}
+      return attempt.player;
+    },undefined,false);
+    if(!result.committed) return {ok:false,reason:error};
+    state.players[context.playerId]=result.snapshot.val();
+    state.selectedSkillId=null;
+    state.selectedWeaponInstanceId=null;
+    render();
+    return {ok:true,modeId};
+  }
+
   function clearSelectedSkill() {
     state.selectedSkillId = null;
     state.selectedWeaponInstanceId = null;
@@ -328,7 +367,7 @@
     style.id = STYLE_ID;
     style.textContent = `
       #${PANEL_ID}{position:fixed;left:12px;bottom:12px;z-index:16000;width:min(500px,calc(100vw - 24px));max-height:min(34dvh,290px);overflow-y:auto;overscroll-behavior:contain;background:rgba(10,8,7,.96);border:1px solid #8a673d;box-shadow:0 8px 28px rgba(0,0,0,.65);color:#eee;font:12px Arial,sans-serif;padding:10px;box-sizing:border-box}
-      #${PANEL_ID}[hidden]{display:none!important}.bv074-psp-title{display:flex;align-items:center;gap:7px;font:700 15px var(--font-limbus,Arial);letter-spacing:.1em;color:#ffe877;margin-bottom:7px}.bv074-psp-title-icon{width:20px;height:20px;object-fit:contain;flex:0 0 auto}.bv074-psp-meta{color:#aaa;font-size:10px;margin-bottom:7px}.bv074-psp-skills{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:8px}.bv074-psp-skill{min-width:132px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;border:1px solid #68543a;background:linear-gradient(125deg,#251b12,#0c0a08);color:#ddd;padding:9px;cursor:pointer}.bv074-psp-skill>strong{font:700 14px Georgia,serif;color:#f3dfb7}.bv074-psp-skill>small{font-size:10px;color:#bcab94}.bv074-coin-meta{font-size:12px;color:#f0d28d}.bv074-coins{font-size:15px;color:#d7ad66;letter-spacing:2px}.bv074-skill-statuses{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.bv074-skill-statuses img{width:18px;height:18px;object-fit:contain}.bv074-skill-statuses small{font-size:10px;color:#dcc49b}.bv074-psp-skill:disabled{opacity:.55;cursor:not-allowed;border-color:#694543}.bv074-psp-skill.selected{border-color:#ffe877;color:#ffe877;box-shadow:0 0 8px rgba(255,232,119,.25)}.bv074-psp-slots{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.bv074-psp-slot{display:flex;align-items:center;gap:5px;border:1px solid #3d342b;padding:4px 6px;color:#aaa}.bv074-psp-cancel{border:0;background:#3a1914;color:#ff9c8b;cursor:pointer;padding:2px 5px}.bv074-psp-hint{margin-top:7px;color:#8fd6a0;font-size:10px}.bv074-psp-weapon{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;color:#d6b4ed;font-size:11px}.bv074-psp-weapon select{background:#1b1425;border:1px solid #8356a7;color:#f5dcff;padding:6px 8px;max-width:100%}`;
+      #${PANEL_ID}[hidden]{display:none!important}.bv074-psp-title{display:flex;align-items:center;gap:7px;font:700 15px var(--font-limbus,Arial);letter-spacing:.1em;color:#ffe877;margin-bottom:7px}.bv074-psp-title-icon{width:20px;height:20px;object-fit:contain;flex:0 0 auto}.bv074-psp-meta{color:#aaa;font-size:10px;margin-bottom:7px}.bv074-psp-skills{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:8px}.bv074-psp-skill{min-width:132px;min-height:82px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;border:1px solid #68543a;background:linear-gradient(125deg,#251b12,#0c0a08);color:#ddd;padding:9px;cursor:pointer}.bv074-psp-skill>strong{font:700 14px Georgia,serif;color:#f3dfb7}.bv074-psp-skill>small{font-size:10px;color:#bcab94}.bv074-coin-meta{font-size:12px;color:#f0d28d}.bv074-coins{font-size:15px;color:#d7ad66;letter-spacing:2px}.bv074-skill-statuses{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.bv074-skill-statuses img{width:18px;height:18px;object-fit:contain}.bv074-skill-statuses small{font-size:10px;color:#dcc49b}.bv074-psp-skill:disabled{opacity:.55;cursor:not-allowed;border-color:#694543}.bv074-psp-skill.selected{border-color:#ffe877;color:#ffe877;box-shadow:0 0 8px rgba(255,232,119,.25)}.bv074-psp-slots{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.bv074-psp-slot{display:flex;align-items:center;gap:5px;border:1px solid #3d342b;padding:4px 6px;color:#aaa}.bv074-psp-cancel{border:0;background:#3a1914;color:#ff9c8b;cursor:pointer;padding:2px 5px}.bv074-psp-hint{margin-top:7px;color:#8fd6a0;font-size:10px}.bv074-psp-weapon{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;color:#d6b4ed;font-size:11px}.bv074-psp-modes{margin:8px 0;padding:8px;border:1px solid #6d5946}.bv074-psp-modes>div{display:flex;gap:6px;overflow-x:auto;margin-top:6px}.bv074-psp-modes button{min-height:44px;min-width:72px;flex:none;border:1px solid #9e7749;color:#f6dfbc;background:#33271f;padding:8px;cursor:pointer}.bv074-psp-modes button[aria-pressed="true"]{border-color:#f7d17a;color:#ffe39a}.bv074-psp-modes button:disabled{opacity:.6;cursor:default}.bv074-psp-weapon select{background:#1b1425;border:1px solid #8356a7;color:#f5dcff;padding:6px 8px;max-width:100%}`;
     doc.head?.appendChild(style);
   }
 
@@ -347,6 +386,13 @@
         }
       });
       panel.addEventListener("click", (event) => {
+        const modeButton=event.target?.closest?.("[data-bv074-mode-item][data-bv074-mode-id]");
+        if(modeButton){
+          if(!modeButton.disabled) switchEquipmentMode(modeButton.dataset.bv074ModeItem,modeButton.dataset.bv074ModeId)
+            .then(result=>emitLog(result.ok?"Modo de arma actualizado.": "No se pudo cambiar: "+result.reason, result.ok?"normal":"interrupt"))
+            .catch(error=>emitLog("No se pudo guardar el modo de arma: "+(error?.message||error),"interrupt"));
+          return;
+        }
         const skillButton = event.target?.closest?.("[data-bv074-skill]");
         if (skillButton) {
           selectSkill(skillButton.getAttribute("data-bv074-skill"));
@@ -394,7 +440,16 @@
     const weaponPicker = !needsWeapon ? '' :
       '<label class="bv074-psp-weapon">Arma para esta habilidad <select id="bv074-psp-weapon-select"><option value="">' +
       (choices.length ? 'Selecciona un arma compatible' : 'Ninguna arma permite esta técnica') + '</option>' + weaponOptions + '</select></label>';
+    const equipmentModes = global.LuminousEquipmentLoadouts?.modeOptions?.(weaponContext.unit,context.player) || [];
     const ownerPlans = state.plans?.[context.playerId] || {};
+    const canSwitch = ["pre_combat_planning","planning","player_planning"].includes(clean(state.combatState).toLowerCase()) &&
+      !Object.values(ownerPlans).some(plan=>plan?.status==="planned");
+    const modePicker = equipmentModes.filter(entry=>entry.options.length>1).map(entry=>
+      '<div class="bv074-psp-modes"><small>'+htmlEscape(entry.item.displayName||entry.item.name||"Arma")+' · Cambiar modo (Free Action)</small><div>'+
+      entry.options.map(option=>'<button type="button" data-bv074-mode-item="'+htmlEscape(entry.instanceId)+
+      '" data-bv074-mode-id="'+htmlEscape(option.id)+'" '+(!canSwitch||entry.modeId===option.id?'disabled':'')+
+      ' aria-pressed="'+(entry.modeId===option.id?'true':'false')+'">'+htmlEscape(option.name)+'</button>').join("")+
+      '</div></div>').join("");
     const phase = clean(state.combatState).toLowerCase().includes("planning") ? "PREPARACIÓN" : "COMBATE";
     const skillButtons = skills.length
       ? skills.map((skill) => {
@@ -413,6 +468,7 @@
       <div class="bv074-psp-meta">${htmlEscape(phase)} · ${skills.length} habilidades equipadas</div>
       <div class="bv074-psp-skills">${skillButtons}</div>
       ${weaponPicker}
+      ${modePicker}
       <div class="bv074-psp-slots">${slots}</div>
       <div class="bv074-psp-hint">${state.selectedSkillId ? `Seleccionada: ${htmlEscape(skills.find((row) => row.id === state.selectedSkillId)?.name || "Habilidad")} · arrastra un Action Slot hacia el objetivo.` : "Selecciona una habilidad y arrastra un Action Slot hacia el objetivo."}</div>`;
     return true;
@@ -475,7 +531,9 @@
   function applyPlayers(value) { state.players = value && typeof value === "object" ? value : {}; return state.players; }
   function applyCombatants(value) { state.combatants = value && typeof value === "object" ? value : {}; return state.combatants; }
   function applyPlans(value) { state.plans = value && typeof value === "object" ? value : {}; return state.plans; }
-  function applyCombatState(value) { state.combatState = value == null ? null : String(value); return state.combatState; }
+  function applyCombatState(value) { state.combatState = value == null ? null :
+    typeof value === "object" ? String(value.phase || value.state || value.status || "") : String(value);
+    return state.combatState; }
 
   function init(options = {}) {
     if (state.started) {
@@ -543,6 +601,7 @@
     scheduleSkill,
     cancelSkillPlan,
     selectSkill,
+    switchEquipmentMode,
     clearSelectedSkill,
     installTargetingHook,
     applyPlayers,

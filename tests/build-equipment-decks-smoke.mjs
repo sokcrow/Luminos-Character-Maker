@@ -1,0 +1,171 @@
+import assert from "node:assert/strict";
+await import("../js/build-equipment-catalog.js");
+await import("../js/equipment-loadout-runtime.js");
+await import("../js/item-inventory-runtime.js");
+await import("../js/item-equipment-effects-runtime.js");
+await import("../js/combat-skill-schema.js");
+await import("../js/combat-skill-loadout-074.js");
+await import("../js/item-enchantment-combat-link.js");
+const catalog=globalThis.LuminousBuildWeaponCatalog;
+const loadouts=globalThis.LuminousEquipmentLoadouts;
+const inv=globalThis.LuminousItemInventoryRuntime;
+const effects=globalThis.LuminousEquipmentEffects;
+const skills=globalThis.LuminousCombatSkillLoadout074;
+const link=globalThis.LuminousEnchantmentCombatLink;
+assert.equal(catalog.ITEMS.length,7);
+assert.equal(Object.keys(globalThis.LuminousBuildSkillCatalog.DEFINITIONS).length,20);
+for(const item of catalog.ITEMS){
+ const instance=inv.createItemInstance(item,{quantity:1});
+ assert.equal(instance.definitionId,item.id);
+ assert.equal(instance.category,item.category);
+ assert.deepEqual(instance.runtime,item.runtime,"ItemInstance retains trusted Build runtime effects/loadouts");
+ assert.equal(instance.itemType,item.category);
+ assert.equal(inv.serializeItemInstance(instance).runtime!==undefined,true);
+}
+function playerFor(id,mode={}){
+ const def=catalog.get(id);
+ const instance=inv.createItemInstance(def,{quantity:1});
+ const player={id:"p1",inventario_activo:{weapon:instance},inventario_stash:{},itemEquipmentRefs:
+   {mainHand:instance.instanceId,offHand:def.equipment?.handCost===2?instance.instanceId:null}};
+ return {...player,activeEquipmentModes:mode};
+}
+const sword=playerFor("jeske_poise_blade");
+const swordDeck=loadouts.deck(sword);
+assert.equal(swordDeck.tier1,"jeske_sword_poise_i");
+assert.deepEqual(loadouts.slotIds(sword),[
+ "jeske_sword_poise_i","jeske_sword_poise_i","jeske_sword_poise_i",
+ "jeske_sword_poise_ii","jeske_sword_poise_ii","jeske_sword_poise_iii"]);
+assert.equal(skills.skillIdsFor(sword).includes("jeske_sword_poise_iii"),true);
+assert.equal(skills.ownsSkill(sword,"jeske_sword_poise_ii"),true);
+sword.equippedSkillIndex={old_learned_skill:true};
+sword.characterBuild={learnedSkillIds:["old_learned_skill"],skillDeck:{tier1:"old_learned_skill"}};
+assert.equal(skills.ownsSkill(sword,"jeske_sword_poise_ii"),true,
+  "Active equipment Deck takes precedence over the old persistent index");
+assert.equal(skills.ownsSkill(sword,"old_learned_skill"),false,
+  "Previously learned Skill remains saved but is not executable from the wrong Deck");
+assert.deepEqual(sword.characterBuild.learnedSkillIds,["old_learned_skill"]);
+assert.equal(skills.ownsSkill(sword,"calipsys_burn_ii"),false);
+assert.equal(link.skillAvailability({equipment:loadouts.hydratedEquipment(sword)},skills.skillLibrary()["jeske_sword_poise_i"]).available,true);
+const revolver=playerFor("jeske_poise_revolver");
+assert.equal(loadouts.deck(revolver).tier1,"jeske_revolver_poise_i");
+const gauntlets=playerFor("calipsys_fourfold_gauntlets");
+const id=gauntlets.inventario_activo.weapon.instanceId;
+assert.equal(loadouts.modeOptions(gauntlets).length,1);
+assert.equal(loadouts.modeOptions(gauntlets)[0].options.length,4);
+for(const mode of ["bleed","tremor","burn","chill"]){
+ const changed=loadouts.changeMode(gauntlets,id,mode,mode==="bleed"?{}:{phase:"planning",combat:true,round:2,encounterId:"combat_a"});
+ assert.equal(changed.ok,true,changed.reason);
+ assert.equal(loadouts.deck(changed.player).tier1,"calipsys_"+mode+"_i");
+ assert.equal(loadouts.slotIds(changed.player).length,6);
+ assert.equal(skills.ownsSkill(changed.player,"calipsys_"+mode+"_ii"),true);
+ // Switching the deck must not overwrite learned Skills or class progression.
+ assert.deepEqual(changed.player.learnedSkillIds,gauntlets.learnedSkillIds);
+}
+const swapped=loadouts.changeMode(gauntlets,id,"tremor",{phase:"planning",combat:true,round:2,encounterId:"combat_a"});
+assert.equal(swapped.ok,true);
+const already=loadouts.changeMode(swapped.player,id,"burn",{phase:"planning",combat:true,round:2,encounterId:"combat_a"});
+assert.equal(already.ok,false);
+assert.equal(already.reason,"free_mode_switch_already_used");
+assert.equal(loadouts.changeMode(gauntlets,id,"burn",{phase:"sealed",combat:true}).ok,false);
+assert.equal(loadouts.changeMode(gauntlets,"not_the_weapon","burn",{}).ok,false);
+assert.equal(loadouts.deck(sword).tier1,"jeske_sword_poise_i","Mode update never modifies another player");
+const shield=catalog.get("jeske_guard_shield");
+const shieldInstance=inv.createItemInstance(shield);
+const defended={equipment:{shield:shieldInstance}};
+assert.ok(effects.grantedSkillIds(defended).includes("jeske_shield_bash"));
+assert.ok(effects.grantedSkillIds(defended).includes("jeske_clashable_guard"));
+assert.equal(skills.ownsSkill(defended,"jeske_shield_bash"),true);
+assert.equal(skills.skillLibrary().jeske_shield_bash.basePower,6);
+assert.equal(skills.skillLibrary().jeske_shield_bash.coinPower,5);
+assert.deepEqual(skills.skillLibrary().jeske_shield_bash.coins[0].effects.map(e=>[e.status,e.potency,e.count]),[["tremor",2,1]]);
+const armor=inv.createItemInstance(catalog.get("jeske_regenerative_armor"));
+const healed={equipment:{armor},hp:50,maxHp:100,battleActive:true};
+assert.equal(effects.applyTurnStart(healed,{round:1,encounterId:"a",authoritative:true}).applied,true);
+assert.equal(healed.hp,55);
+assert.equal(effects.applyTurnStart(healed,{round:1,encounterId:"a",authoritative:true}).applied,false);
+const ocular=inv.createItemInstance(catalog.get("jeske_ocular_augment"));
+const installed={augmentations:[{...ocular,installed:true,equipped:true}]};
+assert.equal(effects.skillCheckBonus(installed,"perception"),1);
+assert.equal(effects.checkThresholdAdjustment(installed,"analyze"),-2);
+const gloom=inv.createItemInstance(catalog.get("calipsys_gloom_armor"));
+assert.equal(effects.mitigateSpLoss({equipment:{armor:gloom}},8),5);
+// DM GUI operations must equip real ItemInstances, not only show catalog cards.
+await import("../js/item-runtime-engine.js");
+await import("../js/anatomy-equipment-engine.js");
+await import("../js/item-augmentation-runtime.js");
+await import("../js/item-equipment-bridge.js");
+await import("../js/dm-character-gear-core.js");
+const gear=globalThis.LuminousDmCharacterGearCore;
+let character={id:"jeske",inventario_activo:{},inventario_stash:{},itemEquipmentRefs:{}};
+for(const name of ["jeske_poise_blade","jeske_guard_shield","jeske_regenerative_armor","jeske_ocular_augment"])
+ character.inventario_activo[name]=inv.createItemInstance(catalog.get(name),{quantity:1});
+for(const [name,slot] of [["jeske_poise_blade","mainHand"],["jeske_guard_shield","offHand"],["jeske_regenerative_armor","armor"]]){
+ const done=gear.apply(character,{type:"equip",key:name,slot});
+ assert.equal(done.ok,true,done.reason);character=done.unit;
+}
+assert.equal(loadouts.deck(character).tier1,"jeske_sword_poise_i");
+assert.ok(effects.grantedSkillIds({equipment:loadouts.hydratedEquipment(character)}).includes("jeske_shield_bash"));
+const surgery=gear.apply(character,{type:"install",key:"jeske_ocular_augment",source:"active",at:100});
+assert.equal(surgery.ok,true,surgery.reason);character=surgery.unit;
+assert.equal(character.inventario_activo.jeske_ocular_augment,undefined);
+assert.equal(character.augmentations.length,1);
+assert.equal(character.augmentations[0].installed,true);
+assert.equal(effects.skillCheckBonus(character,"perception"),1);
+assert.equal(gear.apply(character,{type:"remove",key:character.augmentations[0].instanceId}).ok,false);
+
+// Jeske physically swaps an actual sword/shield pair for an owned revolver.
+character.inventario_activo.jeske_poise_revolver=inv.createItemInstance(
+  catalog.get("jeske_poise_revolver"),{quantity:1});
+assert.ok(loadouts.modeOptions(character).some(x=>x.instanceId==="jeske_weapon_set"));
+const armedBefore=loadouts.hydratedEquipment(character);
+assert.equal(armedBefore.offHand.definitionId,"jeske_guard_shield");
+const revolverMode=loadouts.changeMode(character,"jeske_weapon_set","revolver",
+  {phase:"planning",combat:true,encounterId:"jeske_test",round:1});
+assert.equal(revolverMode.ok,true,revolverMode.reason);
+const armedAfter=loadouts.hydratedEquipment(revolverMode.player);
+assert.equal(armedAfter.mainHand.definitionId,"jeske_poise_revolver");
+assert.equal(armedAfter.offHand,null);
+assert.equal(armedAfter.shield,null);
+assert.equal(loadouts.deck(revolverMode.player).tier1,"jeske_revolver_poise_i");
+assert.equal(revolverMode.player.inventario_activo.jeske_guard_shield.equipped,false);
+assert.ok(!effects.grantedSkillIds({equipment:armedAfter}).includes("jeske_shield_bash"));
+assert.equal(loadouts.changeMode(revolverMode.player,"jeske_weapon_set","sword",
+  {phase:"planning",combat:true,encounterId:"jeske_test",round:1}).ok,false);
+const swordAgain=loadouts.changeMode(revolverMode.player,"jeske_weapon_set","sword",
+  {phase:"planning",combat:true,encounterId:"jeske_test",round:2});
+assert.equal(swordAgain.ok,true,swordAgain.reason);
+assert.equal(loadouts.deck(swordAgain.player).tier1,"jeske_sword_poise_i");
+assert.ok(effects.grantedSkillIds({equipment:loadouts.hydratedEquipment(swordAgain.player)})
+ .includes("jeske_shield_bash"));
+
+// Real DeckEngine: switching back restores the original hand/discard state.
+globalThis.window=globalThis;
+globalThis.addEventListener=globalThis.addEventListener || (()=>{});
+await import("../js/deckEngine.js");
+const gauntletItem={...catalog.get("calipsys_fourfold_gauntlets"),instanceId:"deck_gauntlet",condition:100};
+const unit={id:"calipsys_deck_test",controlled:"player",actionSlots:1,
+  inventario_activo:{gauntlet:gauntletItem},
+  itemEquipmentRefs:{mainHand:"deck_gauntlet",offHand:"deck_gauntlet"},
+  equipment:{mainHand:gauntletItem,offHand:gauntletItem},activeEquipmentModes:{}};
+const definitions=globalThis.LuminousBuildSkillCatalog.DEFINITIONS;
+globalThis.LuminousCombatLiveAdapter073={state:{round:1,encounterId:"deck_test"}};
+globalThis.LuminousCombat073={combatants:()=>({[unit.id]:unit}),uiState:()=>({round:1}),
+  kit:()=>({actions:[...new Set(loadouts.slotIds(unit))].map(id=>({...definitions[id],kind:"skill"}))})};
+await import("../js/combat-v073-deck.js");
+const slots=globalThis.LuminousCombatSlotDeck073;
+const first=slots.ensure(unit,1);
+assert.equal(first.definition.cardCount,6);
+first.modeTestMarker="original_hand";
+unit.activeEquipmentModes.deck_gauntlet="chill";
+const other=slots.ensure(unit,1);
+assert.equal(other.definition.cardCount,6);
+assert.notEqual(other.modeKey,first.modeKey);
+other.modeTestMarker="different_hand";
+unit.activeEquipmentModes.deck_gauntlet="bleed";
+const restored=slots.ensure(unit,1);
+assert.equal(restored.modeTestMarker,"original_hand");
+assert.equal(restored,first);
+assert.deepEqual(Object.keys(slots.compactModeDecks(unit.combatDeckModes)).sort(),
+  ["deck_gauntlet:bleed","deck_gauntlet:chill"]);
+
+console.log("BUILD_EQUIPMENT_DECKS_PASS items, canonical 3/2/1, mode switches, grants, armor and Augment effects");

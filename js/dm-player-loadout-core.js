@@ -6,7 +6,7 @@
     return;
   }
 
-  const VERSION = "0.1.1";
+  const VERSION = "0.1.2";
   const TIER_COPIES = Object.freeze({ 1: 3, 2: 2, 3: 1 });
   const clean = (value) => String(value ?? "").trim();
   const normalizeId = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -108,6 +108,125 @@
     return [...groups.values()]
       .filter((entry) => entry.deck.tier1 && entry.deck.tier2 && entry.deck.tier3)
       .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  // Live presets use existing campaign records, never a copied Skill catalog.
+  function eligiblePresetSkill(skill = {}) {
+    if (skill?.inDeck === false || skill?.in_deck === false || skill?.deck?.enabled === false ||
+        skill?.isDefense === true || skill?.isItemSkill === true || skill?.metadata?.evolvedSignatureSkill === true) return false;
+    const availability = clean(skill?.availability?.type || skill?.availabilityType || "").toLowerCase();
+    if (["off_deck", "offdeck", "defense", "defensive", "granted", "free"].includes(availability)) return false;
+    if (clean(skill?.type).toLowerCase() === "defense") return false;
+    const copies = skill?.metadata?.deckCopies ?? skill?.deckCopies;
+    return copies == null || Number(copies) !== 0;
+  }
+
+  function playerCharacterName(player = {}, playerId = "") {
+    return clean(player.characterName || player.character_name || player.nombre ||
+      player.characterIdentity?.name || player.name) || humanizeId(playerId);
+  }
+
+  function ownerForSavedSkill(raw, knownPlayers) {
+    const meta = raw?.metadata || {};
+    const declaredId = normalizeId(meta.ownerCharacterId || raw?.ownerCharacterId ||
+      meta.characterId || raw?.characterId);
+    const declaredName = clean(meta.ownerCharacterName || raw?.ownerCharacterName || meta.ownerLabel);
+    if (declaredId || declaredName) {
+      return { id: declaredId || normalizeId(declaredName),
+        label: declaredName || knownPlayers.find((p) => p.slug === declaredId)?.label || humanizeId(declaredId) };
+    }
+    // A legacy Skill may have no owner metadata; match only a real campaign
+    // character's name as a complete leading token, not a substring.
+    const tokens = [raw?.id, raw?.name, raw?.sourceId].map(normalizeId);
+    return knownPlayers.find((p) => tokens.some((token) => token === p.slug || token.startsWith(p.slug + "_"))) || null;
+  }
+
+  function databaseSkillPresets(savedSkills = {}, players = {}, library = savedSkills) {
+    const knownPlayers = Object.entries(players || {})
+      .filter(([, player]) => player && typeof player === "object")
+      .map(([playerId, player]) => {
+        const label = playerCharacterName(player, playerId);
+        return { id: normalizeId(playerId), slug: normalizeId(label), label };
+      })
+      .filter((p) => p.slug.length >= 3)
+      .sort((a, b) => b.slug.length - a.slug.length);
+    const groups = new Map();
+    Object.entries(savedSkills || {}).sort(([a], [b]) => a.localeCompare(b)).forEach(([key, raw]) => {
+      if (!raw || typeof raw !== "object" || !eligiblePresetSkill(raw)) return;
+      const id = normalizeId(raw.id || key);
+      const tier = skillTier(raw);
+      const owner = ownerForSavedSkill(raw, knownPlayers);
+      if (!id || !owner?.id || ![1, 2, 3].includes(tier)) return;
+      if (!groups.has(owner.id)) groups.set(owner.id, {
+        id: "library_" + owner.id, label: owner.label, source: "library",
+        deck: { tier1: "", tier2: "", tier3: "" },
+      });
+      const preset = groups.get(owner.id);
+      if (!preset.deck["tier" + tier]) preset.deck["tier" + tier] = id;
+    });
+    return [...groups.values()]
+      .filter((entry) => validateDeck(entry.deck, library).valid)
+      .sort((a, b) => a.label.localeCompare(b.label, "es"));
+  }
+
+  function playerDeckPresets(players = {}, library = {}) {
+    const out = [];
+    Object.entries(players || {}).forEach(([playerId, player]) => {
+      if (!player || typeof player !== "object") return;
+      const label = playerCharacterName(player, playerId);
+      const saved = player.characterBuild?.skillDeckPresets || player.skillDeckPresets || [];
+      const savedRows = Array.isArray(saved) ? saved : Object.values(saved || {});
+      const candidates = [{ name: label, deck: deckFromPlayer(player, library) },
+        ...savedRows.map((row, index) => ({
+          name: label + " · " + (clean(row?.name) || "Deck " + (index + 1)),
+          deck: row,
+        }))];
+      const seen = new Set();
+      candidates.forEach((candidate, index) => {
+        const validated = validateDeck(candidate.deck, library);
+        if (!validated.valid) return;
+        const signature = JSON.stringify(validated.deck);
+        if (seen.has(signature)) return;
+        seen.add(signature);
+        out.push({
+          id: "player_" + normalizeId(playerId) + "_" + index,
+          label: candidate.name,
+          source: "player", deck: validated.deck,
+        });
+      });
+    });
+    return out.sort((a, b) => a.label.localeCompare(b.label, "es"));
+  }
+
+  // Presets are derived from the *same* item definitions used by Combat
+  // Master. We intentionally do not copy or maintain a second list of Decks.
+  function equipmentDeckPresets(catalog = {}, skillCatalog = {}) {
+    const items = Array.isArray(catalog?.ITEMS) ? catalog.ITEMS :
+      typeof catalog?.list === "function" ? catalog.list() : [];
+    const skills = skillCatalog?.DEFINITIONS || skillCatalog?.definitions || skillCatalog || {};
+    const hasLibrary = Object.keys(skills).length > 0;
+    const presets = [];
+    for (const item of items) {
+      const definitionId = normalizeId(item?.definitionId || item?.id);
+      const loadouts = item?.runtime?.buildLoadouts?.modes;
+      if (!definitionId || !loadouts || typeof loadouts !== "object") continue;
+      for (const [rawModeId, mode] of Object.entries(loadouts)) {
+        const modeId = normalizeId(rawModeId);
+        const deck = normalizeDeck(mode?.deck || {});
+        if (!modeId || ![deck.tier1, deck.tier2, deck.tier3].every(Boolean)) continue;
+        if (hasLibrary && !validateDeck(deck, skills).valid) continue;
+        const itemLabel = clean(item?.displayName || item?.name || item?.nombre) || humanizeId(definitionId);
+        presets.push({
+          id: `equipment_${definitionId}_${modeId}`,
+          label: `${itemLabel} · ${clean(mode?.name) || humanizeId(modeId)}`,
+          source: "equipment",
+          definitionId,
+          modeId,
+          deck,
+        });
+      }
+    }
+    return presets.sort((a, b) => a.label.localeCompare(b.label, "es"));
   }
 
   function normalizeClassIds(player = {}) {
@@ -219,6 +338,9 @@
     skillTier,
     validateDeck,
     signaturePresets,
+    databaseSkillPresets,
+    playerDeckPresets,
+    equipmentDeckPresets,
     normalizeClassIds,
     spellAllowedClassIds,
     spellCompatibleWithPlayer,

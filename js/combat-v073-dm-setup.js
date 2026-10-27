@@ -117,6 +117,8 @@
 
   function skillDeckSlots(value = {}) {
     const source = value && typeof value === 'object' ? value : {};
+    if(Number(source.schemaVersion)>=2)
+      return Object.values(source.entries||{}).map(row=>clean(row?.skillId||row?.id)).filter(Boolean);
     const deck = {
       tier1: clean(source.tier1 ?? source.t1 ?? source['1'] ?? source.skill1),
       tier2: clean(source.tier2 ?? source.t2 ?? source['2'] ?? source.skill2),
@@ -131,7 +133,9 @@
   }
 
   function loadoutSource(record = {}) {
-    const canonicalDeck = skillDeckSlots(record.characterBuild?.skillDeck || record.skillDeck || {});
+    const rawDeck=record.characterBuild?.skillDeck||record.skillDeck||{};
+    const canonicalDeck = skillDeckSlots(rawDeck);
+    if(Number(rawDeck.schemaVersion)>=2)return canonicalDeck;
     if (canonicalDeck.length) return canonicalDeck;
     return record.skillSlotIds ?? record.skillIds ?? record.skill_ids ?? record.action_slots ?? record.mechanics?.skills ?? record.equippedSkills ?? [];
   }
@@ -154,7 +158,8 @@
         .map(([, value]) => clean(value?.id || value?.skillId || value))
         .filter(Boolean);
     }
-    if (!ids.length && record.equippedSkillIndex && typeof record.equippedSkillIndex === 'object') {
+    const selection=record.characterBuild?.skillDeck||record.skillDeck;
+    if (!ids.length && !(Number(selection?.schemaVersion)>=2) && record.equippedSkillIndex && typeof record.equippedSkillIndex === 'object') {
       ids = Object.keys(record.equippedSkillIndex).filter((id) => record.equippedSkillIndex[id] === true);
     }
     return ids;
@@ -236,6 +241,9 @@
     const spellIds = spellIdsForDeployment(spellSource);
     const slots = slotsFor(source);
     const stats = baseStats(source);
+    const speedProfile = global.LuminousMovementSpeedRuntime?.combatRangeForEntity?.({ ...source, isPlayer: true });
+    const speedRange = speedProfile ? [speedProfile.min, speedProfile.max] :
+      global.LuminousCombatSpeedAuthority073?.rangeFor?.(source) || [1, 6];
     const id = `player:${safe(playerId, 'player')}`;
     const sprite = spriteFromSources([player, actor, unit], [unit, actor, player]);
     return {
@@ -264,6 +272,15 @@
       tokenImage: sprite || null,
       portrait: sprite || null,
       ...stats,
+      speedRange,
+      speedMin: speedRange[0],
+      speedMax: speedRange[1],
+      ...(speedProfile ? { speedRangeSource: speedProfile.source } : {}),
+      // Each deployment receives a new authoritative roll for this encounter.
+      speed: 0,
+      speedBaseRoll: 0,
+      speedRollTurn: 0,
+      speedTie: 0,
       actionSlots: slots,
       activeSlots: slots,
       actionSlotIndex: slotIndex(slots),

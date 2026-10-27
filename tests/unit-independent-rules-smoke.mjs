@@ -31,4 +31,28 @@ for(const uid of ['player','global-dm','outsider'])assert.equal(evaluate(rule['.
 assert.equal(evaluate(rule['.validate'],'host',{...payload},null),false,'Retention does not authorize creating an intent for another player');
 function expressions(row){return Object.values(row).flatMap(value=>typeof value==='string'?[value]:typeof value==='object'?expressions(value):[]);}
 assert.ok(expressions({intents:scoped.independentIntents,receipts:scoped.independentReceipts}).every(value=>!value.includes("root.child('campaña')")),'No campaign-global dependency can return in isolated rules');
-console.log('Independent rules: scoped ownership, membership, unchanged player-intent retention by DM root writes, rejection of every identity-field rewrite, and global-DM isolation passed.');
+// The live client accepts both planning spellings and the state/status aliases.
+const globalActions=rules.campaña.combate,globalIntent=globalActions.independentIntents.$playerId.$intentId;
+data.campaña.jugadores.hero.uid='player';
+data.campaña.combate.combatants={'player:hero':{canonicalPlayerKey:'hero',canonicalOwnerUid:'player',isPlayer:true}};
+const universal={...payload,sourceId:'analyse',sourceType:'universal',cost:'free_action',choice:'hp'};
+for(const field of ['phase','state','status'])for(const phase of ['PRE_COMBAT_PLANNING','pre_combat_planning','PLANNING','planning']){
+  data.campaña.combate.estado={encounterId:'isolated',[field]:phase};
+  data.campaña.encuentros.room.state.campaña.combate.estado={encounterId:'isolated',[field]:phase};
+  assert.equal(evaluate(globalIntent['.write'],'player',universal),true,`Global Free request allowed during ${field}=${phase}`);
+  assert.equal(evaluate(rule['.write'],'player',universal),true,`Scoped Free request allowed during ${field}=${phase}`);
+  assert.equal(evaluate(globalIntent['.validate'],'player',universal),true,'Global universal payload validates');
+  assert.equal(evaluate(rule['.validate'],'player',universal),true,'Encounter universal payload validates');
+  assert.equal(evaluate(rule['.write'],'outsider',universal),false,'Outsider remains blocked');
+}
+data.campaña.combate.estado={encounterId:'isolated',phase:'TURN_RUNNING'};
+data.campaña.encuentros.room.state.campaña.combate.estado={encounterId:'isolated',phase:'TURN_RUNNING'};
+assert.equal(evaluate(globalIntent['.write'],'player',universal),false,'Free cannot be created after planning');
+assert.equal(evaluate(rule['.write'],'player',universal),false,'Encounter Free cannot be created after planning');
+data.campaña.combate.estado={encounterId:'isolated',phase:'PLANNING'};
+data.campaña.encuentros.room.state.campaña.combate.estado={encounterId:'isolated',phase:'PLANNING'};
+data.campaña.combate.readyPlayers={hero:{ready:true}};
+data.campaña.encuentros.room.state.campaña.combate.readyPlayers={hero:{ready:true}};
+assert.equal(evaluate(globalIntent['.write'],'player',universal),false,'READY prevents new Free');
+assert.equal(evaluate(rule['.write'],'player',universal),false,'Scoped READY prevents new Free');
+console.log('Independent rules: authority, membership, unchanged intents, universal Free phases across both scopes, and READY limits passed.');

@@ -5,10 +5,14 @@ on:
       - 'js/**'
       - 'css/dm-player-loadout-manager.css'
       - 'css/theatre-spell-loadout.css'
+      - 'css/combat-v073-spell-availability.css'
       - 'hoja_personaje.html'
       - 'Battle-viewer.html'
       - 'tests/*spell*'
       - 'tests/combat-playback-catchup-smoke.mjs'
+      - 'tests/combat-playback-six-viewers-recovery-smoke.mjs'
+      - 'tests/combat-ten-participants-realtime-smoke.mjs'
+      - 'tests/combat-shared-clock-smoke.mjs'
       - '.github/workflows/unified-spells-playback.yml'
   push:
     branches: ['codex/unified-spells-playback-catchup']
@@ -27,8 +31,11 @@ jobs:
       - name: Shared assignment and playback regressions
         run: |
           node tests/unified-spell-loadout-smoke.mjs
+          node tests/combat-universal-spells-sp01-smoke.mjs
           node tests/spell-catalog-sheet-idle-smoke.mjs
           node tests/combat-playback-catchup-smoke.mjs
+          node tests/combat-playback-six-viewers-recovery-smoke.mjs
+          node tests/combat-ten-participants-realtime-smoke.mjs
           node tests/combat-shared-clock-smoke.mjs
           node tests/dm-player-loadout-manager-smoke.mjs
           node tests/combat-v074-player-entry-smoke.mjs

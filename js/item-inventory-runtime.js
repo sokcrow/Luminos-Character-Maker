@@ -97,6 +97,17 @@
       if (value !== undefined) out[field] = clone(value);
     });
     if (input.variantData && typeof input.variantData === "object") Object.assign(out, clone(input.variantData));
+    // Build definitions are trusted catalog data, not fields supplied by a
+    // client-edited ItemInstance. Preserve canonical weapon rules and effects.
+    const buildDefinitionId = definitionIdOf(definition) || definitionIdOf(input);
+    const authoredBuild = global.LuminousBuildWeaponCatalog?.get?.(buildDefinitionId);
+    if (authoredBuild) {
+      ["category","itemType","equipment","damageType","damageTypes","runtime",
+       "iconFamily","stackable"].forEach(field => {
+        if (authoredBuild[field] !== undefined) out[field] = clone(authoredBuild[field]);
+      });
+    }
+
     // A live Item Instance can be enchanted, replaced or disenchanted after its
     // previous variantData snapshot was saved. The explicit live state wins.
     ["enhancementLevel", "enhancementSource", "enchanted", "enchantment", "enchantmentReady", "baseMundaneValueAhn", "enchantmentBaseValueAhn", "enchantmentMultiplier", "enchantmentValueAhn", "enchantmentPricingStatus", "productionValueAhn", "unitValueAhn", "totalValueAhn", "essenceUnits", "remainingEssenceUnits"].forEach((field) => {

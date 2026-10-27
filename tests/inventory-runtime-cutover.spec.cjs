@@ -11,44 +11,18 @@ const BRIDGE = path.join(ROOT, "js/item-equipment-bridge.js");
 const HUD = path.join(ROOT, "js/inventory-hud-v2.js");
 const CSS = path.join(ROOT, "css/inventory-hud-v2.css");
 const GOTHIC_CSS = path.join(ROOT, "css/inventory-gothic-art.css");
+const REFERENCE_CSS = path.join(ROOT, "css/inventory-hud-reference.css");
 const SHEET_CSS = path.join(ROOT, "hoja_personaje.css");
 
 async function bootHarness(page) {
-  await page.setContent(`<!doctype html><html><head></head><body>
-    <button id="btn-global-inventory">Inventory</button>
-    <div id="inventory-modal" class="inventory-modal"><div class="inventory-modal-content">
-      <button id="inventory-modal-close">x</button>
-      <div class="inventory-tabs">
-        <button class="inv-tab-btn active" data-tab="inv-active">Inventario Activo</button>
-        <button class="inv-tab-btn" data-tab="inv-stash">Stash/Alijo</button>
-        <button class="inv-tab-btn" data-tab="inv-sintesis">SÍNTESIS</button>
-      </div>
-      <div class="inventory-body-wrapper">
-        <div class="inventory-left-panel">
-          <div class="inventory-tab-content active" id="inv-active"><div class="inv-grid" id="inv-active-grid"></div></div>
-          <div class="inventory-tab-content" id="inv-stash">
-            <input id="buscador-items-stash" />
-            <div id="filtros-stash"><button class="inv-filter-btn active" data-filter="todo">Todo</button><button class="inv-filter-btn" data-filter="medical">Medical</button></div>
-            <div class="inv-grid" id="inv-stash-grid"></div>
-          </div>
-          <div class="inventory-tab-content" id="inv-sintesis"><div class="limbus-synthesis-container">Synthesis preserved</div></div>
-        </div>
-        <div class="item-detail-card" id="item-detail-card">
-          <div class="detail-left"><div class="detail-icon-box"><img id="detail-icon" /></div></div>
-          <div class="detail-right">
-            <div class="detail-title-badge" id="detail-title"></div>
-            <div class="inventory-v2-detail-meta">
-              <span class="detail-tier">Tier <b id="detail-tier-val"></b></span>
-              <span class="detail-cost">Valor <b id="detail-cost-val"></b></span>
-            </div>
-            <div class="inventory-v2-detail-effects" id="inventory-v2-detail-effects" hidden></div>
-            <div id="detail-desc"></div>
-            <div id="detail-tags-val" hidden></div>
-          </div>
-        </div>
-      </div>
-    </div></div>
-  </body></html>`);
+  // Exercise the production inventory DOM, never a second legacy detail sidebar.
+  const sheet = fs.readFileSync(path.join(ROOT, "hoja_personaje.html"), "utf8");
+  const start = sheet.indexOf("<!-- Inventory Modal -->");
+  const end = sheet.indexOf("<!-- Toggle Button -->", start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  await page.setContent('<!doctype html><html lang="es"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>' +
+    '<button type="button" id="btn-global-inventory">Inventory</button>' + sheet.slice(start, end) + '</body></html>');
   // Reproduce the production cascade: the old sheet still declares a 74px Active grid.
   const legacySheetCss = fs.readFileSync(SHEET_CSS, "utf8");
   const legacyActiveGridRule = legacySheetCss.match(/#inv-active-grid\s*\{[^}]*height:\s*74px;[^}]*\}/)?.[0];
@@ -58,6 +32,7 @@ async function bootHarness(page) {
   await page.addStyleTag({ content: legacyActiveGridRule + "\n" + legacyItemDisplayRule });
   await page.addStyleTag({ path: CSS });
   await page.addStyleTag({ path: GOTHIC_CSS });
+  await page.addStyleTag({ path: REFERENCE_CSS });
 
   await page.evaluate(() => {
     const active = {
@@ -182,7 +157,7 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
   const card = page.locator('#inv-active-grid [data-key="blade_1"]');
   const name = card.locator(".item-name");
   await expect(name).toHaveText("Test Workshop Blade");
-  await expect(name).toBeVisible();
+  await expect(name).toBeHidden();
   await expect(card.locator(".tier")).toHaveText("III");
   await expect(card.locator(".inventory-v2-icon-holder")).toHaveCount(1);
   await expect(card.locator(".inventory-v2-card-meta")).toHaveCount(0);
@@ -210,11 +185,9 @@ test("HUD V2 uses gothic layout with 24 Active inventory slots", async ({ page }
   });
   expect(Math.abs(geometry.cardWidth - geometry.cardHeight)).toBeLessThanOrEqual(4);
   expect(geometry.iconWidth).toBeGreaterThanOrEqual(30);
-  expect(geometry.nameWidth).toBeGreaterThan(50);
+  expect(geometry.nameWidth).toBe(0); // Design: reveal name only inside popup.
   expect(geometry.iconCentered).toBe(true);
   expect(geometry.holderCentered).toBe(true);
-  expect(geometry.nameCentered).toBe(true);
-  expect(geometry.nameBelowIcon).toBe(true);
 });
 
 test("Pertenencias uses compact effect letters in the icon corner, never prices", async ({ page }) => {
@@ -255,7 +228,8 @@ test("Pertenencias uses compact effect letters in the icon corner, never prices"
   await hpMarker.click();
   await expect(page.locator("#detail-title")).toHaveText("Hybrid Restoration Ampoule");
   await expect(hybrid).toHaveAttribute("aria-label", /effects HP, SP, CUR/);
-  await expect(hybrid.locator(".inventory-v2-card-meta, .inventory-v2-card-value, .inventory-v2-card-qty, .item-quantity")).toHaveCount(0);
+  await expect(hybrid.locator(".inventory-v2-card-meta, .inventory-v2-card-value, .inventory-v2-card-qty")).toHaveCount(0);
+  await expect(hybrid.locator(".item-quantity")).toHaveText("x3");
   await expect(hybrid.locator(".inventory-v2-effect-rail")).toHaveCount(0);
   const stash = page.locator('#inv-stash-grid [data-key="med_1"]');
   await expect(stash.locator(".inventory-v2-effect-rail")).toHaveCount(1);
@@ -269,26 +243,25 @@ test("Pertenencias uses compact effect letters in the icon corner, never prices"
     { width: 812, height: 375 },
   ]) {
     await page.setViewportSize(viewport);
+    await page.locator("#inventory-v2-detail-close").click();
     const layout = await hybrid.evaluate((tile) => {
       const card = tile.getBoundingClientRect();
       const holder = tile.querySelector(".inventory-v2-icon-holder").getBoundingClientRect();
       const icon = tile.querySelector(".item-icon").getBoundingClientRect();
-      const name = tile.querySelector(".item-name").getBoundingClientRect();
+      const name = tile.querySelector(".item-name");
       const marker = tile.querySelector(".inventory-v2-icon-effect").getBoundingClientRect();
       const mid = (r) => (r.left + r.right) / 2;
       return {
         square: Math.abs(card.width - card.height),
         iconCenter: Math.abs(mid(card) - mid(icon)),
-        nameCenter: Math.abs(mid(card) - mid(name)),
-        nameBelow: name.top >= icon.bottom - 2,
+        nameHidden: getComputedStyle(name).display === "none",
         badgeNearTopRight: marker.right >= holder.right - 20 && marker.right <= holder.right + 8 &&
           marker.top >= holder.top - 8 && marker.top <= holder.top + 13,
       };
     });
     expect(layout.square, JSON.stringify(viewport)).toBeLessThanOrEqual(4);
     expect(layout.iconCenter, JSON.stringify(viewport)).toBeLessThanOrEqual(4);
-    expect(layout.nameCenter, JSON.stringify(viewport)).toBeLessThanOrEqual(4);
-    expect(layout.nameBelow, JSON.stringify(viewport)).toBe(true);
+    expect(layout.nameHidden, JSON.stringify(viewport)).toBe(true);
     expect(layout.badgeNearTopRight, JSON.stringify(viewport)).toBe(true);
     await hybrid.click();
     await expect(page.locator("#detail-title")).toHaveText("Hybrid Restoration Ampoule");
@@ -296,7 +269,7 @@ test("Pertenencias uses compact effect letters in the icon corner, never prices"
   }
 });
 
-test("Active inventory and equipment remain square with centered item icons", async ({ page }) => {
+test("Desktop panels stay square and mobile keeps the character left of centered item icons", async ({ page }) => {
   await bootHarness(page);
   for (const viewport of [
     { width: 1500, height: 950 },
@@ -325,50 +298,53 @@ test("Active inventory and equipment remain square with centered item icons", as
     });
 
     for (const panel of [geometry.equipment, geometry.carry]) {
-      expect(panel.width, JSON.stringify(viewport)).toBeGreaterThan(200);
-      expect(Math.abs(panel.width - panel.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+      expect(panel.width, JSON.stringify(viewport)).toBeGreaterThan(85);
+      if (viewport.width > 1024) {
+        expect(Math.abs(panel.width - panel.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
+      }
     }
+    expect(geometry.equipment.right, JSON.stringify(viewport)).toBeLessThanOrEqual(geometry.carry.left + 2);
+    expect(Math.abs(geometry.equipment.top - geometry.carry.top), JSON.stringify(viewport)).toBeLessThanOrEqual(8);
     expect(Math.abs(geometry.equipmentSlot.width - geometry.equipmentSlot.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
     expect(Math.abs(geometry.itemCard.width - geometry.itemCard.height), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
     expect(Math.abs(geometry.itemIcon.centerX - geometry.itemCard.centerX), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
-    expect(Math.abs(geometry.itemName.centerX - geometry.itemCard.centerX), JSON.stringify(viewport)).toBeLessThanOrEqual(4);
     expect(geometry.itemCard.top, JSON.stringify(viewport)).toBeGreaterThanOrEqual(geometry.gridHost.top - 1);
     await page.locator('#inv-active-grid [data-key="blade_1"]').click();
     await expect(page.locator("#detail-title")).toHaveText("Test Workshop Blade");
+    await page.locator("#inventory-v2-detail-close").click();
   }
 });
 
-test("Active icons and names stay inside their tiles with the complete sheet styles", async ({ page }) => {
+test("Active icons stay inside minimal tiles and names appear only in popup", async ({ page }) => {
   await bootHarness(page);
   // The complete legacy sheet includes item-slot flex rules missing from the minimal harness.
   await page.addStyleTag({ content: fs.readFileSync(SHEET_CSS, "utf8").replace(/@import[^;]+;/g, "") });
   await page.addStyleTag({ path: CSS });
   await page.addStyleTag({ path: GOTHIC_CSS });
+  // The new reference stylesheet must remain last in the real production cascade.
+  await page.addStyleTag({ path: REFERENCE_CSS });
   for (const viewport of [{ width: 1239, height: 694 }, { width: 1920, height: 1080 }, { width: 390, height: 800 }]) {
     await page.setViewportSize(viewport);
     const card = page.locator('#inv-active-grid [data-key="blade_1"]');
     await card.scrollIntoViewIfNeeded();
     const geometry = await card.evaluate(tile => {
       const outer = tile.getBoundingClientRect();
-      return [".item-icon", ".item-name"].map(selector => {
-        const element = tile.querySelector(selector);
-        const rect = element.getBoundingClientRect();
-        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
-        return { selector, width: rect.width, height: rect.height,
-          inside: rect.left >= outer.left && rect.right <= outer.right && rect.top >= outer.top && rect.bottom <= outer.bottom,
-          visible: element === hit || element.contains(hit) };
-      });
+      const icon = tile.querySelector(".item-icon");
+      const rect = icon.getBoundingClientRect();
+      const name = tile.querySelector(".item-name");
+      return {
+        inside: rect.left >= outer.left && rect.right <= outer.right && rect.top >= outer.top && rect.bottom <= outer.bottom,
+        iconWidth: rect.width,
+        nameHidden: getComputedStyle(name).display === "none"
+      };
     });
-    for (const element of geometry) {
-      expect(element.inside, JSON.stringify({ viewport, element })).toBe(true);
-      expect(element.visible, JSON.stringify({ viewport, element })).toBe(true);
-      expect(element.width).toBeGreaterThan(20);
-      expect(element.height).toBeGreaterThan(8);
-    }
+    expect(geometry.inside, JSON.stringify({ viewport })).toBe(true);
+    expect(geometry.iconWidth).toBeGreaterThan(20);
+    expect(geometry.nameHidden).toBe(true);
   }
 });
 
-test("Phone equipment keeps fourth row and vitals reachable within its square", async ({ page }) => {
+test("Phone equipment keeps fourth row and vitals reachable in the left panel", async ({ page }) => {
   await bootHarness(page);
   for (const width of [320, 375, 390, 430, 475]) {
     await page.setViewportSize({ width, height: 800 });
@@ -396,7 +372,7 @@ test("Phone equipment keeps fourth row and vitals reachable within its square", 
 
     expect(measured.fieldMinHeight, `phone width ${width}`).toBe("0px");
     expect(measured.fieldOverflow, `phone width ${width}`).toBe("auto");
-    expect(Math.abs(measured.panelWidth - measured.panelHeight), `phone width ${width}`).toBeLessThanOrEqual(4);
+    expect(measured.panelHeight, `phone width ${width}`).toBeGreaterThan(measured.panelWidth);
     expect(measured.clientHeight, `phone width ${width}`).toBeGreaterThan(10);
     expect(measured.scrollHeight, `phone width ${width}`).toBeGreaterThanOrEqual(measured.clientHeight);
     expect(measured.fieldBottom, `phone width ${width}`).toBeLessThanOrEqual(measured.vitalsTop + 2);
@@ -458,6 +434,7 @@ test("Active inventory slots 1–5 remain reachable above the carry HUD", async 
       await tile.click();
       await expect(tile).toHaveClass(/active/);
       await expect(page.locator("#detail-title")).toHaveText(key === "blade_1" ? "Test Workshop Blade" : key === "coat_1" ? "Reinforced Coat" : "Active Slot " + key.slice(-1));
+      await page.locator("#inventory-v2-detail-close").click();
     }
   }
 });
@@ -701,12 +678,12 @@ test("stash filters derive from live item families", async ({ page }) => {
   await expect(page.locator('#filtros-stash .inv-filter-btn[data-filter="chemical_processed"]')).toHaveCount(1);
 });
 
-test("gothic inventory preserves two readable mobile columns without horizontal modal overflow", async ({ page }) => {
+test("gothic inventory preserves four readable mobile columns without horizontal modal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await bootHarness(page);
   await page.locator("#inventory-modal").evaluate((el) => el.classList.add("active"));
   const columns = await page.locator("#inv-active-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length);
-  expect(columns).toBe(2);
+  expect(columns).toBe(4);
   const overflow = await page.locator(".inventory-modal-content").evaluate((el) => ({ clientWidth: el.clientWidth, scrollWidth: el.scrollWidth }));
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
   await expect(page.locator(".inventory-v2-equipment [data-equipment-slot]")).toHaveCount(8);
@@ -717,7 +694,8 @@ test("equips through the runtime bridge and persists equipment refs", async ({ p
   await page.locator('#inv-active-grid [data-key="blade_1"]').click();
   await expect(page.locator("#detail-title")).toHaveText("Test Workshop Blade");
   await expect(page.locator("#detail-desc")).toHaveText("Instance presentation wins");
-  await page.locator('[data-equipment-slot="mainHand"]').click();
+  // The inventory surface is inert behind a modal. Equip through its action.
+  await page.locator("#inventory-v2-actions .inventory-v2-action", { hasText: "EQUIP" }).click();
   await page.waitForFunction(() => window.__saves.length > 0);
   expect((await page.evaluate(() => window.__saves.at(-1))).mainHand).toBe("blade_1");
   await expect(page.locator('[data-equipment-slot="mainHand"] .inventory-v2-eq-name')).toContainText("Test Workshop Blade");
@@ -740,6 +718,7 @@ test("reload consumes resources only from Active Inventory", async ({ page }) =>
   await expect(page.locator("#inventory-v2-action-status")).toContainText("MISSING RESOURCE");
   expect(await page.evaluate(() => window.LuminousInventoryHudV2.state.unit.inventario_stash.battery_stash.quantity)).toBe(5);
 
+  await page.locator("#inventory-v2-detail-close").click();
   await page.evaluate(() => {
     const state = window.LuminousInventoryHudV2.state;
     state.unit.inventario_activo.battery_active = { instanceId: "battery_active", definitionId: "battery_cell", nombre: "Battery Cell", category: "ammo", quantity: 2, qualityTier: 2, condition: 100, conditionMax: 100 };
@@ -971,3 +950,23 @@ test("successful Arcana save spends one SP and retains its learned knowledge",as
     return {sp:u.sp,knowledge:u.itemMagicKnowledge,pending:window.LuminousInventoryHudV2.state.arcanaStudyPending};
   })).toEqual({sp:2,knowledge:{blade_1:{enchantmentIdentified:true}},pending:false});
 });
+
+for (const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1280,720],[1920,1080]]) {
+ test('four-column belongings keep names, icons and quantities inside cards at '+width,async({page})=>{
+  await page.setViewportSize({width,height});await bootHarness(page);
+  await page.addStyleTag({content:fs.readFileSync(SHEET_CSS,'utf8').replace(/@import[^;]+;/g,'')});
+  await page.addStyleTag({path:CSS});await page.addStyleTag({path:GOTHIC_CSS});await page.addStyleTag({path:path.join(ROOT,"css/inventory-hud-reference.css")});
+  const grid=page.locator('#inv-active-grid');
+  expect(await grid.evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(4);
+  const cards=grid.locator('[data-key]');await expect(cards).toHaveCount(2);
+  for(const card of await cards.all()){
+   expect(await card.evaluate(el=>{
+    const c=el.getBoundingClientRect(),n=el.querySelector('.item-name'),i=el.querySelector('.item-icon').getBoundingClientRect();
+    return n.getBoundingClientRect().bottom<=c.bottom+1 && n.scrollHeight<=n.clientHeight+1 &&
+      i.width>=44 && Math.abs(i.left+i.right-c.left-c.right)<3;
+   })).toBe(true);
+   await expect(card.locator('.inventory-v2-card-qty')).toHaveText('x1');
+  }
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ });
+}

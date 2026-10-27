@@ -2,6 +2,32 @@ name: Combat and Loot Performance
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'combat/**'
+      - 'js/combat-*.js'
+      - 'js/battle-viewer-*.js'
+      - 'js/loot-*.js'
+      - 'js/player-postcombat-loot.js'
+      - 'js/inventory-hud-v2.js'
+      - 'js/item-inventory-runtime.js'
+      - 'css/postcombat-loot-corpse.css'
+      - 'css/inventory*.css'
+      - 'Battle-viewer.html'
+      - 'combate.html'
+      - 'mirror.html'
+      - 'pantalla_dm.html'
+      - 'hoja_personaje.html'
+      - 'tests/combat-loot-performance*'
+      - 'tests/combat-performance-workload-smoke.mjs'
+      - 'tests/combat-presentation-transport-smoke.mjs'
+      - 'tests/helpers/combat-performance-workload.mjs'
+      - 'scripts/build-combat-live.mjs'
+      - '.github/workflows/combat-loot-performance.yml'
+  workflow_dispatch:
+concurrency:
+  group: combat-loot-performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   browser-performance:
     runs-on: ubuntu-latest
@@ -52,3 +78,4 @@ jobs:
           path: |
             perf-baseline
             perf-candidate
+          retention-days: 7

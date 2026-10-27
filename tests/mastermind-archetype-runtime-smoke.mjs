@@ -152,7 +152,7 @@ const help = {
 const helpContext = { units, actionMap: { [helpedAction.id]: helpedAction } };
 const helpResult = g.LuminousCombatActionResolver.resolveCombatAction(help, helpContext);
 assert.equal(helpResult.resolved, true);
-assert.equal(helpResult.action.economy.cost, "quick_action", "Master of Tactics turns Help into Quick Action");
+assert.equal(helpResult.action.economy.cost, "action", "Normal Help retains its Action Slot");
 assert.equal(helpedAction.modifiers.at(-1).amount, 4, "normal Help +1 plus slowest Mastermind +3");
 assert.equal(helpResult.mastermindMasterOfTactics.additionalHelpFinalPower, 3);
 assert.equal(helpResult.mastermindMisdirection.applied, true);
@@ -202,7 +202,7 @@ const juniorTarget = { id: "junior_target", side: "allies", speed: 3, skills: []
 const juniorAction = { id: "junior_action", actorId: juniorTarget.id, state: "planned", resolution: { type: "clash" }, modifiers: [] };
 const juniorHelp = { ...clone(help), id: "junior_help", actorId: level15.id, effects: [{ type: "modify_combat_action", targetActionId: juniorAction.id, modifier: { amount: 1 } }] };
 const juniorResult = g.LuminousCombatActionResolver.resolveCombatAction(juniorHelp, { units: [level15, juniorTarget], actionMap: { [juniorAction.id]: juniorAction } });
-assert.equal(juniorResult.action.economy.cost, "quick_action");
+assert.equal(juniorResult.action.economy.cost, "action");
 assert.equal(juniorResult.mastermindMisdirection, undefined, "Misdirection is not active before Rogue 65");
 
 const traits85 = g.LuminousArchetypeTraitCatalog.resolveTraitGrants({

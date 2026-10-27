@@ -69,9 +69,6 @@
 
     // Always load the updated camera/scene and result-seal assets even when
     // the gzipped Combat source and the player's browser cache are older.
-    // Refresh the shared transport together when a cached viewer reopens.
-    html=html.replace(/js\/combat-v073-(steps|playback|playback-sync)\.js(?:\?v=[^"']+)?/g,
-      'js/combat-v073-$1.js?v=20261022-shared-clock-1');
     html=html.replace(/js\/combat-v073-dm-observer\.js(?:\?v=[^"']+)?/g,
       'js/combat-v073-dm-observer.js?v=20261021-performance-2');
     html=html.replace(/js\/combat-v073-live-adapter\.js(?:\?v=[^"']+)?/g,
@@ -172,8 +169,8 @@ function smartTargetForPlan(owner,plan){
     html=html.replace(liveDeckNeedle,liveDeckPatch);
 
     stage('patch-speed-state','Preserving canonical Speed metadata while rebuilding Combatants');
-    const speedStateNeedle="autoPlans:[],speedRollTurn:0,speedTie:0,observationKnown:[]";
-    const speedStatePatch="autoPlans:[],speedBaseRoll:Number(d.speedBaseRoll??d.speed)||0,speedRollTurn:Number(d.speedRollTurn)||0,speedTie:Number(d.speedTie)||0,speedRolledAt:d.speedRolledAt??null,observationKnown:[]";
+    const speedStateNeedle="autoPlans:[],speedRollTurn:0,speedTie:0";
+    const speedStatePatch="autoPlans:[],speedBaseRoll:Number(d.speedBaseRoll??d.speed)||0,speedRollTurn:Number(d.speedRollTurn)||0,speedTie:Number(d.speedTie)||0,speedRolledAt:d.speedRolledAt??null";
     if(!html.includes(speedStateNeedle))throw new Error("COMBAT_CANONICAL_SPEED_STATE_PATCH_MISSING");
     html=html.replace(speedStateNeedle,speedStatePatch);
 
@@ -242,17 +239,27 @@ function smartTargetForPlan(owner,plan){
     if(!html.includes('</head>'))throw new Error('COMBAT_MOBILE_STYLESHEET_TARGET_MISSING');
     html=html.replace('</head>',
       '<link id="combat-mobile-runtime-stylesheet" rel="stylesheet" href="css/combat-mobile-runtime.css?v=20261015-player-centered-v1"></head>');
+    stage('patch-target-feedback','Wiring accepted player target selection to a visible acknowledgement');
+    // The packed runtime is the player's actual interaction path. Emit only
+    // AFTER choosePlayerTarget has accepted the legal slot and updated its plan.
+    replaceUniqueCombatSource(
+      "  renderTargetArrows();\n  if(isClashIntent(PLAYER_ID,completedIndex,plan)){",
+      "  renderTargetArrows();\n  window.dispatchEvent(new CustomEvent('luminous:combat073-target-selected',{detail:{targetId:chosenUnit.id,targetName:chosenUnit.name,enemy:chosenUnit.faction!==combatData[PLAYER_ID]?.faction,actionName:plan.data?.name||'Acción',slotIndex:completedIndex,clashPending:isClashIntent(PLAYER_ID,completedIndex,plan)}}));\n  if(isClashIntent(PLAYER_ID,completedIndex,plan)){",
+      'accepted-combat-target-acknowledgement'
+    );
+    html=html.replace('</head>',
+      '<link rel="stylesheet" href="css/combat-target-feedback-073.css?v=20261025-accepted-target-1"></head>');
     stage('patch-renderer','Applying Combat renderer patch');
     // Combat-iframe-only renderer patch. It never installs hooks in Theatre runtime code.
-    // Mobile/low-power clients keep DOM/CSS sprite compositing and reserve WebGL2 for VFX.
-    // The DM always uses DOM for battlefield base layers and WebGL only for arrows/VFX;
-    // this prevents an active-but-black WebGL canvas from hiding the Battle from the observer.
+    // All roles use the DM's DOM/CSS base composition. WebGL is reserved for
+    // intent arrows and transient VFX, without uploading/redrawing scene textures.
+    // The same assets, CSS motion, Coins and particle quality remain in use.
     const webglStateNeedle=`const particles=[];
   let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
     const webglStatePatch=`const particles=[];
   const coarsePointer=window.matchMedia?.('(pointer:coarse)')?.matches===true;
   const lowPowerDevice=coarsePointer||((navigator.hardwareConcurrency||8)<=4)||((navigator.deviceMemory||8)<=4);
-  const domSpriteMode=lowPowerDevice;
+  const domSpriteMode=true;
   const intentPathCache=new WeakMap();
   let cssW=0,cssH=0,dpr=1,lastFrame=0,enabled=true;`;
     const webglResizeNeedle="const w=Math.max(1,host.clientWidth||innerWidth),h=Math.max(1,host.clientHeight||innerHeight),nextDpr=Math.min(2,window.devicePixelRatio||1);";
@@ -260,7 +267,7 @@ function smartTargetForPlan(owner,plan){
     const webglTextureCacheNeedle="if(entry){if(entry.ready&&onReady)onReady(entry);return entry}";
     const webglTextureCachePatch="if(entry)return entry";
     const webglBackgroundNeedle="const bg=requestTexture(BG_URL,()=>host.classList.add('webgl2-background-ready'));";
-    const webglBackgroundPatch="const bg=requestTexture(BG_URL,()=>{if(host.dataset.viewerRole!=='dm')host.classList.add('webgl2-background-ready');ensureFrame()});";
+    const webglBackgroundPatch="const bg=null; // Background stays in the DOM for every role.";
     const webglSpriteNeedle="const entry=requestTexture(url,()=>img.classList.add('webgl2-texture-backed'));";
     const webglSpritePatch="const entry=requestTexture(url,()=>{if(host.dataset.viewerRole!=='dm')img.classList.add('webgl2-texture-backed');ensureFrame()});";
     const webglRenderSpritesNeedle=`function renderSprites(){
@@ -274,6 +281,25 @@ function smartTargetForPlan(owner,plan){
     const webglBurstPatch="particles.push({x,y,kind,range,start:performance.now(),life:310,seed:Math.random()*1000});ensureFrame(340)";
     const webglParticleRaysNeedle="const rays=p.range?7:10;for(let r=0;r<rays;r++){";
     const webglParticleRaysPatch="const rays=p.range?(lowPowerDevice?4:7):(lowPowerDevice?6:10);for(let r=0;r<rays;r++){";
+    const webglTriangleNeedle=`function drawTriangles(points,color){
+    if(!points?.length)return;`;
+    const webglTrianglePatch=`let triangleBatch=null;
+  function renderOverlayBatch(now){
+    const previous=triangleBatch;triangleBatch=[];
+    try{renderIntentArrows();renderParticles(now)}
+    finally{
+      const rows=triangleBatch;triangleBatch=previous;
+      for(const row of rows)drawTriangles(row.points,row.color)
+    }
+  }
+  function drawTriangles(points,color){
+    if(!points?.length)return;
+    if(triangleBatch){
+      const last=triangleBatch[triangleBatch.length-1];
+      if(last&&last.color.length===color.length&&last.color.every((value,index)=>value===color[index]))last.points.push(...points);
+      else triangleBatch.push({points:Array.from(points),color:Array.from(color)});
+      return
+    }`;
     const webglFrameNeedle=`let rafId=0;
   function frame(now){
     rafId=0;if(!enabled)return;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
@@ -311,13 +337,13 @@ function smartTargetForPlan(owner,plan){
       while(node&&node.nodeType===1){parentVisibilityObserver.observe(node,{attributes:true,attributeFilter:['class','style','aria-hidden']});node=node.parentElement}
     }catch(_){}
   }
-  function needsContinuous(now){return surfaceActive&&!document.hidden&&(particles.length>0||host.classList.contains('round-running')||cameraTransitionActive||now<continuousUntil)}
+  function needsContinuous(now){return surfaceActive&&!document.hidden&&(particles.length>0||(!host.classList.contains('round-running')&&(cameraTransitionActive||now<continuousUntil)))}
   function frame(now){
     rafId=0;if(!enabled)return;
     if(!surfaceActive){dirty=true;return}
     const continuous=needsContinuous(now);if(!dirty&&!continuous)return;
     dirty=false;resize();gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
-    if(host.dataset.viewerRole!=='dm')renderBackground();renderSprites();renderIntentArrows();renderParticles(now);
+    renderOverlayBatch(now);
     lastFrame=now;if(enabled&&(dirty||needsContinuous(now))&&!rafId)rafId=requestAnimationFrame(frame)
   }
   function ensureFrame(animateMs=0){
@@ -355,7 +381,7 @@ function smartTargetForPlan(owner,plan){
   ensureFrame();`;
     const webglApiNeedle="version:'0.8.0',";
     const webglApiPatch="version:'0.8.3-review-fixes',requestRender:ensureFrame,renderMode:()=>rafId?'active':'idle',renderDpr:()=>dpr,spriteMode:()=>domSpriteMode?'dom-hybrid':'webgl',qualityMode:()=>lowPowerDevice?'low-power':'full',surfaceActive:()=>surfaceActive,";
-    const webglNeedles=[webglStateNeedle,webglResizeNeedle,webglTextureCacheNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglRenderSpritesNeedle,webglIntentNeedle,webglBurstNeedle,webglParticleRaysNeedle,webglFrameNeedle,webglApiNeedle];
+    const webglNeedles=[webglStateNeedle,webglResizeNeedle,webglTextureCacheNeedle,webglBackgroundNeedle,webglSpriteNeedle,webglRenderSpritesNeedle,webglIntentNeedle,webglBurstNeedle,webglParticleRaysNeedle,webglTriangleNeedle,webglFrameNeedle,webglApiNeedle];
     if(webglNeedles.some(needle=>!html.includes(needle)))throw new Error("COMBAT_WEBGL_PERF_PATCH_MISSING");
     html=html.replace(webglStateNeedle,webglStatePatch)
       .replace(webglResizeNeedle,webglResizePatch)
@@ -366,6 +392,7 @@ function smartTargetForPlan(owner,plan){
       .replace(webglIntentNeedle,webglIntentPatch)
       .replace(webglBurstNeedle,webglBurstPatch)
       .replace(webglParticleRaysNeedle,webglParticleRaysPatch)
+      .replace(webglTriangleNeedle,webglTrianglePatch)
       .replace(webglFrameNeedle,webglFramePatch)
       .replace(webglApiNeedle,webglApiPatch);
 
@@ -382,9 +409,54 @@ function smartTargetForPlan(owner,plan){
 
     const runtimeBootstrapBridge='<script>(function(){function publish(stage,detail,error){var state=window.LuminousCombatBootstrapState||{};state.stage=String(stage||"unknown");state.detail=String(detail||"");state.error=error?String(error):null;state.updatedAt=Date.now();window.LuminousCombatBootstrapState=state;try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:"luminous:combat-bootstrap",stage:state.stage,detail:state.detail,error:state.error},location.origin)}catch(_){ }return state}window.LuminousCombatBootstrapStage=publish;window.addEventListener("luminous:combat073-runtime-ready",function(){publish("runtime-ready","Combat runtime ready")});window.addEventListener("luminous:combat073-hydrated",function(event){var detail=event&&event.detail||{};var count=Array.isArray(detail.combatants)?detail.combatants.length:0;publish("hydrated",String(detail.role||"unknown")+" · "+count+" combatants")})})();<\/script>';
     html=html.replace(/<body([^>]*)>/i,(match)=>match+runtimeBootstrapBridge);
-    // Load item effects before packed Combat runtime hydration.
-    html=html.replace(/<head([^>]*)>/i,(match)=>match+'<script src="js/item-equipment-effects-runtime.js"><\/script>');
-    html=html.replace("</body>",'<script src="js/combat-event-runtime.js?v=20261023-encounter-start-1"><\/script><script src="js/spellcasting-runtime.js"><\/script><script src="js/item-runtime-engine.js"><\/script><script src="js/item-quality-engine.js"><\/script><script src="js/item-catalog-ore-ingot-gem.js"><\/script><script src="js/item-catalog-enchantments.js"><\/script><script src="js/item-enchantment-engine.js"><\/script><script src="js/item-inventory-runtime.js"><\/script><script src="js/item-catalog-hp-healing.js"><\/script><script src="js/item-catalog-culinary-staples.js"><\/script><script src="js/npc-belongings-runtime.js?v=20261021-1"><\/script><script src="js/item-persistence-runtime.js"><\/script><script src="js/item-magic-runtime.js"><\/script><script src="js/status-engine.js"><\/script><script src="js/item-enchantment-combat-runtime.js"><\/script><script src="js/item-enchantment-runtime.js"><\/script><script src="js/item-enchantment-combat-link.js"><\/script><script src="js/player-vitals-realtime-bridge.js"><\/script><script src="js/combat-encounter-lifecycle.js?v=20261021-p1-camera-hud-1"><\/script><script src="js/combat-v073-plan-sync.js?v=20261024-creature-space-1"><\/script><script src="js/combat-v073-remote-intents.js?v=20261022-ai-planning-1"><\/script><script src="js/combat-v073-camera-controls.js?v=20261021-p1-camera-hud-1"><\/script><script src="js/combat-v073-dm-setup.js?v=20261024-creature-space-1"><\/script><script src="js/movement-speed-runtime.js"><\/script><script src="js/encounter-modifier-runtime.js"><\/script><script src="js/combat-v073-speed-authority.js?v=20261021-recovery-5"><\/script><script src="js/loot-live-postcombat-runtime.js?v=20261024-anatomy-1"><\/script><script src="js/creature-compendium-ui.js?v=20261024-anatomy-2"><\/script><script src="js/combat-xp-runtime.js?v=20261024-victory-xp-1"><\/script><script src="js/battle-viewer-dm-console-074.js?v=20261021-p0-theatre-1"><\/script><script src="js/combat-v073-dm-observer.js"><\/script></body>');
+    // Load shared Build definitions before the packed Combat runtime hydrates.
+    html=html.replace(/<head([^>]*)>/i,(match)=>match+
+      '<link rel="stylesheet" href="css/combat-v073-spell-availability.css?v=20261025-universal-spells-1">'+
+      '<script src="js/build-equipment-catalog.js?v=20261024-builds-2"><\/script>'+
+      '<script src="js/equipment-loadout-runtime.js?v=20261024-builds-2"><\/script>'+
+      '<script src="js/item-equipment-effects-runtime.js"><\/script>');
+    // Packed HTML may cache older external scripts even when this wrapper is
+    // fresh. Point all changed Combat consumers at the exact same Build release.
+    for(const asset of [
+      'js/deckEngine.js','js/combat-skill-loadout-074.js','js/combat-v073-live-adapter.js',
+      'js/combat-v073-deck.js','js/combat-v073-authority.js','js/combat-v073-economy-menu.js',
+      'js/battle-viewer-player-skill-planner-074.js','js/item-inventory-runtime.js'
+    ]){
+      const escaped=asset.replace(/[.]/g,'\\.');
+      html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
+        asset+'?v=20261025-universal-deck-v2-1');
+    }
+    html=html.replace("</body>",'<script src="js/combat-v073-spell-bootstrap.js?v=20261025-universal-spells-1"><\/script><script src="js/combat-event-runtime.js?v=20261023-encounter-start-1"><\/script><script src="js/spellcasting-runtime.js"><\/script><script src="js/item-runtime-engine.js"><\/script><script src="js/item-quality-engine.js"><\/script><script src="js/item-catalog-ore-ingot-gem.js"><\/script><script src="js/item-catalog-enchantments.js"><\/script><script src="js/item-enchantment-engine.js"><\/script><script src="js/item-inventory-runtime.js"><\/script><script src="js/item-catalog-hp-healing.js"><\/script><script src="js/item-catalog-culinary-staples.js"><\/script><script src="js/npc-belongings-runtime.js?v=20261021-1"><\/script><script src="js/item-persistence-runtime.js"><\/script><script src="js/item-magic-runtime.js"><\/script><script src="js/status-engine.js"><\/script><script src="js/item-enchantment-combat-runtime.js"><\/script><script src="js/item-enchantment-runtime.js"><\/script><script src="js/item-enchantment-combat-link.js"><\/script><script src="js/player-vitals-realtime-bridge.js"><\/script><script src="js/combat-encounter-lifecycle.js?v=20261021-p1-camera-hud-1"><\/script><script src="js/combat-v073-plan-sync.js?v=20261024-six-ready-2"><\/script><script src="js/combat-v073-remote-intents.js?v=20261024-six-ready-2"><\/script><script src="js/combat-v073-camera-controls.js?v=20261021-p1-camera-hud-1"><\/script><script src="js/combat-v073-dm-setup.js?v=20261025-speed-dex-size-1"><\/script><script src="js/movement-speed-runtime.js?v=20261025-speed-dex-size-1"><\/script><script src="js/encounter-modifier-runtime.js"><\/script><script src="js/combat-v073-speed-authority.js?v=20261025-speed-dex-size-1"><\/script><script src="js/loot-live-postcombat-runtime.js?v=20261024-anatomy-1"><\/script><script src="js/creature-compendium-ui.js?v=20261024-anatomy-2"><\/script><script src="js/combat-xp-runtime.js?v=20261024-victory-xp-1"><\/script><script src="js/battle-viewer-dm-console-074.js?v=20261021-p0-theatre-1"><\/script><script src="js/combat-v073-dm-observer.js"><\/script></body>');
+    html=html.replace('</body>',
+      '<script src="js/combat-target-feedback-073.js?v=20261025-accepted-target-1"><\/script></body>');
+    // All lifecycle consumers must refresh together, including checkpoints.
+    for(const asset of ['js/death-save-runtime.js','js/combat-v073-steps.js',
+      'js/combat-v073-authority.js','js/combat-deployment-runtime.js',
+      'js/combat-v073-live-adapter.js','js/combat-v073-deployment-bridge.js']){
+      const escaped=asset.replace(/[.]/g,'\\.');
+      html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
+        asset+'?v=20261025-pr1042-3');
+    }
+
+    // Refresh the SP-01 consumers as one release after the lifecycle patches.
+    for(const asset of ['js/combat-v073-economy-menu.js','js/combat-v073-plan-sync.js',
+      'js/combat-v073-authority.js','js/combat-v073-live-adapter.js',
+      'js/combat-v073-remote-intents.js','js/combat-v073-spell-bootstrap.js']){
+      const escaped=asset.replace(/[.]/g,'\\.');
+      html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
+        asset+'?v=20261026-sp01-repair-1');
+    }
+    // A denied Free Action must load the corrected request/receipt client,
+    // authority listener and player feedback, even with an older cached iframe.
+    for(const asset of ['js/combat-v073-economy-menu.js',
+      'js/combat-v073-plan-sync.js','js/combat-v073-remote-intents.js']){
+      const escaped=asset.replace(/[.]/g,'\\.');
+      html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
+        asset+'?v=20261026-free-actions-repair-1');
+    }
+    // Apply after every legacy cache rewrite, including the fixed timing CSS.
+    html=html.replace(/(js\/combat-v073-(?:steps|playback|playback-sync|authority|hud-motion|audiovisual)\.js|css\/combat-v073-audiovisual\.css)(?:\?v=[^"']+)?/g,
+      '$1?v=20261026-batched-overlay-7');
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();
@@ -399,3 +471,4 @@ function smartTargetForPlan(owner,plan){
 </script>
 </body>
 </html>
+

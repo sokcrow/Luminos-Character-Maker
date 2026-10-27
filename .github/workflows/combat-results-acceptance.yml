@@ -2,6 +2,32 @@ name: Combat Results, Loot and Reinforcements
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'combat/**'
+      - 'database.rules.json'
+      - 'firebase.json'
+      - 'combat-results-firebase.json'
+      - 'js/combat-*.js'
+      - 'js/battle-viewer-*.js'
+      - 'js/loot-*.js'
+      - 'js/dm-loot-queue.js'
+      - 'js/dm-combat-*.js'
+      - 'js/player-postcombat-loot.js'
+      - 'js/inventory-hud-v2.js'
+      - 'js/unit-loot-profile-contract.js'
+      - 'css/postcombat-loot-corpse.css'
+      - 'Battle-viewer.html'
+      - 'combate.html'
+      - 'mirror.html'
+      - 'tests/combat-results-and-loot.spec.mjs'
+      - 'tests/loot-authority-emulator.mjs'
+      - 'tests/npc-belongings-smoke.mjs'
+      - 'tests/dm-loot-queue-smoke.mjs'
+      - '.github/workflows/combat-results-acceptance.yml'
+concurrency:
+  group: combat-results-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   real-firebase-playback-results:
     runs-on: ubuntu-latest
@@ -26,6 +52,7 @@ jobs:
         with:
           name: encounter-rollover-results
           path: test-results
+          retention-days: 7
   npc-belongings-and-loot-queues:
     runs-on: ubuntu-latest
     # Cold dependency/browser installation can exceed eight minutes before the
@@ -47,3 +74,4 @@ jobs:
         with:
           name: npc-belongings-loot-ui
           path: test-results
+          retention-days: 7

@@ -39,6 +39,7 @@
 
     function isDeckEligible(skill = {}) {
         if (skill.deck?.enabled === false || skill.inDeck === false || skill.in_deck === false) return false;
+        if (skill.isDefense === true || normalizeId(skill.kind ?? skill.type) === "defense" || skill.defenseType || skill.defenseSubtype) return false;
         return !["granted", "free", "off_deck", "offdeck", "defensive", "defense"].includes(availabilityType(skill));
     }
 
@@ -51,7 +52,36 @@
         return [1, 2, 3].includes(legacy) ? legacy : 0;
     }
 
+    // V2 selections are independent cards, never multiplied by their tier.
+    // Only the V2 path enforces the ten-point budget; legacy 12-card decks
+    // keep their current behavior until the player changes their preset.
+    function buildExplicitDeck(equippedSkills=[],options={}){
+        const entries=options.deckEntries;
+        const capacity=10,requireFull=options.requireFull!==false;
+        const library=new Map((Array.isArray(equippedSkills)?equippedSkills:[]).map(s=>[normalizeId(skillId(s)),s]));
+        const counts=new Map(),seen=new Set(),cards=[];let spent=0,tier3=0;
+        for(const entry of entries){
+            const id=normalizeId(entry?.skillId||entry?.id),level=normalizeTier(entry?.tier),key=String(entry?.entryId||"");
+            const skill=library.get(id);
+            if(!id||!level||!skill||!isDeckEligible(skill))throw new Error("deck_v2_skill_not_available:"+id);
+            if(tierOf(skill)!==level)throw new Error("deck_v2_tier_mismatch:"+id);
+            if(!key||seen.has(key))throw new Error("deck_v2_entry_id_invalid:"+key);
+            seen.add(key);
+            const count=(counts.get(id)||0)+1;counts.set(id,count);
+            if(count>TIER_COPIES[level])throw new Error("deck_v2_copy_limit:"+id);
+            if(level===3&&++tier3>1)throw new Error("deck_v2_tier_iii_limit");
+            spent+=level;
+            if(spent>capacity)throw new Error("deck_v2_point_limit:"+spent+"/"+capacity);
+            cards.push({cardTemplateId:key,skillId:skillId(skill),tier:level,copyIndex:count-1,skill:clone(skill)});
+        }
+        if(requireFull&&spent!==capacity)throw new Error("deck_v2_must_equal_points:"+spent+"/"+capacity);
+        return {version:DECK_VERSION,deckSchemaVersion:2,capacity,pointsUsed:spent,
+            maxUniqueSkills:capacity,cardCount:cards.length,uniqueSkillCount:counts.size,
+            cards,excludedSkillIds:[],combatReady:spent===capacity};
+    }
+
     function buildDeckDefinition(equippedSkills = [], options = {}) {
+        if(Array.isArray(options.deckEntries))return buildExplicitDeck(equippedSkills,options);
         const capacity = Math.max(1, Math.trunc(Number(options.capacity ?? DEFAULT_CAPACITY)) || DEFAULT_CAPACITY);
         const maxUniqueSkills = Math.max(1, Math.trunc(Number(options.maxUniqueSkills ?? DEFAULT_MAX_UNIQUE_SKILLS)) || DEFAULT_MAX_UNIQUE_SKILLS);
         const requireFull = options.requireFull !== false;

@@ -8,6 +8,7 @@ await import('../js/spell-catalog-core.js');
 await import('../js/role-spell-catalog-core.js');
 await import('../js/spell-loadout-core.js');
 await import('../js/dm-player-loadout-core.js');
+await import('../js/build-equipment-catalog.js');
 const core = globalThis.LuminousDmPlayerLoadoutCore;
 assert.ok(core);
 
@@ -73,6 +74,34 @@ assert.deepEqual(presets[0].deck, {
   tier3: 'preset_a_3',
 });
 
+// Existing item catalog is the single source for all six weapon/mode presets.
+const authored = globalThis.LuminousBuildSkillCatalog.DEFINITIONS;
+const gear = globalThis.LuminousBuildWeaponCatalog;
+const equipmentPresets = core.equipmentDeckPresets(gear, authored);
+assert.equal(equipmentPresets.length, 6, 'Jeske 2 + Calipsys 4 weapon Decks');
+assert.deepEqual(equipmentPresets.map(p => p.id).sort(), [
+  'equipment_calipsys_fourfold_gauntlets_bleed',
+  'equipment_calipsys_fourfold_gauntlets_burn',
+  'equipment_calipsys_fourfold_gauntlets_chill',
+  'equipment_calipsys_fourfold_gauntlets_tremor',
+  'equipment_jeske_poise_blade_sword',
+  'equipment_jeske_poise_revolver_revolver',
+].sort());
+for (const preset of equipmentPresets) {
+  const validity = core.validateDeck(preset.deck, authored);
+  assert.equal(validity.valid, true, preset.id + ': ' + validity.errors.join(', '));
+  assert.equal(validity.skillSlotIds.length, 6);
+  assert.equal(gear.get(preset.definitionId).runtime.buildLoadouts.modes[preset.modeId].deck.tier1,
+    preset.deck.tier1, 'Preset references authored weapon mode directly');
+}
+assert.equal(equipmentPresets.some(p => p.deck.tier1 === 'jeske_shield_bash'), false,
+  'Off-deck Shield Bash cannot enter the weapon presets');
+assert.equal(equipmentPresets.some(p => p.deck.tier1 === 'jeske_clashable_guard'), false);
+assert.equal(core.equipmentDeckPresets(gear, {}).length, 6,
+  'Preset definitions remain discoverable before skill library finishes loading');
+assert.equal(core.equipmentDeckPresets(gear, {unrelated:{id:'unrelated',tier:1}}).length, 0,
+  'Incomplete Skill catalogs cannot publish presets that fail validation');
+
 const player = {
   level: 20,
   characterBuild: {
@@ -116,11 +145,17 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const studio = fs.readFileSync(path.join(here, '..', 'js', 'dm-player-dnd-studio.js'), 'utf8');
 const tabs = fs.readFileSync(path.join(here, '..', 'js', 'dm-player-dnd-studio-tabs.js'), 'utf8');
 const manager = fs.readFileSync(path.join(here, '..', 'js', 'dm-player-loadout-manager.js'), 'utf8');
+const loadoutStyle = fs.readFileSync(path.join(here, '..', 'css', 'dm-player-loadout-manager.css'), 'utf8');
 const skillLoadout = fs.readFileSync(path.join(here, '..', 'js', 'combat-skill-loadout-074.js'), 'utf8');
 const playerEntry = fs.readFileSync(path.join(here, '..', 'js', 'battle-viewer-player-entry-074.js'), 'utf8');
 
 assert.match(studio, /dm-player-dnd-studio-tabs\.js/);
 assert.match(studio, /dm-player-loadout-manager\.js/);
+assert.ok(studio.includes('js/dm-player-loadout-manager.js?v=20261024-live-presets-2'),
+  'Studio must load the current preset manager, not a stale cached script');
+assert.ok(studio.includes('js/dm-player-loadout-core.js?v=20261024-live-presets-2'));
+assert.match(loadoutStyle, /min-height:44px/, 'Mobile Deck controls remain touch-friendly');
+assert.match(manager, /optgroup label="Armas y modos de combate"/);
 assert.match(tabs, /EXPERIENCIA/);
 assert.match(tabs, /CLASE \/ BUILD/);
 assert.match(tabs, /STATS \/ SKILLS/);
@@ -166,6 +201,7 @@ const deckFields = {
   "dm-loadout-spell-feedback": spellFeedback,
   "dm-loadout-save-deck": { disabled: false },
   "dm-loadout-save-spells": { disabled: false },
+  "dm-loadout-preset-select": { value: "" },
 };
 let deployedCombatants = {
   "player:alice": { isPlayer: true, canonicalPlayerKey: "alice", canonicalOwnerUid: "uid-a", skillIds: [] },
@@ -187,6 +223,9 @@ const sandboxWindow = {
     getElementById(id) { return deckFields[id] || null; },
   },
   LuminousDmPlayerLoadoutCore: core,
+  LuminousPlayerSignatureSkillCatalog: presetCatalog,
+  LuminousBuildWeaponCatalog: gear,
+  LuminousBuildSkillCatalog: globalThis.LuminousBuildSkillCatalog,
   LuminousSpellLoadout: globalThis.LuminousSpellLoadout,
   LuminousCombatSkillLoadout074: {
     resolvePlayerUnit() { return { ok: true, unitId: "unit-alice" }; },
@@ -258,5 +297,35 @@ assert.deepEqual(writes.map((write) => write.path), [
   "campaña/combate/combatants/player:alice",
 ], "Mid-save selection changes must never redirect Skills into another Player");
 assert.equal(deckFeedback.textContent, "SKILLS ACTUALIZADAS EN EL COMBATE");
+
+// Test the actual DM manager interaction: dropdown -> Apply -> Tier I/II/III
+// -> Save to the selected player + Unit + deployed Combatant (not any other player).
+const visiblePresets = liveManager.presetEntries();
+assert.equal(visiblePresets.filter(p => p.source === 'equipment').length, 6);
+assert.equal(visiblePresets.filter(p => p.id === 'test_build').length, 1,
+  'Existing character presets survive the equipment integration');
+deckFields['dm-loadout-preset-select'].value = 'equipment_calipsys_fourfold_gauntlets_chill';
+liveManager.applyPreset();
+assert.equal(deckFields['dm-loadout-tier-1'].value, 'calipsys_chill_i');
+assert.equal(deckFields['dm-loadout-tier-2'].value, 'calipsys_chill_ii');
+assert.equal(deckFields['dm-loadout-tier-3'].value, 'calipsys_chill_iii');
+assert.match(deckFeedback.textContent, /ARMA CARGADO/);
+writes.length = 0;
+liveManager.state.playerId = 'alice';
+liveManager.state.player = { uid: 'uid-a', characterBuild: { learnedSkillIds: ['learned_before'] } };
+assert.equal(await liveManager.saveDeck(), true);
+assert.deepEqual(writes.map(w => w.path), [
+  'campaña/jugadores/alice', 'campaña/base_datos_unidades/unit-alice',
+  'campaña/combate/combatants/player:alice',
+], 'Saving selected Build preset retains Player, Unit and Combatant synchronization');
+assert.deepEqual(writes[0].updates.skillSlotIds, [
+  'calipsys_chill_i','calipsys_chill_i','calipsys_chill_i',
+  'calipsys_chill_ii','calipsys_chill_ii','calipsys_chill_iii',
+]);
+assert.equal(writes[0].updates['characterBuild/learnedSkillIds'], undefined,
+  'Saving a Deck must not erase previously learned Skills');
+assert.match(deckFeedback.textContent, /DECK BASE/);
+assert.match(deckFeedback.textContent, /ARMA EQUIPADA/);
+assert.ok(!writes.some(w => w.path.includes('player:bob') || w.path.endsWith('/enemy')));
 
 console.log('dm-player-loadout-manager-smoke: ok');

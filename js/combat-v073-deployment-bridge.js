@@ -160,6 +160,8 @@
     incoming.id = entry.key;
     incoming.combatId = entry.key;
     incoming.replacementPendingPlanning = true;
+    if (global.LuminousDeathSaveRuntime?.isRetreated(incoming))
+      global.LuminousDeathSaveRuntime.returnFromRetreat(incoming, { force: true });
     combatants[entry.key] = incoming;
     delete state.reserves[entry.key];
     updates[`${ROOTS.reserves}/${entry.key}`] = null;
@@ -207,7 +209,10 @@
     const api = deployment();
     const units = Object.values(runtime()?.combatants?.() || {});
     if (!api) return { changed: false, reason: "deployment_runtime_unavailable", transitions: [] };
-    const candidates = units.filter((unit) => api.isField(unit) && api.isDefeated(unit));
+    // Confirmed death flags can make isField false before the FIELD record
+    // has actually been archived. Downed is excluded by isDefeated itself.
+    const candidates = units.filter((unit) => unit.battleActive !== false && unit.isBackup !== true &&
+      !api.isEscaped(unit) && api.isDefeated(unit));
     if (!candidates.length) return { changed: false, transitions: [] };
     const updates = {};
     const transitions = candidates.map((unit) => archiveDefeatedLocal(unit, options, updates)).filter((row) => row.archived);

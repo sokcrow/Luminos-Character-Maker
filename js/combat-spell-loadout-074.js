@@ -75,7 +75,7 @@
           .map((entry) => clean(entry?.id || entry?.skillId || entry))
           .filter((id) => id.startsWith("spell:")).map((id) => id.slice(6))
       : [];
-    const wizardIds = wizardRuntime()?.spellIdsForCombat?.(source) || [];
+    const wizardIds = !explicit ? wizardRuntime()?.spellIdsForCombat?.(source) || [] : [];
     return [...new Set([...selected, ...legacy, ...wizardIds].map((id) => clean(id).replace(/^spell:/, "")).filter(Boolean))];
   }
 

@@ -121,7 +121,7 @@ El contrato incluirá:
 - Pausa y recuperación si se pierde la autoridad del DM. La política inicial conserva al DM como autoridad; una transferencia automática sería otro proyecto.
 - Control de sellado para impedir dos resoluciones del mismo turno desde dos pestañas del DM.
 
-Los controles de velocidad y movimiento reducido cambian la reproducción. Su aceptación exige iguales resultados de juego con animación completa, reducida y omitida.
+El combate usa un único ritmo fijo, sin controles de velocidad. Movimiento reducido cambia únicamente la presentación visual. La aceptación exige iguales resultados de juego con animación completa, reducida y omitida.
 
 **6. Mecánicas que debe cubrir la primera versión**
 
@@ -198,7 +198,7 @@ Alturas, escalada, navegación, terreno difícil, cobertura y el mapa de #933 qu
 | 2. Reproducción online | Lotes del DM, secuencia, checkpoints, deduplicación, reconexión y permisos. Migración gradual de clientes. | 1 | DM y jugadores coinciden; recarga, retraso y reintentos no duplican costes ni resultados. |
 | 3. Escena por capas y posicionamiento | Campo plano, paralaje, sombras, escala y superposición por profundidad; formación inicial del DM sincronizada. | 2 | Posiciones compartidas y persistidas; escenario legible en escritorio y móvil; fallback DOM. |
 | 4. HUD y animación V1 | Integrar menú radial, tarjetas, estado por Coin, poses genéricas y feedback de defensas/Status. | 3; base de HUD de 0 | Una ronda completa se entiende y controla mediante los flujos reales del juego. |
-| 5. Acabado audiovisual | Perfiles por Skill, proyectiles, impactos, cámara, mezcla de sonido y cut-ins seleccionados. | 4 | Todo tiene sustitución; calidad visual y velocidad de reproducción no alteran la partida. |
+| 5. Acabado audiovisual | Perfiles por Skill, proyectiles, impactos, cámara, mezcla de sonido y cut-ins seleccionados. | 4 | Todo tiene sustitución; la calidad visual no altera la partida y el ritmo de combate es único y fijo. |
 | 6. Aceptación y activación | Matriz online, escritorio/móvil, entrada/salida repetida, regresiones y activación gradual por encuentro. | 5 | Evidencia real multijugador y visual, con retorno al visor anterior desde un límite seguro. |
 
 Cada entrega debe terminar en un flujo utilizable. Las herramientas internas para provocar estados no sustituyen el comportamiento del juego.

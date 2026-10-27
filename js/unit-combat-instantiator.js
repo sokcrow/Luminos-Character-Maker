@@ -51,6 +51,15 @@
   }
 
   function skillIdsFor(record = {}) {
+    const selection=record.characterBuild?.skillDeck||record.skillDeck;
+    if(selection){
+      const loadout=global.LuminousCombatSkillLoadout074;
+      if(loadout)return loadout.skillIdsFor(record);
+      if(Number(selection.schemaVersion)>=2)return [...new Set(Object.values(selection.entries||{})
+        .map(row=>clean(row?.skillId||row?.id)).filter(Boolean))];
+      const ids=[selection.tier1,selection.tier2,selection.tier3].map(clean).filter(Boolean);
+      if(ids.length)return [...new Set(ids)];
+    }
     const raw = record.action_slots ?? record.skillSlotIds ?? record.skillIds ?? record.skill_ids ?? record.mechanics?.skills ?? record.equippedSkills ?? [];
     let ids = [];
     if (Array.isArray(raw)) ids = raw.map((entry) => clean(entry?.id || entry?.skillId || entry)).filter(Boolean);
@@ -126,9 +135,14 @@
   }
 
   function speedRangeFor(record = {}) {
+    const movementRuntime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
+    if (movementRuntime?.combatRangeForEntity &&
+        (movementRuntime.explicitMovementProfile(record) || record.speedRangeSource === 'movement-dex-size')) {
+      const derived = movementRuntime.combatRangeForEntity(record);
+      return [derived.min, derived.max];
+    }
     const explicit = parseRange(record.speedRange) || parseRange(record.mechanics?.speedRange);
     if (explicit) return explicit;
-    const movementRuntime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
     const derived = movementRuntime?.rangeForEntity?.(record) || null;
     if (derived) return [derived.min, derived.max];
     return ((finite(record.speedMin, null) != null || finite(record.speedMax, null) != null)
@@ -158,7 +172,9 @@
     let speedRange = speedRangeFor(material);
     let speedFallback = false;
     if (!speedRange) {
-      speedRange = [1, 6];
+      const runtime = global.LuminousMovementSpeedRuntime || safeRequire('./movement-speed-runtime.js');
+      const profile = runtime?.combatRangeForEntity?.(material);
+      speedRange = profile ? [profile.min, profile.max] : [1, 6];
       speedFallback = true;
     }
     speedRange = [
@@ -183,11 +199,14 @@
       speedRange,
       speedMin: speedRange[0],
       speedMax: speedRange[1],
+      speedRangeSource: (global.LuminousMovementSpeedRuntime?.explicitMovementProfile?.(material) || speedFallback || material.speedRangeSource === 'movement-dex-size')
+        ? 'movement-dex-size' : 'authored-range',
       actionSlots,
       activeSlots: actionSlots,
       actionSlotIndex: Object.fromEntries(Array.from({ length: actionSlots }, (_, index) => [String(index), true])),
       skillIds: skills,
-      skillSlotIds: skills,
+      skillSlotIds: (material.characterBuild?.skillDeck||material.skillDeck)
+        ? (global.LuminousCombatSkillLoadout074?.skillSlotIdsFor(material)||skills) : skills,
       action_slots: skills,
       ...(spellIds.length || spellSelections ? { spellIds } : {}),
       ...(material.mechanics?.skills ? { mechanics: {
