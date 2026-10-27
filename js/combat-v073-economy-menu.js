@@ -266,6 +266,26 @@
     return [...unique.values()];
   }
 
+  function descriptionForMenu(source = {}) {
+    const value = clean(source.description || source.descripcion || source.desc || source.summary || "");
+    return value ? htmlEscape(value).replace(/&lt;br\s*\/?&gt;/gi, "<br>") : "Sin descripción registrada.";
+  }
+
+  function ensureSelectedDescription(sel) {
+    if (clean(lexical("navState", "")) !== "action") return;
+    const detail = global.document?.getElementById?.("category-body")?.querySelector?.(".description-box");
+    if (!detail) return;
+    const present = [...(detail.children || [])].find(node => node.classList?.contains?.("description-text"));
+    const node = present || global.document.createElement("div");
+    if (!present) {
+      node.className = "description-text";
+      const before = detail.querySelector?.(".description-cost,.skill-rules,.description-actions");
+      if (before && detail.insertBefore) detail.insertBefore(node, before);
+      else detail.appendChild?.(node);
+    }
+    node.innerHTML = descriptionForMenu(sel?.data || {});
+  }
+
   function liveActions(kind) {
     const kit = playerKit();
     return asArray(kit.actions).filter((row) => {
@@ -725,6 +745,18 @@
       .combat-economy-tab{flex:1 0 auto;min-width:48px;min-height:40px;padding:5px 3px;border:1px solid rgba(255,255,255,.16);background:#0b0907;color:#9a9184;font:900 7px/1 Arial,sans-serif;letter-spacing:.7px;text-transform:uppercase;cursor:pointer}
       .combat-economy-tab.active{color:#090705;background:var(--accent);border-color:#fff}
       .combat-economy-tab:disabled{opacity:.42;cursor:default}
+      /* A pointer hover must not simulate a selected combat action. */
+      #category-body .clean-row:not(.focused):hover{color:#d9cebc}
+      #category-body .clean-row:not(.focused):hover:before{opacity:0;transform:scaleX(.86)}
+      #category-body .clean-row:not(.focused):hover .clean-cost{color:#bda987}
+      #category-body .clean-row:not(.focused):hover .clean-icon{background:#17100a;color:var(--row-accent)}
+      #category-body .clean-row.item-hp-heal:not(.focused):hover .clean-name,
+      #category-body .clean-row.item-hp-heal:not(.focused):hover .clean-cost{color:#8bea97}
+      #category-body .clean-row.item-sp-heal:not(.focused):hover .clean-name,
+      #category-body .clean-row.item-sp-heal:not(.focused):hover .clean-cost{color:#afeef3}
+      #category-body .skill-option:not(.focused):hover{filter:none}
+      #category-body .clean-row:focus-visible,#category-body .skill-option:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+      @media (pointer:coarse){#category-body .clean-row{min-height:44px}.combat-economy-tab{min-height:44px}}
       .combat-economy-empty{padding:22px 14px;text-align:center;color:#8f8679;font:800 9px/1.45 Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;border:1px dashed rgba(255,255,255,.16);background:rgba(0,0,0,.25)}
       .combat-item-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex:0 0 26px;margin-right:7px}
       .combat-item-icon img{display:block;width:24px;height:24px;object-fit:contain}
@@ -827,7 +859,11 @@
       reason.textContent=row.__spellUnavailableReason;
       button.appendChild(reason);
     }
-    button.onclick = () => api.selectAction({ type:row.__deckCard?"deck":type, slotIndex:selectedSlotIndex(), ...(row.__deckCard?{drawId:row.__deckCard.drawId}:{}), data:row });
+    button.onclick = () => {
+      state.clickedByMenu[type === "spell" ? "spells" : "skills"] = row.id || row.spellId || row.name;
+      button.classList.add("focused");
+      return api.selectAction({ type:row.__deckCard?"deck":type, slotIndex:selectedSlotIndex(), ...(row.__deckCard?{drawId:row.__deckCard.drawId}:{}), data:row });
+    };
     return button;
   }
 
@@ -975,7 +1011,26 @@
     const original = state.originals.renderCleanList;
     const reviewWrapper = global.LuminousCombatEconomyReviewFixes073?.renderCleanList;
     if (typeof original === "function" && original !== renderCleanList && original !== reviewWrapper) {
-      return original();
+      const result = original();
+      if (activeMenu() === "defense") {
+        const list = global.document?.getElementById?.("category-body")?.querySelector?.(".clean-list");
+        list?.querySelectorAll?.(".clean-row")?.forEach((button, index) => {
+          button.onmouseenter = null;
+          const clicked = state.clickedByMenu.defense === index;
+          button.classList.toggle("focused", clicked);
+          button.setAttribute?.("aria-pressed", String(clicked));
+          const legacyClick = button.onclick;
+          button.onclick = (...args) => {
+            state.clickedByMenu.defense = index;
+            button.classList.add("focused");
+            return legacyClick?.apply(button, args);
+          };
+        });
+        const description = global.document?.getElementById?.("clean-description");
+        if (description?.remove) description.remove();
+        else if (description) { description.innerHTML = ""; description.style.display = "none"; }
+      }
+      return result;
     }
     return undefined;
   }
@@ -1272,7 +1327,7 @@
     const reactionMode = reactionModeOf(source);
     const canPrepare = tab === ECONOMY.REACTION && reactionMode === "prepared";
     const buttonLabel = actionItem ? "USE ITEM" : (tab === ECONOMY.FREE ? "USE FREE ACTION" : (quick ? "USE QUICK ACTION" : (canPrepare ? "PREPARE REACTION" : "ADAPTIVE REACTION")));
-    body.innerHTML = `<div class="economy-action-detail"><div class="economy-kind">${htmlEscape(tab.replaceAll("_", " "))}${tab === ECONOMY.REACTION ? ` · ${reactionMode}` : ""}</div><h3>${htmlEscape(source.name || source.id || "Action")}</h3><div class="economy-copy">${source.description || ""}</div><div class="economy-cost">${htmlEscape(costLabel(source))}</div><button id="economy-action-confirm" ${tab === ECONOMY.REACTION && !canPrepare ? "disabled" : ""}>${buttonLabel}</button></div>`;
+    body.innerHTML = `<div class="economy-action-detail"><div class="economy-kind">${htmlEscape(tab.replaceAll("_", " "))}${tab === ECONOMY.REACTION ? ` · ${reactionMode}` : ""}</div><h3>${htmlEscape(source.name || source.id || "Action")}</h3><div class="economy-copy">${descriptionForMenu(source)}</div><div class="economy-cost">${htmlEscape(costLabel(source))}</div><button id="economy-action-confirm" ${tab === ECONOMY.REACTION && !canPrepare ? "disabled" : ""}>${buttonLabel}</button></div>`;
     const confirm = global.document.getElementById("economy-action-confirm");
     if (confirm && !confirm.disabled) {
       if (actionItem) confirm.onclick = () => confirmLegacyItemSelection(sel);
@@ -1308,7 +1363,9 @@
       // Passing "skill" through created an attack the Clash preview could not
       // recognize, even though the online resolver later reconstructed it.
       const type = sel?.type === "skill" ? "granted" : sel?.type === "spell" ? "spells" : sel?.type;
-      return state.originals.selectAction?.({ ...sel, type });
+      const result = state.originals.selectAction?.({ ...sel, type });
+      ensureSelectedDescription(sel);
+      return result;
     }
 
     global.__luminousEconomySelected = sel;
@@ -1694,7 +1751,7 @@
     return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, authoritativeCharacter, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, restoreGlobalCategoryFromActionDetail, installActionBackRecovery, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, descriptionForMenu, authoritativeCharacter, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, restoreGlobalCategoryFromActionDetail, installActionBackRecovery, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
