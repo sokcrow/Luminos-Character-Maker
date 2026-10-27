@@ -9,7 +9,7 @@ assert.equal(session.xpForLevel(9),100);
 assert.equal(session.xpForLevel(10),200);
 assert.equal(session.xpForLevel(15),300);
 assert.equal(session.xpForLevel(20),400);
-assert.equal(mvp.bonus(100,true),114); // floor(100 * 1.15) with binary float rounding
+assert.equal(mvp.bonus(100,true),115);
 assert.equal(mvp.bonus(200,true),230);
 assert.equal(mvp.bonus(200,false),200);
 assert.equal(mvp.bonus(200,true,false),200);
