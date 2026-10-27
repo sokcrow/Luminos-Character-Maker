@@ -98,7 +98,7 @@
           },
           "coinClicks": {
             "$voterId": {
-              ".write": "auth != null && root.child('campaña').child('mvp_sesion').child('actual').child('phase').val() === 'coins' && root.child('campaña').child('mvp_sesion').child('actual').child('candidates').child($voterId).child('uid').val() === auth.uid && root.child('campaña').child('mvp_sesion').child('actual').child('tiedIds').hasChild($voterId) && !data.exists()",
+              ".write": "auth != null && root.child('campaña').child('mvp_sesion').child('actual').child('phase').val() === 'coins' && root.child('campaña').child('mvp_sesion').child('actual').child('candidates').child($voterId).child('uid').val() === auth.uid && root.child('campaña').child('mvp_sesion').child('actual').child('tiedCandidates').child($voterId).val() === true && !data.exists()",
               ".validate": "newData.isNumber() && newData.val() === root.child('campaña').child('mvp_sesion').child('actual').child('coinRound').val()"
             }
           }
