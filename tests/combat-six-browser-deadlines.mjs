@@ -56,7 +56,8 @@ try {
         deliveries.add(task);
       }
     });
-    await page.setContent('<style>body{margin:0;background:#171923;color:#f4dfad;font:20px sans-serif}main{display:flex;gap:16px;padding:16px}.hud{flex:1;min-width:0;padding:12px;border:1px solid #9c793f}.roll{display:flex;flex-wrap:wrap}</style><div id="status"></div><main><div class="hud" id="a"><b>A</b><div class="clash-float-power"></div><div class="roll"></div></div><div class="hud" id="b"><b>B</b><div class="clash-float-power"></div><div class="roll"></div></div></main>');
+    await page.setContent('<style>body{margin:0;background:#171923;color:#f4dfad;font:20px sans-serif}main{display:flex;gap:16px;padding:16px}.hud{flex:1;min-width:0;padding:12px;border:1px solid #9c793f}.roll{display:flex;flex-wrap:wrap}</style><div id="game-container" style="position:relative;min-height:100vh"><div id="status"></div><main><div class="hud" id="a"><b>A</b><div class="clash-float-power"></div><div class="roll"></div></div><div class="hud" id="b"><b>B</b><div class="clash-float-power"></div><div class="roll"></div></div></main></div>');
+    await page.addStyleTag({content:read('css/combat-v073-audiovisual.css')});
     if (emulator) {
       const firebaseRoot=path.dirname(require.resolve('firebase/package.json'));
       for (const module of ['app','auth','database']) await page.addScriptTag({content:read(path.join(firebaseRoot,`firebase-${module}.js`))});
@@ -89,8 +90,8 @@ try {
       const sync=LuminousCombatPlaybackSync;
       const authority={state:{},snapshotRuntime:()=>combatData,applySnapshot(snapshot){Object.assign(combatData,snapshot);applied.push(snapshot)}};
       sync.state.authority=authority;
-      LuminousCombatAudiovisual073.preferences({speed:testIndex?1:2,sound:false});
-      let data={id:'browser-round',round:1,phase:'running',initialStateJson:JSON.stringify(combatData),playback:{schemaVersion:1,engineVersion:LuminousCombatPlayback.engineVersion,timelineVersion:1,presentationSpeed:2,session:sync.session}};
+      LuminousCombatAudiovisual073.preferences({sound:false});
+      let data={id:'browser-round',round:1,phase:'running',initialStateJson:JSON.stringify(combatData),playback:{schemaVersion:1,engineVersion:LuminousCombatPlayback.engineVersion,timelineVersion:1,session:sync.session}};
       if(window.firebaseDb){
         if(!testIndex) await firebaseDb.ref('campaña/combate/authority/current').set(data);
         else data=(await firebaseDb.ref('campaña/combate/authority/current').once('value')).val();
@@ -108,7 +109,7 @@ try {
       }};
       const engine=combatStepRuntime(); window.engine=engine;
       const draw=async(cue,args,visual,event)=>{
-        log.push({cue,owner:args[0]?.ownerId,index:args[1]?.index,at:Date.now(),sequence:event.sequence,phase:event.timing.phase,rateMs:LuminousCombatAudiovisual073.duration(1000)});
+        log.push({cue,owner:args[0]?.ownerId,index:args[1]?.index,at:Date.now(),sequence:event.sequence,phase:event.timing.phase,durationMs:LuminousCombatAudiovisual073.duration(1000)});
         await engine.present(cue,args,visual);
       };
       window.LuminousCombatStepRuntime={capturePresentation:value=>engine.capturePresentation(value),events:after=>engine.events(after),
@@ -118,13 +119,25 @@ try {
       if(!testIndex){
         const original=sync.presentScheduled;
         window.LuminousCombatPlaybackSync={...sync,presentScheduled(event,render){
-          return original(event,visual=>{log.push({cue:event.cue,owner:event.args[0]?.ownerId,index:event.args[1]?.index,at:Date.now(),sequence:event.sequence,phase:event.timing.phase,rateMs:LuminousCombatAudiovisual073.duration(1000)});return render(visual)});
+          return original(event,visual=>{log.push({cue:event.cue,owner:event.args[0]?.ownerId,index:event.args[1]?.index,at:Date.now(),sequence:event.sequence,phase:event.timing.phase,durationMs:LuminousCombatAudiovisual073.duration(1000)});return render(visual)});
         }};
         authority.state.runningLocal=true;
         const initial=sync.beginUpdates(data);
         if(window.firebaseDb) await firebaseDb.ref().update(initial);
       }else window.ready=sync.observe(data);
     });
+  }
+  // The removed option must be absent from the mounted production settings
+  // on DM and all six viewport sizes; the three remaining controls stay usable.
+  for (const [index,page] of pages.entries()) {
+    assert.equal(await page.locator('#combat-av-speed').count(),0,'No playback speed selector');
+    assert.equal(await page.locator('#combat-av-settings input,#combat-av-settings select').count(),3);
+    await page.locator('#combat-av-settings summary').click();
+    const box=await page.locator('#combat-av-settings').boundingBox();
+    const size=page.viewportSize();
+    assert.ok(box.x>=0 && box.y>=0 && box.x+box.width<=size.width && box.y+box.height<=size.height,'Settings fit the viewport');
+    await page.screenshot({path:`${output}/settings-${index}.png`});
+    await page.locator('#combat-av-settings summary').click();
   }
   await Promise.all(pages.slice(1).map(page=>page.evaluate(()=>ready)));
   if(emulator) for(const page of pages.slice(1)) assert.equal(await page.evaluate(async()=>{
@@ -152,15 +165,16 @@ try {
   while(deliveries.size) await Promise.all([...deliveries]);
   await Promise.all(pages.slice(1).map(page=>page.waitForFunction(()=>final.length===1)));
   errors.push(...(await Promise.all(pages.map(page=>page.evaluate(()=>writeErrors)))).flat());
-  const results=await Promise.all(pages.map(page=>page.evaluate(()=>({log,final,units:combatData,visuals:document.querySelectorAll('.luminous-core-coin').length,speed:LuminousCombatAudiovisual073.duration(1000)}))));
+  const results=await Promise.all(pages.map(page=>page.evaluate(()=>({log,final,units:combatData,visuals:document.querySelectorAll('.luminous-core-coin').length,sampleDuration:LuminousCombatAudiovisual073.duration(1000)}))));
   // Preserve raw evidence even if any assertion below fails.
   fs.writeFileSync(`${output}/raw-results.json`,JSON.stringify({transport:emulator?'Auth + RTDB emulators, production rules':'simulated delivery',clients:7,viewports,exchanges:8,results,errors},null,2));
   let maxSkew=0;
+  assert.ok(results[0].log.every(cue=>cue.durationMs===1000),'The DM also uses the fixed timing');
   for(const [index,result] of results.slice(1).entries()){
     maxSkew=Math.max(maxSkew,comparePresentations(results[0].log,result.log));
     assert.deepEqual(result.final,results[0].final);assert.deepEqual(result.units,results[0].units);
-    assert.ok(result.log.every(cue=>cue.rateMs===500),'Players use sealed DM speed despite private 1x preference');
-    assert.equal(result.speed,1000,'Private speed is restored after the round');
+    assert.ok(result.log.every(cue=>cue.durationMs===1000),'One fixed timing for every Player and the DM');
+    assert.equal(result.sampleDuration,1000,'Timing stays fixed after the round');
     assert.ok(result.visuals>0,'production Coin renderer created real DOM');
   }
   assert.deepEqual(errors,[]);

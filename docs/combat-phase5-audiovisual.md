@@ -10,7 +10,7 @@ El combate conserva el menú radial, el HUD, la formación y las decisiones huma
 
 Los impactos se presentan después del resultado de reglas, con énfasis de cámara breve que mueve únicamente el campo y sus capas. El HUD permanece fijo. Los perfiles seleccionados muestran una banda breve con el nombre de la habilidad una vez por acción, sin tapar el centro del campo. Guard y Evade utilizan sus resultados existentes. Las curaciones y salvaciones tienen comandos de presentación propios; una salvación exitosa muestra resistencia/evasión en lugar de un impacto de daño.
 
-«Opciones» contiene sonido, volumen, efectos completos/ligeros/desactivados y reproducción normal/rápida. Son preferencias de cada navegador, sin escritura a Firebase. La reproducción rápida acorta las esperas de presentación y Coins; no introduce otra simulación. Movimiento reducido conserva los resultados y el HUD sin efectos móviles no esenciales. Los efectos pueden desactivarse conservando el sonido.
+«Opciones» contiene sonido, volumen y efectos completos/ligeros/desactivados. Son preferencias de cada navegador, sin escritura a Firebase. El combate tiene un único ritmo fijo, sin opción de cambiar la velocidad. Movimiento reducido conserva los resultados y el HUD sin efectos móviles no esenciales. Los efectos pueden desactivarse conservando el sonido.
 
 ## Contratos
 
@@ -28,6 +28,6 @@ Esta V1 usa efectos vectoriales, perfiles, sonido sintetizado y los sprites exis
 
 ## Verificación
 
-La matriz conserva Fases 0–4 y agrega pruebas de perfiles y sustituciones, privacidad, reducción de movimiento, texto seguro, límites/limpieza de nodos y voces, audio no disponible y equivalencia de reglas/RNG con distintas presentaciones. El recorrido de navegador usa el Fire Bolt canónico desde Spells con dos Players y DM, captura el proyectil/impacto y compara la ronda normal con reproducción rápida, efectos desactivados y audio no disponible. También conserva los recorridos de recarga, retraso, derrota y recuperación del DM.
+La matriz histórica de Fases 0–4 agregó pruebas de perfiles y sustituciones, privacidad, reducción de movimiento, texto seguro, límites/limpieza de nodos y voces, audio no disponible y equivalencia de reglas/RNG con distintas presentaciones. Su recorrido de Fire Bolt usaba Spells con dos Players y DM. La opción de reproducción rápida de aquella revisión se ha retirado; las pruebas actuales usan un único ritmo fijo, con las variantes de efectos y audio independientes de ese ritmo. Ver la validación actual en `combat-live-deadlines.md`.
 
 Las pruebas de navegador usan Auth y RTDB locales, no Firebase de producción. El acabado artístico de cada personaje/Skill, las mediciones en dispositivos de referencia y la aceptación de una versión desplegada siguen siendo trabajo posterior; no se sustituyen por estas pruebas automatizadas.

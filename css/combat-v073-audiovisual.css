@@ -15,7 +15,7 @@
 #combat-av-settings input[type=range]{width:132px;accent-color:#c8a861}
 #combat-av-settings :focus-visible{outline:2px solid #f2da97;outline-offset:3px}
 .combat-product-hud.targeting-mode #combat-av-settings,.combat-product-hud.clash-confirmation-mode #combat-av-settings,.combat-product-hud.stage-placing #combat-av-settings{display:none}
-.round-running #battlefield,.round-running .combat-stage-layer{transition-duration:calc(520ms / var(--combat-playback-rate,1))}
+.round-running #battlefield,.round-running .combat-stage-layer{transition-duration:520ms}
 @media(max-width:600px){#combat-av-cutin{width:210px;font-size:14px;top:162px}.combat-av-effect{width:110px;height:110px}#combat-av-settings{left:10px;bottom:max(10px,env(safe-area-inset-bottom))}}
 @media(max-height:500px){#combat-av-cutin{top:132px;width:220px}#combat-av-settings[open]{max-height:calc(100dvh - 20px);overflow:auto}}
 @media(prefers-reduced-motion:reduce){.combat-av-effect{filter:none}}

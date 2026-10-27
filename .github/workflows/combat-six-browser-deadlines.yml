@@ -5,6 +5,7 @@ on:
       - 'js/combat-v073-playback*.js'
       - 'js/combat-v073-steps.js'
       - 'js/combat-v073-audiovisual.js'
+      - 'css/combat-v073-audiovisual.css'
       - 'database.rules.json'
       - 'combat-results-firebase.json'
       - 'combat/source/combat-v073-live.html'

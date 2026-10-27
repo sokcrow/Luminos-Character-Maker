@@ -426,10 +426,9 @@ function smartTargetForPlan(owner,plan){
       html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
         asset+'?v=20261026-sp01-repair-1');
     }
-    // Apply after every legacy cache rewrite: Steps, playback and audiovisual
-    // must agree on phase cancellation and the sealed presentation speed.
-    html=html.replace(/js\/combat-v073-(steps|playback|playback-sync|audiovisual)\.js(?:\?v=[^"']+)?/g,
-      'js/combat-v073-$1.js?v=20261026-live-phases-3');
+    // Apply after every legacy cache rewrite, including the fixed timing CSS.
+    html=html.replace(/(js\/combat-v073-(?:steps|playback|playback-sync|audiovisual)\.js|css\/combat-v073-audiovisual\.css)(?:\?v=[^"']+)?/g,
+      '$1?v=20261026-fixed-pace-4');
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();

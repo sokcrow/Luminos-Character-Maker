@@ -6,7 +6,7 @@
   const state = { generation: null, consumer: null, ref: null, handler: null, eventCursor: 0, batchSeq: 0,
     connected: true, connectionRef: null, connectionHandler: null, offsetRef:null,offsetHandler:null,serverOffset:0,
     authority: null, starting: false, transmittedSnapshot: {}, recoveryButton:null, stagedUpdates:{}, presentationClock:null, viewerClock:null,
-    viewerRecoveryTimer:null, viewerRecoveryAttempts:0, viewerFinishTimer:null, presentationRate:null };
+    viewerRecoveryTimer:null, viewerRecoveryAttempts:0, viewerFinishTimer:null };
   const adapter = () => global.LuminousCombatLiveAdapter073?.state;
   const surface = () => global.LuminousCombatStepRuntime;
   const status = text => { const node = global.document?.getElementById?.('status'); if (node) node.textContent = text; };
@@ -33,10 +33,7 @@
   function resetPresentationClock(data = state.authority?.state.current) {
     state.presentationClock?.stop();
     state.presentationClock = data?.playback?.timelineVersion === 1 ? protocol().createPresentationClock({ now: serverNow }) : null;
-    state.presentationRate = state.presentationClock ? (data.playback.presentationSpeed === 2 ? 2 : 1) : null;
-    global.LuminousCombatAudiovisual073?.refreshRate?.();
   }
-  function presentationSpeed() { return state.authority?.state.runningLocal ? state.presentationRate : null; }
   function schedulePresentation(cue, args) {
     const current = state.authority?.state.current;
     if (current?.playback?.timelineVersion !== 1) return null;
@@ -61,10 +58,7 @@
       payload.encounterId=raw.estado?.encounterId||encounterCandidate;
       payload.id = `${payload.encounterId}-${payload.round}-${payload.seed}-${session}`;
       payload.playback = { schemaVersion: 1, engineVersion: protocol().engineVersion, session, generation: payload.id };
-      if (timeline) {
-        payload.playback.timelineVersion = protocol().timelineVersion;
-        payload.playback.presentationSpeed = global.LuminousCombatAudiovisual073?.state?.settings?.speed === 2 ? 2 : 1;
-      }
+      if (timeline) payload.playback.timelineVersion = protocol().timelineVersion;
       if (current?.encounterId===payload.encounterId&&Number(current?.round) >= payload.round && ['sealed', 'running', 'complete'].includes(current?.phase)) return;
       return {...raw,authority:{...(raw.authority||{}),current:payload},estado:{...(typeof raw.estado==='object'?raw.estado:{}),eventAuthority:'combat-event-runtime-v1',encounterId:payload.encounterId,phase:'COMBAT_SEALED',active:true,round:payload.round}};
     });
@@ -123,8 +117,6 @@
     if (state.viewerFinishTimer != null) global.clearTimeout?.(state.viewerFinishTimer);
     state.viewerRecoveryTimer = state.viewerFinishTimer = null;
     state.viewerClock?.stop(); state.viewerClock = null;
-    if (adapter()?.role === 'player') state.presentationRate = null;
-    global.LuminousCombatAudiovisual073?.refreshRate?.();
     global.LuminousCombatAudiovisual073?.clear();
     state.consumer?.stop(); state.consumer = null;
     if (state.ref && state.handler) state.ref.off('child_added', state.handler);
@@ -283,8 +275,6 @@
       const shouldPresent = createPresentationGate();
       const scheduled = data.playback.timelineVersion === protocol().timelineVersion;
       state.viewerClock = scheduled ? protocol().createPresentationClock({ now: serverNow }) : null;
-      state.presentationRate = scheduled ? (data.playback.presentationSpeed === 2 ? 2 : 1) : null;
-      global.LuminousCombatAudiovisual073?.refreshRate?.();
       const viewerClock = state.viewerClock;
       surface().beginPlayback(data.round);
       if(data.initialStateJson&&!checkpoint)a.applySnapshot(JSON.parse(data.initialStateJson));
@@ -338,7 +328,6 @@
           catch (error) { global.console?.warn?.('[Combat playback visual finish]', error); }
           finally {
             a.state.runningLocal = false;
-            global.LuminousCombatAudiovisual073?.refreshRate?.();
             global.LuminousCombatLiveAdapter073?.scheduleHydrate?.();
           }
         },
@@ -388,12 +377,10 @@
     state.connectionRef = state.connectionHandler = null;
     if(state.offsetRef)state.offsetRef.off('value',state.offsetHandler);
     state.offsetRef=state.offsetHandler=null;
-    state.presentationRate = null;
-    global.LuminousCombatAudiovisual073?.refreshRate?.();
   }
   global.LuminousCombatPlaybackSync = Object.freeze({ ROOT, state, session, enabled, negotiate, seal, assertOwner,
     beginUpdates, batchUpdates, observe, start, stop, recover, refreshRecoveryControl,stageUpdates,commitUpdates,disconnectConsumer,createPresentationGate,
-    canSchedule, schedulePresentation, presentScheduled, drainPresentation, presentationSpeed });
+    canSchedule, schedulePresentation, presentScheduled, drainPresentation });
   global.addEventListener('luminous:combat073-hydrated', () => {
     const a = state.authority, data = a?.state.current;
     if (enabled(data) && data.phase === 'complete' && data.checkpoint?.combatants && !a.state.runningLocal) {

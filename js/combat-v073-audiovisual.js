@@ -4,25 +4,17 @@
   'use strict';
   if(global.LuminousCombatAudiovisual073)return;
   const doc=global.document,byId=id=>doc?.getElementById(id),runtime=()=>global.LuminousCombat073;
-  const defaults={sound:true,volume:.22,quality:'full',speed:1};
+  const defaults={sound:true,volume:.22,quality:'full'};
   const state={mounted:false,generation:null,lastSequence:0,entries:new Map(),featured:new Set(),nodes:new Set(),animations:new Set(),timers:new Set(),voices:new Set(),context:null,unlocked:false,cameraPriority:0,settings:{...defaults}};
-  try{const saved=JSON.parse(global.localStorage?.getItem('luminos.combat.presentation.v1')||'null');if(saved)Object.assign(state.settings,saved);}catch(_){}
+  try{const saved=JSON.parse(global.localStorage?.getItem('luminos.combat.presentation.v1')||'null');if(saved)for(const key of Object.keys(defaults))if(Object.prototype.hasOwnProperty.call(saved,key))state.settings[key]=saved[key];}catch(_){}
   function preferences(value={}){
-    const s={...state.settings,...value};state.settings={sound:s.sound===true,volume:Math.max(0,Math.min(.6,Number(s.volume)||0)),quality:['full','low','off'].includes(s.quality)?s.quality:'full',speed:s.speed===2?2:1};
+    const s={...state.settings,...value};state.settings={sound:s.sound===true,volume:Math.max(0,Math.min(.6,Number(s.volume)||0)),quality:['full','low','off'].includes(s.quality)?s.quality:'full'};
     try{global.localStorage?.setItem('luminos.combat.presentation.v1',JSON.stringify(state.settings));}catch(_){}
-    refreshRate();
     if(!state.settings.sound||!state.settings.volume)stopVoices();
     if(state.settings.quality==='off')clearVisuals();
     return{...state.settings};
   }
-  const sharedSpeed=()=>global.LuminousCombatPlaybackSync?.presentationSpeed?.();
-  const effectiveSpeed=()=>sharedSpeed()??state.settings.speed;
-  function refreshRate(){
-    byId('game-container')?.style.setProperty('--combat-playback-rate',String(effectiveSpeed()));
-    const input=byId('combat-av-speed');
-    if(input){input.value=String(effectiveSpeed());input.disabled=sharedSpeed()!=null;input.title=input.disabled?'La velocidad de este turno la fija el DM.':'';}
-  }
-  const duration=ms=>Math.max(0,Number(ms)||0)/effectiveSpeed();
+  const duration=ms=>Math.max(0,Number(ms)||0);
   const reduced=()=>Boolean(global.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
   const enabled=()=>!doc?.hidden&&global.LuminousCombatStepRuntime?.presentationEnabled?.()!==false;
   const moving=()=>enabled()&&!reduced()&&state.settings.quality!=='off';
@@ -59,7 +51,7 @@
     const c=state.context;if(!enabled()||!state.unlocked||!state.settings.sound||!state.settings.volume||c?.state!=='running'||state.voices.size>=6)return false;
     let osc,gain,voice;
     try{
-      const [from,to,length,type]=tones[kind]||tones.steel,now=c.currentTime,seconds=length/effectiveSpeed();
+      const [from,to,length,type]=tones[kind]||tones.steel,now=c.currentTime,seconds=length;
       osc=c.createOscillator();gain=c.createGain();voice={osc,gain};osc.type=type;osc.frequency.setValueAtTime(from,now);osc.frequency.exponentialRampToValueAtTime(to,now+seconds);
       gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(Math.max(.0002,state.settings.volume*.18),now+.008);gain.gain.exponentialRampToValueAtTime(.0001,now+seconds);
       osc.connect(gain);gain.connect(c.destination);state.voices.add(voice);
@@ -149,15 +141,15 @@
   function mount(){
     const host=byId('game-container');if(state.mounted||!host)return;state.mounted=true;
     const layer=doc.createElement('div');layer.id='combat-av-layer';layer.setAttribute('aria-hidden','true');host.appendChild(layer);
-    const settings=doc.createElement('details');settings.id='combat-av-settings';settings.innerHTML='<summary>Opciones</summary><label>Sonido<input id="combat-av-sound" type="checkbox"></label><label>Volumen<input id="combat-av-volume" type="range" min="0" max="60" step="1"></label><label>Efectos<select id="combat-av-quality"><option value="full">Completos</option><option value="low">Ligeros</option><option value="off">Desactivados</option></select></label><label>Reproducción<select id="combat-av-speed"><option value="1">Normal</option><option value="2">Rápida · ×2</option></select></label>';host.appendChild(settings);
-    const controls={sound:byId('combat-av-sound'),volume:byId('combat-av-volume'),quality:byId('combat-av-quality'),speed:byId('combat-av-speed')};
-    controls.sound.checked=state.settings.sound;controls.volume.value=Math.round(state.settings.volume*100);controls.quality.value=state.settings.quality;controls.speed.value=state.settings.speed;
-    for(const [key,input]of Object.entries(controls))input.onchange=event=>{preferences({[key]:key==='sound'?input.checked:key==='volume'?Number(input.value)/100:key==='speed'?Number(input.value):input.value});unlock(event);};
+    const settings=doc.createElement('details');settings.id='combat-av-settings';settings.innerHTML='<summary>Opciones</summary><label>Sonido<input id="combat-av-sound" type="checkbox"></label><label>Volumen<input id="combat-av-volume" type="range" min="0" max="60" step="1"></label><label>Efectos<select id="combat-av-quality"><option value="full">Completos</option><option value="low">Ligeros</option><option value="off">Desactivados</option></select></label>';host.appendChild(settings);
+    const controls={sound:byId('combat-av-sound'),volume:byId('combat-av-volume'),quality:byId('combat-av-quality')};
+    controls.sound.checked=state.settings.sound;controls.volume.value=Math.round(state.settings.volume*100);controls.quality.value=state.settings.quality;
+    for(const [key,input]of Object.entries(controls))input.onchange=event=>{preferences({[key]:key==='sound'?input.checked:key==='volume'?Number(input.value)/100:input.value});unlock(event);};
     global.addEventListener('pointerdown',unlock,{passive:true});global.addEventListener('keydown',unlock,{passive:true});
     global.addEventListener('resize',clearVisuals);doc.addEventListener('visibilitychange',()=>{if(doc.hidden){clearVisuals();stopVoices();}});
     global.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener?.('change',clearVisuals);
-    global.addEventListener('luminous:combat073-hydrated',()=>{clear();refreshRate();const id=global.LuminousCombatLiveAdapter073?.state?.encounterId;if(state.encounter&&state.encounter!==id)closeAudio();state.encounter=id;});
+    global.addEventListener('luminous:combat073-hydrated',()=>{clear();const id=global.LuminousCombatLiveAdapter073?.state?.encounterId;if(state.encounter&&state.encounter!==id)closeAudio();state.encounter=id;});
     global.addEventListener('beforeunload',()=>{clear();closeAudio();});preferences();
   }
-  global.LuminousCombatAudiovisual073=Object.freeze({version:1,state,preferences,duration,profile,cue,event,clear,mount,refreshRate});mount();
+  global.LuminousCombatAudiovisual073=Object.freeze({version:1,state,preferences,duration,profile,cue,event,clear,mount});mount();
 })(typeof window==='undefined'?globalThis:window);
