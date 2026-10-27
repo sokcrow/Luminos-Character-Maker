@@ -17,16 +17,18 @@ const render=source.slice(source.indexOf('function renderDefenseSkills(){'),sour
 const choices=[];
 const node=()=>({children:[],style:{setProperty(){}},appendChild(n){this.children.push(n)}});
 const body=node();
-Object.assign(c,{$:()=>body,document:{createElement:node},UNIT_KITS:{p:{actions:[normalize('equipped-evade',{type:'Evade',name:'Equipped'})]}},PLAYER_ID:'p',permanent:{defense:[{name:'Guard'}]},sinInfo:()=>({color:''}),skillOptionMarkup:()=>'',COMBAT_ICONS:{evade:'',guard:'',counter:''},selectedSlotIndex:0,selectAction:choice=>choices.push(choice)});
+Object.assign(c,{$:()=>body,document:{createElement:node},UNIT_KITS:{p:{actions:[normalize('equipped-evade',{type:'Evade',name:'Equipped'})]}},PLAYER_ID:'p',permanent:{defense:['Evade','Guard','Counter'].map(name=>({name,defenseType:name.toLowerCase()}))},sinInfo:()=>({color:''}),skillOptionMarkup:()=>'',COMBAT_ICONS:{evade:'',guard:'',counter:''},selectedSlotIndex:0,selectAction:choice=>choices.push(choice)});
 vm.runInNewContext(render,c);
 for(const [width,height] of [[360,800],[390,844],[844,390],[768,1024],[1280,720],[1920,1080]]){
   Object.assign(c,{innerWidth:width,innerHeight:height});c.renderDefenseSkills();
   const buttons=body.children.at(-1).children;
-  assert.equal(buttons.length,1,'live menu excludes prototype defenses');
+  assert.equal(buttons.length,4,'live menu includes equipped and all three basic defenses');
+  for(let i=1;i<4;i++){buttons[i].onclick();assert.equal(choices.at(-1).data.skillId,['Evade','Guard','Counter'][i-1]);}
   buttons[0].onclick();assert.equal(choices.at(-1).data.skillId,'equipped-evade');
 }
 c.UNIT_KITS.p.actions=[];c.renderDefenseSkills();
-assert.match(body.children.at(-1).children[0].textContent,/No tienes/);
+assert.equal(body.children.at(-1).children.length,3,'basic defenses remain available with no equipped Skills');
+for(const button of body.children.at(-1).children){button.onclick();assert.ok(['Evade','Guard','Counter'].includes(choices.at(-1).data.skillId));}
 // Run the actual READY queue against an authenticated permission rejection.
 delete c.document;
 let ui={round:1,ready:true,running:false},restored;

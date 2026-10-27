@@ -7981,15 +7981,14 @@ function renderDefenseSkills(){
   const equipped=(UNIT_KITS[PLAYER_ID]?.actions||[]).filter(d=>d?.kind==='defense'||d?.isDefense===true||
     String(d?.type||'').toLowerCase()==='defense'||Boolean(d?.defenseType||d?.defenseSubtype));
   const seen=new Set();
-  // Live plans must use the equipped catalog IDs authorized by Firebase.
-  const defenses=window.LuminousCombatLiveMode?equipped:[...equipped,...permanent.defense];
-  if(!defenses.length){const empty=document.createElement('div');empty.className='separator-label';empty.textContent='No tienes habilidades defensivas equipadas.';stack.appendChild(empty)}
+  // Basic defenses are always available; DM deployment authorizes their IDs.
+  const defenses=[...equipped,...permanent.defense];
   defenses.forEach(raw=>{
     const key=String(raw.skillId||raw.id||raw.name||'');
     if(seen.has(key))return;
     seen.add(key);
-    const defenseType=window.LuminousClashableDefenses073?.defenseTypeOf(raw)||'guard';
-    const d={...raw,kind:'defense',defenseType,
+    const defenseType=window.LuminousClashableDefenses073?.defenseTypeOf(raw)||raw.defenseType||'guard';
+    const d={...raw,id:key,skillId:key,kind:'defense',defenseType,
       iconUrl:raw.iconUrl||(defenseType.includes('counter')?COMBAT_ICONS.counter:defenseType.includes('guard')?COMBAT_ICONS.guard:COMBAT_ICONS.evade)};
     const b=document.createElement('button'),sin=sinInfo(d);
     b.className='skill-option';b.style.setProperty('--sin',sin.color);
