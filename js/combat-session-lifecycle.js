@@ -148,7 +148,7 @@
       return {...raw,estado:{...raw.estado,ending:{...raw.estado.ending,failed:true}}};
     });
   }
-  async function commitEnd({db,uid,result,token,xpAward=null}){
+  async function commitEnd({db,uid,result,token,xpAward=null,combatMetrics=null}){
     if(result==='victory'){
       const recipients=xpAward?.participantIds;
       const validId=id=>typeof id==='string'&&id.length>0&&!['.','#','$','/','[',']'].some(char=>id.includes(char));
@@ -184,11 +184,12 @@
           || expected.length!==actual.length
           || expected.some((id,index)=>id!==actual[index]))return;
       }
-      const mvp=global.LuminousCombatMvpRuntime?.selectMvp(raw)||null;
+      const finalEncounter={...raw,combatMetrics:combatMetrics||raw.combatMetrics||{}};
+      const mvp=global.LuminousCombatMvpRuntime?.selectMvp(finalEncounter)||null;
       const roster=global.LuminousCombatMvpRuntime?.eligibleActors(raw)||[];
       const resultRoster=roster.map(a=>({id:a.id,kind:a.kind,name:a.name,portrait:a.portrait,level:a.level,unitId:a.unitId}));
       const rewardRows=result==='victory'?(xpAward?.awards||[]).map(a=>({id:a.kind+':'+a.id,xp:a.xp,baseXp:a.baseXp,bonusXp:a.bonusXp})):resultRoster.map(a=>({id:a.id,xp:0,baseXp:0,bonusXp:0}));
-      return {...raw,estado:{...raw.estado,mvp, resultRoster, rewardRows,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now(),...(result==='victory'?{xpAward:{encounterId:xpAward.encounterId,totalXp:xpAward.totalXp,participantCount:xpAward.participantCount,xpPerParticipant:xpAward.xpPerParticipant,remainderXp:xpAward.remainderXp,missingCr:xpAward.missingCr||[],npcIds:xpAward.npcIds||[]}}:{})}};
+      return {...raw,combatMetrics:finalEncounter.combatMetrics,estado:{...raw.estado,mvp, resultRoster, rewardRows,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now(),...(result==='victory'?{xpAward:{encounterId:xpAward.encounterId,totalXp:xpAward.totalXp,participantCount:xpAward.participantCount,xpPerParticipant:xpAward.xpPerParticipant,remainderXp:xpAward.remainderXp,missingCr:xpAward.missingCr||[],npcIds:xpAward.npcIds||[]}}:{})}};
     });
     if(!response.committed)throw Error('El encuentro cambió antes de confirmar el resultado.');
     return response.snapshot.val().estado;
