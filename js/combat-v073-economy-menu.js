@@ -3,7 +3,7 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.11-all-units-independent-actions";
+  const VERSION = "0.7.3-economy-menu.12-click-only-details";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", FREE: "free_action", REACTION: "reaction" });
   const state = {
@@ -27,6 +27,7 @@
     rootMenuClickInstalled: false,
     actionBackRecoveryInstalled: false,
     menuRefreshGeneration: 0,
+    clickedByMenu: {},
   };
 
   const clean = (value) => String(value ?? "").trim();
@@ -263,6 +264,54 @@
       }
     }
     return [...unique.values()];
+  }
+
+  function descriptionForMenu(source = {}) {
+    const value = clean(source.description || source.descripcion || source.desc || source.summary || "");
+    return value ? htmlEscape(value).replace(/&lt;br\s*\/?&gt;/gi, "<br>") : "Sin descripción registrada.";
+  }
+
+  function ensureSelectedDescription(sel) {
+    if (clean(lexical("navState", "")) !== "action") return;
+    const detail = global.document?.getElementById?.("category-body")?.querySelector?.(".description-box");
+    if (!detail) return;
+    const present = [...(detail.children || [])].find(node => node.classList?.contains?.("description-text"));
+    const node = present || global.document.createElement("div");
+    if (!present) {
+      node.className = "description-text";
+      const before = detail.querySelector?.(".description-cost,.skill-rules,.description-actions");
+      if (before && detail.insertBefore) detail.insertBefore(node, before);
+      else detail.appendChild?.(node);
+    }
+    node.innerHTML = descriptionForMenu(sel?.data || {});
+  }
+
+  // Learned Fighter maneuvers are not Traits. Show them in the correct Action
+  // economy tab without offering an unusable "execute" confirmation. Passive
+  // maneuvers are reference-only; Quick maneuvers need an explicit executor.
+  function learnedManeuverRowsForPlayer() {
+    const character = authoritativeCharacter(playerUnit() || {});
+    const catalog = global.LuminousFighterManeuverCatalog;
+    if (!catalog?.get) return [];
+    const selected = global.LuminousBattleMasterArchetypeRuntime?.learnedManeuvers?.(character)
+      ?? character.characterBuild?.maneuvers?.battle_master
+      ?? character.maneuvers?.battle_master ?? [];
+    const ids = selected instanceof Set ? [...selected] : asArray(selected);
+    const seen = new Set();
+    return ids.map(entry => normalizeId(typeof entry === "string" ? entry : entry?.id || entry?.maneuverId))
+      .filter(id => id && !seen.has(id) && seen.add(id))
+      .map(id => {
+        const definition = catalog.get(id);
+        if (!definition) return null;
+        const actionCost = definition.mechanics?.actionCost || ECONOMY.ACTION;
+        const economyCost = normalizeEconomyCost({ actionCost });
+        return {
+          id, name: definition.name, description: definition.description,
+          kind: "maneuver", sourceType: "maneuver", economyCost,
+          cost: definition.mechanics?.actionCost ? costLabel({ actionCost }) : "Maneuver · Pasiva",
+          tag: "Fighter · Maneuver", __combatReadOnly: true,
+        };
+      }).filter(Boolean);
   }
 
   function liveActions(kind) {
@@ -638,7 +687,8 @@
       const globals = [...asArray(permanent()?.global), ...asArray(typeof contextual === "function" ? contextual() : [])]
         .map(row=>lexical('canonicalUniversalRow',value=>value)(row));
       if(global.LuminousMastermindArchetypeRuntime?.hasMastermindLevel?.(playerUnit(),15)){const help=globals.find(row=>row.actionKey==='help');if(help)globals.push({...help,id:'help',name:'Help · Master of Tactics',universalVariant:'mastermind_quick',economyCost:'quick_action',targetSide:'ally',targeting:{allegiance:'ally',mode:'single'}})}
-      return [...globals.filter(row=>economyTabFor(row)===tab),...traits];
+      const maneuvers = learnedManeuverRowsForPlayer().filter(row=>economyTabFor(row)===tab);
+      return [...globals.filter(row=>economyTabFor(row)===tab),...traits,...maneuvers];
     }
     if (menu === "skills") {
       const deck=global.LuminousCombatSlotDeck073;
@@ -724,6 +774,18 @@
       .combat-economy-tab{flex:1 0 auto;min-width:48px;min-height:40px;padding:5px 3px;border:1px solid rgba(255,255,255,.16);background:#0b0907;color:#9a9184;font:900 7px/1 Arial,sans-serif;letter-spacing:.7px;text-transform:uppercase;cursor:pointer}
       .combat-economy-tab.active{color:#090705;background:var(--accent);border-color:#fff}
       .combat-economy-tab:disabled{opacity:.42;cursor:default}
+      /* A pointer hover must not simulate a selected combat action. */
+      #category-body .clean-row:not(.focused):hover{color:#d9cebc}
+      #category-body .clean-row:not(.focused):hover:before{opacity:0;transform:scaleX(.86)}
+      #category-body .clean-row:not(.focused):hover .clean-cost{color:#bda987}
+      #category-body .clean-row:not(.focused):hover .clean-icon{background:#17100a;color:var(--row-accent)}
+      #category-body .clean-row.item-hp-heal:not(.focused):hover .clean-name,
+      #category-body .clean-row.item-hp-heal:not(.focused):hover .clean-cost{color:#8bea97}
+      #category-body .clean-row.item-sp-heal:not(.focused):hover .clean-name,
+      #category-body .clean-row.item-sp-heal:not(.focused):hover .clean-cost{color:#afeef3}
+      #category-body .skill-option:not(.focused):hover{filter:none}
+      #category-body .clean-row:focus-visible,#category-body .skill-option:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+      @media (pointer:coarse){#category-body .clean-row{min-height:44px}.combat-economy-tab{min-height:44px}}
       .combat-economy-empty{padding:22px 14px;text-align:center;color:#8f8679;font:800 9px/1.45 Arial,sans-serif;letter-spacing:1px;text-transform:uppercase;border:1px dashed rgba(255,255,255,.16);background:rgba(0,0,0,.25)}
       .combat-item-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex:0 0 26px;margin-right:7px}
       .combat-item-icon img{display:block;width:24px;height:24px;object-fit:contain}
@@ -800,6 +862,7 @@
     const normalized = normalizeEconomyCost({ economyCost: tab });
     if (!TABBED_MENUS.has(menu) || ![ECONOMY.ACTION, ECONOMY.QUICK, ECONOMY.FREE, ECONOMY.REACTION].includes(normalized)) return false;
     state.tabByMenu[menu] = normalized;
+    delete state.clickedByMenu[menu];
     try { global.eval("navState='category';selected=null;focusedIndex=0"); } catch (_) {}
     const render = lexical("renderCategory");
     if (typeof render === "function") render();
@@ -825,7 +888,12 @@
       reason.textContent=row.__spellUnavailableReason;
       button.appendChild(reason);
     }
-    button.onclick = () => api.selectAction({ type:row.__deckCard?"deck":type, slotIndex:selectedSlotIndex(), ...(row.__deckCard?{drawId:row.__deckCard.drawId}:{}), data:row });
+    button.onclick = () => {
+      state.clickedByMenu[type === "spell" ? "spells" : "skills"] = row.id || row.spellId || row.name;
+      button.classList.add("focused");
+      button.setAttribute?.("aria-pressed", "true");
+      return api.selectAction({ type:row.__deckCard?"deck":type, slotIndex:selectedSlotIndex(), ...(row.__deckCard?{drawId:row.__deckCard.drawId}:{}), data:row });
+    };
     return button;
   }
 
@@ -910,7 +978,8 @@
     rows.forEach((row, index) => {
       const button = global.document.createElement("button");
       button.type = "button";
-      button.className = `clean-row ${index === 0 ? "focused" : ""}`;
+      button.className = `clean-row ${state.clickedByMenu.items === (row.instanceId || row.id) ? "focused" : ""}`;
+      button.setAttribute?.("aria-pressed", String(state.clickedByMenu.items === (row.instanceId || row.id)));
       button.dataset.itemInstanceId = row.instanceId || row.id || "";
       button.style?.setProperty?.("--row-accent", lexical("menuMeta", {})?.items?.accent || "#f0bf72");
       const qty = Math.max(0, Number(row.quantity) || 0);
@@ -918,6 +987,9 @@
       const icon = iconUrl ? `<span class="combat-item-icon"><img src="${htmlEscape(iconUrl)}" alt=""></span>` : "";
       button.innerHTML = `${icon}<span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">${row.enchantmentReaction?"PREPARAR":("x"+qty)} · ${htmlEscape(costLabel(row))}</span>`;
       button.onclick = () => {
+        state.clickedByMenu.items = row.instanceId || row.id;
+        button.classList.add("focused");
+        button.setAttribute?.("aria-pressed", "true");
         if(row.cancelEnchantmentReaction){
           const unit=playerUnit();
           if(unit)delete unit.__luminousSelectedEnchantmentReaction;
@@ -947,20 +1019,20 @@
     list.className = "clean-list";
     rows.forEach((row, index) => {
       const button = global.document.createElement("button");
-      button.className = `clean-row ${index === 0 ? "focused" : ""}`;
+      button.className = `clean-row ${state.clickedByMenu.global === (row.id || row.actionKey || row.name) ? "focused" : ""}`;
+      button.setAttribute?.("aria-pressed", String(state.clickedByMenu.global === (row.id || row.actionKey || row.name)));
       button.style.setProperty("--row-accent", lexical("menuMeta", {})?.global?.accent || "#ffe877");
       const icon = row.iconUrl ? `<img src="${htmlEscape(row.iconUrl)}" alt="">` : htmlEscape(row.name?.[0] || "A");
       button.innerHTML = `<span class="clean-icon action-png-icon">${icon}</span><span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">${htmlEscape(costLabel(row))}</span>`;
-      button.onclick = () => api.selectAction({ type: row.kind === "trait" ? "trait" : "global", slotIndex: selectedSlotIndex(), data: row });
+      button.onclick = () => {
+        state.clickedByMenu.global = row.id || row.actionKey || row.name;
+        button.classList.add("focused");
+        button.setAttribute?.("aria-pressed", "true");
+        return api.selectAction({ type: row.kind === "trait" ? "trait" : "global", slotIndex: selectedSlotIndex(), data: row });
+      };
       list.appendChild(button);
     });
     body.appendChild(list);
-    const desc = global.document.createElement("div");
-    desc.id = "clean-description";
-    desc.className = "description-box";
-    const first = rows[0];
-    desc.innerHTML = first ? `<div class="description-kicker">${htmlEscape(first.tag || "ACTION")}</div><div class="description-name">${htmlEscape(first.name)}</div><div class="description-text">${first.description || ""}</div><div class="description-cost">${htmlEscape(costLabel(first))}</div>` : "";
-    body.appendChild(desc);
   }
 
   function renderCleanList() {
@@ -973,7 +1045,26 @@
     const original = state.originals.renderCleanList;
     const reviewWrapper = global.LuminousCombatEconomyReviewFixes073?.renderCleanList;
     if (typeof original === "function" && original !== renderCleanList && original !== reviewWrapper) {
-      return original();
+      const result = original();
+      if (activeMenu() === "defense") {
+        const list = global.document?.getElementById?.("category-body")?.querySelector?.(".clean-list");
+        list?.querySelectorAll?.(".clean-row")?.forEach((button, index) => {
+          button.onmouseenter = null;
+          const clicked = state.clickedByMenu.defense === index;
+          button.classList.toggle("focused", clicked);
+          button.setAttribute?.("aria-pressed", String(clicked));
+          const legacyClick = button.onclick;
+          button.onclick = (...args) => {
+            state.clickedByMenu.defense = index;
+            button.classList.add("focused");
+            return legacyClick?.apply(button, args);
+          };
+        });
+        const description = global.document?.getElementById?.("clean-description");
+        if (description?.remove) description.remove();
+        else if (description) { description.innerHTML = ""; description.style.display = "none"; }
+      }
+      return result;
     }
     return undefined;
   }
@@ -1230,6 +1321,7 @@
       const menu = normalizeId(button.dataset?.menu);
       if (!TABBED_MENUS.has(menu)) return;
 
+      delete state.clickedByMenu[menu];
       // Preserve the original radial transition for mobile and desktop.
       // The economy runtime refreshes the canonical list after it settles.
       // Large-layout viewers keep the original radial transition. Refresh live
@@ -1243,8 +1335,8 @@
   function renderCategory() {
     syncResponsiveMenuLayout();
     const result = state.originals.renderCategory?.();
-    // Always replace legacy/demo category contents with canonical live Player data.
-    renderActiveMenuBody(activeMenu());
+    // Preserve clicked details during live category refresh.
+    if (clean(lexical("navState", "category")) === "category") renderActiveMenuBody(activeMenu());
     syncSpellMenuVisibility();
     syncTabs();
     updateCategoryContext();
@@ -1270,7 +1362,7 @@
     const reactionMode = reactionModeOf(source);
     const canPrepare = tab === ECONOMY.REACTION && reactionMode === "prepared";
     const buttonLabel = actionItem ? "USE ITEM" : (tab === ECONOMY.FREE ? "USE FREE ACTION" : (quick ? "USE QUICK ACTION" : (canPrepare ? "PREPARE REACTION" : "ADAPTIVE REACTION")));
-    body.innerHTML = `<div class="economy-action-detail"><div class="economy-kind">${htmlEscape(tab.replaceAll("_", " "))}${tab === ECONOMY.REACTION ? ` · ${reactionMode}` : ""}</div><h3>${htmlEscape(source.name || source.id || "Action")}</h3><div class="economy-copy">${source.description || ""}</div><div class="economy-cost">${htmlEscape(costLabel(source))}</div><button id="economy-action-confirm" ${tab === ECONOMY.REACTION && !canPrepare ? "disabled" : ""}>${buttonLabel}</button></div>`;
+    body.innerHTML = `<div class="economy-action-detail"><div class="economy-kind">${htmlEscape(tab.replaceAll("_", " "))}${tab === ECONOMY.REACTION ? ` · ${reactionMode}` : ""}</div><h3>${htmlEscape(source.name || source.id || "Action")}</h3><div class="economy-copy">${descriptionForMenu(source)}</div><div class="economy-cost">${htmlEscape(costLabel(source))}</div><button id="economy-action-confirm" ${tab === ECONOMY.REACTION && !canPrepare ? "disabled" : ""}>${buttonLabel}</button></div>`;
     const confirm = global.document.getElementById("economy-action-confirm");
     if (confirm && !confirm.disabled) {
       if (actionItem) confirm.onclick = () => confirmLegacyItemSelection(sel);
@@ -1301,12 +1393,24 @@
     const menu = activeMenu();
     const tab = economyTabFor(sel?.data || {});
     const actionItem = menu === "items" && tab === ECONOMY.ACTION && normalizeId(sel?.data?.kind || sel?.data?.sourceType) === "item";
+    if (sel?.data?.__combatReadOnly && TABBED_MENUS.has(menu)) {
+      global.__luminousEconomySelected = sel;
+      try { global.eval("selected=window.__luminousEconomySelected;navState='action'"); } catch (_) {}
+      const body = global.document?.getElementById?.("category-body");
+      if (body) {
+        body.innerHTML = `<div class="economy-action-detail"><div class="economy-kind">${htmlEscape(sel.data.tag || "MANEUVER")}</div><h3>${htmlEscape(sel.data.name || sel.data.id)}</h3><div class="economy-copy">${descriptionForMenu(sel.data)}</div><div class="economy-cost">${htmlEscape(sel.data.cost || "Maneuver")}</div></div>`;
+        lexical("layoutCategory", () => {})();
+      }
+      return sel;
+    }
     if (!TABBED_MENUS.has(menu) || (tab === ECONOMY.ACTION && !actionItem)) {
       // Menu rows use domain kinds, while the live planner uses granted/spells.
       // Passing "skill" through created an attack the Clash preview could not
       // recognize, even though the online resolver later reconstructed it.
       const type = sel?.type === "skill" ? "granted" : sel?.type === "spell" ? "spells" : sel?.type;
-      return state.originals.selectAction?.({ ...sel, type });
+      const result = state.originals.selectAction?.({ ...sel, type });
+      ensureSelectedDescription(sel);
+      return result;
     }
 
     global.__luminousEconomySelected = sel;
@@ -1317,7 +1421,7 @@
       lexical("setStatus", () => {})(`ITEM · ${sel?.data?.name || "Item"}`);
       return sel;
     }
-    lexical("setStatus", () => {})(`${tab === ECONOMY.QUICK ? "QUICK ACTION" : "REACTION"} · ${sel?.data?.name || "Action"}`);
+    lexical("setStatus", () => {})(`${tab === ECONOMY.QUICK ? "QUICK ACTION" : (tab === ECONOMY.FREE ? "FREE ACTION" : "REACTION")} · ${sel?.data?.name || "Action"}`);
     return sel;
   }
 
@@ -1570,6 +1674,7 @@
     await loadScript("trait-engine-economy073", "js/trait-engine.js", () => Boolean(global.LuminousTraitEngine));
     await loadScript("archetype-engine-economy073", "js/archetype-engine.js", () => Boolean(global.LuminousArchetypeEngine));
     await loadScript("archetype-trait-catalog-economy073", "js/archetype-trait-catalog.js", () => Boolean(global.LuminousArchetypeTraitCatalog));
+    await loadScript("fighter-maneuver-catalog-economy073", "js/fighter-maneuver-catalog.js", () => Boolean(global.LuminousFighterManeuverCatalog));
     await loadScript("trait-catalog-core-economy073", "js/trait-catalog-core.js", () => Boolean(global.LuminousTraitCatalogCore));
     await loadScript("class-milestone-engine-economy073", "js/class-milestone-engine.js", () => Boolean(global.LuminousClassMilestones));
     await loadScript("racial-trait-catalog-economy073", "js/racial-trait-catalog.js", () => Boolean(global.LuminousRacialTraitCatalog));
@@ -1584,7 +1689,7 @@
   }
 
   function refreshTraitActionMenu() {
-    if (state.installed && activeMenu() === "global") renderGlobalList();
+    if (state.installed && activeMenu() === "global" && clean(lexical("navState", "")) === "category") renderGlobalList();
   }
 
   function ensureTraitLibrarySubscriptions() {
@@ -1669,6 +1774,7 @@
       global.__luminousEconomyOriginalGoRoot = state.originals.goRoot;
       global.__luminousEconomyGoRoot = function (...args) {
         state.menuRefreshGeneration += 1;
+        state.clickedByMenu = {};
         const result = global.__luminousEconomyOriginalGoRoot.apply(this, args);
         global.setTimeout?.(syncResponsiveMenuLayout, 0);
         return result;
@@ -1692,14 +1798,14 @@
     return true;
   }
 
-  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, authoritativeCharacter, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, restoreGlobalCategoryFromActionDetail, installActionBackRecovery, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
+  const api = { version: VERSION, ECONOMY, state, normalizeEconomyCost, economyTabFor, costLabel, canonicalPlayerId, playerUnit, playerKit, traitDefinitionsForPlayer, learnedManeuverRowsForPlayer, descriptionForMenu, authoritativeCharacter, liveActions, spellLoadoutRuntime, normalizeSpellForMenu, classEntries, spellcastingClasses, isSpellcaster, selectedSpellIds, spellRowsForPlayer, inventoryEntries, quantityOf, itemTiming, itemIconUrl, itemCanUseInCombat, stableItemRow, itemRowsForPlayer, findActiveInventoryItem, spellMenuNodes, syncSpellMenuVisibility, layoutRadialCommandsStable, syncResponsiveMenuLayout, renderActiveMenuBody, ensureCategorySurfaceOpen, restoreGlobalCategoryFromActionDetail, installActionBackRecovery, refreshOpenedMenu, openCompactMenu, installRootMenuClickHandler, selfTargetedItem, planTargetRuleCompat, persistQuickItemState, rowsFor, renderSkills, renderSpells, renderItems, renderCleanList, renderCategory, selectAction, confirmLegacyItemSelection, setTab, syncTabs, syncQuickBadge, syncPlanningEconomy, beginCombatEconomy, prepareReaction, triggerPreparedReaction, useQuickAction, install };
 
   async function boot() { await ensureDependencies(); return install(); }
   api.boot = boot; api.ensureDependencies = ensureDependencies;
   global.LuminousCombatEconomyMenu073 = Object.freeze(api);
   global.addEventListener?.("luminous:combat073-spells-ready",()=>{
     syncSpellMenuVisibility();
-    if(activeMenu()==="spells")renderSpells();
+    if(activeMenu()==="spells" && clean(lexical("navState", ""))==="category")renderSpells();
   });
   global.addEventListener?.("luminous:combat073-hydrated", () => { ensureTraitLibrarySubscriptions(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
   global.addEventListener?.("luminous:combat073-runtime-ready", () => global.setTimeout(boot, 0));
