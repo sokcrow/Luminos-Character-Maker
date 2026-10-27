@@ -126,7 +126,7 @@
 
     loader.append(summary, slot);
     const quickCast = director.querySelector(".npc-spawner-section");
-    if (quickCast) director.insertBefore(loader, quickCast);
+    if (quickCast) quickCast.parentNode.insertBefore(loader, quickCast);
     else director.appendChild(loader);
 
     loader.addEventListener("toggle", () => {
