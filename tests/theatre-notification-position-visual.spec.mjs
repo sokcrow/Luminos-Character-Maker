@@ -3,6 +3,9 @@ import { test, expect } from '@playwright/test';
 const BASE = process.env.DM_VISUAL_BASE_URL || 'http://127.0.0.1:4173';
 const screens = [
   {name: 'mobile-360', width: 360, height: 800},
+  {name: 'mobile-390', width: 390, height: 844},
+  {name: 'tablet', width: 768, height: 1024},
+  {name: 'desktop-large', width: 1920, height: 1080},
   {name: 'mobile-landscape', width: 844, height: 390},
   {name: 'desktop', width: 1280, height: 720}
 ];
@@ -50,11 +53,25 @@ for (const screen of screens) {
     expect(player.y).toBeGreaterThanOrEqual(111);
     expect(opposed.x).toBeGreaterThanOrEqual(15);
     expect(opposed.x).toBeLessThanOrEqual(18);
-    expect(opposed.y).toBeGreaterThanOrEqual(213);
+    expect(opposed.y).toBeGreaterThanOrEqual(player.y + player.height + 7);
     expect(opposed.y).toBeGreaterThanOrEqual(player.y + player.height);
     expect(player.x + player.width).toBeLessThanOrEqual(screen.width + 1);
     expect(opposed.x + opposed.width).toBeLessThanOrEqual(screen.width + 1);
     expect(opposed.y + opposed.height).toBeLessThanOrEqual(screen.height);
     await expect(page.locator('.theatre-check-player-notice')).toHaveCSS('pointer-events', 'none');
+    // Real multiline errors must push the second notice down by their height.
+    await page.locator('.theatre-check-player-notice span').evaluate(el => {
+      el.textContent = 'No se pudo sincronizar la solicitud. '.repeat(25);
+    });
+    const longPlayer = await page.locator('.theatre-check-player-notice').boundingBox();
+    const below = await page.locator('.theatre-opposed-result-notice').boundingBox();
+    expect(longPlayer.height).toBeGreaterThan(player.height);
+    expect(below.y).toBeGreaterThanOrEqual(longPlayer.y + longPlayer.height + 7);
+    expect(below.y + below.height).toBeLessThanOrEqual(screen.height - 15);
+    // Removing the first notice must not leave a hard-coded vertical gap.
+    await page.locator('.theatre-check-player-notice').evaluate(el => el.remove());
+    const alone = await page.locator('.theatre-opposed-result-notice').boundingBox();
+    expect(alone.y).toBeGreaterThanOrEqual(111);
+    expect(alone.y).toBeLessThanOrEqual(114);
   });
 }
