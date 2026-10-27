@@ -11,7 +11,8 @@
     "test:combat-mobile": "node tests/combat-mobile-boot-smoke.mjs",
     "build:combat-live": "node scripts/build-combat-live.mjs",
     "check:combat-live": "node scripts/build-combat-live.mjs --check",
-    "package:combat-release": "node scripts/package-combat-release.mjs"
+    "package:combat-release": "node scripts/package-combat-release.mjs",
+    "test:mvp": "node tests/combat-mvp-session-smoke.mjs"
   },
   "repository": {
     "type": "git",
