@@ -9,7 +9,8 @@ const syncSource = fs.readFileSync('js/combat-v073-playback-sync.js', 'utf8');
 const combatants = { ally: { hp: 77 } };
 let authoritySnapshot = null;
 
-function viewer(index, { finalRepair = false, repeatCancel = false } = {}) {
+function viewer(index, { finalRepair = false, repeatCancel = false, holdVisual = false } = {}) {
+  const releases = [];
   const retries = [];
   let reads = 0;
   let handler = null;
@@ -53,6 +54,7 @@ function viewer(index, { finalRepair = false, repeatCancel = false } = {}) {
     acceptEvent(event) { events.push(event.sequence); },
     async present(cue, args) {
       visual.push(args[0]);
+      if (holdVisual) return new Promise(resolve => releases.push(resolve));
       if (index === 0 && args[0] === 'Clash 1') throw Error('bad sprite');
       if (index === 1 && args[0] === 'Clash 1') return new Promise(() => {});
     },
@@ -66,7 +68,7 @@ function viewer(index, { finalRepair = false, repeatCancel = false } = {}) {
     applySnapshot(snapshot) { applied.push(JSON.parse(JSON.stringify(snapshot))); },
   };
   return {
-    c, sync, events, applied, visual, finished, warnings, errors, retries,
+    c, sync, events, applied, visual, finished, warnings, errors, retries, releases,
     restoreSubscription() { repeatCancel = false; },
     deliver(payload) { assert.ok(handler, 'viewer has an active batch subscription'); handler({ val: () => payload }); },
     async idle() { await sync.state.consumer.idle(); },
@@ -186,3 +188,26 @@ await cancelled.sync.observe({ ...round, id: 'next-generation' });
 assert.equal(cancelled.sync.state.viewerRecoveryAttempts, 0, 'a new round gets a fresh retry budget');
 cancelled.close();
 console.log('Repeated subscription cancellation: bounded backoff and new-generation reset passed.');
+
+// A scheduled consumer can reach its final batch while a local visual is still
+// pending. Recovering the SAME generation must not let that old finish callback
+// unlock the replacement consumer when the old animation eventually completes.
+const replaced = viewer(10, { holdVisual: true });
+const scheduledRound = { ...round, playback: { ...round.playback, timelineVersion: 1 } };
+await replaced.sync.observe(scheduledRound);
+const terminal = batch(1, 77, 'round_complete');
+const terminalPayload = JSON.parse(terminal.payload);
+terminalPayload.events[0].timing = { schemaVersion: 1, playAt: Date.now() };
+terminal.payload = JSON.stringify(terminalPayload);
+replaced.deliver(terminal);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(replaced.releases.length, 1, 'final visual is still running');
+const abandoned = replaced.sync.state.consumer;
+replaced.sync.disconnectConsumer();
+await replaced.sync.observe(scheduledRound);
+replaced.releases.forEach(release => release());
+await abandoned.idle();
+assert.deepEqual(replaced.finished, [], 'abandoned consumer cannot finish its replacement');
+assert.equal(replaced.sync.state.authority.state.runningLocal, true);
+replaced.close();
+console.log('Scheduled final visual: same-generation recovery cannot unlock the replacement viewer.');
