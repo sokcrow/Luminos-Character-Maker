@@ -18,12 +18,17 @@ for (const screen of screens) {
       contentType: 'text/html',
       body: `<!doctype html><html lang="es"><head>
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+        <link rel="stylesheet" href="/css/on-game-dashboard.css">
+        <link rel="stylesheet" href="/css/theatre-hud.css">
         <link rel="stylesheet" href="/css/theatre-check-coordinator.css">
         <link rel="stylesheet" href="/css/theatre-opposed-checks.css">
         </head><body class="on-game-dashboard" style="margin:0;background:#070707;color:white">
+          <header class="master-control-bar">Controles del DM</header>
+          <main id="modulo-teatro" class="game-module active-module"><div class="stage-view-wrapper">
           <div id="theatre-check-front-layer" class="theatre-check-front-layer">
             <div class="theatre-check-dm-toast"><strong>SOLICITUD DE CHECK</strong><span>Check Director</span></div>
           </div>
+          </div></main>
         </body></html>`
     }));
     await page.goto(BASE + '/theatre-popup-preview');
@@ -32,13 +37,18 @@ for (const screen of screens) {
     expect(rect).not.toBeNull();
     expect(rect.x).toBeGreaterThanOrEqual(15);
     expect(rect.x).toBeLessThanOrEqual(18);
-    expect(rect.y).toBeGreaterThanOrEqual(15);
-    expect(rect.y).toBeLessThanOrEqual(18);
+    const header = await page.locator('.master-control-bar').boundingBox();
+    expect(rect.y).toBeGreaterThanOrEqual(header.y + header.height + 15);
+    expect(rect.y).toBeLessThanOrEqual(header.y + header.height + 18);
     expect(rect.x + rect.width).toBeLessThanOrEqual(screen.width + 1);
     expect(rect.y + rect.height).toBeLessThanOrEqual(screen.height);
     await expect(dmToast).toHaveCSS('pointer-events', 'none');
 
     await page.evaluate(() => {
+      const layer = document.querySelector('#theatre-check-front-layer');
+      document.body.appendChild(layer);
+      document.querySelector('.master-control-bar').remove();
+      document.querySelector('#modulo-teatro').remove();
       document.body.className = 'player-instance-theatre';
       document.querySelector('#theatre-check-front-layer').innerHTML =
         '<div class="theatre-check-player-notice"><strong>CHECK</strong><span>Resultado disponible</span></div>' +
