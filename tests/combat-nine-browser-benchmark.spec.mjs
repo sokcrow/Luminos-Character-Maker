@@ -29,11 +29,11 @@ function instrument(){
   crypto.getRandomValues=values=>{if(values instanceof Uint32Array&&values.length===1){values[0]=0x1234abcd;return values}return randomValues(values)};
   try{localStorage.setItem('luminos.combat.presentation.v1',JSON.stringify({sound:false,volume:0,quality:'full'}));}catch{}
   const now=()=>performance.timeOrigin+performance.now()+(window.LuminousCombatPlaybackSync?.state.serverOffset||0);
-  const data=window.__nine={cues:[],events:[],received:[],frames:[],longTasks:[],profile:[],gpu:{frames:0,draws:0,drawingFrames:0,lastFrameDraws:0,pixelAreaSum:0,maxPixelArea:0},active:false,ruleCalls:0,errors:[]};
+  const data=window.__nine={cues:[],events:[],received:[],frames:[],longTasks:[],profile:[],gpu:{frames:0,draws:0,drawingFrames:0,lastFrameDraws:0},active:false,ruleCalls:0,errors:[]};
   if(window.WebGL2RenderingContext){
     const proto=WebGL2RenderingContext.prototype,clear=proto.clear,draw=proto.drawArrays;
     const active=()=>data.active&&window.LuminousCombatAuthority073?.state.runningLocal;
-    proto.clear=function(...args){if(active()){data.gpu.frames++;const area=this.drawingBufferWidth*this.drawingBufferHeight;data.gpu.pixelAreaSum+=area;data.gpu.maxPixelArea=Math.max(data.gpu.maxPixelArea,area);if(data.gpu.lastFrameDraws)data.gpu.drawingFrames++;data.gpu.lastFrameDraws=0}return clear.apply(this,args)};
+    proto.clear=function(...args){if(active()){data.gpu.frames++;if(data.gpu.lastFrameDraws)data.gpu.drawingFrames++;data.gpu.lastFrameDraws=0}return clear.apply(this,args)};
     proto.drawArrays=function(...args){if(active()){data.gpu.draws++;data.gpu.lastFrameDraws++}return draw.apply(this,args)};
   }
   function measured(name,fn){
