@@ -3,7 +3,7 @@
 
   if (global.LuminousCombatEconomyMenu073) return;
 
-  const VERSION = "0.7.3-economy-menu.11-all-units-independent-actions";
+  const VERSION = "0.7.3-economy-menu.12-click-only-details";
   const TABBED_MENUS = new Set(["global", "skills", "spells", "items"]);
   const ECONOMY = Object.freeze({ ACTION: "action", QUICK: "quick_action", FREE: "free_action", REACTION: "reaction" });
   const state = {
@@ -27,6 +27,7 @@
     rootMenuClickInstalled: false,
     actionBackRecoveryInstalled: false,
     menuRefreshGeneration: 0,
+    clickedByMenu: {},
   };
 
   const clean = (value) => String(value ?? "").trim();
@@ -800,6 +801,7 @@
     const normalized = normalizeEconomyCost({ economyCost: tab });
     if (!TABBED_MENUS.has(menu) || ![ECONOMY.ACTION, ECONOMY.QUICK, ECONOMY.FREE, ECONOMY.REACTION].includes(normalized)) return false;
     state.tabByMenu[menu] = normalized;
+    delete state.clickedByMenu[menu];
     try { global.eval("navState='category';selected=null;focusedIndex=0"); } catch (_) {}
     const render = lexical("renderCategory");
     if (typeof render === "function") render();
@@ -910,7 +912,7 @@
     rows.forEach((row, index) => {
       const button = global.document.createElement("button");
       button.type = "button";
-      button.className = `clean-row ${index === 0 ? "focused" : ""}`;
+      button.className = `clean-row ${state.clickedByMenu.items === (row.instanceId || row.id) ? "focused" : ""}`;
       button.dataset.itemInstanceId = row.instanceId || row.id || "";
       button.style?.setProperty?.("--row-accent", lexical("menuMeta", {})?.items?.accent || "#f0bf72");
       const qty = Math.max(0, Number(row.quantity) || 0);
@@ -918,6 +920,8 @@
       const icon = iconUrl ? `<span class="combat-item-icon"><img src="${htmlEscape(iconUrl)}" alt=""></span>` : "";
       button.innerHTML = `${icon}<span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">${row.enchantmentReaction?"PREPARAR":("x"+qty)} · ${htmlEscape(costLabel(row))}</span>`;
       button.onclick = () => {
+        state.clickedByMenu.items = row.instanceId || row.id;
+        button.classList.add("focused");
         if(row.cancelEnchantmentReaction){
           const unit=playerUnit();
           if(unit)delete unit.__luminousSelectedEnchantmentReaction;
@@ -947,20 +951,18 @@
     list.className = "clean-list";
     rows.forEach((row, index) => {
       const button = global.document.createElement("button");
-      button.className = `clean-row ${index === 0 ? "focused" : ""}`;
+      button.className = `clean-row ${state.clickedByMenu.global === (row.id || row.actionKey || row.name) ? "focused" : ""}`;
       button.style.setProperty("--row-accent", lexical("menuMeta", {})?.global?.accent || "#ffe877");
       const icon = row.iconUrl ? `<img src="${htmlEscape(row.iconUrl)}" alt="">` : htmlEscape(row.name?.[0] || "A");
       button.innerHTML = `<span class="clean-icon action-png-icon">${icon}</span><span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">${htmlEscape(costLabel(row))}</span>`;
-      button.onclick = () => api.selectAction({ type: row.kind === "trait" ? "trait" : "global", slotIndex: selectedSlotIndex(), data: row });
+      button.onclick = () => {
+        state.clickedByMenu.global = row.id || row.actionKey || row.name;
+        button.classList.add("focused");
+        return api.selectAction({ type: row.kind === "trait" ? "trait" : "global", slotIndex: selectedSlotIndex(), data: row });
+      };
       list.appendChild(button);
     });
     body.appendChild(list);
-    const desc = global.document.createElement("div");
-    desc.id = "clean-description";
-    desc.className = "description-box";
-    const first = rows[0];
-    desc.innerHTML = first ? `<div class="description-kicker">${htmlEscape(first.tag || "ACTION")}</div><div class="description-name">${htmlEscape(first.name)}</div><div class="description-text">${first.description || ""}</div><div class="description-cost">${htmlEscape(costLabel(first))}</div>` : "";
-    body.appendChild(desc);
   }
 
   function renderCleanList() {
@@ -1243,8 +1245,8 @@
   function renderCategory() {
     syncResponsiveMenuLayout();
     const result = state.originals.renderCategory?.();
-    // Always replace legacy/demo category contents with canonical live Player data.
-    renderActiveMenuBody(activeMenu());
+    // Preserve clicked details during live category refresh.
+    if (clean(lexical("navState", "category")) === "category") renderActiveMenuBody(activeMenu());
     syncSpellMenuVisibility();
     syncTabs();
     updateCategoryContext();
@@ -1584,7 +1586,7 @@
   }
 
   function refreshTraitActionMenu() {
-    if (state.installed && activeMenu() === "global") renderGlobalList();
+    if (state.installed && activeMenu() === "global" && clean(lexical("navState", "")) === "category") renderGlobalList();
   }
 
   function ensureTraitLibrarySubscriptions() {
@@ -1699,7 +1701,7 @@
   global.LuminousCombatEconomyMenu073 = Object.freeze(api);
   global.addEventListener?.("luminous:combat073-spells-ready",()=>{
     syncSpellMenuVisibility();
-    if(activeMenu()==="spells")renderSpells();
+    if(activeMenu()==="spells" && clean(lexical("navState", ""))==="category")renderSpells();
   });
   global.addEventListener?.("luminous:combat073-hydrated", () => { ensureTraitLibrarySubscriptions(); syncPlanningEconomy(false); syncQuickBadge(); syncSpellMenuVisibility(); syncResponsiveMenuLayout(); const render = lexical("renderCategory"); if (activeMenu() && typeof render === "function") render(); });
   global.addEventListener?.("luminous:combat073-runtime-ready", () => global.setTimeout(boot, 0));
