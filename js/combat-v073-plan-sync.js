@@ -279,7 +279,15 @@
       const remembered=independentPending(s)[fingerprint];
       const requestId=remembered?.id||previous?.[0]||(global.crypto?.randomUUID?.()||`${Date.now()}-${++independentIntentCounter}`).replace(/[.#$\[\]\/]/g,'_');
       rememberIndependent(s,fingerprint,{id:requestId,round:payload.round});
-      if(!intents[requestId])await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(requestId)}`).set(payload);
+      try {
+        if(!intents[requestId])await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(requestId)}`).set(payload);
+      } catch(error) {
+        // The server never accepted this request: do not retain a phantom Free
+        // Action in the outbox or block READY as if a receipt were pending.
+        rememberIndependent(s,fingerprint,null);
+        if(String(error?.code||'').toLowerCase()==='permission_denied')return {used:false,reason:'permission_denied'};
+        throw error;
+      }
       independentDeliveryFailed=false;
       const receiptRef=s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}/${safe(requestId)}`);
       const receipt=await new Promise((resolve,reject)=>{

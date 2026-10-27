@@ -115,6 +115,12 @@ assert.equal(itemCompeting.players.p1.inventario_activo['Potion-A'].quantity,1,'
 assert.equal(itemCompeting.raw.combatants['player:p1'].hp,50);
 console.log('Canonical item inventory: real runtime and hydration, Quick/Free, stale combat quantities, two DM tabs, concurrent inventory edits and recovery at both persistence boundaries passed.');
 
+// Client and Firebase rules accept status as a Planning phase field.
+const statusPlanning=shared();
+statusPlanning.raw.estado={status:'planning',round:1,encounterId:'test'};
+statusPlanning.raw.independentIntents.p1.once=clone(intent);
+await setup(statusPlanning).remote.processIndependentIntents(statusPlanning.raw.independentIntents);
+assert.equal(statusPlanning.raw.independentReceipts.p1.once.applied,true,'DM accepts the same status=planning phase as client and Firebase rules');
 function universalDatabase(key='analyse',extra={}){const db=shared();db.raw.combatants.enemy={id:'enemy',faction:'enemy',hp:20,maxHp:20,actionSlots:3,battleActive:true,statusEffects:{},observationKnown:[]};db.raw.independentIntents.p1.once={...intent,sourceId:key,sourceType:'universal',cost:'free_action',targetId:'enemy',choice:'hp',...extra};return db;}
 const obs=universalDatabase(),oa=setup(obs),ob=setup(obs);await Promise.all([oa.remote.processIndependentIntents(obs.raw.independentIntents),ob.remote.processIndependentIntents(obs.raw.independentIntents)]);assert.equal(obs.writes,1);assert.deepEqual(obs.raw.combatants.enemy.observationKnown,['hp']);assert.equal(obs.raw.combatants['player:p1'].quickActionRemaining,1);
 const blind=universalDatabase();blind.raw.combatants['player:p1'].statusEffects={blinded:{count:1}};await setup(blind).remote.processIndependentIntents(blind.raw.independentIntents);assert.equal(blind.raw.independentReceipts.p1.once.result.success,false);assert.equal(blind.raw.combatants['player:p1'].universalActionPhaseLedger.spent.analyse,true);

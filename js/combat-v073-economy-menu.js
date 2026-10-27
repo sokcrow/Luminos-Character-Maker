@@ -1444,6 +1444,7 @@
   }
 
   function independentMessage(reason) {
+    if (/permission_denied/i.test(reason)) return "Esta acción todavía no está habilitada en la partida. Avisa al DM.";
     if (/quick.*spent|No quick/.test(reason)) return "Ya usaste tu Quick Action este turno.";
     if (/invalid_target/.test(reason)) return "Elige un objetivo válido.";
     if (/uses remaining|Count remaining|not_enough|No .*remaining/.test(reason)) return "No tienes usos o recursos suficientes.";

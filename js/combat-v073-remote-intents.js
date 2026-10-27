@@ -279,7 +279,7 @@
         if(raw.independentReceipts?.[playerId]?.[intentId]){await finishInventory(s,playerId,intentId,raw.independentReceipts[playerId][intentId]);committed=true;break;}
         const row=raw.independentIntents?.[playerId]?.[intentId];
         if(!row){committed=true;break;}
-        const phase=norm(raw.estado?.phase||raw.estado?.state||raw.estado),turn=Number(raw.estado?.round||s.round)||1;
+        const phase=norm(raw.estado?.phase||raw.estado?.state||raw.estado?.status||raw.estado),turn=Number(raw.estado?.round||s.round)||1;
         const sealed=['sealed','running'].includes(norm(raw.authority?.current?.phase));
         const live=runtime()?.combatants?.()||{};
         let units=Object.entries(raw.combatants||{}).map(([id,unit])=>({...clone(live[id]||{}),...clone(unit),id}));
