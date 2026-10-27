@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import {fixture,npcBenchmarkPlan} from './helpers/combat-nine-fixture.mjs';
 
 const harnessRoot=process.cwd(),base='http://127.0.0.1:4173';
 const namespace='demo-combat-results-default-rtdb';
@@ -10,7 +11,6 @@ const roots={before:path.resolve(process.env.COMBAT_BENCH_BASELINE_ROOT||''),aft
 const labels={before:process.env.COMBAT_BENCH_BASELINE_SHA||'unrecorded',after:process.env.COMBAT_BENCH_CANDIDATE_SHA||'unrecorded'};
 const viewports=[[1280,720],[360,800],[390,844],[844,390],[768,1024],[1280,720],[1920,1080],[390,844],[1280,720]];
 let sourceRoot=harnessRoot,server;
-const clone=value=>JSON.parse(JSON.stringify(value));
 const endpoint=p=>`http://127.0.0.1:9100/${p.split('/').map(encodeURIComponent).join('/')}.json?ns=${namespace}`;
 async function admin(p,method='GET',value){
   const response=await fetch(endpoint(p),{method,headers:{Authorization:'Bearer owner','Content-Type':'application/json'},...(value===undefined?{}:{body:JSON.stringify(value)})});
@@ -21,19 +21,7 @@ async function account(index){
   const response=await fetch('http://127.0.0.1:9199/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,returnSecureToken:true})});
   const data=await response.json();expect(data.localId,JSON.stringify(data)).toBeTruthy();return {uid:data.localId,email,password};
 }
-function fixture(users){
-  const sprite=color=>'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="180" height="240"><circle cx="90" cy="55" r="40" fill="${color}"/><path d="M30 230V130Q90 70 150 130V230Z" fill="${color}"/></svg>`);
-  const skills={};
-  for(const [index,id]of ['s1','s2','s3','enemy_s1'].entries())skills[id]={id,name:id==='enemy_s1'?'Kobold Strike':`Strike ${id}`,kind:'skill',tier:Math.min(3,index+1),basePower:id==='enemy_s1'?2:12,coinPower:2,coinAmount:3,damageType:'Blunt',sinAffinity:'wrath',effects:[],coins:Array.from({length:3},()=>({effects:[]}))};
-  const players={},units={};
-  users.slice(1).forEach((user,index)=>{
-    const id=`p${index+1}`,unitId=`player:${id}`;
-    const row={uid:user.uid,characterName:`PLAYER ${index+1}`,hp:10000,maxHp:10000,sp:0,actionSlots:1,characterBuild:{skillDeck:{tier1:'s1',tier2:'s2',tier3:'s3'}},inventario_activo:{},combatSprite:sprite('#72baff')};
-    players[id]=row;units[unitId]={...clone(row),id:unitId,combatId:unitId,isPlayer:true,canonicalScope:'player',canonicalPlayerKey:id,canonicalOwnerUid:user.uid,ownerPlayerId:id,ownerUid:user.uid,playerId:id,category:'player',faction:'ally',battleActive:true,isBackup:false,deploymentState:'field',skillIds:['s1','s2','s3'],skillSlotIds:['s1','s1','s1','s2','s2','s3'],equippedSkillIndex:{s1:true,s2:true,s3:true},actionSlotIndex:{0:true},speed:6,speedBaseRoll:6,speedRollTurn:1,speedTie:(index+1)/20};
-  });
-  for(let index=1;index<=2;index++){const id=`kobold${index}`;units[id]={id,name:`Kobold ${index}`,isPlayer:false,category:'enemy',faction:'enemy',battleActive:true,isBackup:false,deploymentState:'field',hp:10000,maxHp:10000,sp:0,actionSlots:1,skillIds:['enemy_s1'],equippedSkillIndex:{enemy_s1:true},actionSlotIndex:{0:true},level:1,combatSprite:sprite('#e27254'),speed:5,speedBaseRoll:5,speedRollTurn:1,speedTie:index/20};}
-  return {config:{dm_uid:users[0].uid},estado_mundo:{instancia_activa:'combate'},jugadores:players,base_datos_skills:skills,base_datos_unidades:{},actores:{},combate:{estado:{phase:'PRE_COMBAT_PLANNING',round:1,active:true,encounterId:'nine-browser-benchmark',presentation:'full'},combatants:units}};
-}
+
 function instrument(){
   // Fixture seed only. Presentation clocks/timers and the combat resolver are
   // untouched. Different UUIDs and Auth identities remain genuinely random.
@@ -140,16 +128,16 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
         await expect.poll(async()=>Object.keys((await admin('campaña/combate/planningAi'))?.plans||{}).length,{timeout:30000}).toBe(2);
         // Explicit fixture actions authored through the real DM planning
         // channel. The real sealer, rules, resolver and animations still run.
-        await dm.evaluate(async()=>{
+        await dm.evaluate(async fixturePlans=>{
           const bridge=LuminousCombatRemoteIntents073,state=bridge.state;
           const row=JSON.parse(JSON.stringify(state.planningAi));
           for(let i=1;i<=2;i++){
             const id=`kobold${i}`,unit=LuminousCombat073.combatants()[id],skill=LuminousCombatLiveAdapter073.state.skills.enemy_s1;
-            const plan={type:'global',sourceSlotIndex:0,targetId:`player:p${i}`,targetSlotIndex:0,clashChoice:'clash',clashConfirmed:true,data:skill};
+            const plan=fixturePlans[i-1];
             row.plans[id]={0:LuminousCombatAuthority073.serializeRuntimePlan(plan,id,0)};
           }
           await LuminousCombatLiveAdapter073.state.db.ref('campaña/combate/planningAi').set(row);
-        });
+        },[npcBenchmarkPlan(1,campaign.base_datos_skills.enemy_s1),npcBenchmarkPlan(2,campaign.base_datos_skills.enemy_s1)]);
         await expect.poll(()=>dm.evaluate(()=>LuminousCombat073.combatants().kobold1.autoPlans?.[0]?.targetId)).toBe('player:p1');
         for(const frame of frames)await frame.evaluate(()=>{__nine.active=true});
         const started=Date.now();
@@ -176,7 +164,8 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
       }catch(error){
         result.failure=String(error.stack||error);
         result.clients=await Promise.all(frames.map(frame=>snapshot(frame).catch(error=>({failure:String(error)}))));
-        result.authority=await admin('campaña/combate/authority/current').catch(()=>null);
+        result.combatSnapshot=await admin('campaña/combate').catch(()=>null);
+        result.authority=result.combatSnapshot?.authority?.current||null;
         result.batches=await admin('campaña/combate/playback/current/batches').catch(()=>null);
         await Promise.all(pages.map((page,index)=>page.screenshot({path:path.join(directory,`failure-${index}.png`),timeout:5000}).catch(()=>{})));
       }finally{
