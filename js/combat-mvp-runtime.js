@@ -10,7 +10,7 @@
   const escaped=u=>u?.escaped===true||u?.departed===true||['escape','escaped'].includes(clean(u?.departureReason||u?.exitReason).toLowerCase());
   const isPlayer=u=>u?.isPlayer===true||['player','jugador'].includes(clean(u?.actorCategory||u?.category||u?.canonicalScope).toLowerCase());
   const playerId=u=>clean(u?.canonicalPlayerKey||u?.ownerPlayerId||u?.playerId||u?.characterLink?.playerId);
-  const npcId=u=>clean(u?.persistentNpcId||u?.npcId||u?.characterLink?.npcId);
+  const npcId=u=>clean(u?.persistentNpcId||u?.npcId||u?.characterLink?.npcId||u?.actorId);
   const actorName=(u,id)=>clean(u?.displayName||u?.characterName||u?.nombre||u?.name||id);
   const portrait=u=>clean(u?.splashArt||u?.splashImage||u?.portrait||u?.avatar||u?.imageUrl||u?.image);
   function eligibleActors(encounter={}){
