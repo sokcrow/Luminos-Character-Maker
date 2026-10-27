@@ -22,6 +22,7 @@ vm.runInContext(html.slice(html.indexOf('async function resolveUnopposedCoinActi
 const a={ownerId:'a',plan:{targetId:'b',data:{coinAmount:3}}},b={ownerId:'b',plan:{targetId:'a',data:{coinAmount:3}}};
 c.focusCombatCameraOnClash(a,b);assert.equal(cameras.length,1,'A nonparticipant follows the live Clash');
 c.timelineResolutionActive=false;c.focusCombatCameraOnClash(a,b);assert.equal(cameras.length,1,'Private camera outside resolution is preserved');c.timelineResolutionActive=true;
+c.LuminousCombatLiveMode=false;c.focusCombatCameraOnClash(a,b);assert.equal(cameras.length,1,'Offline parallel timeline keeps its original local focus');c.LuminousCombatLiveMode=true;
 const runtime=c.combatStepRuntime();
 await runtime.present('actionStart',[a]);assert.deepEqual(focus.at(-1),['a','b']);
 await runtime.present('actionApproach',[a,'attack']);assert.equal(holds.at(-1),520);assert.deepEqual(moves.at(-1),['approach','a']);assert.deepEqual(huds.at(-1),['a',3]);

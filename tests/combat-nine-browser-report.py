@@ -4,7 +4,7 @@ import json
 import math
 import statistics
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 root = Path(sys.argv[1] if len(sys.argv) > 1 else 'artifacts/combat-nine')
@@ -30,7 +30,7 @@ samples, cases, signatures = [], [], defaultdict(list)
 for result in raw:
     clients = result.get('clients', [])
     case = {key: result.get(key) for key in ['label', 'iteration', 'sha', 'complete', 'failure', 'wallMs']}
-    case.update(players=len(clients)-1, expected=0, painted=0, omittedCommands=0, missingPaintSamples=0, identityValid=True)
+    case.update(players=len(clients)-1, expected=0, painted=0, omittedCommands=0, missingPaintSamples=0, duplicateCommands=0, unexpectedCommands=0, identityValid=True)
     if len(clients) != 9 or any('telemetry' not in client for client in clients):
         case['complete'] = False
         cases.append(case)
@@ -44,6 +44,10 @@ for result in raw:
     signatures[result['label']].append(fingerprint)
     for player, client in enumerate(clients[1:], 1):
         received = {r['seq']: r['at'] for r in client['telemetry']['received']}
+        counts=Counter(r['sequence'] for r in client['telemetry']['cues'])
+        case['duplicateCommands']+=sum(n-1 for n in counts.values())
+        case['unexpectedCommands']+=sum(n for seq,n in counts.items() if seq not in dm)
+        if case['duplicateCommands'] or case['unexpectedCommands']:case['identityValid']=False
         rendered = {r['sequence']: r for r in client['telemetry']['cues']}
         case['expected'] += len(dm)
         for sequence, expected in dm.items():
@@ -52,22 +56,26 @@ for result in raw:
                 if not actual: case['omittedCommands'] += 1
                 else: case['missingPaintSamples'] += 1
                 continue
-            if (actual['cue'], actual['owner'], actual.get('index'),actual.get('result')) != (expected['cue'], expected['owner'], expected.get('index'),expected.get('result')):
+            if (actual['cue'], actual['owner'], actual.get('index'),actual.get('opponent'),actual.get('result')) != (expected['cue'], expected['owner'], expected.get('index'),expected.get('opponent'),expected.get('result')):
                 case['identityValid'] = False
                 continue
             case['painted'] += 1
             wire = received.get(event_batch.get(sequence))
             deadline = actual.get('playAt')
-            samples.append({'label': result['label'], 'iteration': result['iteration'], 'player': player, 'sequence': sequence, 'cue': actual['cue'], 'clash': actual['cue'] in clash, 'lagMs': max(0, actual['paintAt']-expected['paintAt']), 'signedSkewMs': actual['paintAt']-expected['paintAt'], 'paintMs': max(0, actual['paintAt']-actual['startAt']), 'queueLateMs': max(0, actual['startAt']-max(wire, deadline or wire)) if wire is not None else None, 'wireAfterDeadlineMs': max(0, wire-deadline) if wire is not None and deadline is not None else None})
+            samples.append({'label': result['label'], 'iteration': result['iteration'], 'player': player, 'sequence': sequence, 'cue': actual['cue'], 'clash': actual['cue'] in clash, 'lagMs': max(0, actual['paintAt']-expected['paintAt']), 'signedSkewMs': actual['paintAt']-expected['paintAt'], 'absoluteSkewMs':abs(actual['paintAt']-expected['paintAt']), 'paintMs': max(0, actual['paintAt']-actual['startAt']), 'queueLateMs': max(0, actual['startAt']-max(wire, deadline or wire)) if wire is not None else None, 'wireAfterDeadlineMs': max(0, wire-deadline) if wire is not None and deadline is not None else None})
     case['renderCoverageComplete'] = case['painted'] == case['expected']
+    observed=[r for client in clients for r in client['telemetry']['cues'] if r['cue']=='clashStart']
+    case['scene']={'clashSamples':len(observed),'unmeasured':sum('scene' not in r for r in observed),'cameraMissing':sum('scene' in r and r['scene'].get('camera')!='combat' for r in observed),'focusMismatch':sum('scene' in r and r['scene'].get('participants')!=sorted([r['owner'],r['opponent']]) for r in observed),'movementMissing':sum('scene' in r and not any(m['id'] in [r['owner'],r['opponent']] for m in r['scene'].get('movement',[])) for r in observed)}
     cases.append(case)
 
 comparable = bool(signatures['before'] and signatures['after'] and all(s == signatures['before'][0] for s in signatures['before']+signatures['after']))
 valid = comparable and len(cases) == 4 and all(c['complete'] and c['identityValid'] for c in cases)
 metrics = {}
 for label in ['before', 'after']:
-    metrics[label] = {'clashLagMs': summary([r['lagMs'] for r in samples if r['label'] == label and r['clash']]), 'allLagMs': summary([r['lagMs'] for r in samples if r['label'] == label]), 'frameMs': summary([f['ms'] for result in raw if result['label'] == label for c in result.get('clients', [])[1:] if 'telemetry' in c for f in c['telemetry']['frames']]), 'longTaskMs':summary([t['duration'] for result in raw if result['label']==label for c in result.get('clients',[])[1:] if 'telemetry' in c for t in c['telemetry']['longTasks']]), 'byPlayer':{str(player):summary([r['lagMs'] for r in samples if r['label']==label and r['player']==player and r['clash']]) for player in range(1,9)}, 'byPhase': {cue: {field: summary([r[field] for r in samples if r['label'] == label and r['cue'] == cue and r[field] is not None]) for field in ['lagMs', 'queueLateMs', 'paintMs', 'wireAfterDeadlineMs']} for cue in sorted(set(r['cue'] for r in samples))}}
-report = {'valid': valid, 'sameWorkloadAndOutcome': comparable, 'cases': cases, 'metrics': metrics, 'definition': 'Desfase = diferencia positiva del primer requestAnimationFrame tras iniciar la presentación respecto al mismo evento del DM. Es una oportunidad de pintar, no una lectura de píxeles. El tiempo entre frames se mide aparte. Los percentiles usan muestras observadas; omisiones y muestras sin RAF se cuentan por separado, nunca como latencia cero. Cuatro rondas con ritmo normal, mismo escenario, semilla y viewports, orden ABBA, Auth/RTDB Emulator y una pareja de capturas en vivo por ronda. Nueve contextos comparten un runner CI: no son nueve dispositivos físicos ni una medición de Internet.'}
+    metrics[label] = {'clashSkewAbsMs':summary([r['absoluteSkewMs'] for r in samples if r['label']==label and r['clash']]),'clashLagMs': summary([r['lagMs'] for r in samples if r['label'] == label and r['clash']]), 'allLagMs': summary([r['lagMs'] for r in samples if r['label'] == label]), 'frameMs': summary([f['ms'] for result in raw if result['label'] == label for c in result.get('clients', [])[1:] if 'telemetry' in c for f in c['telemetry']['frames']]), 'longTaskMs':summary([t['duration'] for result in raw if result['label']==label for c in result.get('clients',[])[1:] if 'telemetry' in c for t in c['telemetry']['longTasks']]), 'byPlayer':{str(player):summary([r['lagMs'] for r in samples if r['label']==label and r['player']==player and r['clash']]) for player in range(1,9)}, 'byPhase': {cue: {field: summary([r[field] for r in samples if r['label'] == label and r['cue'] == cue and r[field] is not None]) for field in ['absoluteSkewMs','lagMs', 'queueLateMs', 'paintMs', 'wireAfterDeadlineMs']} for cue in sorted(set(r['cue'] for r in samples))}}
+coverage={label:{key:sum(c.get(key,0) for c in cases if c['label']==label) for key in ['expected','painted','omittedCommands','missingPaintSamples','duplicateCommands','unexpectedCommands']} for label in ['before','after']}
+accepted=valid and all(c['renderCoverageComplete'] and c.get('scene',{}).get('clashSamples',0)>0 and not any(c.get('scene',{}).get(key,1) for key in ['unmeasured','cameraMissing','focusMismatch','movementMissing']) for c in cases if c['label']=='after')
+report = {'valid': valid, 'acceptedAfterWithVisualChecks':accepted,'coverage':coverage, 'sameWorkloadAndOutcome': comparable, 'cases': cases, 'metrics': metrics, 'definition': 'Desfase absoluto = magnitud de la diferencia del primer requestAnimationFrame tras iniciar la presentación respecto al mismo evento del DM. Incluye adelantos y retrasos; lagMs conserva solo retrasos y signedSkewMs su signo. Es una oportunidad de pintar, no una lectura de píxeles. El tiempo entre frames se mide aparte. Los percentiles usan muestras observadas; omisiones y muestras sin RAF se cuentan por separado, nunca como latencia cero. Cuatro rondas con ritmo normal, mismo escenario, semilla y viewports, orden ABBA, Auth/RTDB Emulator y una pareja de capturas en vivo por ronda. Nueve contextos comparten un runner CI: no son nueve dispositivos físicos ni una medición de Internet.'}
 root.mkdir(parents=True, exist_ok=True)
 (root/'summary.json').write_text(json.dumps(report, indent=2, ensure_ascii=False))
 if samples:
@@ -86,7 +94,7 @@ from matplotlib.ticker import MaxNLocator
 plt.rcParams.update({'font.family':'DejaVu Sans','font.size':11,'axes.spines.top':False,'axes.spines.right':False,'axes.labelcolor':'#303742','text.color':'#18212e'})
 colors = {'before':'#798493', 'after':'#167e89'}
 fig, axes = plt.subplots(1, 2, figsize=(12, 5.5))
-for axis, key, title in [(axes[0], 'clashLagMs', 'Desfase frente al DM durante Clashes'), (axes[1], 'frameMs', 'Tiempo entre frames de los jugadores')]:
+for axis, key, title in [(axes[0], 'clashSkewAbsMs', 'Desfase absoluto frente al DM en Clashes'), (axes[1], 'frameMs', 'Tiempo entre frames de los jugadores')]:
     keys=['median','p95','max'];x=range(3)
     for shift,label,title_label in [(-.19,'before','Antes'),(.19,'after','Ahora')]:
         values=[metrics[label][key][k] for k in keys]
@@ -98,20 +106,31 @@ fig.suptitle('Un DM y ocho jugadores · nueve navegadores',x=.06,ha='left',fonts
 fig.text(.06,.025,('MEDICIÓN INCOMPLETA · ' if not valid else '')+'Battle Viewer completo · mismo ritmo, escenario y semilla · Auth/RTDB Emulator en un runner CI',fontsize=9,color='#566171')
 fig.tight_layout(rect=(.03,.07,1,.9));fig.savefig(root/'antes-ahora.png',dpi=160);plt.close(fig)
 
-cues=sorted(metrics['after']['byPhase'],key=lambda cue:metrics['after']['byPhase'][cue]['lagMs']['p95'] or -1,reverse=True)
-fig,axis=plt.subplots(figsize=(11,max(5.5,len(cues)*.48)))
+cues=sorted(metrics['after']['byPhase'],key=lambda cue:metrics['after']['byPhase'][cue]['absoluteSkewMs']['p95'] or -1,reverse=True)
+fig,(axis,parts)=plt.subplots(1,2,figsize=(16,max(6.5,len(cues)*.5)),sharey=True,gridspec_kw={'width_ratios':[1,1.2]})
 for offset,label,title_label in [(-.18,'before','Antes'),(.18,'after','Ahora')]:
-    values=[metrics[label]['byPhase'][cue]['lagMs']['p95'] or 0 for cue in cues]
-    bars=axis.barh([i+offset for i in range(len(cues))],values,height=.34,color=colors[label],label=title_label)
-    axis.bar_label(bars,labels=[f'{v:,.1f} ms' for v in values],padding=5,fontsize=9)
-axis.set_yticks(range(len(cues)),[names.get(c,c) for c in cues]);axis.invert_yaxis();axis.set_xlabel('P95 del desfase visual frente al DM (ms)');axis.set_title('Dónde se acumula más retraso',loc='left',fontweight='bold',fontsize=17,pad=22);axis.grid(axis='x',alpha=.18);axis.set_axisbelow(True);axis.margins(x=.22);axis.legend(frameon=False)
-fig.text(.02,.012,('MEDICIÓN INCOMPLETA · ' if not valid else '')+'Ordenado por P95 actual. Una pausa prevista de animación no se cuenta como bloqueo.',fontsize=9,color='#566171');fig.tight_layout(rect=(0,.04,1,1));fig.savefig(root/'picos-por-fase.png',dpi=160);plt.close(fig)
-before=metrics['before']['clashLagMs']['p95'];after=metrics['after']['clashLagMs']['p95']
-lines=['# Nueve navegadores: antes y ahora','',f'Comparación válida y completa: {valid}. Escenario y resultados equivalentes: {comparable}.',f'P95 de desfase en Clashes: {before:.1f} ms antes; {after:.1f} ms ahora; diferencia {after-before:+.1f} ms.','',report['definition'],'','## Fases con más retraso actual','','| Fase | P95 visual | P95 cola tardía | P95 render→rAF | P95 recepción tras deadline |','| --- | ---: | ---: | ---: | ---: |']
+    values=[metrics[label]['byPhase'][cue]['absoluteSkewMs']['p95'] for cue in cues]
+    present=[i for i,v in enumerate(values) if v is not None]
+    bars=axis.barh([i+offset for i in present],[values[i] for i in present],height=.34,color=colors[label],label=title_label)
+    axis.bar_label(bars,labels=[f'{values[i]:,.0f}' for i in present],padding=4,fontsize=8)
+axis.set_yticks(range(len(cues)),[names.get(c,c) for c in cues]);axis.invert_yaxis()
+axis.set_xlabel('P95 del desfase absoluto frente al DM (ms)');axis.set_title('Desfase por fase',loc='left',fontsize=12,pad=12);axis.margins(x=.23);axis.legend(frameon=False,fontsize=9)
+for offset,key,title_label,color in [(-.24,'wireAfterDeadlineMs','Recepción tras deadline','#b56544'),(0,'queueLateMs','Cola tardía','#5e6eab'),(.24,'paintMs','Inicio a RAF','#429378')]:
+    values=[metrics['after']['byPhase'][cue][key]['p95'] for cue in cues]
+    present=[i for i,v in enumerate(values) if v is not None]
+    parts.barh([i+offset for i in present],[values[i] for i in present],height=.21,color=color,label=title_label)
+parts.set_xlabel('P95 actual por componente (ms)');parts.set_title('Dónde se espera ahora',loc='left',fontsize=12,pad=12);parts.legend(frameon=False,fontsize=9,loc='lower right')
+for a in [axis,parts]:a.grid(axis='x',alpha=.18);a.set_axisbelow(True)
+fig.suptitle('Dónde se acumula más retraso',x=.02,ha='left',fontweight='bold',fontsize=17)
+fig.text(.02,.025,('MEDICIÓN INCOMPLETA · ' if not valid else '')+'Ordenado por desfase P95 actual. Los P95 de componentes no se suman. Nueve sesiones comparten un runner CI.',fontsize=9,color='#566171')
+fig.text(.02,.006,'Sin barra = sin muestra. El acercamiento antes ocurría solo en el DM y no tenía un evento de presentación medible.',fontsize=9,color='#566171')
+fig.tight_layout(rect=(0,.07,1,.95));fig.savefig(root/'picos-por-fase.png',dpi=160);plt.close(fig)
+before=metrics['before']['clashSkewAbsMs']['p95'];after=metrics['after']['clashSkewAbsMs']['p95']
+lines=['# Nueve navegadores: antes y ahora','',f'Comparación válida y completa: {valid}. Escenario y resultados equivalentes: {comparable}.',f'P95 de desfase absoluto en Clashes: {before:.1f} ms antes; {after:.1f} ms ahora; diferencia {after-before:+.1f} ms.',f'Cobertura: {json.dumps(coverage,ensure_ascii=False)}. Aceptación actual con comprobaciones visuales: {accepted}.','',report['definition'],'','## Fases con más retraso actual','','| Fase | P95 visual | P95 cola tardía | P95 render→rAF | P95 recepción tras deadline |','| --- | ---: | ---: | ---: | ---: |']
 for cue in cues:
     data=metrics['after']['byPhase'][cue]
-    values=[data[k]['p95'] for k in ['lagMs','queueLateMs','paintMs','wireAfterDeadlineMs']]
+    values=[data[k]['p95'] for k in ['absoluteSkewMs','queueLateMs','paintMs','wireAfterDeadlineMs']]
     lines.append('| '+names.get(cue,cue)+' | '+' | '.join('Sin dato' if v is None else f'{v:.1f} ms' for v in values)+' |')
 (root/'RESULTADO.md').write_text('\n'.join(lines)+'\n')
-print(json.dumps({'valid':valid,'sameWorkloadAndOutcome':comparable,'beforeClashP95':before,'afterClashP95':after,'cases':cases},ensure_ascii=False))
+print(json.dumps({'valid':valid,'sameWorkloadAndOutcome':comparable,'beforeAbsoluteClashP95':before,'afterAbsoluteClashP95':after,'cases':cases},ensure_ascii=False))
 if not valid: sys.exit(1)

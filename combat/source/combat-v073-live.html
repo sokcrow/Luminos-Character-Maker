@@ -3550,7 +3550,8 @@ function focusCombatCameraOnPlayer(){
   setCombatCameraPoint({x:point.x,y:point.y-76},1.58)
 }
 function focusCombatCameraOnClash(entryA,entryB){
-  if(!timelineResolutionActive&&entryA?.ownerId!==PLAYER_ID&&entryB?.ownerId!==PLAYER_ID)return;
+  const sharedTimeline=window.LuminousCombatLiveMode===true&&timelineResolutionActive;
+  if(!sharedTimeline&&entryA?.ownerId!==PLAYER_ID&&entryB?.ownerId!==PLAYER_ID)return;
   const a=unitCombatAnchor(combatData[entryA.ownerId]),
         b=unitCombatAnchor(combatData[entryB.ownerId]);
   setCombatCameraPoint({x:(a.x+b.x)/2,y:((a.y+b.y)/2)-74},1.66)
