@@ -464,6 +464,7 @@
     if(!session?.claimEnd)throw new Error('Actualiza el visor antes de finalizar el encuentro.');
     const claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:(units)=>{runEncounterEndAll(units);if(normalized!=="cancelled")halvePlayerSanity(units);}});
     const alreadyEnded=claimed.estado.phase==='ENDED';
+    if(!alreadyEnded)claimed.combatMetrics=global.LuminousCombatMvpRuntime?.snapshotMetrics?.()||{};
     try{
     const resolved={combatants:claimed.combatants};
     if (!alreadyEnded && normalized !== "cancelled") {
@@ -505,7 +506,7 @@
       });
     }
 
-    if(!alreadyEnded)await session.commitEnd({db:state.db,uid:currentUid(),result:normalized,token:claimed.estado.ending.token,xpAward});
+    if(!alreadyEnded)await session.commitEnd({db:state.db,uid:currentUid(),result:normalized,token:claimed.estado.ending.token,xpAward,combatMetrics:claimed.combatMetrics});
 
     global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now(), xpAward });
     appendLog(`${label} · RESULT SEAL`, { result: normalized });
