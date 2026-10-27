@@ -32,9 +32,19 @@ function instrument(){
   const data=window.__nine={cues:[],events:[],received:[],frames:[],longTasks:[],active:false,ruleCalls:0,errors:[]};
   const pending=new Map(),renderEvents=new WeakMap();
   const key=(cue,args)=>JSON.stringify([cue,args?.[0]?.ownerId||args?.[0]||null,args?.[1]?.ownerId||null,cue==='powerCoin'?args?.[1]?.index:cue==='hitCoin'?args?.[2]:null]);
+  const sides=coins=>(coins||[]).map(coin=>coin?.side||null);
+  function resultValue(cue,args){
+    if(cue==='powerCoin')return {side:args[1]?.side,power:args[2]};
+    if(cue==='powerEnd')return {power:args[2],coins:sides(args[3])};
+    if(cue==='hitCoin')return {index:args[2],coins:sides(args[3]),power:args[4]};
+    if(cue==='clashOutcome')return {winner:args[2],remainingA:args[3],remainingB:args[4],powerA:args[5]?.power,powerB:args[6]?.power,coinsA:sides(args[5]?.coins),coinsB:sides(args[6]?.coins)};
+    if(cue==='clashEnd')return {winner:args[2]?.ownerId||null};
+    if(cue==='hitMotion')return {damage:args[2]?.finalDamage??null};
+    return null;
+  }
   function start(event,cue,args){
     if(!event){data.errors.push('Missing presentation identity: '+cue);return null;}
-    const row={sequence:event.sequence,cue,owner:args?.[0]?.ownerId||null,opponent:args?.[1]?.ownerId||null,index:cue==='powerCoin'?args?.[1]?.index:cue==='hitCoin'?args?.[2]:null,startAt:now(),playAt:event.timing?.playAt??null,paintAt:null,endAt:null};
+    const row={sequence:event.sequence,cue,owner:args?.[0]?.ownerId||null,opponent:args?.[1]?.ownerId||null,index:cue==='powerCoin'?args?.[1]?.index:cue==='hitCoin'?args?.[2]:null,result:resultValue(cue,args),startAt:now(),playAt:event.timing?.playAt??null,paintAt:null,endAt:null};
     data.cues.push(row);requestAnimationFrame(()=>{row.paintAt=now()});return row;
   }
   let steps,protocol,surface;
@@ -99,7 +109,7 @@ async function choose(frame,index){
   },index);
   await frame.locator('#ready').click({timeout:30000});
 }
-async function snapshot(frame){return frame.evaluate(()=>({ui:LuminousCombat073.uiState(),authority:{phase:LuminousCombatAuthority073.state.current?.phase,error:LuminousCombatAuthority073.state.lastStartError},units:Object.fromEntries(Object.entries(LuminousCombat073.combatants()).map(([id,u])=>[id,{hp:u.hp,sp:u.sp,lifeState:u.lifeState||null}])),telemetry:window.__nine}));}
+async function snapshot(frame){return frame.evaluate(()=>({ui:LuminousCombat073.uiState(),authority:{phase:LuminousCombatAuthority073.state.current?.phase,error:LuminousCombatAuthority073.state.lastStartError},units:Object.fromEntries(Object.entries(LuminousCombat073.combatants()).map(([id,u])=>[id,{hp:u.hp,sp:u.sp,lifeState:u.lifeState||null,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],shieldPools:u.shieldPools||{}}])),telemetry:window.__nine}));}
 
 test('Nine real Battle Viewers compare identical Clashes before and after',async({browser})=>{
   test.setTimeout(1200000);fs.mkdirSync(output,{recursive:true});
@@ -151,12 +161,16 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
         result.batches=await admin('campaña/combate/playback/current/batches');
         result.canonical=await admin('campaña/combate/combatants');
         result.clients=await Promise.all(frames.map(snapshot));
+        const checkpoint=JSON.parse(result.authority.checkpoint.stateJson);
+        const canonical=id=>{const u=checkpoint[id];return {hp:u.hp,sp:u.sp,lifeState:u.lifeState||null,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],shieldPools:u.shieldPools||{}}};
+        const dmCues=new Map(result.clients[0].telemetry.cues.map(cue=>[cue.sequence,cue]));
         for(const client of result.clients){
           expect(client.telemetry.errors).toEqual([]);
           expect(client.telemetry.cues.some(row=>row.cue==='clashStart')).toBe(true);
           expect(client.telemetry.cues.some(row=>row.cue==='clashOutcome')).toBe(true);
           expect(client.telemetry.cues.some(row=>row.cue==='hitMotion')).toBe(true);
-          for(const [id,unit]of Object.entries(result.canonical))expect(client.units[id]?.hp,`canonical HP ${id}`).toBe(unit.hp);
+          for(const id of Object.keys(checkpoint))expect(client.units[id],`canonical results ${id}`).toEqual(canonical(id));
+          for(const cue of client.telemetry.cues)expect(cue.result,`rendered result of event ${cue.sequence}`).toEqual(dmCues.get(cue.sequence)?.result);
         }
         for(const client of result.clients.slice(1))expect(client.telemetry.ruleCalls,'Players never resolve damage or random Coins locally').toBe(0);
         expect(errors).toEqual([]);result.complete=true;

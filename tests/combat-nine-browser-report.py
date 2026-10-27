@@ -40,7 +40,7 @@ for result in raw:
     for batch in (result.get('batches') or {}).values():
         for event in json.loads(batch['payload']).get('events', []):
             event_batch[event['sequence']] = batch['seq']
-    fingerprint = {'seed': (result.get('authority') or {}).get('seed'), 'cues': [(r['cue'], r['owner'], r.get('opponent'), r.get('index')) for r in sorted(dm.values(), key=lambda r: r['sequence'])], 'outcome': clients[0]['units']}
+    fingerprint = {'seed': (result.get('authority') or {}).get('seed'), 'cues': [(r['cue'], r['owner'], r.get('opponent'), r.get('index'),r.get('result')) for r in sorted(dm.values(), key=lambda r: r['sequence'])], 'outcome': clients[0]['units']}
     signatures[result['label']].append(fingerprint)
     for player, client in enumerate(clients[1:], 1):
         received = {r['seq']: r['at'] for r in client['telemetry']['received']}
@@ -52,7 +52,7 @@ for result in raw:
                 if not actual: case['omittedCommands'] += 1
                 else: case['missingPaintSamples'] += 1
                 continue
-            if (actual['cue'], actual['owner'], actual.get('index')) != (expected['cue'], expected['owner'], expected.get('index')):
+            if (actual['cue'], actual['owner'], actual.get('index'),actual.get('result')) != (expected['cue'], expected['owner'], expected.get('index'),expected.get('result')):
                 case['identityValid'] = False
                 continue
             case['painted'] += 1
@@ -66,8 +66,8 @@ comparable = bool(signatures['before'] and signatures['after'] and all(s == sign
 valid = comparable and len(cases) == 4 and all(c['complete'] and c['identityValid'] for c in cases)
 metrics = {}
 for label in ['before', 'after']:
-    metrics[label] = {'clashLagMs': summary([r['lagMs'] for r in samples if r['label'] == label and r['clash']]), 'allLagMs': summary([r['lagMs'] for r in samples if r['label'] == label]), 'frameMs': summary([f['ms'] for result in raw if result['label'] == label for c in result.get('clients', [])[1:] if 'telemetry' in c for f in c['telemetry']['frames']]), 'byPhase': {cue: {field: summary([r[field] for r in samples if r['label'] == label and r['cue'] == cue and r[field] is not None]) for field in ['lagMs', 'queueLateMs', 'paintMs', 'wireAfterDeadlineMs']} for cue in sorted(set(r['cue'] for r in samples))}}
-report = {'valid': valid, 'sameWorkloadAndOutcome': comparable, 'cases': cases, 'metrics': metrics, 'definition': 'Lag = positive difference of the first requestAnimationFrame after the presentation callback against the matching DM event; this is a paint opportunity, not a pixel scan. Frame time is separate. Percentiles use observed paints; omissions and missing paints are reported separately and never treated as zero latency. All runs use normal production timing, one CI machine, loopback Auth/RTDB emulators, the same workload/seed/viewports, and ABBA run order. Includes one pair of live screenshots in each run. No Internet/device-population claim.'}
+    metrics[label] = {'clashLagMs': summary([r['lagMs'] for r in samples if r['label'] == label and r['clash']]), 'allLagMs': summary([r['lagMs'] for r in samples if r['label'] == label]), 'frameMs': summary([f['ms'] for result in raw if result['label'] == label for c in result.get('clients', [])[1:] if 'telemetry' in c for f in c['telemetry']['frames']]), 'longTaskMs':summary([t['duration'] for result in raw if result['label']==label for c in result.get('clients',[])[1:] if 'telemetry' in c for t in c['telemetry']['longTasks']]), 'byPlayer':{str(player):summary([r['lagMs'] for r in samples if r['label']==label and r['player']==player and r['clash']]) for player in range(1,9)}, 'byPhase': {cue: {field: summary([r[field] for r in samples if r['label'] == label and r['cue'] == cue and r[field] is not None]) for field in ['lagMs', 'queueLateMs', 'paintMs', 'wireAfterDeadlineMs']} for cue in sorted(set(r['cue'] for r in samples))}}
+report = {'valid': valid, 'sameWorkloadAndOutcome': comparable, 'cases': cases, 'metrics': metrics, 'definition': 'Desfase = diferencia positiva del primer requestAnimationFrame tras iniciar la presentación respecto al mismo evento del DM. Es una oportunidad de pintar, no una lectura de píxeles. El tiempo entre frames se mide aparte. Los percentiles usan muestras observadas; omisiones y muestras sin RAF se cuentan por separado, nunca como latencia cero. Cuatro rondas con ritmo normal, mismo escenario, semilla y viewports, orden ABBA, Auth/RTDB Emulator y una pareja de capturas en vivo por ronda. Nueve contextos comparten un runner CI: no son nueve dispositivos físicos ni una medición de Internet.'}
 root.mkdir(parents=True, exist_ok=True)
 (root/'summary.json').write_text(json.dumps(report, indent=2, ensure_ascii=False))
 if samples:
