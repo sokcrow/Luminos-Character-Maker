@@ -143,7 +143,9 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
           const row=JSON.parse(JSON.stringify(state.planningAi));
           for(let i=1;i<=2;i++){
             const id=`kobold${i}`,unit=LuminousCombat073.combatants()[id],skill=LuminousCombatLiveAdapter073.state.skills.enemy_s1;
-            const plan=fixturePlans[i-1];
+            const option=LuminousCombatSlotDeck073.actionOptions(id,0).find(row=>row.id==='enemy_s1');
+            if(!option?.__deckCard?.drawId)throw new Error('NPC fixture has no legal drawn Skill: '+id);
+            const plan={...fixturePlans[i-1],type:'deck',drawId:option.__deckCard.drawId,data:option};
             row.plans[id]={0:LuminousCombatAuthority073.serializeRuntimePlan(plan,id,0)};
           }
           await LuminousCombatLiveAdapter073.state.db.ref('campaña/combate/planningAi').set(row);
