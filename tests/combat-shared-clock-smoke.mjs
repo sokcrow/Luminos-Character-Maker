@@ -50,7 +50,7 @@ function client({ role = 'player', skew = 0, latency = 0, stall = false } = {}) 
   // cannot be relied upon to preserve the authority's 16ms coalescing window.
   const publish = flush;
   engine = c.LuminousCombatSteps.create({ rules: {}, snapshot: () => ({ ally: { hp: 100 } }),
-    schedulePresentation: () => sync.schedulePresentation(), presentScheduled: (event, draw) => sync.presentScheduled(event, draw),
+    schedulePresentation: (cue, args) => sync.schedulePresentation(cue, args), presentScheduled: (event, draw) => sync.presentScheduled(event, draw),
     publish, presentation: Object.fromEntries(['powerStart', 'powerCoin', 'powerEnd', 'clashOutcome'].map(cue => [cue, (...args) => render(cue, args)])) });
   const peer = { role, latency, played, applied, consumed, errors, c, sync, engine,
     deliver(row) { handler({ val: () => row }); } };

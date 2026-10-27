@@ -69,9 +69,6 @@
 
     // Always load the updated camera/scene and result-seal assets even when
     // the gzipped Combat source and the player's browser cache are older.
-    // Refresh the shared transport together when a cached viewer reopens.
-    html=html.replace(/js\/combat-v073-(steps|playback|playback-sync)\.js(?:\?v=[^"']+)?/g,
-      'js/combat-v073-$1.js?v=20261026-live-deadlines-2');
     html=html.replace(/js\/combat-v073-dm-observer\.js(?:\?v=[^"']+)?/g,
       'js/combat-v073-dm-observer.js?v=20261021-performance-2');
     html=html.replace(/js\/combat-v073-live-adapter\.js(?:\?v=[^"']+)?/g,
@@ -429,6 +426,10 @@ function smartTargetForPlan(owner,plan){
       html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
         asset+'?v=20261026-sp01-repair-1');
     }
+    // Apply after every legacy cache rewrite: Steps, playback and audiovisual
+    // must agree on phase cancellation and the sealed presentation speed.
+    html=html.replace(/js\/combat-v073-(steps|playback|playback-sync|audiovisual)\.js(?:\?v=[^"']+)?/g,
+      'js/combat-v073-$1.js?v=20261026-live-phases-3');
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();

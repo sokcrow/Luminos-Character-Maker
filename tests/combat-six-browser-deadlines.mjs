@@ -2,8 +2,27 @@
 // replaced by delayed delivery; this does not certify deployed Auth/RTDB rules.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import { createRequire } from 'node:module';
-const { chromium } = createRequire(import.meta.url)('playwright');
+import { comparePresentations } from './helpers/combat-presentation-assertions.mjs';
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright');
+const emulator = process.env.COMBAT_FIREBASE_EMULATOR === '1';
+const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9199';
+const dbHost = process.env.FIREBASE_DATABASE_EMULATOR_HOST || '127.0.0.1:9100';
+const namespace = 'demo-combat-results-default-rtdb';
+const accounts = [];
+if (emulator) {
+  for (const host of [authHost, dbHost]) assert.match(host, /^(127\.0\.0\.1|localhost):\d+$/, 'Never target production');
+  for (let i=0;i<7;i++) {
+    const email=`playback-${Date.now()}-${i}@example.test`;
+    const response=await fetch(`http://${authHost}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:'temporary-test-password',returnSecureToken:true})});
+    assert.ok(response.ok,'Create independent emulator identity'); accounts.push({...await response.json(),email});
+  }
+  const seed={config:{dm_uid:accounts[0].localId},jugadores:Object.fromEntries(accounts.slice(1).map((user,i)=>[`p${i+1}`,{uid:user.localId}])),combate:{estado:{phase:'PRE_COMBAT_PLANNING',round:1}}};
+  const response=await fetch(`http://${dbHost}/campa%C3%B1a.json?ns=${namespace}`, {method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer owner'},body:JSON.stringify(seed)});
+  assert.ok(response.ok,'Seed emulator only');
+}
 const read = path => fs.readFileSync(path, 'utf8');
 const html = read('combat/source/combat-v073-live.html');
 const coinStart = html.indexOf('(function (global) {', html.indexOf('<script src="js/combat-v073-live-adapter'));
@@ -38,8 +57,19 @@ try {
       }
     });
     await page.setContent('<style>body{margin:0;background:#171923;color:#f4dfad;font:20px sans-serif}main{display:flex;gap:16px;padding:16px}.hud{flex:1;min-width:0;padding:12px;border:1px solid #9c793f}.roll{display:flex;flex-wrap:wrap}</style><div id="status"></div><main><div class="hud" id="a"><b>A</b><div class="clash-float-power"></div><div class="roll"></div></div><div class="hud" id="b"><b>B</b><div class="clash-float-power"></div><div class="roll"></div></div></main>');
+    if (emulator) {
+      const firebaseRoot=path.dirname(require.resolve('firebase/package.json'));
+      for (const module of ['app','auth','database']) await page.addScriptTag({content:read(path.join(firebaseRoot,`firebase-${module}.js`))});
+      await page.evaluate(async({authHost,dbHost,namespace,email})=>{
+        const app=firebase.initializeApp({apiKey:'demo',projectId:'demo-combat-results',databaseURL:`http://${dbHost}/?ns=${namespace}`});
+        app.auth().useEmulator(`http://${authHost}`,{disableWarnings:true});
+        const [host,port]=dbHost.split(':');app.database().useEmulator(host,Number(port));
+        await app.auth().signInWithEmailAndPassword(email,'temporary-test-password');
+        window.firebaseDb=app.database();
+      },{authHost,dbHost,namespace,email:accounts[index].email});
+    }
     await page.evaluate(({index}) => {
-      window.testIndex=index; window.log=[]; window.final=[]; window.applied=[];
+      window.testIndex=index; window.log=[]; window.final=[]; window.applied=[]; window.roundRunning=true;
       window.combatData={a:{hp:100},b:{hp:100}}; window.round=1;
       window.COMBAT_PACE={coinInterval:300};
       window.clashData=()=>({coinAmount:1});
@@ -47,30 +77,39 @@ try {
       window.prepareFloatingClashRoll=entry=>document.querySelector('#'+entry.ownerId+' .roll');
       window.setFloatingPowerCoinState=()=>{};
       window.setCameraFocus=()=>{};
-      window.LuminousCombatAudiovisual073={ duration:ms=>ms*(index===3?2:1), clear(){} };
-      window.LuminousCombatLiveAdapter073={state:{role:index?'player':'dm',hydratedOnce:true,db:{ref:()=>({
+      window.LuminousCombatLiveAdapter073={state:{role:index?'player':'dm',hydratedOnce:true,db:window.firebaseDb||{ref:()=>({
         orderByKey(){return this},startAt(){return this},on(_kind,handler){window.deliver=value=>handler({val:()=>value})},off(){}
       })}},scheduleHydrate(){}};
       window.LuminousCombat073={combatants:()=>window.combatData};
     }, {index});
     await page.addScriptTag({content:coins});
-    for (const path of ['js/combat-v073-playback.js','js/combat-v073-steps.js','js/combat-v073-playback-sync.js']) await page.addScriptTag({content:read(path)});
+    for (const path of ['js/combat-v073-playback.js','js/combat-v073-steps.js','js/combat-v073-playback-sync.js','js/combat-v073-audiovisual.js']) await page.addScriptTag({content:read(path)});
     await page.addScriptTag({content:runtime});
-    await page.evaluate(() => {
+    await page.evaluate(async() => {
       const sync=LuminousCombatPlaybackSync;
       const authority={state:{},snapshotRuntime:()=>combatData,applySnapshot(snapshot){Object.assign(combatData,snapshot);applied.push(snapshot)}};
       sync.state.authority=authority;
-      const data={id:'browser-round',round:1,phase:'running',initialStateJson:JSON.stringify(combatData),playback:{schemaVersion:1,engineVersion:LuminousCombatPlayback.engineVersion,timelineVersion:1,session:sync.session}};
+      LuminousCombatAudiovisual073.preferences({speed:testIndex?1:2,sound:false});
+      let data={id:'browser-round',round:1,phase:'running',initialStateJson:JSON.stringify(combatData),playback:{schemaVersion:1,engineVersion:LuminousCombatPlayback.engineVersion,timelineVersion:1,presentationSpeed:2,session:sync.session}};
+      if(window.firebaseDb){
+        if(!testIndex) await firebaseDb.ref('campaña/combate/authority/current').set(data);
+        else data=(await firebaseDb.ref('campaña/combate/authority/current').once('value')).val();
+      }
       authority.state.current=data;
+      window.writeErrors=[];window.pendingWrites=new Set();
+      window.publishUpdates=updates=>{
+        const operation=window.firebaseDb?firebaseDb.ref().update(updates):Promise.all(Object.values(updates).map(batch=>publishBatch(batch)));
+        pendingWrites.add(operation);operation.catch(error=>writeErrors.push(error.message)).finally(()=>pendingWrites.delete(operation));
+        return operation;
+      };
       window.LuminousCombatAuthority073={state:{runningLocal:false},isDm:()=>!testIndex,snapshotRuntime:()=>combatData,publishPresentation(){
         // Split both sides deliberately; use the shipped delta encoder.
-        const batch=Object.values(sync.batchUpdates({type:'presentation',updatedAt:Date.now()}))[0];
-        void publishBatch(batch);
+        void publishUpdates(sync.batchUpdates({type:'presentation',updatedAt:Date.now()}));
       }};
       const engine=combatStepRuntime(); window.engine=engine;
-      const draw=async(cue,args)=>{
-        log.push({cue,owner:args[0]?.ownerId,index:args[1]?.index,at:Date.now()});
-        await engine.present(cue,args);
+      const draw=async(cue,args,visual,event)=>{
+        log.push({cue,owner:args[0]?.ownerId,index:args[1]?.index,at:Date.now(),sequence:event.sequence,phase:event.timing.phase,rateMs:LuminousCombatAudiovisual073.duration(1000)});
+        await engine.present(cue,args,visual);
       };
       window.LuminousCombatStepRuntime={capturePresentation:value=>engine.capturePresentation(value),events:after=>engine.events(after),
         beginPlayback(){},refreshPlayback(){},acceptEvent(){},present:draw,
@@ -79,13 +118,19 @@ try {
       if(!testIndex){
         const original=sync.presentScheduled;
         window.LuminousCombatPlaybackSync={...sync,presentScheduled(event,render){
-          return original(event,()=>{log.push({cue:event.cue,owner:event.args[0]?.ownerId,index:event.args[1]?.index,at:Date.now()});return render()});
+          return original(event,visual=>{log.push({cue:event.cue,owner:event.args[0]?.ownerId,index:event.args[1]?.index,at:Date.now(),sequence:event.sequence,phase:event.timing.phase,rateMs:LuminousCombatAudiovisual073.duration(1000)});return render(visual)});
         }};
-        sync.beginUpdates(data);
+        authority.state.runningLocal=true;
+        const initial=sync.beginUpdates(data);
+        if(window.firebaseDb) await firebaseDb.ref().update(initial);
       }else window.ready=sync.observe(data);
     });
   }
   await Promise.all(pages.slice(1).map(page=>page.evaluate(()=>ready)));
+  if(emulator) for(const page of pages.slice(1)) assert.equal(await page.evaluate(async()=>{
+    try{await firebaseDb.ref('campaña/combate/playback/current/batches/forbidden').set({payload:'forged'});return false}
+    catch(error){return error.code==='PERMISSION_DENIED'}
+  }),true,'A player must not forge DM playback');
   const execution=pages[0].evaluate(async()=>{
     const a={ownerId:'a',plan:{data:{}},localIndex:0},b={ownerId:'b',plan:{data:{}},localIndex:0};
     for(let n=0;n<8;n++){
@@ -94,24 +139,28 @@ try {
       await Promise.all([engine.show('powerEnd',a,1,8,[]),engine.show('powerEnd',b,1,4,[])]);
     }
     await LuminousCombatPlaybackSync.drainPresentation();
-    const batch=Object.values(LuminousCombatPlaybackSync.batchUpdates({type:'round_complete',updatedAt:Date.now(),nextRound:2,combatants:{a:{hp:77},b:{hp:50}}}))[0];
-    await publishBatch(batch);
+    // This fixture injects its terminal state; compare every viewer with the DM
+    // snapshot rather than merely comparing six players with each other.
+    combatData.a.hp=77; combatData.b.hp=50;
+    const updates=LuminousCombatPlaybackSync.batchUpdates({type:'round_complete',updatedAt:Date.now(),combatants:combatData});
+    LuminousCombatStepRuntime.finishPlayback(2);
+    await publishUpdates(updates);await Promise.all([...pendingWrites]);
   });
   await pages[1].waitForFunction(()=>document.querySelector('.luminous-core-coin[data-state="spinning"]'));
   await Promise.all(pages.slice(1).map((page,i)=>page.screenshot({path:`${output}/viewer-${i+1}.png`})));
   await execution;
   while(deliveries.size) await Promise.all([...deliveries]);
   await Promise.all(pages.slice(1).map(page=>page.waitForFunction(()=>final.length===1)));
-  const results=await Promise.all(pages.map(page=>page.evaluate(()=>({log,final,units:combatData,visuals:document.querySelectorAll('.luminous-core-coin').length}))));
+  errors.push(...(await Promise.all(pages.map(page=>page.evaluate(()=>writeErrors)))).flat());
+  const results=await Promise.all(pages.map(page=>page.evaluate(()=>({log,final,units:combatData,visuals:document.querySelectorAll('.luminous-core-coin').length,speed:LuminousCombatAudiovisual073.duration(1000)}))));
+  // Preserve raw evidence even if any assertion below fails.
+  fs.writeFileSync(`${output}/raw-results.json`,JSON.stringify({transport:emulator?'Auth + RTDB emulators, production rules':'simulated delivery',clients:7,viewports,exchanges:8,results,errors},null,2));
   let maxSkew=0;
   for(const [index,result] of results.slice(1).entries()){
-    assert.equal(result.log.length,results[0].log.length,`viewer ${index}: no lost visuals`);
-    assert.deepEqual(result.log.map(({at,...cue})=>cue),results[0].log.map(({at,...cue})=>cue));
-    for(let cue=0;cue<result.log.length;cue++){
-      const skew=Math.abs(result.log[cue].at-results[0].log[cue].at);maxSkew=Math.max(maxSkew,skew);
-      assert.ok(skew<=400,`viewer ${index}, cue ${cue}: ${skew}ms exceeds live budget`);
-    }
-    assert.deepEqual(result.final,[2]);assert.equal(result.units.a.hp,77);assert.equal(result.units.b.hp,50);
+    maxSkew=Math.max(maxSkew,comparePresentations(results[0].log,result.log));
+    assert.deepEqual(result.final,results[0].final);assert.deepEqual(result.units,results[0].units);
+    assert.ok(result.log.every(cue=>cue.rateMs===500),'Players use sealed DM speed despite private 1x preference');
+    assert.equal(result.speed,1000,'Private speed is restored after the round');
     assert.ok(result.visuals>0,'production Coin renderer created real DOM');
   }
   assert.deepEqual(errors,[]);

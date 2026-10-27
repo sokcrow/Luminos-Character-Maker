@@ -7,8 +7,33 @@
   // Only presentation uses this clock. Rule results and RNG stay authoritative.
   function createPresentationClock({ now = () => Date.now(), leadMs = 120,
     setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
-    let stopped = false, instantTail = Promise.resolve();
+    let stopped = false, instantTail = Promise.resolve(), phase = 0, stampKey = null, activePhase = null, activeVisual = null;
     const timers = new Map(), pending = new Set();
+    const visuals = new Set();
+    function visualContext() {
+      let cancelled = false;
+      const holds = new Map();
+      const check = () => { if (cancelled || stopped) { const error = new Error('PLAYBACK_VISUAL_CANCELLED'); error.code = 'PLAYBACK_VISUAL_CANCELLED'; throw error; } };
+      const context = { check, isActive: () => !cancelled && !stopped,
+        async wait(ms) {
+          check();
+          await new Promise((resolve, reject) => {
+            const id = setTimer(() => { holds.delete(id); resolve(); }, Math.max(0, Number(ms) || 0));
+            holds.set(id, reject);
+          });
+          check();
+        },
+        cancel() {
+          cancelled = true;
+          for (const [id, reject] of holds) {
+            clearTimer(id);
+            const error = new Error('PLAYBACK_VISUAL_CANCELLED'); error.code = 'PLAYBACK_VISUAL_CANCELLED'; reject(error);
+          }
+          holds.clear(); visuals.delete(context);
+        },
+      };
+      visuals.add(context); return context;
+    }
     async function wait(playAt) {
       while (!stopped && Number.isFinite(playAt) && playAt > now()) {
         await new Promise(resolve => {
@@ -18,7 +43,7 @@
       }
       return !stopped;
     }
-    async function renderVisual(cue, render) {
+    async function renderVisual(cue, render, visual) {
       let deadline = null;
       const timeout = { timedOut: true };
       try {
@@ -26,23 +51,38 @@
           Promise.resolve(render()),
           new Promise(resolve => { deadline = setTimer(() => resolve(timeout), 8000); }),
         ]);
-        if (outcome === timeout) global.console?.warn?.('[Combat visual timeout]', cue);
+        if (outcome === timeout) { visual.cancel(); global.console?.warn?.('[Combat visual timeout]', cue); }
       } finally {
         if (deadline !== null) clearTimer(deadline);
       }
     }
     return Object.freeze({
-      stamp() { return { schemaVersion: 1, playAt: now() + leadMs }; },
+      stamp(cue, args = []) {
+        // Both sides of one Coin share a phase even when sent separately.
+        // Instant HUD preparation for both sides also belongs together.
+        const key = cue === 'powerCoin' ? `${cue}:${args[1]?.index}` : instantCues.has(cue) ? cue : null;
+        if (key === null || key !== stampKey) phase++;
+        stampKey = key;
+        return { schemaVersion: 1, playAt: now() + leadMs, phase };
+      },
       wait,
       run(cue, timing, render) {
         const previous = instantTail;
         const task = (async () => {
           if (!(await wait(timing.playAt))) return;
           await previous;
-          if (!stopped) await renderVisual(cue, render);
+          if (stopped) return;
+          if (Number.isInteger(timing.phase)) {
+            if (activePhase !== null && timing.phase < activePhase) return;
+            if (timing.phase !== activePhase) {
+              activeVisual?.cancel(); activeVisual = visualContext(); activePhase = timing.phase;
+            }
+          } else if (!activeVisual) activeVisual = visualContext();
+          const visual = activeVisual;
+          await renderVisual(cue, () => render(visual), visual);
         })().catch(error => {
           // A broken sprite/HUD must never poison the authority's presentation clock.
-          global.console?.warn?.('[Combat visual]', cue, error);
+          if (error?.code !== 'PLAYBACK_VISUAL_CANCELLED') global.console?.warn?.('[Combat visual]', cue, error);
         });
         pending.add(task);
         task.then(() => pending.delete(task));
@@ -52,7 +92,7 @@
         return task;
       },
       async drain() { await Promise.all([...pending]); },
-      stop() { stopped = true; for (const [id, resolve] of timers) { clearTimer(id); resolve(); } timers.clear(); },
+      stop() { stopped = true; for (const visual of [...visuals]) visual.cancel(); for (const [id, resolve] of timers) { clearTimer(id); resolve(); } timers.clear(); },
     });
   }
   function createConsumer({ generation, checkpoint, apply, present, finish, onEvent = () => {}, onError = () => {}, onVisualError = () => {}, beforeEvents = async () => {}, visualTimeoutMs = 7000, batchGapTimeoutMs = 3000, waitForPresentation = true }) {

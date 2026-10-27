@@ -6215,7 +6215,7 @@ const CLASH_MOTION=Object.freeze({
   rangeHitRecoil:38,
   hitMinGap:76
 });
-function wait(ms){const delay=roundRunning?(window.LuminousCombatAudiovisual073?.duration(ms)??ms):ms;return new Promise(resolve=>setTimeout(resolve,delay))}
+function wait(ms,visual){const delay=roundRunning?(window.LuminousCombatAudiovisual073?.duration(ms)??ms):ms;return visual?.wait?visual.wait(delay):new Promise(resolve=>setTimeout(resolve,delay))}
 async function playTurnTransition(turnNumber,{initial=false}={}){
   const game=$('game-container'),
         overlay=$('turn-transition'),
@@ -6962,11 +6962,11 @@ function combatStepRuntime(){
   if(combatStepsInstance)return combatStepsInstance;
   const powerHosts=new Map(),hitHosts=new Map(),
         hostKey=entry=>`${entry.ownerId}:${entry.localIndex??0}`,
-        rollCoin=async(container,coin,onResolved)=>{
+        rollCoin=async(container,coin,onResolved,visual)=>{
           if(!container)return;
           await window.LuminousCoinEngine.runAnimatedRoll({document,container,coinCount:1,base:0,
             headsChance:50,intervalMs:window.LuminousCombatAudiovisual073?.duration(COMBAT_PACE.coinInterval)??COMBAT_PACE.coinInterval,auto:true,silent:true,
-            resolvedCoins:[coin],onCoinResolved:onResolved})
+            resolvedCoins:[coin],onCoinResolved:event=>{if(visual?.isActive()!==false)onResolved?.(event)}})
         };
   const names=['coinHeadsChanceForUnit','clashLevelPowerBonus','clashableDefenseLevelPowerBonus','statusAttackPowerModifier','statusClashPowerModifier',
     'targetFinalPowerVulnerabilityBonus','statusDefensePowerModifier','conditionCounterPowerModifier',
@@ -6983,7 +6983,7 @@ function combatStepRuntime(){
   rules.caveEvadePower=(unit,plan)=>window.LuminousCaveSapphireSpiderRuntime?.evadePower?.(unit,plan)||null;
   combatStepsInstance=window.LuminousCombatSteps.create({rules,
     publish:()=>window.LuminousCombatAuthority073?.publishPresentation?.(),
-    schedulePresentation:()=>window.LuminousCombatPlaybackSync?.schedulePresentation?.(),
+    schedulePresentation:(cue,args)=>window.LuminousCombatPlaybackSync?.schedulePresentation?.(cue,args),
     presentScheduled:(event,render)=>window.LuminousCombatPlaybackSync?.presentScheduled?.(event,render)??render(),
     onEvent:event=>{try{window.LuminousCombatHudMotion073?.event(event)}finally{window.LuminousCombatAudiovisual073?.event(event)}},
     onPresentation:(cue,args)=>{try{window.LuminousCombatHudMotion073?.cue(cue,args)}finally{window.LuminousCombatAudiovisual073?.cue(cue,args)}},
@@ -6999,19 +6999,20 @@ function combatStepRuntime(){
       statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],
       shieldPools:u.shieldPools||{},staggerStage:u.staggerStage||0}])),
     presentation:{
-      wait:key=>wait(COMBAT_PACE[key]),
+      wait:(key,visual)=>wait(COMBAT_PACE[key],visual),
       powerStart(entry,count,power){
         const hud=setFloatingClashHud(entry,count,power),strip=prepareFloatingClashRoll(entry,count),hosts=[];
         if(strip){strip.replaceChildren();for(let i=0;i<count;i++){const node=document.createElement('span');strip.appendChild(node);hosts.push(node)}}
         powerHosts.set(hostKey(entry),{hud,hosts});
         const node=hud?.querySelector('.clash-float-power');if(node)node.textContent=power
       },
-      async powerCoin(entry,coin,power){
+      async powerCoin(entry,coin,power,...context){
+        const visual=context.at(-1);
         const state=powerHosts.get(hostKey(entry));
         // Reactive Evade carries the incoming attack index, but rolls one Coin.
         const host=state?.hosts[coin.index]||state?.hosts[0];
         await rollCoin(host,coin,()=>{const node=state?.hud?.querySelector('.clash-float-power');
-          if(node)node.textContent=power;setFloatingPowerCoinState(entry,coin.side)})
+          if(node)node.textContent=power;setFloatingPowerCoinState(entry,coin.side)},visual)
       },
       powerEnd(entry,count,power,coins){setFloatingClashHud(entry,count,power,coins);powerHosts.delete(hostKey(entry))},
       hitsStart(entry,remaining){setFloatingClashHud(entry,remaining)},
@@ -7022,24 +7023,25 @@ function combatStepRuntime(){
         if(strip)strip.innerHTML=`${coins.map(coinResultMarkup).join('')}<span class="clash-current-roll-host"></span>${Array.from({length:Math.max(0,remaining-coins.length-1)},()=>`<span class="clash-float-coin unresolved-tail"><img src="${window.LuminousCoinEngine.TAIL_SRC}" alt="Tail"></span>`).join('')}`;
         hitHosts.set(hostKey(entry),{hud,container:hud?.querySelector('.clash-current-roll-host')})
       },
-      async hitCoin(entry,remaining,coinIndex,coins,power){
+      async hitCoin(entry,remaining,coinIndex,coins,power,visual){
         const state=hitHosts.get(hostKey(entry)),coin=coins[coins.length-1],data=clashData(entry.plan);
-        await rollCoin(state?.container,coin,()=>{setFloatingPowerCoinState(entry,coin.side);setFloatingCoinDetail(state?.hud,data,remaining,coinIndex,coin.side)});
+        await rollCoin(state?.container,coin,()=>{setFloatingPowerCoinState(entry,coin.side);setFloatingCoinDetail(state?.hud,data,remaining,coinIndex,coin.side)},visual);
+        visual?.check();
         const node=state?.hud?.querySelector('.clash-float-power');if(node)node.textContent=power;
         renderFloatingClashCoins(state?.hud,data.coinAmount,remaining,coins.concat(Array.from({length:remaining-coins.length},()=>null)));
         hitHosts.delete(hostKey(entry))
       },
-      hitMotion:(entry,targetId)=>animateHitMotion(entry,targetId),
-      async clashStart(a,b,ra,rb){moveClashUnitsToMidpoint(a,b);setFloatingClashHud(a,ra);setFloatingClashHud(b,rb);await wait(COMBAT_PACE.clashApproach)},
-      async clashContact(a,b,count){showClashCount(a,b,count);await animateClashContact(a,b)},
-      async clashOutcome(a,b,winner,ra,rb,rollA,rollB){
+      hitMotion:(entry,targetId,...context)=>animateHitMotion(entry,targetId,context.at(-1)),
+      async clashStart(a,b,ra,rb,visual){moveClashUnitsToMidpoint(a,b);setFloatingClashHud(a,ra);setFloatingClashHud(b,rb);await wait(COMBAT_PACE.clashApproach,visual)},
+      async clashContact(a,b,count,visual){showClashCount(a,b,count);await animateClashContact(a,b,visual)},
+      async clashOutcome(a,b,winner,ra,rb,rollA,rollB,visual){
         setFloatingClashHud(a,ra,rollA.power,rollA.coins);setFloatingClashHud(b,rb,rollB.power,rollB.coins);
-        await animateClashOutcome(a,b,winner);await wait(winner==='tie'?COMBAT_PACE.tieResult:COMBAT_PACE.clashResult)
+        await animateClashOutcome(a,b,winner,visual);await wait(winner==='tie'?COMBAT_PACE.tieResult:COMBAT_PACE.clashResult,visual)
       },
-      async clashDefeat(winner,loser){await wait(COMBAT_PACE.spAward);await animateClashDefeat(winner,loser);closeFloatingClashHud(loser)},
-      async clashEnd(a,b,winner){await wait(250);closeFloatingClashHud(a);closeFloatingClashHud(b);hideClashCount(a,b);settleClashUnits(a,b);await wait(COMBAT_PACE.returnFromClash)},
-      async guardEnd(entry){await wait(COMBAT_PACE.totalHold);closeFloatingClashHud(entry)},
-      async evadeEnd(entry){await wait(280);closeFloatingClashHud(entry)}
+      async clashDefeat(winner,loser,visual){await wait(COMBAT_PACE.spAward,visual);visual?.check();await animateClashDefeat(winner,loser,visual);visual?.check();closeFloatingClashHud(loser)},
+      async clashEnd(a,b,winner,visual){await wait(250,visual);visual?.check();closeFloatingClashHud(a);closeFloatingClashHud(b);hideClashCount(a,b);settleClashUnits(a,b);await wait(COMBAT_PACE.returnFromClash,visual)},
+      async guardEnd(entry,visual){await wait(COMBAT_PACE.totalHold,visual);visual?.check();closeFloatingClashHud(entry)},
+      async evadeEnd(entry,...context){const visual=context.at(-1);await wait(280,visual);visual?.check();closeFloatingClashHud(entry)}
     }});
   return combatStepsInstance
 }
@@ -7232,7 +7234,7 @@ function spawnClashContactFx(entryA,entryB,{kind='clash',hitTargetId=null}={}){
   host.appendChild(fx);
   setTimeout(()=>fx.remove(),360)
 }
-async function animateClashContact(entryA,entryB){
+async function animateClashContact(entryA,entryB,visual){
   const mode=clashPairMode(entryA,entryB);
   if(mode==='melee-melee'){
     // Do not spawn the impact in empty space. Each Clash visibly lunges both
@@ -7252,18 +7254,19 @@ async function animateClashContact(entryA,entryB){
     markUnitCombatActive(combatData[entryA.ownerId],true);
     markUnitCombatActive(combatData[entryB.ownerId],true)
   }
-  await wait(COMBAT_PACE.clashContact);
+  await wait(COMBAT_PACE.clashContact,visual);
+  visual?.check();
   spawnClashContactFx(entryA,entryB);
-  await wait(COMBAT_PACE.clashSpark)
+  await wait(COMBAT_PACE.clashSpark,visual)
 }
-async function animateClashOutcome(entryA,entryB,outcome){
+async function animateClashOutcome(entryA,entryB,outcome,visual){
   const mode=clashPairMode(entryA,entryB);
   if(outcome==='tie'){
     if(mode==='melee-melee'){
       moveUnitAlongCombatLine(entryA.ownerId,entryB.ownerId,-CLASH_MOTION.tieRetreat,{duration:COMBAT_PACE.clashMotion});
       moveUnitAlongCombatLine(entryB.ownerId,entryA.ownerId,-CLASH_MOTION.tieRetreat,{duration:COMBAT_PACE.clashMotion})
     }
-    await wait(COMBAT_PACE.clashMotion);
+    await wait(COMBAT_PACE.clashMotion,visual);
     return
   }
   const winner=outcome==='a'?entryA:entryB,loser=winner===entryA?entryB:entryA,
@@ -7278,9 +7281,10 @@ async function animateClashOutcome(entryA,entryB,outcome){
       moveUnitAlongCombatLine(winner.ownerId,loser.ownerId,CLASH_MOTION.meleeClashAdvance,{minGap:CLASH_MOTION.meleeReadyGap,duration:COMBAT_PACE.clashMotion})
     }
   }
-  await wait(COMBAT_PACE.clashMotion)
+  await wait(COMBAT_PACE.clashMotion,visual)
 }
-async function animateClashDefeat(winner,loser){
+async function animateClashDefeat(winner,loser,visual){
+  visual?.check();
   const winnerRange=isRangeAction(winner.plan),loserRange=isRangeAction(loser.plan);
   if(winnerRange&&!loserRange){
     moveUnitAlongCombatLine(loser.ownerId,winner.ownerId,-CLASH_MOTION.finalLosePush,{duration:COMBAT_PACE.clashMotion})
@@ -7289,9 +7293,9 @@ async function animateClashDefeat(winner,loser){
     moveUnitAlongCombatLine(winner.ownerId,loser.ownerId,999,{minGap:CLASH_MOTION.hitMinGap,duration:COMBAT_PACE.clashMotion});
     if(!loserRange)moveUnitAlongCombatLine(loser.ownerId,winner.ownerId,-Math.round(CLASH_MOTION.finalLosePush*.55),{duration:COMBAT_PACE.clashMotion})
   }
-  await wait(COMBAT_PACE.clashMotion)
+  await wait(COMBAT_PACE.clashMotion,visual)
 }
-async function animateHitMotion(entry,targetId){
+async function animateHitMotion(entry,targetId,visual){
   if(!entry||!targetId)return;
   const attacker=combatData[entry.ownerId],target=combatData[targetId];
   if(!attacker||!target)return;
@@ -7303,9 +7307,10 @@ async function animateHitMotion(entry,targetId){
     moveUnitAlongCombatLine(entry.ownerId,targetId,CLASH_MOTION.hitAdvance,{minGap:CLASH_MOTION.hitMinGap,duration});
     moveUnitAlongCombatLine(targetId,entry.ownerId,-CLASH_MOTION.hitRecoil,{duration})
   }
-  await wait(Math.max(90,duration-45));
+  await wait(Math.max(90,duration-45),visual);
+  visual?.check();
   spawnClashContactFx(entry,{ownerId:targetId,plan:{data:{}}},{kind:'hit',hitTargetId:targetId});
-  await wait(90)
+  await wait(90,visual)
 }
 function moveClashUnitsToMidpoint(entryA,entryB){
   const unitA=combatData[entryA.ownerId],
@@ -8408,13 +8413,13 @@ window.LuminousCombatStepRuntime=Object.freeze({
     for(const key of saved.resolvedKeys||[])resolvedKeys.add(key);
     activeGrapples=attach(saved.activeGrapples||[]);grappleSerial=Number(saved.grappleSerial)||0
   },
-  async present(cue,args){
+  async present(cue,args,visual){
     const entry=value=>{
       if(Array.isArray(value))return value.map(entry);
       if(value?.ownerId&&value?.plan)return {...value,slot:unitSlots(value.ownerId)[value.localIndex??0]||null};
       return value
     };
-    await combatStepRuntime().present(cue,args.map(entry))
+    await combatStepRuntime().present(cue,args.map(entry),visual)
   },
   lockPlanning(locked){
     roundRunning=Boolean(locked);

@@ -1,26 +1,41 @@
-# Animación en vivo: DM y seis jugadores
+# Sincronización de presentación: revisión previa al merge
 
-## Fallo reproducido
+## Fallos corregidos
 
-El Teatro calcula la escritura visible desde `startedAt` y el tiempo transcurrido (`js/theatre-engine.js`). Cada actualización vuelve a la posición actual del texto.
+El consumidor esperaba cada animación local antes de avanzar, aunque existía un reloj compartido. Las Coins de un mismo intercambio se serializaban al llegar en lotes separados. La primera corrección eliminó esa espera acumulativa.
 
-Combate ya envía `timing.playAt`, pero el consumidor esperaba la duración completa de cada animación local antes de avanzar. Su agrupación de Coins paralelas solo funcionaba dentro del mismo lote. Al separar ambas Coins en dos sobres, el segundo lado empezaba 300 ms tarde desde el primer intercambio. Animaciones locales más largas acumulaban retraso y activaban el descarte de efectos atrasados.
+La revisión encontró otro fallo: con DM a ×2 y jugador a ×1, una continuación de `clashDefeat` podía mover sprites durante el siguiente ataque. Ahora el sellado guarda `playback.presentationSpeed`, todos usan esa velocidad durante el turno y recuperan sus preferencias privadas al terminar. El selector queda bloqueado mientras rige el turno compartido.
 
-## Corrección
+Cada presentación también lleva una fase. Ambas Coins comparten fase; al avanzar se cancelan las esperas de la anterior. La presentación de producción propaga ese contexto por sus movimientos, pausas y callbacks de Coins, impidiendo cambios tardíos del HUD. La desconexión y el timeout cancelan esos contextos. No cambia resultados, RNG ni costes del combate.
 
-Los consumidores con timeline compartida avanzan por las horas de servidor. El reloj de presentación ordena la preparación del HUD y deja comenzar las Coins paralelas aunque lleguen en lotes distintos. Los efectos locales pendientes no bloquean los siguientes comandos. El cierre espera las tareas visuales con su timeout existente y comprueba la identidad del consumidor antes de desbloquear Planning. Los turnos sin timeline conservan su reproducción secuencial.
+El bootstrap aplica el cache-busting de Steps, playback, sync y audiovisual después de todas las reescrituras antiguas. Fuente y trece shards se reconstruyen juntos.
 
-Se actualiza la URL de los módulos en el bootstrap real para invalidar versiones en caché. No cambia el esquema de Firebase ni requiere nuevas reglas.
+## Comparación y evidencia
 
-## Pruebas
+La prueba inicial falló al exigir el mismo orden de arranque entre dos Coins simultáneas. Ahora cada cue se compara por identidad de evento, actor, fase y deadline. Permite invertir únicamente el orden entre actores dentro de una misma fase; mantiene el orden de cada actor y rechaza pérdidas, duplicados, fases cruzadas y desfases de más de 400 ms.
 
-- `node tests/combat-shared-clock-smoke.mjs`: DM y seis clientes independientes, ocho intercambios, Coins en lotes distintos, hasta 210 ms de entrega, relojes desajustados y un efecto local de 2200 ms. Exige todos los comandos dentro de 150 ms del DM y el mismo estado final. La versión anterior falla con 300 ms en la segunda Coin del primer intercambio; la corrección pasa.
-- `node tests/combat-playback-six-viewers-recovery-smoke.mjs`: errores visuales, pérdida de lotes, suscripción cancelada, reintentos y recuperación final.
-- `node tests/combat-playback-catchup-smoke.mjs`: atraso real de transporte y aplicación de estados al recuperar conexión.
-- `node tests/combat-presentation-transport-smoke.mjs`: publicación incremental, confirmaciones no bloqueantes, barreras durables y duplicados.
-- `npm run check:combat-live`: verifica el empaquetado existente.
-- `node tests/combat-six-browser-deadlines.mjs`: siete contextos Chromium, fábrica de presentación y motor Coin extraídos de la fuente de producción, encoder/consumidor/reloj reales, entrega simulada y Coins separadas. Seis viewports: 360×800, 390×844, 844×390, 768×1024, 1280×720 y 1920×1080. Exige todos los comandos en orden, máximo 400 ms respecto al DM, DOM real y HP final idéntico. Guarda capturas y métricas como artefactos del workflow.
+El estado terminal de la fixture se aplica primero al DM y se compara con él en los seis visores. Antes solo se contrastaban los jugadores entre sí. Los datos crudos se guardan antes de las aserciones para conservar evidencia aun cuando falle una comprobación.
 
-## Límites de aceptación
+## Validación
 
-La prueba Chromium es una integración aislada del renderizador, con HUD espacial simplificado y transporte simulado. No constituye una sesión autenticada contra Firebase, una prueba de carga del servidor ni una certificación del Battle Viewer completo. La reproducción local del fallo y las cuatro suites Node pasan. Chromium no estaba instalado en el entorno de trabajo y la descarga estándar falló; su ejecución queda a CI salvo que se documente una ejecución posterior. La sesión real DM + seis jugadores sobre las reglas desplegadas sigue siendo la aceptación de producción. No se garantiza simultaneidad durante una desconexión, suspensión de pestañas o bloqueo del dispositivo.
+Pasan localmente:
+- `combat-presentation-assertions-smoke.mjs`: Coins paralelas y casos negativos.
+- `combat-presentation-phase-cancellation-smoke.mjs`: fábrica de presentación y derrota de Clash de producción, sealer real, velocidad ×2/×1, cancelación antes de impacto/HUD y al cerrar, Coins paralelas y restauración de preferencias.
+- `combat-shared-clock-smoke.mjs`: DM y seis VMs, lotes separados, hasta 210 ms de entrega y un visual local de 2200 ms.
+- `combat-playback-six-viewers-recovery-smoke.mjs`, `combat-playback-catchup-smoke.mjs` y `combat-presentation-transport-smoke.mjs`.
+- Sintaxis de módulos y scripts inline; `node scripts/build-combat-live.mjs --check`.
+
+El workflow prepara tres ejecuciones Chromium con transporte retardado y una con **siete cuentas Auth, SDK Firebase en cada navegador, RTDB Emulator y las reglas de producción del repositorio**. Comprueba también que los jugadores no puedan publicar resultados del DM. El modo Emulator exige hosts de loopback; no se conecta a la campaña real.
+
+Comando Emulator:
+```sh
+COMBAT_FIREBASE_EMULATOR=1 npx firebase emulators:exec --project demo-combat-results --only auth,database --config combat-results-firebase.json 'node tests/combat-six-browser-deadlines.mjs'
+```
+
+Viewports: 360×800, 390×844, 844×390, 768×1024, 1280×720 y 1920×1080. Artefactos: capturas, resultados crudos y métricas.
+
+## Puerta de merge
+
+La ejecución anterior del commit e047027 pasó en su segundo intento con 97 ms de desfase, pero no valida esta revisión. **Las nuevas ejecuciones Chromium/Emulator quedan pendientes de CI; no se declaran aprobadas.** El contenedor local carece de un Chromium ejecutable y de un Java funcional.
+
+Esta integración usa el renderizador real de Coins y la fábrica de presentación, con HUD espacial reducido y estado terminal inyectado. El transporte Emulator usa autenticación y reglas reales locales, pero **no es una aceptación del Battle Viewer completo, de las reglas desplegadas ni de una campaña real**. Esa aceptación completa sigue pendiente. Mantener el PR como borrador, sin merge, hasta completar la revisión y la validación requerida.
