@@ -891,6 +891,7 @@
     button.onclick = () => {
       state.clickedByMenu[type === "spell" ? "spells" : "skills"] = row.id || row.spellId || row.name;
       button.classList.add("focused");
+      button.setAttribute?.("aria-pressed", "true");
       return api.selectAction({ type:row.__deckCard?"deck":type, slotIndex:selectedSlotIndex(), ...(row.__deckCard?{drawId:row.__deckCard.drawId}:{}), data:row });
     };
     return button;
@@ -978,6 +979,7 @@
       const button = global.document.createElement("button");
       button.type = "button";
       button.className = `clean-row ${state.clickedByMenu.items === (row.instanceId || row.id) ? "focused" : ""}`;
+      button.setAttribute?.("aria-pressed", String(state.clickedByMenu.items === (row.instanceId || row.id)));
       button.dataset.itemInstanceId = row.instanceId || row.id || "";
       button.style?.setProperty?.("--row-accent", lexical("menuMeta", {})?.items?.accent || "#f0bf72");
       const qty = Math.max(0, Number(row.quantity) || 0);
@@ -987,6 +989,7 @@
       button.onclick = () => {
         state.clickedByMenu.items = row.instanceId || row.id;
         button.classList.add("focused");
+        button.setAttribute?.("aria-pressed", "true");
         if(row.cancelEnchantmentReaction){
           const unit=playerUnit();
           if(unit)delete unit.__luminousSelectedEnchantmentReaction;
@@ -1017,12 +1020,14 @@
     rows.forEach((row, index) => {
       const button = global.document.createElement("button");
       button.className = `clean-row ${state.clickedByMenu.global === (row.id || row.actionKey || row.name) ? "focused" : ""}`;
+      button.setAttribute?.("aria-pressed", String(state.clickedByMenu.global === (row.id || row.actionKey || row.name)));
       button.style.setProperty("--row-accent", lexical("menuMeta", {})?.global?.accent || "#ffe877");
       const icon = row.iconUrl ? `<img src="${htmlEscape(row.iconUrl)}" alt="">` : htmlEscape(row.name?.[0] || "A");
       button.innerHTML = `<span class="clean-icon action-png-icon">${icon}</span><span class="clean-name">${htmlEscape(row.name)}</span><span class="clean-cost">${htmlEscape(costLabel(row))}</span>`;
       button.onclick = () => {
         state.clickedByMenu.global = row.id || row.actionKey || row.name;
         button.classList.add("focused");
+        button.setAttribute?.("aria-pressed", "true");
         return api.selectAction({ type: row.kind === "trait" ? "trait" : "global", slotIndex: selectedSlotIndex(), data: row });
       };
       list.appendChild(button);
@@ -1316,6 +1321,7 @@
       const menu = normalizeId(button.dataset?.menu);
       if (!TABBED_MENUS.has(menu)) return;
 
+      delete state.clickedByMenu[menu];
       // Preserve the original radial transition for mobile and desktop.
       // The economy runtime refreshes the canonical list after it settles.
       // Large-layout viewers keep the original radial transition. Refresh live
@@ -1768,6 +1774,7 @@
       global.__luminousEconomyOriginalGoRoot = state.originals.goRoot;
       global.__luminousEconomyGoRoot = function (...args) {
         state.menuRefreshGeneration += 1;
+        state.clickedByMenu = {};
         const result = global.__luminousEconomyOriginalGoRoot.apply(this, args);
         global.setTimeout?.(syncResponsiveMenuLayout, 0);
         return result;
