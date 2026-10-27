@@ -115,3 +115,39 @@ for (const [width, height] of [[360, 800], [390, 844], [844, 390], [768, 1024], 
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
   });
 }
+
+for (const [width, height] of [[360, 800], [390, 844], [844, 390], [768, 1024], [1280, 720], [1920, 1080]]) {
+  test(`DM library and stale speaker regression at ${width}x${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await mount(page);
+    await page.getByRole("tab", { name: "Elenco" }).click();
+    await page.evaluate(() => {
+      const select = document.getElementById("select-npc-roster");
+      select.replaceChildren(new Option("Seleccionar personaje", ""));
+      for (let i = 0; i < 55; i++) select.appendChild(new Option("Guardia", "guard_" + i));
+    });
+    await expect(page.locator("#dm-director-roster-grid .dm-director-person-card")).toHaveCount(48);
+    await page.getByRole("button", { name: "Mostrar más personajes" }).click();
+    const cards = page.locator("#dm-director-roster-grid .dm-director-person-card");
+    await expect(cards).toHaveCount(55);
+    await cards.last().click();
+    expect(await page.evaluate(() => window.spawnedNpc)).toBe("guard_54");
+    await page.locator(".dm-director-search").fill("Guardia");
+    await expect(cards).toHaveCount(48);
+    await expect(page.getByRole("button", { name: "Mostrar más personajes" })).toBeVisible();
+
+    // A stale card must never open a different character's composer.
+    const stale = await page.evaluate(() => {
+      document.getElementById("theatre-speaker-select").querySelector('option[value="active_aldara"]').remove();
+      return window.LuminousDmTheatreWorkspace.openComposer("active_aldara");
+    });
+    expect(stale).toBe(false);
+    await expect(page.locator("#dm-theatre-composer-modal")).toBeHidden();
+    await expect(page.getByRole("status")).toContainText("ya no está disponible");
+    await page.getByRole("button", { name: "Hablar como Narrador" }).click();
+    await expect(page.locator("#dm-theatre-composer-modal")).toBeVisible();
+    await expect(page.locator("#theatre-speaker-select")).toHaveValue("narrador");
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#dm-theatre-composer-modal")).toBeHidden();
+  });
+}

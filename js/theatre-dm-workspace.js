@@ -13,7 +13,7 @@
   });
   const FALLBACK_NPC = ICONS.scene;
   const FALLBACK_PLAYER = ICONS.cast;
-  const state = { npcs: {}, actorLibrary: {}, sceneActors: {}, activeTab: "voices", query: "" };
+  const state = { npcs: {}, actorLibrary: {}, sceneActors: {}, activeTab: "voices", query: "", rosterLimit: 48 };
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -128,6 +128,10 @@
     const voiceGrid = el("div", "dm-director-voice-grid");
     voiceGrid.id = "dm-director-voice-grid";
     voices.appendChild(voiceGrid);
+    const composerStatus = el("p", "dm-director-hint");
+    composerStatus.setAttribute("role", "status");
+    composerStatus.hidden = true;
+    voices.appendChild(composerStatus);
     voices.appendChild(button("Redactar mensaje", () => openComposer(), ICONS.speak));
     const nextMessage = button("Siguiente intervención", () => {
       const original = document.getElementById("btn-theatre-message-next");
@@ -203,8 +207,15 @@
     });
 
     function openComposer(actorId) {
+      if (actorId !== undefined && !Array.from(speakerSelect.options).some(o => o.value === actorId)) {
+        activate("voices");
+        composerStatus.textContent = "Este personaje ya no está disponible para hablar. Selecciona otro del elenco.";
+        composerStatus.hidden = false;
+        return false;
+      }
+      composerStatus.hidden = true;
       lastTrigger = document.activeElement;
-      if (actorId !== undefined && Array.from(speakerSelect.options).some(o => o.value === actorId)) {
+      if (actorId !== undefined) {
         speakerSelect.value = actorId;
         speakerSelect.dispatchEvent(new Event("change", { bubbles: true }));
         const type = document.getElementById("dm-tipo-dialogo-select");
@@ -271,7 +282,7 @@
         return;
       }
       items.sort((a,b) => (a.textContent || "").localeCompare(b.textContent || "", "es"));
-      items.slice(0, 48).forEach(option => {
+      items.slice(0, state.rosterLimit).forEach(option => {
         const id = option.value;
         const actor = state.npcs[id] || state.actorLibrary[id] || {};
         const isPlayer = option.dataset.sourceType === "player-profile";
@@ -290,7 +301,15 @@
         item.appendChild(labels);
         rosterGrid.appendChild(item);
       });
-      if (items.length > 48) rosterGrid.appendChild(el("p", "dm-director-empty", "Mostrando 48 personajes. Busca por nombre para encontrar los demás."));
+      if (items.length > state.rosterLimit) {
+        const more = button("Mostrar más personajes", () => {
+          const firstNew = state.rosterLimit;
+          state.rosterLimit += 48;
+          renderRoster();
+          rosterGrid.querySelectorAll(".dm-director-person-card")[firstNew]?.focus();
+        });
+        rosterGrid.appendChild(more);
+      }
     }
 
     function decorateActors() {
@@ -325,6 +344,7 @@
 
     search.addEventListener("input", () => {
       state.query = search.value.trim().toLocaleLowerCase();
+      state.rosterLimit = 48;
       renderRoster();
     });
     speakerSelect.addEventListener("change", renderSpeakers);
