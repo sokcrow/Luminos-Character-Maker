@@ -3550,7 +3550,7 @@ function focusCombatCameraOnPlayer(){
   setCombatCameraPoint({x:point.x,y:point.y-76},1.58)
 }
 function focusCombatCameraOnClash(entryA,entryB){
-  if(entryA?.ownerId!==PLAYER_ID&&entryB?.ownerId!==PLAYER_ID)return;
+  if(!timelineResolutionActive&&entryA?.ownerId!==PLAYER_ID&&entryB?.ownerId!==PLAYER_ID)return;
   const a=unitCombatAnchor(combatData[entryA.ownerId]),
         b=unitCombatAnchor(combatData[entryB.ownerId]);
   setCombatCameraPoint({x:(a.x+b.x)/2,y:((a.y+b.y)/2)-74},1.66)
@@ -6999,6 +6999,18 @@ function combatStepRuntime(){
       statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],
       shieldPools:u.shieldPools||{},staggerStage:u.staggerStage||0}])),
     presentation:{
+      actionStart(entry){
+        if(window.LuminousCombatLiveMode!==true)return;
+        setTimelineVisualFocus(timelineParticipantsForEntries([entry]));
+        if(entry.plan?.targetId)focusCombatCameraOnClash(entry,{ownerId:entry.plan.targetId})
+      },
+      async actionApproach(entry,mode,visual){
+        moveEntryForAction(entry);
+        if(!timelineResolutionActive&&entry.ownerId===PLAYER_ID)focusCombatCameraOnPlayer();
+        await wait(mode==='counter'?220:COMBAT_PACE.cameraSettle,visual);
+        visual?.check();
+        setFloatingClashHud(entry,Math.max(1,Number(entry.plan?.data?.coinAmount)||1))
+      },
       wait:(key,visual)=>wait(COMBAT_PACE[key],visual),
       powerStart(entry,count,power){
         const hud=setFloatingClashHud(entry,count,power),strip=prepareFloatingClashRoll(entry,count),hosts=[];
@@ -7032,7 +7044,7 @@ function combatStepRuntime(){
         hitHosts.delete(hostKey(entry))
       },
       hitMotion:(entry,targetId,...context)=>animateHitMotion(entry,targetId,context.at(-1)),
-      async clashStart(a,b,ra,rb,visual){moveClashUnitsToMidpoint(a,b);setFloatingClashHud(a,ra);setFloatingClashHud(b,rb);await wait(COMBAT_PACE.clashApproach,visual)},
+      async clashStart(a,b,ra,rb,visual){if(window.LuminousCombatLiveMode===true)setTimelineVisualFocus([a.ownerId,b.ownerId]);moveClashUnitsToMidpoint(a,b);setFloatingClashHud(a,ra);setFloatingClashHud(b,rb);await wait(COMBAT_PACE.clashApproach,visual)},
       async clashContact(a,b,count,visual){showClashCount(a,b,count);await animateClashContact(a,b,visual)},
       async clashOutcome(a,b,winner,ra,rb,rollA,rollB,visual){
         setFloatingClashHud(a,ra,rollA.power,rollA.coins);setFloatingClashHud(b,rb,rollB.power,rollB.coins);
@@ -7531,11 +7543,7 @@ async function resolveUnopposedCoinAction(entry){
   markEntryStarted(entry);
   if(!targetId)return;
 
-  moveEntryForAction(entry);
-  if(!timelineResolutionActive&&entry.ownerId===PLAYER_ID)focusCombatCameraOnPlayer();
-  await wait(COMBAT_PACE.cameraSettle);
-
-  setFloatingClashHud(entry,data.coinAmount);
+  await combatStepRuntime().show('actionApproach',entry,'attack');
   await resolveRemainingCoinHits(
     entry,
     targetId,
@@ -7636,9 +7644,7 @@ async function triggerCounterAfterHit(defenderId,attackerId,incomingEntry){
   // Counter can visually execute at the same time as the incoming attacker;
   // don't clear the attacker's executing Slot just to highlight the reaction.
   entry.slot?.classList.add('executing');
-  moveEntryForAction(reactionEntry);
-  await wait(220);
-  setFloatingClashHud(reactionEntry,Math.max(1,Number(reactionPlan.data?.coinAmount)||1));
+  await combatStepRuntime().show('actionApproach',reactionEntry,'counter');
   await resolveRemainingCoinHits(reactionEntry,attackerId,Math.max(1,Number(reactionPlan.data?.coinAmount)||1),{heal:false,clashWinner:false});
   closeFloatingClashHud(reactionEntry);
   entry.slot?.classList.remove('executing');

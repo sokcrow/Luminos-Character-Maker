@@ -10,7 +10,7 @@ from pathlib import Path
 root = Path(sys.argv[1] if len(sys.argv) > 1 else 'artifacts/combat-nine')
 raw = [json.loads(p.read_text()) for p in sorted(root.glob('*/raw.json'))]
 clash = {'clashStart', 'clashContact', 'powerCoin', 'clashOutcome', 'clashDefeat', 'clashEnd'}
-names = {'clashStart': 'Entrada al Clash', 'clashContact': 'Contacto', 'powerCoin': 'Coins de poder', 'clashOutcome': 'Resultado del Clash', 'clashDefeat': 'Derrota en Clash', 'clashEnd': 'Salida del Clash', 'hitCoin': 'Coins de impacto', 'hitMotion': 'Movimiento de impacto', 'hitsStart': 'Preparación de impactos', 'powerStart': 'Preparación de poder', 'powerEnd': 'Cierre de poder', 'hitStart': 'Preparación de Coin', 'wait': 'Pausas entre impactos', 'actionStart': 'Inicio de acción'}
+names = {'clashStart': 'Entrada al Clash', 'clashContact': 'Contacto', 'powerCoin': 'Coins de poder', 'clashOutcome': 'Resultado del Clash', 'clashDefeat': 'Derrota en Clash', 'clashEnd': 'Salida del Clash', 'hitCoin': 'Coins de impacto', 'hitMotion': 'Movimiento de impacto', 'hitsStart': 'Preparación de impactos', 'powerStart': 'Preparación de poder', 'powerEnd': 'Cierre de poder', 'hitStart': 'Preparación de Coin', 'wait': 'Pausas entre impactos', 'actionStart': 'Inicio de acción', 'actionApproach':'Acercamiento al objetivo'}
 
 
 def percentile(values, p):
@@ -40,7 +40,7 @@ for result in raw:
     for batch in (result.get('batches') or {}).values():
         for event in json.loads(batch['payload']).get('events', []):
             event_batch[event['sequence']] = batch['seq']
-    fingerprint = {'seed': (result.get('authority') or {}).get('seed'), 'cues': [(r['cue'], r['owner'], r.get('opponent'), r.get('index'),r.get('result')) for r in sorted(dm.values(), key=lambda r: r['sequence'])], 'outcome': clients[0]['units']}
+    fingerprint = {'seed': (result.get('authority') or {}).get('seed'), 'cues': [(r['cue'], r['owner'], r.get('opponent'), r.get('index'),r.get('result')) for r in sorted(dm.values(), key=lambda r: r['sequence']) if r['cue']!='actionApproach'], 'outcome': clients[0]['units']}
     signatures[result['label']].append(fingerprint)
     for player, client in enumerate(clients[1:], 1):
         received = {r['seq']: r['at'] for r in client['telemetry']['received']}

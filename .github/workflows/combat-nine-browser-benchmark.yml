@@ -24,6 +24,7 @@ jobs:
       - run: npm install --no-save --package-lock=false @playwright/test@1.56.1 firebase@8.10.1 firebase-tools@14.19.1
       - run: npx playwright install --with-deps chromium
       - run: node tests/combat-nine-browser-fixture-smoke.mjs
+      - run: node tests/combat-spectator-presentation-smoke.mjs
       - run: python -m pip install matplotlib
       - name: Exact pre-fix baseline
         run: |

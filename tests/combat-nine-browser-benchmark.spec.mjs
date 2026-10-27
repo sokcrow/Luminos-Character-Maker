@@ -45,7 +45,14 @@ function instrument(){
   function start(event,cue,args){
     if(!event){data.errors.push('Missing presentation identity: '+cue);return null;}
     const row={sequence:event.sequence,cue,owner:args?.[0]?.ownerId||null,opponent:args?.[1]?.ownerId||null,index:cue==='powerCoin'?args?.[1]?.index:cue==='hitCoin'?args?.[2]:null,result:resultValue(cue,args),startAt:now(),playAt:event.timing?.playAt??null,paintAt:null,endAt:null};
-    data.cues.push(row);requestAnimationFrame(()=>{row.paintAt=now()});return row;
+    data.cues.push(row);requestAnimationFrame(()=>{
+      row.paintAt=now();
+      if(['actionStart','actionApproach','clashStart','clashOutcome','hitMotion'].includes(cue))row.scene={
+        camera:document.getElementById('battlefield')?.dataset.cameraMode||null,
+        participants:[...document.querySelectorAll('.sprite-container.timeline-participant')].map(n=>n.id.replace(/^token-/,'' )).sort(),
+        movement:[...document.querySelectorAll('.sprite-container.clash-moving')].map(n=>({id:n.id.replace(/^token-/,''),x:n.style.getPropertyValue('--clash-dx'),y:n.style.getPropertyValue('--clash-dy')}))
+      };
+    });return row;
   }
   let steps,protocol,surface;
   Object.defineProperty(window,'LuminousCombatSteps',{configurable:true,get:()=>steps,set(api){steps=Object.freeze({...api,create(options){
@@ -175,6 +182,19 @@ test('Nine real Battle Viewers compare identical Clashes before and after',async
           expect(client.telemetry.cues.some(row=>row.cue==='hitMotion')).toBe(true);
           for(const id of Object.keys(checkpoint))expect(client.units[id],`canonical results ${id}`).toEqual(canonical(id));
           for(const cue of client.telemetry.cues)expect(cue.result,`rendered result of event ${cue.sequence}`).toEqual(dmCues.get(cue.sequence)?.result);
+        }
+        if(label==='after')for(const client of result.clients){
+          for(const cue of client.telemetry.cues.filter(c=>c.cue==='clashStart')){
+            expect(cue.scene?.camera,'Spectators follow the same Clash camera').toBe('combat');
+            expect(cue.scene?.participants,'Real DOM highlights both Clash participants').toEqual([cue.owner,cue.opponent].sort());
+            expect(cue.scene?.movement.some(row=>row.id===cue.owner||row.id===cue.opponent),'Clash approach moves actual tokens').toBe(true);
+          }
+          expect(client.telemetry.cues.some(c=>c.cue==='actionApproach'),'Unopposed movement is transmitted').toBe(true);
+          for(const cue of client.telemetry.cues.filter(c=>c.cue==='actionApproach')){
+            expect(cue.scene?.camera).toBe('combat');
+            expect(cue.scene?.participants).toContain(cue.owner);
+            expect(cue.scene?.movement.some(row=>row.id===cue.owner),'Attack approach moves the actual token').toBe(true);
+          }
         }
         for(const client of result.clients.slice(1))expect(client.telemetry.ruleCalls,'Players never resolve damage or random Coins locally').toBe(0);
         expect(errors).toEqual([]);result.complete=true;
