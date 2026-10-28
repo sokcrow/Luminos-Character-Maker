@@ -77,14 +77,24 @@
         ? this.pendingRefresh.catch(()=>{}).then(()=>this.refresh({invalidateUrls:true}))
         : this.pendingRefresh;
       const generation=this.generation;
+      const before=new Map(this.entries.map(entry=>[entry.id,entry]));
       this.pendingRefresh=this.request('/catalog').then(result=>{
         if(this.destroyed||generation!==this.generation)return;
         const old=new Map(this.entries.map(e=>[e.id,e]));
+        const confirmedDuringRequest=this.entries.filter(entry=>before.get(entry.id)!==entry);
         this.entries=(result.tracks||[]).filter(entry=>this.validEntry(entry)).map(entry=>{
           const cached=old.get(entry.id);
           return !invalidateUrls && cached?.expiresAt>Date.now()+120000 ? {...entry,url:cached.url,expiresAt:cached.expiresAt} : entry;
         });
-        this.bytes=Number(result.bytes)||0;this.render();this.onChange();
+        // A request started before a PUT may return a pre-upload snapshot.
+        // Keep only entries changed locally during this request; a later
+        // request with no intervening PUT remains authoritative for deletion.
+        const listedIds=new Set((result.tracks||[]).map(entry=>entry.id));
+        const merged=new Map(this.entries.map(entry=>[entry.id,entry]));
+        for(const entry of confirmedDuringRequest)merged.set(entry.id,entry);
+        this.entries=Array.from(merged.values());
+        this.bytes=(Number(result.bytes)||0)+confirmedDuringRequest.reduce((sum,entry)=>sum+(listedIds.has(entry.id)?0:entry.bytes),0);
+        this.render();this.onChange();
       }).finally(()=>{this.pendingRefresh=null;});
       return this.pendingRefresh;
     }

@@ -13,7 +13,9 @@ async function fixture(){
  w.firebase={database:{ServerValue:{TIMESTAMP:{'.sv':'timestamp'}}}};
  w.fetch=async(url,options={})=>{
   if(scenario.catalogError)return new Response(JSON.stringify({error:scenario.catalogError}),{status:503});
-  return backend.handler(new Request(String(url),{...options,headers:{...options.headers,Origin:origin}}),backend.env);
+  const response=await backend.handler(new Request(String(url),{...options,headers:{...options.headers,Origin:origin}}),backend.env);
+  if(scenario.holdNextCatalog){scenario.holdNextCatalog=false;await new Promise(resolve=>{scenario.releaseCatalog=resolve;});}
+  return response;
  };
  w.XMLHttpRequest=class{
   constructor(){this.upload={};this.headers={Origin:origin};}
@@ -119,3 +121,27 @@ for(const failure of ['revisionError','failCatalogAfterPut']){
  assert.equal(result.failures.length,1);assert.match(f.text(),/válido/);assert.equal(f.backend.objects.size,0);f.close();
 }
 console.log('Upload form: valid WAV bytes stored and downloaded, duplicate, per-file 401/403/413/415/500/network/timeout/token errors, preserved failure, confirmation stage, cancellation and post-save Firebase/catalog failures passed.');
+
+// P2: a catalog snapshot taken before PUT must not erase confirmed uploads
+// when it arrives late and the next catalog request fails.
+{
+ const f=await fixture();f.scenario.holdNextCatalog=true;
+ const oldRefresh=f.lib.refresh();
+ for(let i=0;i<30&&!f.scenario.releaseCatalog;i++)await new Promise(resolve=>setTimeout(resolve,0));
+ assert.ok(f.scenario.releaseCatalog,'old empty catalog response is held');
+ f.scenario.failCatalogAfterPut=true;
+ const different=bytes.slice();different[different.length-1]^=1;
+ const pending=f.start([new f.w.File([bytes],'Uno.wav'),new f.w.File([different],'Dos.wav')]);
+ for(let i=0;i<100&&f.lib.uploadReport.filter(r=>r.status==='saved').length<2;i++)await new Promise(resolve=>setTimeout(resolve,0));
+ assert.equal(f.lib.tracks('music').length,2,'both PUT responses confirm local availability');
+ f.scenario.releaseCatalog();await oldRefresh;const result=await pending;
+ assert.equal(result.uploaded,2);assert.equal(result.warnings.length,1);
+ assert.equal(f.lib.tracks('music').length,2,'a stale catalog followed by failure cannot erase confirmed tracks');
+ assert.equal(f.lib.bytes,bytes.length+different.length,'usage includes confirmed tracks absent from the stale response');
+ assert.ok(f.lib.uploadReport.every(r=>r.status==='saved'));assert.equal(f.backend.objects.size,2);
+ for(const entry of f.lib.tracks('music'))assert.equal((await f.backend.handler(new Request(entry.url),f.backend.env)).status,200);
+ // A later successful catalog remains authoritative, including deletions.
+ delete f.scenario.catalogError;f.backend.objects.clear();await f.lib.refresh();
+ assert.equal(f.lib.tracks('music').length,0);assert.equal(f.lib.bytes,0);f.close();
+}
+console.log('P2 stale catalog + failed follow-up: confirmed tracks, bytes, signed URLs and subsequent authoritative removal passed.');
