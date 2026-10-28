@@ -10,6 +10,19 @@ for(const [width,height] of sizes){
   const root=page.getByRole('dialog',{name:'Director de Teatro',exact:true});
   await expect(root).toBeVisible();
   const mobile=width<=820||(width<=900&&height<=470);
+  const addFromLibrary=root.getByRole('button',{name:'Añadir desde biblioteca',exact:true});
+  await expect(addFromLibrary).toBeVisible();await addFromLibrary.click();
+  const libraryDialog=page.getByRole('dialog',{name:'Herramientas de escena',exact:true});
+  await expect(libraryDialog.locator('[aria-label="Biblioteca de personajes"]')).toBeVisible();
+  await libraryDialog.getByRole('button',{name:'Jugadores',exact:true}).click();
+  await expect(libraryDialog.locator('#dm-director-roster-grid')).toContainText('No hay personajes');
+  await libraryDialog.getByRole('button',{name:'NPC',exact:true}).click();
+  await expect(libraryDialog.getByRole('button',{name:'Añadir al elenco: Aldara',exact:true})).toBeVisible();
+  const libraryBounds=await libraryDialog.boundingBox();expect(libraryBounds.x).toBeGreaterThanOrEqual(0);expect(libraryBounds.x+libraryBounds.width).toBeLessThanOrEqual(width+1);
+  await page.screenshot({path:info.outputPath(`actor-library-${width}x${height}.png`)});
+  await libraryDialog.getByRole('button',{name:'Todos',exact:true}).click();
+  await libraryDialog.getByRole('button',{name:'Cerrar herramientas',exact:true}).click();
+
   await expect(root.getByRole('heading',{name:'Personajes jugadores',exact:true})).toBeVisible();
   await expect(root.getByRole('heading',{name:'NPC / Otros',exact:true})).toBeVisible();
   const close=root.getByRole('button',{name:'Cerrar Director',exact:true});

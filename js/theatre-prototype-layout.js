@@ -26,11 +26,20 @@
   while(castView.firstChild)libraryPane.appendChild(castView.firstChild);
   const scenePane=doc.createElement('section');scenePane.setAttribute('aria-label','Personajes en escena');scenePane.appendChild(doc.getElementById('live-actors-list'));
   const castTabs=doc.createElement('nav');castTabs.className='canonical-cast-tabs';castTabs.setAttribute('aria-label','Administrar elenco');
-  for(const [label,library] of [['En escena',false],['Biblioteca',true]]){
-   const tab=doc.createElement('button');tab.type='button';tab.textContent=label;tab.setAttribute('aria-pressed',String(!library));
-   tab.onclick=()=>{scenePane.hidden=library;libraryPane.hidden=!library;castTabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===tab)));};castTabs.appendChild(tab);
+  function selectCastPane(library){
+   scenePane.hidden=library;libraryPane.hidden=!library;
+   castTabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.castPane==='library')===library)));
   }
-  libraryPane.hidden=true;castView.append(castTabs,scenePane,libraryPane);
+  for(const [label,library] of [['En escena',false],['Biblioteca',true]]){
+   const tab=doc.createElement('button');tab.type='button';tab.textContent=label;tab.dataset.castPane=library?'library':'scene';
+   tab.onclick=()=>selectCastPane(library);castTabs.appendChild(tab);
+  }
+  const sceneHelp=doc.createElement('p');sceneHelp.className='dm-director-hint';sceneHelp.textContent='Estos personajes ya están disponibles para escribir. Mostrar u ocultar solo cambia su presencia en el escenario.';scenePane.prepend(sceneHelp);
+  selectCastPane(false);castView.append(castTabs,scenePane,libraryPane);
+  const addActors=doc.createElement('button');addActors.type='button';addActors.id='canonical-add-actors';addActors.className='primary-btn canonical-add-actors';addActors.textContent='Añadir desde biblioteca';
+  addActors.onclick=()=>{tools('cast');selectCastPane(true);};
+  const castHelp=doc.createElement('p');castHelp.className='hint-small';castHelp.textContent='Añade actores desde tu biblioteca y pulsa su tarjeta para escribir. Jugadores y NPC se muestran por separado.';
+  root.querySelector('.left-col').prepend(addActors,castHelp);
   const editorSummary=doc.querySelector('#theatre-actor-studio-loader>summary');if(editorSummary)editorSummary.textContent='Editor de personajes';
   const notes=doc.createElement('textarea');notes.setAttribute('aria-label','Notas del DM en este dispositivo');notes.placeholder='Notas privadas de esta escena';
   const context=global.LuminousCombatContext?.id||'default';const notesKey='limbus.director.notes.'+context;
@@ -65,6 +74,7 @@
    // Casting management includes both live scene controls and the catalog.
    native.querySelector('.dm-director-cast-pane').hidden=false;
    native.dataset.canonicalView=view;
+   if(view==='cast')selectCastPane(false);
    if(!utility.open)utility.showModal();
   }
   $('filterBtn').onclick=()=>tools('cast');$('sceneLibraryBtn').onclick=()=>tools('scenes');$('settingsBtn').onclick=()=>tools('settings');
@@ -95,7 +105,7 @@
     catch(_){status('No se pudo eliminar el registro. Revisa la conexión y los permisos.');}
    }
   });
-  $('helpBtn').onclick=()=>status('Elige un personaje para escribir. Gestionar elenco permite añadir, mostrar, ocultar o retirar. Ver escena vuelve al visor.');
+  $('helpBtn').onclick=()=>status('Elige un personaje para escribir. Añadir desde biblioteca carga personajes para escribir; Gestionar elenco permite mostrarlos, ocultarlos o retirarlos. Ver escena vuelve al visor.');
   $('saveBtn').onclick=()=>{
    const blob=new Blob([doc.getElementById('theatre-log-container').innerText],{type:'text/plain;charset=utf-8'});
    const url=URL.createObjectURL(blob),a=doc.createElement('a');a.href=url;a.download='limbus-teatro.txt';a.click();global.setTimeout(()=>URL.revokeObjectURL(url),1000);

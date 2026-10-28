@@ -13,7 +13,7 @@
   });
   const FALLBACK_NPC = ICONS.scene;
   const FALLBACK_PLAYER = ICONS.cast;
-  const state = { npcs: {}, actorLibrary: {}, players: {}, sceneActors: {}, activeTab: "voices", query: "", rosterLimit: 48 };
+  const state = { npcs: {}, actorLibrary: {}, players: {}, sceneActors: {}, activeTab: "voices", query: "", rosterType: "all", rosterLimit: 48 };
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -250,11 +250,27 @@
     });
     document.addEventListener("luminous:theatre-cast-ready", renderRoster);
     cast.appendChild(search);
+    const libraryHelp = el("p", "dm-director-hint", "Añade un personaje al elenco para escribir como él. Esto no lo muestra en el escenario. Si falta en la biblioteca, créalo o vincúlalo en el Editor de personajes.");
+    cast.appendChild(libraryHelp);
+    const typeFilters = el("nav", "canonical-cast-tabs");
+    typeFilters.setAttribute("aria-label", "Tipo de personaje");
+    for (const [type, label] of [["all", "Todos"], ["player", "Jugadores"], ["npc", "NPC"]]) {
+      const filter = button(label, () => {
+        state.rosterType = type; state.rosterLimit = 48;
+        typeFilters.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === filter)));
+        renderRoster();
+      });
+      filter.dataset.actorTypeFilter = type;
+      filter.setAttribute("aria-pressed", String(type === "all"));
+      typeFilters.appendChild(filter);
+    }
+    cast.appendChild(typeFilters);
     const rosterGrid = el("div", "dm-director-roster-grid");
     rosterGrid.id = "dm-director-roster-grid";
     cast.appendChild(rosterGrid);
     if (originalSpawner) {
       originalSpawner.classList.add("dm-director-native-controls");
+      originalSpawner.hidden = true;
       originalSpawner.setAttribute("aria-label", "Selector original de elenco");
       cast.appendChild(originalSpawner);
       npcSelect.tabIndex = -1;
@@ -387,7 +403,12 @@
     function renderRoster() {
       const query = state.query;
       const options = Array.from(npcSelect.options).filter(o => o.value);
-      const items = options.filter(o => (o.textContent || "").toLocaleLowerCase().includes(query));
+      const items = options.filter(o => {
+        const actor = state.npcs[o.value] || state.actorLibrary[o.value] || {};
+        const isPlayer = o.dataset.actorType === "player" || o.dataset.sourceType === "player-profile" || isPlayerActor(o.value, actor);
+        return (state.rosterType === "all" || (state.rosterType === "player") === isPlayer) &&
+          resolveActorName(o.value, actor).toLocaleLowerCase().includes(query);
+      });
       rosterGrid.replaceChildren();
       if (!items.length) {
         rosterGrid.appendChild(el("p", "dm-director-empty", options.length
@@ -398,7 +419,8 @@
       items.slice(0, state.rosterLimit).forEach(option => {
         const id = option.value;
         const actor = state.npcs[id] || state.actorLibrary[id] || {};
-        const isPlayer = option.dataset.sourceType === "player-profile" || isPlayerActor(id, actor);
+        const isPlayer = option.dataset.actorType === "player" || option.dataset.sourceType === "player-profile" || isPlayerActor(id, actor);
+        const name = resolveActorName(id, actor);
         const icon = resolveActorIcon(id, actor);
         const item = button("", () => {
           npcSelect.value = id;
@@ -406,11 +428,11 @@
         });
         item.disabled = Boolean(document.getElementById("btn-spawn-npc")?.disabled);
         item.classList.add("dm-director-person-card");
-        item.setAttribute("aria-label", "Añadir al elenco: " + option.textContent);
-        item.appendChild(portrait(icon, isPlayer ? FALLBACK_PLAYER : FALLBACK_NPC, option.textContent));
+        item.setAttribute("aria-label", "Añadir al elenco: " + name);
+        item.appendChild(portrait(icon, isPlayer ? FALLBACK_PLAYER : FALLBACK_NPC, name));
         const labels = el("span", "dm-director-person-text");
-        labels.appendChild(el("strong", "", option.textContent || "Personaje"));
-        labels.appendChild(el("small", "", isPlayer ? "Jugador · Añadir a escena" : "NPC · Añadir a escena"));
+        labels.appendChild(el("strong", "", name));
+        labels.appendChild(el("small", "", isPlayer ? "Jugador · Añadir para escribir" : "NPC · Añadir para escribir"));
         item.appendChild(labels);
         rosterGrid.appendChild(item);
       });

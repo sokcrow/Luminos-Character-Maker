@@ -82,40 +82,24 @@
 
             const playerGroup = document.createElement("optgroup");
             playerGroup.label = "PERSONAJES JUGADORES";
-            for (const [playerId, player] of Object.entries(playerDatabase)) {
-                let actorId = null;
-                let actorData = null;
-                if (player.actorId && npcDatabase[player.actorId]) {
-                    actorId = player.actorId;
-                    actorData = npcDatabase[actorId];
-                } else {
-                    actorId = Object.keys(npcDatabase).find((id) =>
-                        npcDatabase[id]?.vinculo_jugador === playerId && npcDatabase[id]?.tipo === "Jugador"
-                    );
-                    if (actorId) actorData = npcDatabase[actorId];
-                }
-                if (!actorData) continue;
-                const option = document.createElement("option");
-                option.value = actorId;
-                option.textContent = actorData.nombre || getPlayerLabel(playerId, player);
-                option.dataset.sourceType = "player-profile";
-                option.dataset.sourceId = playerId;
-                playerGroup.appendChild(option);
-            }
-            selectNpcRoster.appendChild(playerGroup);
-
             const npcGroup = document.createElement("optgroup");
             npcGroup.label = "NPCs / PERSONAJES DEL DM";
             for (const [actorId, actorData] of Object.entries(npcDatabase)) {
-                if (actorData?.tipo === "Jugador") continue;
+                const matches = Object.entries(playerDatabase).filter(([playerId, player]) =>
+                    actorData?.vinculo_jugador === playerId ||
+                    normalizeIdList([player?.actorIds, player?.actores, player?.actorId]).includes(actorId));
+                const explicitPlayer = actorData?.vinculo_jugador;
+                const linked = playerDatabase[explicitPlayer] ? [explicitPlayer, playerDatabase[explicitPlayer]] : matches.length === 1 ? matches[0] : null;
+                const isPlayer = matches.length > 0 || actorData?.tipo === "Jugador" || Boolean(actorData?.vinculo_jugador);
                 const option = document.createElement("option");
                 option.value = actorId;
-                option.textContent = actorData?.nombre || "Sin Nombre";
-                option.dataset.sourceType = "npc";
-                option.dataset.sourceId = actorId;
-                npcGroup.appendChild(option);
+                option.textContent = actorData?.nombre || actorData?.name || (linked ? getPlayerLabel(...linked) : "Personaje sin nombre");
+                option.dataset.sourceType = linked ? "player-profile" : "npc";
+                option.dataset.sourceId = linked ? linked[0] : actorId;
+                option.dataset.actorType = isPlayer ? "player" : "npc";
+                (isPlayer ? playerGroup : npcGroup).appendChild(option);
             }
-            selectNpcRoster.appendChild(npcGroup);
+            selectNpcRoster.append(playerGroup, npcGroup);
         }
 
         function loadRoster() {
@@ -231,7 +215,8 @@
 
             const expressions = npcData.expresiones || {};
             const actorPayload = {
-                nombre: npcData.nombre || selectedId,
+                nombre: npcData.nombre || npcData.name || option.textContent || "Personaje sin nombre",
+                tipo: option.dataset.actorType === "player" ? "Jugador" : "NPC",
                 titulo: npcData.titulo || "",
                 color_nombre: npcData.color_nombre || "",
                 color_titulo: npcData.color_titulo || "",

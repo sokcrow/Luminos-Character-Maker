@@ -93,3 +93,12 @@ body.on-game-dashboard #luminous-audio-panel.canonical-audio .audio-cloud-librar
  body.on-game-dashboard #dm-theatre-composer-modal .composer-content{padding:10px}
  body.on-game-dashboard #dm-theatre-composer-modal #theatre-dialogue-input{min-height:55px;height:65px}
 }
+
+/* The same library entry remains available in every Director layout. */
+body.on-game-dashboard #dm-canonical-director .canonical-add-actors{display:block;width:100%;min-height:44px;margin-bottom:8px;white-space:normal}
+#dm-canonical-utility .canonical-cast-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+#dm-canonical-utility .canonical-cast-tabs button{flex:1 1 auto;min-height:44px;white-space:normal}
+#dm-canonical-utility [hidden]{display:none!important}
+#dm-canonical-utility .dm-director-roster-grid{min-width:0}
+#dm-canonical-utility .dm-director-person-card{min-width:0;overflow-wrap:anywhere}
+@media(max-width:520px){body.on-game-dashboard #dm-canonical-utility{width:100%;max-width:100%;max-height:100dvh;padding:12px;box-sizing:border-box}#dm-canonical-utility>header h2{font-size:20px}}
