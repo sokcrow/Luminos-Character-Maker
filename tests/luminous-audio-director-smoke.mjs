@@ -51,6 +51,7 @@ api.setVolume("sfx", 0);
 assert.equal(voice.volume, 0);
 assert.equal(api.library.music.length > 0, true);
 assert.equal(api.library.sfx.length > 0, true);
+for (const kind of ["music", "ambience", "sfx"]) assert.equal(api.getAvailableTracks(kind).length,0,"system audio is excluded from the Director catalog");
 
 for (const kind of ["music", "ambience", "sfx"]) {
   for (const asset of api.library[kind]) {

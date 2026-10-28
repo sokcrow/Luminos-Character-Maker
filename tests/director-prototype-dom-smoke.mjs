@@ -41,13 +41,14 @@ root.querySelector('[data-action="ambience"]').click();const audio=d.getElementB
 assert.equal(audio.classList.contains('canonical-audio'),true);
 assert.deepEqual([...audio.querySelectorAll('[data-mode]')].map(n=>n.dataset.mode),['music','sfx','custom']);
 assert.equal(audio.querySelector('.player #pa-playBtn')!==null,true);
-assert.equal(audio.querySelector('.track-item .track-name').textContent,'In Hell We Live, Lament — Instrumental');
-audio.querySelector('.track-action.play').click();await tick();assert.equal(w.testRead('campaña/audio_director/music').active,true);
-audio.querySelector('#pa-playBtn').click();await tick();assert.equal(w.testRead('campaña/audio_director/music').active,false);
+assert.equal(audio.querySelectorAll('.track-item').length,0,'the catalog starts empty without uploaded music');
+assert.equal(audio.querySelectorAll('.quick-sfx').length,0,'internal coin and bus sounds are not campaign choices');
+assert.equal(audio.querySelector('#pa-playBtn').disabled,true,'empty catalog cannot start the intro song');
+audio.querySelector('#pa-playBtn').click();await tick();assert.equal(w.testRead('campaña/audio_director/music'),null);
 audio.querySelector('[data-mode="custom"]').click();assert.equal(audio.querySelector('#pa-customScreen').classList.contains('active'),true);
 assert.equal(audio.querySelector('#pa-customScreen .audio-cloud-library')!==null,true);
 audio.querySelector('[data-audio-close]').click();assert.equal(audio.open,false);assert.equal(root.open,true);
 root.querySelector('#playSceneBtn').click();await tick();assert.equal(root.open,false);assert.equal(d.querySelectorAll('#theatre-stage').length,1);
 assert.equal(d.querySelectorAll('#modulo-teatro>.stage-view-wrapper').length,1);
 dom.window.close();
-console.log('Approved prototype integration: exact navigation/sections, live player/NPC split, native close/cancel/reopen, one stage, one publishing route, action type, shared audio transport and R2 UI passed.');
+console.log('Approved prototype integration: exact navigation/sections, live player/NPC split, native close/cancel/reopen, one stage, one publishing route, action type, empty audio catalog, disabled transport and R2 UI passed.');

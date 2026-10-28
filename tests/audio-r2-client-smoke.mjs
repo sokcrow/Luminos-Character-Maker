@@ -24,11 +24,17 @@ dm.testWrite('campaña/config/audio_service_url',endpoint);await pause();
 const files=d.querySelector('[aria-label="Seleccionar archivos de audio"]');
 const submit=[...d.querySelectorAll('.audio-upload-controls button')].find(b=>b.textContent==='Subir archivos');
 Object.defineProperty(files,'files',{configurable:true,value:[new dm.File([bytes],'Mi canción.mp3',{type:'audio/mpeg'})]});
-submit.click();await until(()=>dm.LuminousAudio.getAvailableTracks('music').length===2&&!submit.disabled);
+submit.click();await until(()=>dm.LuminousAudio.getAvailableTracks('music').length===1&&!submit.disabled);
 assert.equal(backend.objects.size,1);assert.match(d.querySelector('.audio-cloud-library').textContent,/Mi canción/);
 submit.click();await until(()=>d.querySelector('.audio-cloud-library [role=status]').textContent.includes('1 ya estaban'));
 assert.equal(backend.objects.size,1);
 const song=dm.LuminousAudio.getAvailableTracks('music').find(entry=>entry.id.startsWith('r2_'));
+for(const kind of ['music','ambience','sfx']) {
+ assert.ok(dm.LuminousAudio.getAvailableTracks(kind).every(entry=>entry.id.startsWith('r2_')));
+ assert.ok([...d.querySelector('[data-audio-select="'+kind+'"]').options].every(option=>option.value.startsWith('r2_')));
+}
+assert.equal(d.querySelectorAll('#pa-trackList .track-item').length,1,'only the uploaded song appears in the music catalog');
+assert.equal(d.querySelectorAll('.quick-sfx').length,0,'system effects do not become quick actions');
 const musicSelect=d.querySelector('[data-audio-select="music"]');musicSelect.value=song.id;
 d.querySelector('[data-audio-command="play-music"]').click();await until(()=>dm.testRead('campaña/audio_director/music')?.trackId===song.id);
 backend.setActive({music:{trackId:song.id,active:true}});
@@ -132,7 +138,7 @@ dm.testWrite('campaña/audio_director/music',{trackId:song.id,active:true,starte
 // Uploaded SFX travels through the same cue bus, exactly once per listener.
 d.querySelector('[aria-label="Tipo de archivo"]').value='sfx';const sound=bytes.slice();sound[13]=99;
 Object.defineProperty(files,'files',{configurable:true,value:[new dm.File([sound],'Golpe.mp3',{type:'audio/mpeg'})]});submit.click();
-await until(()=>dm.LuminousAudio.getAvailableTracks('sfx').length===3&&!submit.disabled);
+await until(()=>dm.LuminousAudio.getAvailableTracks('sfx').length===1&&!submit.disabled);
 const effect=dm.LuminousAudio.getAvailableTracks('sfx').find(entry=>entry.id.startsWith('r2_'));
 await until(()=>listener.LuminousAudio.getAvailableTracks('sfx').some(entry=>entry.id===effect.id));
 d.querySelector('[data-audio-select="sfx"]').value=effect.id;d.querySelector('[data-audio-command="cue"]').click();
@@ -142,7 +148,10 @@ assert.equal(listener.audioElements.filter(element=>element.src.includes(effect.
 const late=await player();assert.equal(late.audioElements.filter(element=>element.src.includes(effect.id)).length,0);
 // P2: both stop controls halt continuous ambience and already-started one-shots
 // on the DM and remote players, without stopping the music channel.
-d.querySelector('[data-audio-command="play-ambience"]').click();await until(()=>dm.testRead('campaña/audio_director/ambience')?.active);
+// A legacy bus already active in shared state can still be stopped, but
+// cannot be selected again from the Director catalog.
+dm.testWrite('campaña/audio_director/ambience',{trackId:'bus',active:true,startedAt:Date.now()});
+await until(()=>!listener.audioElements[1].paused);
 await until(()=>dm.audioElements.some(element=>element.src.includes(effect.id)));
 const playedCue=dm.testRead('campaña/audio_director/cue');
 d.querySelector('#pa-stopAllEffects').click();
@@ -185,6 +194,6 @@ assert.equal(backend.objects.size,3);
 await until(()=>!d.querySelector('[data-audio-command="stop-music"]').disabled);d.querySelector('[data-audio-command="stop-music"]').click();backend.setActive({});await pause();
 songRow=[...d.querySelectorAll('.audio-cloud-file')].find(row=>row.textContent.includes('Mi canción'));songRow.querySelector('button').click();
 await until(()=>backend.objects.size===2&&!submit.disabled);
-assert.equal(dm.LuminousAudio.getAvailableTracks('music').length,1);
+assert.equal(dm.LuminousAudio.getAvailableTracks('music').length,0);
 unknown.close();reloaded.close();late.close();listener.close();dm.close();
 console.log('R2 client integration passed: upload/deduplication, shared song/clock, signing-key recovery, paused R2 resume after DM reload, completed-track replay, shared stop for ambience/one-shots, late-join suppression and protected delete.');

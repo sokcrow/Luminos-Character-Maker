@@ -41,10 +41,11 @@ for(const [width,height] of sizes){
   await utility.getByRole('button',{name:'Cerrar herramientas',exact:true}).click();
   await root.getByRole('button',{name:'Ambiente',exact:true}).click();
   const audio=page.getByRole('dialog',{name:'Music Director',exact:true});await expect(audio).toBeVisible();
-  await audio.getByRole('button',{name:'Reproducir In Hell We Live, Lament — Instrumental',exact:true}).click();
-  await expect.poll(()=>page.evaluate(()=>window.testRead('campaña/audio_director/music')?.active)).toBe(true);
-  await audio.getByRole('button',{name:'Pausar',exact:true}).click();
-  await expect.poll(()=>page.evaluate(()=>window.testRead('campaña/audio_director/music')?.active)).toBe(false);
+  await expect(audio.locator('.track-item')).toHaveCount(0);
+  await expect(audio.locator('#pa-trackList')).toHaveText('No hay pistas que coincidan.');
+  await expect(audio.getByRole('button',{name:'Reproducir',exact:true})).toBeDisabled();
+  await expect(audio.locator('.quick-sfx')).toHaveCount(0);
+  expect(await page.evaluate(()=>window.testRead('campaña/audio_director/music'))).toBeNull();
   await audio.getByRole('tab',{name:/Efectos/}).click();
   await audio.getByRole('button',{name:'Detener ambientes y efectos',exact:true}).click();
   await expect.poll(()=>page.evaluate(()=>window.testRead('campaña/audio_director/cue')?.action)).toBe('stop');

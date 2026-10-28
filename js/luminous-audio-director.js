@@ -7,7 +7,9 @@
   const SETTINGS_KEY = "luminous.audio.preferences.v1";
   const ROOT = "campaña/audio_director";
   const BOOTSTRAP_DM = "e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1";
-  const LIBRARY = Object.freeze({
+  // Internal assets stay available to existing game mechanics and legacy state,
+  // but are never choices in the campaign audio catalog.
+  const SYSTEM_AUDIO = Object.freeze({
     music: Object.freeze([
       Object.freeze({ id: "lament", label: "In Hell We Live, Lament — Instrumental", url: "Assets/Audio/Intro%20audio/Limbus%20Company%20OST%20-%20In%20Hell%20We%20Live%2C%20Lament%20Instrumental.mp3" })
     ]),
@@ -71,7 +73,7 @@
   let hintNode = null;
   let cloudLibrary = null;
   let libraryRevision = null;
-  const availableTracks = kind => LIBRARY[kind].concat(cloudLibrary?.tracks(kind) || []);
+  const availableTracks = kind => cloudLibrary?.tracks(kind) || [];
   function refreshCloudView() {
     if (!panel) return;
     panel.querySelectorAll('[data-audio-select]').forEach(select => {
@@ -100,7 +102,7 @@
     receiveLoop('music', musicState); receiveLoop('ambience', ambienceState);
   }
 
-  const byId = (kind, id) => availableTracks(kind).find((entry) => entry.id === id);
+  const byId = (kind, id) => availableTracks(kind).find((entry) => entry.id === id) || SYSTEM_AUDIO[kind]?.find((entry) => entry.id === id);
   const adjustedVolume = (bus, gain) => (prefs[bus] / 100) * gain;
 
   function applyVolumes() {
@@ -248,7 +250,11 @@
     renderCanonicalAudio();
   }
   function optionsFor(kind) {
-    return LIBRARY[kind].map((entry) => '<option value="' + entry.id + '">' + entry.label + '</option>').join("");
+    return availableTracks(kind).map(entry => {
+      const option = global.document.createElement("option");
+      option.value = entry.id; option.textContent = entry.label;
+      return option.outerHTML;
+    }).join("");
   }
   function updateDirectorView() {
     if (!panel) return;
@@ -378,7 +384,7 @@
     if (['play-music','pause-music','stop-music'].includes(type)) cancelMusicResume();
     if (type === "play-music") {
       const trackId = selects("music").value;
-      const entry = byId("music", trackId);
+      const entry = availableTracks("music").find(entry => entry.id === trackId);
       if (entry) {
         const resume = musicState?.trackId === trackId && !musicState?.active ? Number(musicState.positionMs) || 0 : 0;
         playMusic(entry, resume);
@@ -392,7 +398,7 @@
       directorWrite("music", { active: false, trackId: "", startedAt: 0 });
     } else if (type === "play-ambience") {
       const trackId = selects("ambience").value;
-      const entry = byId("ambience", trackId);
+      const entry = availableTracks("ambience").find(entry => entry.id === trackId);
       if (entry) {
         previewLoopOnGesture("ambience", entry);
         directorWrite("ambience", { trackId, active: true, startedAt: stamp });
@@ -407,7 +413,7 @@
       });
     } else if (type === "cue") {
       const cueId = selects("sfx").value;
-      if (!byId("sfx", cueId)) return;
+      if (!availableTracks("sfx").some(entry => entry.id === cueId)) return;
       const nonce = audioRef.child("events").push().key;
       const generation = effectsGeneration;
       ownCue = nonce;
@@ -418,7 +424,7 @@
   function canonicalNode(id) { return panel?.querySelector('#pa-' + id); }
   function canonicalPlay(kind, id) {
     const select = panel.querySelector('[data-audio-select="' + kind + '"]');
-    if (!select || !isDirector || pendingWrite) return;
+    if (!select || !isDirector || pendingWrite || !availableTracks(kind).some(entry => entry.id === id)) return;
     select.value = id;
     command(kind === 'sfx' ? 'cue' : 'play-' + kind);
   }
@@ -464,7 +470,8 @@
     canonicalNode('playBtn').textContent=musicState?.active?'Ⅱ':'▶';
     canonicalNode('playBtn').setAttribute('aria-label',musicState?.active?'Pausar':'Reproducir');
     for(const id of ['playBtn','prevBtn','nextBtn','repeatBtn','seek','stopAllEffects','stopAllQuick'])canonicalNode(id).disabled=!isDirector||Boolean(pendingWrite)||Boolean(cloudLibrary?.deleting);
-    if (musicState?.trackId && !selected) canonicalNode('playBtn').disabled = true;
+    if (!musicState?.active && !availableTracks('music').some(entry => entry.id === (musicState?.trackId || panel.querySelector('[data-audio-select="music"]').value))) canonicalNode('playBtn').disabled = true;
+    for (const id of ['prevBtn','nextBtn']) if (!availableTracks('music').length) canonicalNode(id).disabled = true;
     if (pendingMusicResume) canonicalNode('playBtn').disabled = true;
     canonicalNode('repeatBtn').setAttribute('aria-pressed',String(musicState?.loop!==false));
     for(const id of ['musicVolume','footerVolume'])canonicalNode(id).value=prefs.music;
@@ -741,7 +748,7 @@
     connectFirebase();
   }
   global.LuminousAudio = Object.freeze({
-    library: LIBRARY,
+    library: SYSTEM_AUDIO,
     getPreferences: () => ({ music: prefs.music, sfx: prefs.sfx }),
     setVolume,
     registerElement,
