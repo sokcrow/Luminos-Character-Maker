@@ -354,7 +354,7 @@
   // Director uses the SAME subscription and presentation rules as the player log.
   // Only the DM surface owns these base rows; player rendering remains unchanged.
   function renderDirectorLog() {
-    const container = doc.querySelector("#theatre-director-panel #theatre-log-container");
+    const container = doc.querySelector("#dm-canonical-director #theatre-log-container, #theatre-director-panel #theatre-log-container");
     const area = container?.querySelector(".dialogue-scroll-area");
     if (!area) return;
     const signature = JSON.stringify(logEntries.map(([id, message]) => [id, message,
@@ -398,7 +398,7 @@
       text.textContent = String(message.mensaje || "").replace(/^\/em\s*/i, "");
       column.appendChild(text); row.appendChild(column); area.appendChild(row);
     });
-    if (atBottom) area.scrollTop = area.scrollHeight;
+    if (atBottom && container.dataset.autoScroll !== 'false') area.scrollTop = area.scrollHeight;
   }
 
   function decorateLog() {
