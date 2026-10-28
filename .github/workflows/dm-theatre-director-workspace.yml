@@ -68,6 +68,7 @@ jobs:
           node tests/dm-theatre-director-dom-smoke.mjs
           node tests/director-prototype-dom-smoke.mjs
           node tests/audio-r2-client-smoke.mjs
+          node tests/audio-r2-upload-feedback-smoke.mjs
       - name: Mobile, tablet and desktop Director UI
         run: npx playwright test tests/dm-theatre-director-workspace.spec.mjs --reporter=line --workers=1
 

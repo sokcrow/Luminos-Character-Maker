@@ -18,3 +18,10 @@ export function setup(){
  const request=async(path,{uid='dm',method='GET',body,headers={}}={})=>handler(new Request('https://limbus-audio.account.workers.dev'+path,{method,headers:{Origin:origin,Authorization:'Bearer '+jwt(uid),...headers},...(body?{body}:{} )}),env);
  return {env,handler,request,objects,requests,setActive:value=>{active=value;}};
 }
+
+// Small, playable PCM WAV for upload and browser regressions.
+export function wavBytes(){
+ const wav=Buffer.alloc(44+1600);wav.write('RIFF',0);wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(8000,24);wav.writeUInt32LE(16000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(1600,40);
+ for(let i=0;i<800;i++)wav.writeInt16LE(Math.round(Math.sin(i*2*Math.PI*440/8000)*4000),44+i*2);
+ return new Uint8Array(wav);
+}

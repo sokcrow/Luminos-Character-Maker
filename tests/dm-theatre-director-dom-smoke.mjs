@@ -20,8 +20,10 @@ d.querySelector('.btn-hide').click();await tick();assert.equal(d.querySelector('
 d.querySelector('.dm-director-actor-speak').click();assert.equal(d.querySelector('#dm-theatre-composer-modal').open,true);
 d.querySelector('#theatre-dialogue-input').value='Una intervención';d.querySelector('#btn-send-dialogue').click();await tick();assert.equal(w.writeId,1);assert.equal(d.querySelector('#theatre-dialogue-input').value,'');
 assert.equal(d.querySelectorAll('#theatre-log-container .dialogue-row').length,2);
-w.LuminousAudio.openOptions();d.querySelector('[data-audio-command="play-music"]').click();await tick();assert.equal(w.testRead('campaña/audio_director/music').active,true);
-d.querySelector('[data-audio-command="pause-music"]').click();await tick();assert.equal(w.testRead('campaña/audio_director/music').active,false);
+w.LuminousAudio.openOptions();
+assert.equal(d.querySelector('[data-audio-select="music"]').options.length,0);
+d.querySelector('[data-audio-command="play-music"]').click();await tick();
+assert.equal(w.testRead('campaña/audio_director/music'),null,"empty campaign catalog cannot start system audio");
 w.testWrite('campaña/estado_mundo/escena_actual/actores/active_aldara',null);await tick();
 assert.equal(d.querySelector('.theatre-dm-composer').dataset.actorRetired,'true');
 assert.equal((await w.LuminousTheatreState.publishIntervention('late',{actorId:'active_aldara',mensaje:'No revivir'})).reason,'actor-retired');
@@ -90,7 +92,7 @@ speaker.value='narrador';speaker.dispatchEvent(new w.Event('change',{bubbles:tru
 assert.equal(composer.dataset.actorId,'narrador');
 assert.equal(composer.dataset.actorRetired,'false');
 console.log('P1 assigned IDs / retired instance scope and P2 explicit speaker switching: passed');
-console.log('DOM functional integration passed: real engine + controls + compositor + canonical log + audio play/pause + retirement.');
+console.log('DOM functional integration passed: real engine + controls + compositor + canonical log + empty campaign audio catalog + retirement.');
 w.close();
 
 // End-to-end legacy player path: raw push -> DM queue processor -> archive.
