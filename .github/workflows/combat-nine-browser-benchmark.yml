@@ -2,7 +2,10 @@ name: Nine browser Clash comparison
 on:
   pull_request:
     paths:
-      - 'tests/combat-nine-browser-*'
+      # Shared harness changes run the smaller 1 DM/1 Player gate first.
+      # Nine-viewer fixture/report changes and manual dispatch retain this run.
+      - 'tests/combat-nine-browser-report*'
+      - 'tests/combat-nine-browser-fixture-smoke.mjs'
       - 'tests/helpers/combat-nine-fixture.mjs'
       - '.github/workflows/combat-nine-browser-benchmark.yml'
   workflow_dispatch:

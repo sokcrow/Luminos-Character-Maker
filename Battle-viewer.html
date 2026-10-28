@@ -367,7 +367,13 @@ function smartTargetForPlan(owner,plan){
     }
     ensureFrame(animate&&!host.classList.contains('round-running')?140:0)
   });
-  webglMutationObserver.observe(host,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','src','d','cx','cy']});
+  // DOM sprites, Coins and HUDs are composed by the browser. Only the camera,
+  // overlay and host visibility can change the WebGL arrows. Bursts explicitly
+  // request their own frames. Never observe canvas writes or unrelated HUD work.
+  webglMutationObserver.observe(host,{attributes:true,attributeFilter:['class','style']});
+  webglMutationObserver.observe(field,{attributes:true,attributeFilter:['class','style']});
+  const intentOverlay=document.getElementById('target-intent-overlay');
+  if(intentOverlay)webglMutationObserver.observe(intentOverlay,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','d','cx','cy']});
   const webglResizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>ensureFrame(120)):null;
   webglResizeObserver?.observe(host);if(field!==host)webglResizeObserver?.observe(field);
   window.addEventListener('resize',()=>ensureFrame(180),{passive:true});
