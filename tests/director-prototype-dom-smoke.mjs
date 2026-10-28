@@ -81,6 +81,28 @@ assert.equal(w.LuminousDmTheatreWorkspace.safeImage(imageData),imageData);
 assert.equal(w.LuminousDmTheatreWorkspace.safeImage('data:text/html,unsafe'),'');
 assert.equal(w.LuminousDmTheatreWorkspace.safeImage('javascript:alert(1)'),'');
 
+// A nameless scene instance must resolve its real name without exposing storage IDs.
+w.testWrite('campaña/base_datos_npcs/actor_178700001',{nombre:'Dante',icono:'Assets/Images/Buttons/Option.svg'});
+w.testWrite('campaña/estado_mundo/escena_actual/actores/actor_178700002',{identityId:'actor_178700001',sprite:'Assets/Images/Buttons/Theatre.png'});await tick();
+const danteCard=()=>root.querySelector('[data-actor-id="actor_178700002"]');
+assert.equal(danteCard().querySelector('.label').textContent,'Dante');
+assert.equal(d.querySelector('#theatre-speaker-select option[value="actor_178700002"]').dataset.nombre,'Dante');
+danteCard().click();await tick();
+assert.equal(d.querySelector('.composer-character-caption h3').textContent,'Dante');
+d.querySelector('#theatre-dialogue-input').value='Nombre de la ficha';d.querySelector('#btn-send-dialogue').click();await tick();
+assert.equal(Object.values(w.testRead('campaña/teatro/cola')).at(-1).nombre,'Dante','published dialogue uses the resolved name');
+w.testWrite('campaña/base_datos_npcs/actor_178700001/nombre','Dante renovado');await tick();
+assert.equal(danteCard().querySelector('.label').textContent,'Dante renovado');
+assert.equal(d.querySelector('.composer-character-caption h3').textContent,'Dante renovado');
+d.getElementById('dm-theatre-composer-modal').close();
+w.testWrite('campaña/jugadores/portrait_player/characterName','Jugador de ficha');
+w.testWrite('campaña/estado_mundo/escena_actual/actores/nameless_player',{sourceType:'player-profile',sourceId:'portrait_player'});
+w.testWrite('campaña/estado_mundo/escena_actual/actores/actor_178700003',{});await tick();
+assert.equal(root.querySelector('[data-actor-id="nameless_player"] .label').textContent,'Jugador de ficha');
+assert.equal(root.querySelector('[data-actor-id="actor_178700003"] .label').textContent,'Personaje sin nombre');
+assert.equal(w.LuminousDmTheatreWorkspace.resolveActorName('actor_178700002',{nombre:'Alias de escena',identityId:'actor_178700001'}),'Alias de escena');
+assert.equal(w.testRead('campaña/estado_mundo/escena_actual/actores/actor_178700002').nombre,undefined,'resolution does not rewrite scene data');
+
 root.querySelector('#playSceneBtn').click();await tick();assert.equal(root.open,false);assert.equal(d.querySelectorAll('#theatre-stage').length,1);
 assert.equal(d.querySelectorAll('#modulo-teatro>.stage-view-wrapper').length,1);
 dom.window.close();

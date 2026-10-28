@@ -47,6 +47,17 @@
     return matches.length === 1 ? matches[0] : null;
   }
 
+  function resolveActorName(actorId, actor = {}) {
+    if (actorId === "narrador") return "Narrador";
+    const ids = [actorId, actor.identityId, actor.identidadId, actor.sourceActorId, actor.sourceId, actor.actorId].filter(Boolean);
+    function nameFrom(record, profile = false) {
+      const values = profile ? [record?.characterName, record?.character_name, record?.nombre, record?.name] : [record?.nombre, record?.name];
+      return values.find(value => typeof value === "string" && value.trim() && !ids.includes(value.trim()) && !/^actor[_-]\d+/i.test(value.trim()))?.trim() || "";
+    }
+    return nameFrom(actor) || ids.map(id => nameFrom(state.actorLibrary[id]) || nameFrom(state.npcs[id])).find(Boolean) ||
+      nameFrom(linkedPlayer(actorId, actor), true) || "Personaje sin nombre";
+  }
+
   function resolveActorIcon(actorId, actor = {}) {
     const ux = global.LuminousTheatreInterventionUx;
     // Use the same canonical portrait resolver as the log, not the scene sprite.
@@ -345,7 +356,12 @@
       voiceGrid.replaceChildren();
       Array.from(speakerSelect.options).forEach(option => {
         const actorId = option.value;
-        if (actorId !== "narrador") return;
+        if (actorId !== "narrador") {
+          const name = resolveActorName(actorId, state.sceneActors[actorId]);
+          if (option.textContent !== name) option.textContent = name;
+          option.dataset.nombre = name;
+          return;
+        }
         const data = state.sceneActors[actorId] || {};
         const icon = resolveActorIcon(actorId, data) || option.dataset.icono || "";
         const item = button("", () => openComposer(actorId));
@@ -414,7 +430,7 @@
         if (head) {
           head.classList.add("dm-director-actor-head");
           const icon = resolveActorIcon(id, actor);
-          head.prepend(portrait(icon, FALLBACK_NPC, actor.nombre || "Personaje"));
+          head.prepend(portrait(icon, FALLBACK_NPC, resolveActorName(id, actor)));
           const speak = button("Hablar", () => openComposer(id), ICONS.speak);
           speak.classList.add("dm-director-actor-speak");
           head.appendChild(speak);
@@ -439,7 +455,10 @@
         const id = card.dataset.actorId, actor = state.sceneActors[id] || {};
         const frame = card.querySelector(".dm-director-actor-head > .dm-director-portrait");
         const source = resolveActorIcon(id, actor);
-        if (frame && frame.dataset.portraitSource !== source) frame.replaceWith(portrait(source, FALLBACK_NPC, actor.nombre || "Personaje"));
+        const label = card.querySelector(".actor-name");
+        const name = resolveActorName(id, actor);
+        if (label && label.textContent !== name) label.textContent = name;
+        if (frame && frame.dataset.portraitSource !== source) frame.replaceWith(portrait(source, FALLBACK_NPC, resolveActorName(id, actor)));
       }
       castCount.textContent = Object.keys(state.sceneActors).length + " en el elenco · " +
         list.querySelectorAll('[data-visible="true"]').length + " visibles";
@@ -539,7 +558,7 @@
     renderRoster();
     refreshPreview();
     activate("voices");
-    global.LuminousDmTheatreWorkspace = Object.freeze({ activate, openComposer, safeImage, resolveActorIcon, isPlayerActor });
+    global.LuminousDmTheatreWorkspace = Object.freeze({ activate, openComposer, safeImage, resolveActorIcon, resolveActorName, isPlayerActor });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });

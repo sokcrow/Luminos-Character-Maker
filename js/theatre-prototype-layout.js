@@ -113,7 +113,7 @@
    for(const option of speaker.options){
     if(option.value==='narrador')continue;
     const actor=actors[option.value];if(!actor)continue;
-    (workspace.isPlayerActor(option.value,actor)?players:npcs).push({id:option.value,name:option.textContent,actor});
+    (workspace.isPlayerActor(option.value,actor)?players:npcs).push({id:option.value,name:workspace.resolveActorName(option.value,actor),actor});
    }
    $('playerCount').textContent=String(players.length);$('npcCount').textContent=String(npcs.length);
    for(const [items,container,isPlayer] of [[players,$('playerGrid'),true],[npcs,$('npcGrid'),false]]){
@@ -162,7 +162,7 @@
   const cancel=doc.createElement('button');cancel.type='button';cancel.className='muted-btn';cancel.textContent='Cancelar';cancel.onclick=()=>modal.close();
   const send=content.querySelector('#btn-send-dialogue');send.classList.add('primary-btn');send.textContent='Enviar';footer.append(cancel,send);nativeComposer.appendChild(footer);
   composeLayout.append(portrait,content);modal.appendChild(composeLayout);
-  function updatePortrait(){const actor=actors[speaker.value]||{};portraitImage.src=actorImage(speaker.value,actor);name.textContent=speaker.selectedOptions[0]?.textContent||'Narrador';const title=composerHeader.querySelector('h3');if(title.textContent==='Escribir intervención')title.textContent='Nueva intervención';}
+  function updatePortrait(){const actor=actors[speaker.value]||{};portraitImage.src=actorImage(speaker.value,actor);name.textContent=workspace.resolveActorName(speaker.value,actor);const title=composerHeader.querySelector('h3');if(title.textContent==='Escribir intervención')title.textContent='Nueva intervención';}
   speaker.addEventListener('change',updatePortrait);new MutationObserver(updatePortrait).observe(modal,{attributes:true,attributeFilter:['open']});
   doc.addEventListener('luminous:theatre-portraits-changed',()=>{render();updatePortrait();});
   sync();render();
