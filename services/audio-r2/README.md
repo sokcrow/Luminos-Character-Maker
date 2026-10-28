@@ -140,3 +140,24 @@ Si se actualiza el código desde el panel, activar allí también los registros
 cuando se necesiten; copiar el código no aplica la configuración de Wrangler.
 No volver a crear el bucket ni abrirlo al público. Las pruebas en memoria no
 verifican la configuración ni los permisos de la cuenta live.
+
+## Compatibilidad de la consulta Firebase con Workers
+
+La consulta usa `redirect: 'manual'` y rechaza respuestas 3xx. Cloudflare Workers
+no admite `redirect: 'error'`: lanza `TypeError` antes de enviar la petición, lo
+que impedía validar cualquier sesión y detenía la subida antes de llegar a R2.
+No cambiar a `follow`: la consulta contiene el token y no debe reenviarse a otra
+dirección. Referencia oficial:
+https://developers.cloudflare.com/workers/runtime-apis/request/
+
+Además de las pruebas Node, ejecutar la regresión en el runtime workerd:
+
+```sh
+npm install --no-save miniflare@4.20260730.0 jsdom@26.1.0
+node tests/audio-r2-workerd-smoke.mjs
+```
+
+Esta prueba ejecuta el Worker completo con R2 local de Miniflare y un servicio
+Firebase simulado. Comprueba subida WAV, catálogo, descarga firmada con bytes
+idénticos, rangos, duplicados y rechazo de redirecciones sin otra petición.
+No utiliza ni despliega las cuentas live de Firebase o Cloudflare.
