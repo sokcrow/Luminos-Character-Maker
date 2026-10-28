@@ -466,6 +466,8 @@ function smartTargetForPlan(owner,plan){
     html=html.replace(/(js\/combat-v073-(?:steps|playback|playback-sync|authority|hud-motion|audiovisual)\.js|css\/combat-v073-audiovisual\.css)(?:\?v=[^"']+)?/g,
       '$1?v=20261026-batched-overlay-7');
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
+    // Install in the final document: document.open() replaces bootstrap listeners.
+    html=html.replace('</head>','<link rel="stylesheet" href="css/game-input-policy.css?v=20261028-interactions-1"><script defer src="js/game-input-policy.js?v=20261028-interactions-1"><\/script></head>');
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();
   }catch(error){
