@@ -6,6 +6,10 @@ on:
     paths:
       - 'hoja_de_DM.html'
       - 'js/theatre-dm-workspace.js'
+      - 'js/director-prototype-templates.js'
+      - 'js/theatre-prototype-layout.js'
+      - 'css/director-prototype-*.css'
+      - 'tests/director-prototype-dom-smoke.mjs'
       - 'js/theatre-controls.js'
       - 'js/theatre-engine.js'
       - 'js/theatre-intervention-ux-core.js'
@@ -47,6 +51,8 @@ jobs:
           node tests/unit-independent-rules-smoke.mjs
           node tests/theatre-dm-send-recovery-smoke.mjs
           node --check js/theatre-dm-workspace.js
+          node --check js/director-prototype-templates.js
+          node --check js/theatre-prototype-layout.js
           node --check js/theatre-controls.js
           node --check js/theatre-actor-studio.js
           node --check js/theatre-director-menu-guard.js
@@ -60,6 +66,7 @@ jobs:
       - name: Real Theatre modules with in-memory Firebase
         run: |
           node tests/dm-theatre-director-dom-smoke.mjs
+          node tests/director-prototype-dom-smoke.mjs
           node tests/audio-r2-client-smoke.mjs
       - name: Mobile, tablet and desktop Director UI
         run: npx playwright test tests/dm-theatre-director-workspace.spec.mjs --reporter=line --workers=1

@@ -356,9 +356,9 @@
             color_titulo: ""
           };
 
-          if (!speakerSelect || speakerSelect.value === "narrador") {
+          if ((!speakerSelect || speakerSelect.value === "narrador") && type !== "actuar") {
             type = "narracion";
-          } else {
+          } else if (speakerSelect && speakerSelect.value !== "narrador") {
             const option = speakerSelect.options[speakerSelect.selectedIndex];
             const expressionOption = expressionSelect?.options[expressionSelect.selectedIndex];
             speaker = {

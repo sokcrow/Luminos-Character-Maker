@@ -57,8 +57,11 @@
   let previousAmbienceKey = null;
   let firstCueReceived = false;
   let previousCue = null;
+  const receivedCues = new Set();
   let ownCue = null;
   let pendingWrite = null;
+  let pendingMusicResume = null;
+  let effectsGeneration = 0;
   let serverOffset = 0;
   let mounted = false;
   let panel = null;
@@ -92,6 +95,7 @@
         });
       }
     });
+    renderCanonicalAudio();
     // Reconcile loop intent only; refreshing a catalog never replays a cue.
     receiveLoop('music', musicState); receiveLoop('ambience', ambienceState);
   }
@@ -139,12 +143,17 @@
     if (hintNode) hintNode.textContent = message;
   }
   function serverNow() { return Date.now() + serverOffset; }
+  const musicIntentKey = state => JSON.stringify([state?.trackId || '', Boolean(state?.active), Number(state?.startedAt) || 0, Number(state?.positionMs) || 0, state?.loop !== false]);
+  function cancelMusicResume() {
+    pendingMusicResume?.cancel();
+    pendingMusicResume = null;
+  }
   function syncPosition(element, state) {
     if (!element || !state || !state.active || !Number.isFinite(state.startedAt) || state.startedAt <= 0) return;
     function seek() {
       if (!Number.isFinite(element.duration) || element.duration <= 0) return;
       const elapsed = Math.max(0, (serverNow() - state.startedAt) / 1000);
-      const position = elapsed % element.duration;
+      const position = state.loop === false ? Math.min(elapsed, element.duration) : elapsed % element.duration;
       if (Math.abs((element.currentTime || 0) - position) > 1.25) {
         try { element.currentTime = position; } catch (_) { /* awaiting metadata */ }
       }
@@ -153,10 +162,11 @@
     else element.addEventListener("loadedmetadata", seek, { once: true });
   }
   function receiveLoop(kind, state) {
+    if (kind === 'music' && pendingMusicResume && pendingMusicResume.intent !== musicIntentKey(state)) cancelMusicResume();
     const element = kind === "music" ? music : ambience;
     const oldKey = kind === "music" ? previousMusicKey : previousAmbienceKey;
     const entry = state ? byId(kind, state.trackId) : null;
-    const nextKey = entry ? entry.id + ":" + String(state.startedAt || 0) + ":" + String(state.active) + ":" + String(state.positionMs || 0) + (entry.expiresAt ? ":" + entry.url : "") : "off";
+    const nextKey = entry ? entry.id + ":" + String(state.startedAt || 0) + ":" + String(state.active) + ":" + String(state.positionMs || 0) + ":" + String(state.loop) + (entry.expiresAt ? ":" + entry.url : "") : "off";
     if (kind === "music") musicState = state;
     else ambienceState = state;
     if (nextKey === oldKey) { updateStatus(); return; }
@@ -169,19 +179,22 @@
     } else {
       const absoluteUrl = new URL(entry.url, global.location.href).href;
       if (element.src !== absoluteUrl) element.src = absoluteUrl;
+      element.loop = state.loop !== false;
       if (state.active) { syncPosition(element, state); playSafely(element); }
       else { element.pause(); try { element.currentTime = Math.max(0, Number(state.positionMs) || 0) / 1000; } catch (_) {} }
     }
     updateStatus();
   }
-  function playEffect(id, at) {
+  function playEffect(id, at, generation = effectsGeneration) {
+    if (generation !== effectsGeneration) return false;
     const entry = byId("sfx", id);
     if (!entry || entry.expiresAt && entry.expiresAt <= Date.now()) {
       if (cloudLibrary?.endpoint && /^r2_[a-f0-9]{64}$/.test(id)) {
         cloudLibrary.refresh().then(() => {
+          if (generation !== effectsGeneration) return;
           const resolved = byId("sfx", id);
-          if (resolved && (!at || Math.abs(serverNow() - at) <= 5000) && resolved.expiresAt > Date.now()) playEffect(id, at);
-        }).catch(error => setHint(error.message));
+          if (resolved && (!at || Math.abs(serverNow() - at) <= 5000) && resolved.expiresAt > Date.now()) playEffect(id, at, generation);
+        }).catch(error => { if (generation === effectsGeneration) setHint(error.message); });
       }
       return false;
     }
@@ -205,10 +218,19 @@
     if (!firstCueReceived) {
       firstCueReceived = true;
       previousCue = token;
+      if (token) receivedCues.add(token);
       return; // A late join never replays the last sound of a previous scene.
     }
-    if (!token || token === previousCue) return;
+    if (!token || token === previousCue || receivedCues.has(token)) return;
     previousCue = token;
+    receivedCues.add(token);
+    if (receivedCues.size > 128) receivedCues.delete(receivedCues.values().next().value);
+    if (cue.action === 'stop') {
+      effectsGeneration++;
+      oneShots.forEach(sound => sound.pause());
+      oneShots.clear();
+      return;
+    }
     if (token === ownCue) { ownCue = null; return; }
     // Reconnecting may deliver a newer nonce that is nevertheless long expired.
     const age = serverNow() - Number(cue.at);
@@ -223,6 +245,7 @@
     if (item && !musicState.active) statusNode.textContent += " · En pausa";
     if (item && musicState.active && music.paused) statusNode.textContent += " · Pulsa Activar audio si no lo escuchas";
     if (ambiance) statusNode.textContent += " · Ambiente: " + ambiance.label;
+    renderCanonicalAudio();
   }
   function optionsFor(kind) {
     return LIBRARY[kind].map((entry) => '<option value="' + entry.id + '">' + entry.label + '</option>').join("");
@@ -232,12 +255,14 @@
     const section = panel.querySelector("[data-audio-director]");
     if (section) section.hidden = !isDirector;
     cloudLibrary?.setDirector(isDirector);
+    renderCanonicalAudio();
     panel.querySelectorAll("[data-audio-command]").forEach((button) => { button.disabled = !isDirector || Boolean(pendingWrite) || Boolean(cloudLibrary?.deleting); });
   }
   function showPanel() {
     if (!panel) return;
     lastFocus = global.document.activeElement;
     panel.hidden = false;
+    if (panel.tagName === "DIALOG" && !panel.open) panel.showModal();
     trigger && trigger.setAttribute("aria-expanded", "true");
     const first = panel.querySelector("[data-audio-close]");
     first && first.focus();
@@ -247,6 +272,7 @@
   }
   function closePanel() {
     if (!panel) return;
+    if (panel.tagName === "DIALOG" && panel.open) panel.close();
     panel.hidden = true;
     if (trigger) trigger.setAttribute("aria-expanded", "false");
     if (lastFocus && typeof lastFocus.focus === "function") lastFocus.focus();
@@ -258,11 +284,13 @@
     }
     const ref = audioRef;
     const previous = channel === "music" ? musicState : ambienceState;
-    const request = {};
+    let settle;
+    const request = { done: new Promise(resolve => { settle = resolve; }) };
     pendingWrite = request;
     updateDirectorView();
     try {
-      await ref.child(channel).set(data);
+      if (channel === 'effects') await ref.update(data);
+      else await ref.child(channel).set(data);
       setHint("Se envió el cambio a la campaña.");
       return true;
     } catch (_) {
@@ -276,6 +304,7 @@
       return false;
     } finally {
       if (pendingWrite === request) pendingWrite = null;
+      settle();
       updateDirectorView();
     }
   }
@@ -287,23 +316,78 @@
     if (element.src !== url) element.src = url;
     playSafely(element);
   }
+  function playMusic(entry, resume) {
+    const commit = position => directorWrite('music', {
+      trackId: entry.id, active: true,
+      startedAt: position ? serverNow() - position : global.firebase.database.ServerValue.TIMESTAMP,
+      loop: musicState?.loop !== false
+    });
+    const url = new URL(entry.url, global.location.href).href;
+    const metadataReady = () => music.readyState >= 1 && Number.isFinite(music.duration) && music.duration > 0;
+    if (!resume || music.src === url && metadataReady()) {
+      previewLoopOnGesture('music', entry);
+      return commit(resume && resume < music.duration * 1000 ? resume : 0);
+    }
+    // preload=none means a reloaded paused track may not have a duration yet.
+    // Unlock media on the gesture, but validate before publishing shared intent.
+    const ref = audioRef, user = authenticatedUser;
+    const request = { intent: musicIntentKey(musicState), cancelled: false };
+    let finish, timer;
+    const ready = new Promise(resolve => {
+      let settled = false;
+      const cleanup = () => {
+        music.removeEventListener('loadedmetadata', loaded);
+        music.removeEventListener('durationchange', loaded);
+        music.removeEventListener('error', failed);
+        global.clearTimeout(timer);
+      };
+      finish = success => { if (settled) return; settled = true; const durationMs = success ? music.duration * 1000 : null; cleanup(); resolve(durationMs); };
+      const loaded = () => { if (metadataReady()) finish(true); };
+      const failed = () => finish(false);
+      music.addEventListener('loadedmetadata', loaded);
+      music.addEventListener('durationchange', loaded);
+      music.addEventListener('error', failed);
+      timer = global.setTimeout(failed, 15000);
+    });
+    request.cancel = () => { request.cancelled = true; finish(false); };
+    pendingMusicResume = request;
+    setHint('Cargando la duración de la pista para reanudar…');
+    updateDirectorView();
+    previewLoopOnGesture('music', entry);
+    if (metadataReady()) finish(true);
+    const current = () => !request.cancelled && pendingMusicResume === request && audioRef === ref && authenticatedUser === user && musicIntentKey(musicState) === request.intent;
+    return ready.then(async durationMs => {
+      if (!current()) return;
+      if (!durationMs) {
+        pendingMusicResume = null; music.pause(); updateDirectorView();
+        setHint('No se pudo cargar la duración de esta pista. Intenta reproducirla de nuevo.');
+        return;
+      }
+      // An independent effects command may still be waiting for Firebase.
+      while (pendingWrite) { await pendingWrite.done; if (!current()) return; }
+      const position = resume < durationMs ? resume : 0;
+      pendingMusicResume = null;
+      try { music.currentTime = position / 1000; } catch (_) {}
+      return commit(position);
+    });
+  }
   function command(type) {
     if (!isDirector || !audioRef || pendingWrite || cloudLibrary?.deleting) return;
     const stamp = global.firebase.database.ServerValue.TIMESTAMP;
     const selects = (kind) => panel.querySelector('[data-audio-select="' + kind + '"]');
+    if (['play-music','pause-music','stop-music'].includes(type)) cancelMusicResume();
     if (type === "play-music") {
       const trackId = selects("music").value;
       const entry = byId("music", trackId);
       if (entry) {
-        previewLoopOnGesture("music", entry);
         const resume = musicState?.trackId === trackId && !musicState?.active ? Number(musicState.positionMs) || 0 : 0;
-        directorWrite("music", { trackId, active: true, startedAt: resume ? serverNow() - resume : stamp });
+        playMusic(entry, resume);
       }
     } else if (type === "pause-music") {
       if (!musicState?.active) return;
       const elapsed = Math.max(0, serverNow() - Number(musicState.startedAt || serverNow()));
       const positionMs = Number.isFinite(music.duration) && music.duration > 0 ? elapsed % (music.duration * 1000) : elapsed;
-      directorWrite("music", { active: false, trackId: musicState.trackId, startedAt: 0, positionMs });
+      directorWrite("music", { active: false, trackId: musicState.trackId, startedAt: 0, positionMs, loop: musicState.loop !== false });
     } else if (type === "stop-music") {
       directorWrite("music", { active: false, trackId: "", startedAt: 0 });
     } else if (type === "play-ambience") {
@@ -315,85 +399,156 @@
       }
     } else if (type === "stop-ambience") {
       directorWrite("ambience", { active: false, trackId: "", startedAt: 0 });
+    } else if (type === 'stop-effects') {
+      const nonce = audioRef.child('events').push().key;
+      directorWrite('effects', {
+        ambience: { active: false, trackId: '', startedAt: 0 },
+        cue: { action: 'stop', cueId: '', nonce, at: stamp }
+      });
     } else if (type === "cue") {
       const cueId = selects("sfx").value;
       if (!byId("sfx", cueId)) return;
       const nonce = audioRef.child("events").push().key;
+      const generation = effectsGeneration;
       ownCue = nonce;
-      directorWrite("cue", { cueId, nonce, at: stamp }).then(ok => { if (ok) playEffect(cueId); });
+      directorWrite("cue", { cueId, nonce, at: stamp }).then(ok => { if (ok) playEffect(cueId, undefined, generation); });
     }
   }
-  function buildMusicDirector(surface) {
-    surface.classList.add("luminous-music-director");
-    surface.setAttribute("aria-label", "Music Director");
-    surface.querySelector("h2").textContent = "Music Director";
-    surface.querySelector("[data-audio-close]").setAttribute("aria-label", "Volver a Teatro");
-    const scroll = surface.querySelector(".luminous-audio-scroll");
-    const director = surface.querySelector("[data-audio-director]");
-    const mixer = global.document.createElement("aside"); mixer.className = "audio-personal-mixer";
-    const heading = global.document.createElement("h3"); heading.textContent = "Tu mezcla"; mixer.appendChild(heading);
-    scroll.querySelectorAll(".luminous-audio-info, .luminous-audio-section, [data-audio-activate]").forEach(node => mixer.appendChild(node));
-    const library = global.document.createElement("nav"); library.className = "audio-categories";
-    library.setAttribute("aria-label", "Biblioteca de audio");
-    const title = global.document.createElement("h3"); title.textContent = "Biblioteca"; library.appendChild(title);
-    const content = global.document.createElement("div"); content.className = "audio-track-content";
-    director.replaceChildren();
-    const labels = {music:"Música ambiental",ambience:"Ambiente continuo",sfx:"Efectos"};
-    ["music", "ambience", "sfx"].forEach((kind, index) => {
-      const tab = global.document.createElement("button"); tab.type = "button"; tab.textContent = labels[kind];
-      tab.setAttribute("aria-pressed", String(index === 0)); library.appendChild(tab);
-      const group = global.document.createElement("section"); group.dataset.audioKind = kind; group.hidden = index !== 0;
-      const h = global.document.createElement("h3"); h.textContent = labels[kind]; group.appendChild(h);
-      const label = global.document.createElement("label"); label.htmlFor = "director-track-" + kind; label.textContent = "Pista de la biblioteca";
-      const select = global.document.createElement("select"); select.id = label.htmlFor; select.dataset.audioSelect = kind;
-      select.innerHTML = optionsFor(kind); group.append(label, select);
-      LIBRARY[kind].forEach(entry => {
-        const card = global.document.createElement("button"); card.type = "button"; card.className = "audio-track-card";
-        card.textContent = entry.label; card.setAttribute("aria-pressed", String(select.value === entry.id));
-        card.addEventListener("click", () => {
-          select.value = entry.id;
-          group.querySelectorAll(".audio-track-card").forEach(node => node.setAttribute("aria-pressed", String(node === card)));
-        });
-        group.appendChild(card);
-      });
-      const actions = global.document.createElement("div"); actions.className = "luminous-audio-actions";
-      const commands = kind === "sfx" ? [["cue", "Emitir efecto a todos"]] :
-        [["play-" + kind, "Reproducir / Reanudar"], ...(kind === "music" ? [["pause-music", "Pausa"]] : []), ["stop-" + kind, "Detener"]];
-      commands.forEach(([command, label]) => {
-        const button = global.document.createElement("button"); button.type = "button";
-        button.dataset.audioCommand = command; button.textContent = label; actions.appendChild(button);
-      });
-      const search = global.document.createElement("input"); search.type = "search";
-      search.placeholder = "Buscar pista…"; search.setAttribute("aria-label", "Buscar en " + labels[kind]);
-      const empty = global.document.createElement("p"); empty.textContent = "No hay pistas con ese nombre."; empty.hidden = true;
-      search.addEventListener("input", () => {
-        let count = 0;
-        group.querySelectorAll(".audio-track-card").forEach(card => {
-          card.hidden = !card.textContent.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase());
-          if (!card.hidden) count++;
-        });
-        empty.hidden = count > 0;
-      });
-      group.insertBefore(search, label); group.appendChild(empty);
-      group.appendChild(actions);
-      if (kind !== "sfx") {
-        const loop = global.document.createElement("p"); loop.textContent = "Reproducción en bucle · compartida con la campaña"; group.appendChild(loop);
-      }
-      content.appendChild(group);
-      tab.addEventListener("click", () => {
-        content.querySelectorAll("[data-audio-kind]").forEach(node => { node.hidden = node !== group; });
-        library.querySelectorAll("button").forEach(node => node.setAttribute("aria-pressed", String(node === tab)));
-      });
-    });
-    director.append(library, content);
-    const footer = global.document.createElement("footer"); footer.className = "audio-now-playing";
-    footer.append(surface.querySelector("[data-audio-status]"), surface.querySelector("[data-audio-hint]"));
-    const progress = global.document.createElement("progress"); progress.max = 1; progress.value = 0; progress.setAttribute("aria-label", "Progreso de la música");
-    footer.prepend(progress);
-    music.addEventListener("timeupdate", () => { progress.value = Number.isFinite(music.duration) && music.duration > 0 ? music.currentTime / music.duration : 0; });
-    music.addEventListener("playing", updateStatus); music.addEventListener("pause", updateStatus);
-    scroll.append(mixer); surface.querySelector(".luminous-audio-card").appendChild(footer);
+  let canonicalFilter = 'all', canonicalFavorites = new Set(), canonicalShuffle = false;
+  function canonicalNode(id) { return panel?.querySelector('#pa-' + id); }
+  function canonicalPlay(kind, id) {
+    const select = panel.querySelector('[data-audio-select="' + kind + '"]');
+    if (!select || !isDirector || pendingWrite) return;
+    select.value = id;
+    command(kind === 'sfx' ? 'cue' : 'play-' + kind);
   }
+  function renderCanonicalAudio() {
+    if (!panel?.classList.contains('canonical-audio')) return;
+    const list = canonicalNode('trackList'), query = canonicalNode('searchMusic').value.trim().toLocaleLowerCase();
+    list.replaceChildren();
+    const all = availableTracks('music');
+    const tracks = all.filter(t => t.label.toLocaleLowerCase().includes(query) && (canonicalFilter !== 'favorites' || canonicalFavorites.has(t.id)) && (canonicalFilter !== 'custom' || t.id.startsWith('r2_')));
+    canonicalNode('catalogCount').textContent = tracks.length + ' pistas';
+    canonicalNode('catalogTitle').textContent = ({all:'Todas las pistas',favorites:'Favoritos',custom:'Mis canciones'})[canonicalFilter];
+    const button = (label, handler, className='small-control') => {
+      const b=global.document.createElement('button');b.type='button';b.className=className;b.textContent=label;b.onclick=handler;return b;
+    };
+    for (const entry of tracks) {
+      const row=global.document.createElement('div');row.className='track-item'+(musicState?.trackId===entry.id&&musicState.active?' playing':'');row.dataset.trackId=entry.id;
+      const art=canonicalNode('nowArt').cloneNode(true);art.removeAttribute('id');art.className='track-art'+(entry.id.startsWith('r2_')?' custom':'');
+      const info=global.document.createElement('div');info.className='track-info';
+      const title=global.document.createElement('div');title.className='track-name';title.textContent=entry.label;
+      const meta=global.document.createElement('div');meta.className='track-meta';meta.textContent=entry.id.startsWith('r2_')?'Tu biblioteca compartida':'Biblioteca de Limbus';info.append(title,meta);
+      const play=button('▶',()=>canonicalPlay('music',entry.id),'track-action play');play.setAttribute('aria-label','Reproducir '+entry.label);play.disabled=!isDirector||Boolean(pendingWrite)||Boolean(cloudLibrary?.deleting);
+      const favorite=button(canonicalFavorites.has(entry.id)?'★':'☆',()=>{
+        if(canonicalFavorites.has(entry.id))canonicalFavorites.delete(entry.id);else canonicalFavorites.add(entry.id);
+        try{global.localStorage.setItem('limbus.audio.favorites',JSON.stringify([...canonicalFavorites]));}catch(_){}
+        renderCanonicalAudio();
+        list.querySelector('[data-track-id="'+entry.id+'"] .favorite')?.focus();
+      },'track-action favorite');favorite.setAttribute('aria-label','Favorito: '+entry.label);favorite.setAttribute('aria-pressed',String(canonicalFavorites.has(entry.id)));
+      const actions=global.document.createElement('div');actions.className='track-actions';actions.append(favorite,play);
+      row.append(art,info,actions);list.appendChild(row);
+    }
+    if(!tracks.length)list.textContent='No hay pistas que coincidan.';
+    const fillEffects=(target,kind)=>{
+      target.replaceChildren();
+      for(const entry of availableTracks(kind)){
+        const b=button(entry.label,()=>canonicalPlay(kind,entry.id),'quick-sfx');
+        b.disabled=!isDirector||Boolean(pendingWrite)||Boolean(cloudLibrary?.deleting);target.appendChild(b);
+      }
+    };
+    fillEffects(canonicalNode('ambientFxGrid'),'ambience');fillEffects(canonicalNode('oneShotFxGrid'),'sfx');fillEffects(canonicalNode('quickGrid'),'sfx');
+    const selected=musicState&&byId('music',musicState.trackId);
+    canonicalNode('nowTitle').textContent=selected?.label||'Ninguna pista seleccionada';
+    canonicalNode('nowSub').textContent=selected?(musicState.active?'Sonando para la mesa':'En pausa'):'Selecciona música para comenzar';
+    canonicalNode('playBtn').textContent=musicState?.active?'Ⅱ':'▶';
+    canonicalNode('playBtn').setAttribute('aria-label',musicState?.active?'Pausar':'Reproducir');
+    for(const id of ['playBtn','prevBtn','nextBtn','repeatBtn','seek','stopAllEffects','stopAllQuick'])canonicalNode(id).disabled=!isDirector||Boolean(pendingWrite)||Boolean(cloudLibrary?.deleting);
+    if (musicState?.trackId && !selected) canonicalNode('playBtn').disabled = true;
+    if (pendingMusicResume) canonicalNode('playBtn').disabled = true;
+    canonicalNode('repeatBtn').setAttribute('aria-pressed',String(musicState?.loop!==false));
+    for(const id of ['musicVolume','footerVolume'])canonicalNode(id).value=prefs.music;
+    canonicalNode('sfxVolume').value=prefs.sfx;
+    canonicalNode('musicValue').textContent=canonicalNode('footerValue').textContent=prefs.music+'%';
+    canonicalNode('sfxValue').textContent=prefs.sfx+'%';
+  }
+  function buildMusicDirector(surface) {
+    if (!global.LuminousDirectorTemplates) return;
+    surface.classList.add('canonical-audio');
+    surface.setAttribute('aria-label','Music Director');
+    surface.innerHTML=global.LuminousDirectorTemplates.audio;
+    const app=surface.querySelector('.app');app.setAttribute('data-audio-director','');
+    const node=id=>canonicalNode(id);
+    const native=global.document.createElement('div');native.className='canonical-native-audio';native.setAttribute('aria-hidden','true');
+    for(const kind of ['music','ambience','sfx']){
+      const select=global.document.createElement('select');select.dataset.audioSelect=kind;select.innerHTML=optionsFor(kind);native.appendChild(select);
+    }
+    for(const name of ['play-music','pause-music','stop-music','play-ambience','stop-ambience','cue']){
+      const b=global.document.createElement('button');b.type='button';b.dataset.audioCommand=name;native.appendChild(b);
+    }
+    app.appendChild(native);
+    const status=global.document.createElement('p');status.className='sr';status.setAttribute('data-audio-status','');status.setAttribute('aria-live','polite');
+    const hint=global.document.createElement('p');hint.setAttribute('data-audio-hint','');hint.setAttribute('role','status');
+    node('nowSub').after(status,hint);
+    const activate=global.document.createElement('button');activate.type='button';activate.className='small-control';activate.setAttribute('data-audio-activate','');activate.textContent='Activar audio';surface.querySelector('.mix-card').appendChild(activate);
+    try{canonicalFavorites=new Set(JSON.parse(global.localStorage.getItem('limbus.audio.favorites')||'[]'));}catch(_){}
+    const setMode=mode=>{
+      surface.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.mode===mode)));
+      for(const [key,id] of [['music','musicScreen'],['sfx','sfxScreen'],['custom','customScreen']])node(id).classList.toggle('active',mode===key);
+    };
+    surface.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+    for(const id of ['sidebarFilters','mobileFilters']){
+      for(const [key,label] of [['all','Todas las pistas'],['favorites','Favoritos'],['custom','Mis canciones']]){
+        const b=global.document.createElement('button');b.type='button';b.className='filter-btn';b.textContent=label;b.onclick=()=>{canonicalFilter=key;renderCanonicalAudio();};node(id).appendChild(b);
+      }
+    }
+    node('searchMusic').oninput=renderCanonicalAudio;
+    node('listButton').onclick=()=>{node('trackList').classList.remove('grid-view');node('listButton').setAttribute('aria-pressed','true');node('gridButton').setAttribute('aria-pressed','false');};
+    node('gridButton').onclick=()=>{node('trackList').classList.add('grid-view');node('listButton').setAttribute('aria-pressed','false');node('gridButton').setAttribute('aria-pressed','true');};
+    for(const id of ['musicVolume','footerVolume'])node(id).oninput=()=>{setVolume('music',node(id).value);renderCanonicalAudio();};
+    node('sfxVolume').oninput=()=>{setVolume('sfx',node('sfxVolume').value);renderCanonicalAudio();};
+    node('resetMixer').onclick=()=>{setVolume('music',40);setVolume('sfx',40);renderCanonicalAudio();};
+    function mobilePane(pane){
+      app.dataset.mobile=pane;
+      node('mobileLibrary').setAttribute('aria-selected',String(pane==='library'));node('mobileMixer').setAttribute('aria-selected',String(pane==='mixer'));
+      const mobile=global.matchMedia?.('(max-width:960px)').matches;
+      node('catalog').hidden=Boolean(mobile&&pane==='mixer');node('mixer').hidden=Boolean(mobile&&pane==='library');
+    }
+    node('mobileLibrary').onclick=()=>mobilePane('library');node('mobileMixer').onclick=()=>mobilePane('mixer');
+    global.addEventListener('resize',()=>mobilePane(app.dataset.mobile||'library'));mobilePane('library');
+    node('playBtn').onclick=()=>{
+      if (musicState?.active) command('pause-music');
+      else if (musicState?.trackId) canonicalPlay('music', musicState.trackId);
+      else command('play-music');
+    };
+    function next(delta){
+      const tracks=availableTracks('music');if(!tracks.length)return;
+      const index=tracks.findIndex(t=>t.id===musicState?.trackId);
+      const target=canonicalShuffle?Math.floor(Math.random()*tracks.length):(index+delta+tracks.length)%tracks.length;
+      canonicalPlay('music',tracks[target].id);
+    }
+    node('prevBtn').onclick=()=>next(-1);node('nextBtn').onclick=()=>next(1);
+    node('shuffleBtn').onclick=()=>{canonicalShuffle=!canonicalShuffle;node('shuffleBtn').setAttribute('aria-pressed',String(canonicalShuffle));};
+    node('repeatBtn').onclick=()=>{if(musicState&&!pendingWrite)directorWrite('music',{...musicState,loop:musicState.loop===false});};
+    node('stopAllEffects').onclick=node('stopAllQuick').onclick=()=>command('stop-effects');
+    node('seek').onchange=()=>{
+      if(!isDirector||pendingWrite||!musicState||!Number.isFinite(music.duration)||music.duration<=0)return;
+      const positionMs=Number(node('seek').value)/1000*music.duration*1000;
+      directorWrite('music',{...musicState,startedAt:musicState.active?serverNow()-positionMs:0,positionMs});
+    };
+    function progress(){
+      const format=seconds=>Number.isFinite(seconds)?Math.floor(seconds/60)+':'+String(Math.floor(seconds%60)).padStart(2,'0'):'0:00';
+      node('elapsed').textContent=format(music.currentTime);node('duration').textContent=format(music.duration);
+      if(global.document.activeElement!==node('seek'))node('seek').value=music.duration>0?music.currentTime/music.duration*1000:0;
+    }
+    music.addEventListener('timeupdate',progress);music.addEventListener('loadedmetadata',progress);
+    music.addEventListener('ended',()=>{
+      if(isDirector&&!pendingWrite&&musicState?.active&&musicState.loop===false)
+        directorWrite('music',{...musicState,active:false,startedAt:0,positionMs:0});
+    });
+    renderCanonicalAudio();
+  }
+
   function buildPanel() {
     if (mounted || !global.document.body) return;
     mounted = true;
@@ -411,7 +566,7 @@
     if (hudMenu) hudMenu.appendChild(trigger);
     else doc.body.appendChild(trigger);
 
-    panel = doc.createElement("section");
+    panel = doc.createElement(doc.body.classList.contains("on-game-dashboard") ? "dialog" : "section");
     panel.className = "luminous-audio-panel";
     panel.id = "luminous-audio-panel";
     panel.setAttribute("role", "dialog");
@@ -441,6 +596,7 @@
       '</div></div>';
     if (doc.body.classList.contains("on-game-dashboard")) buildMusicDirector(panel);
     doc.body.appendChild(panel);
+    panel.addEventListener("cancel", event => { event.preventDefault(); closePanel(); });
     statusNode = panel.querySelector("[data-audio-status]");
     hintNode = panel.querySelector("[data-audio-hint]");
     trigger.addEventListener("click", (event) => { event.stopPropagation(); showPanel(); });
@@ -474,6 +630,8 @@
     updateDirectorView();
   }
   function detachFirebase() {
+    cancelMusicResume();
+    effectsGeneration++;
     cloudLibrary?.destroy(); cloudLibrary = null; libraryRevision = null;
     oneShots.forEach(sound => sound.pause()); oneShots.clear();
     if (audioRef && audioListener) audioRef.off("value", audioListener);
@@ -487,6 +645,7 @@
     offsetListener = null;
     firstCueReceived = false;
     previousCue = null;
+    receivedCues.clear();
     ownCue = null;
     pendingWrite = null;
     isDirector = false;
