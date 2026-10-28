@@ -5,6 +5,18 @@ const MAX_BYTES = 25 * 1024 * 1024;
 const TICKET_SECONDS = 3600;
 const ID = /^r2_[a-f0-9]{64}$/;
 const SCOPES = /^(default|[A-Za-z0-9_-]{1,100})$/;
+const SERVICE_ERRORS = Object.freeze({
+  configuration:'No se pudo iniciar la biblioteca. Revisa la configuración del servicio de audio.',
+  firebase:'No se pudo conectar con Firebase para validar la sesión. Revisa la conexión y la configuración del servicio.',
+  upload:'No se pudo recibir el archivo completo. Revisa tu conexión y vuelve a intentar.',
+  prepare:'No se pudo preparar el archivo para guardarlo. Vuelve a intentar la subida.',
+  'r2-list':'No se pudo consultar la biblioteca en R2. Revisa el bucket y los permisos del Worker.',
+  'r2-read':'No se pudo consultar el archivo en R2. Revisa la vinculación del bucket al Worker.',
+  'r2-write':'R2 no confirmó el guardado del archivo. Revisa el bucket y los permisos del Worker.',
+  'r2-delete':'R2 no confirmó la eliminación. Actualiza Mis archivos antes de volver a intentar.',
+  sign:'No se pudo preparar el enlace del audio. Revisa la clave de firma del servicio.',
+  playback:'No se pudo cargar el archivo desde la biblioteca. Vuelve a intentar la reproducción.'
+});
 class HttpError extends Error { constructor(status,message){super(message);this.status=status;} }
 const fail = (status,message) => { throw new HttpError(status,message); };
 const json = (value,status=200) => new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
@@ -12,17 +24,19 @@ const hex = bytes => Array.from(new Uint8Array(bytes),v=>v.toString(16).padStart
 function scopeRoot(scope){return scope==='default'?'campaña':`campaña/encuentros/${scope}/state/campaña`;}
 function objectKey(scope,id){return `${scope}/files/${id}`;}
 async function firebaseRead(env,path,token,fetcher){
-  const base = new URL(env.FIREBASE_DATABASE_URL);
-  if(base.protocol!=='https:' || !/\.(firebaseio\.com|firebasedatabase\.app)$/.test(base.hostname)) fail(503,'Servicio sin configurar.');
+  let base;
+  try{base=new URL(env.FIREBASE_DATABASE_URL);}catch{fail(503,'La dirección de Firebase del servicio de audio falta o no es válida.');}
+  if(base.protocol!=='https:' || base.username || base.password || !/\.(firebaseio\.com|firebasedatabase\.app)$/.test(base.hostname)) fail(503,'La dirección de Firebase del servicio de audio falta o no es válida.');
   const url=new URL('/'+path.split('/').map(encodeURIComponent).join('/')+'.json',base);
   url.searchParams.set('auth',token);
   const response=await fetcher(url,{headers:{Accept:'application/json'},redirect:'error'});
   if(!response.ok) fail(response.status===401||response.status===403?401:503,'No se pudo validar la sesión de juego.');
-  return response.json();
+  try{return await response.json();}catch{fail(503,'Firebase no devolvió una respuesta válida para comprobar la sesión.');}
 }
 async function authorize(request,env,scope,write,fetcher){
   const token=request.headers.get('Authorization')?.match(/^Bearer (\S+)$/)?.[1];
   if(!token || token.length>12000) fail(401,'Inicia sesión en Limbus.');
+  if(typeof env.FIREBASE_PROJECT_ID!=='string'||!env.FIREBASE_PROJECT_ID.trim()) fail(503,'Falta configurar el proyecto de Firebase en el servicio de audio.');
   // This authenticated RTDB read is the signature/token validation boundary.
   // Never trust the decoded claims unless Firebase has accepted this same token.
   const dm=await firebaseRead(env,scopeRoot(scope)+'/config/dm_uid',token,fetcher);
@@ -97,42 +111,65 @@ async function media(request,env,url){
   return new Response(object.body,{status:range?206:200,headers});
 }
 export function createHandler(fetcher=fetch){return async function handler(request,env){
-  const origin=request.headers.get('Origin'),allowed=(env.ALLOWED_ORIGINS||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const origin=request.headers.get('Origin'),allowed=(typeof env.ALLOWED_ORIGINS==='string'?env.ALLOWED_ORIGINS:'').split(',').map(s=>s.trim()).filter(Boolean);
   const cors=new Headers({'Vary':'Origin','Access-Control-Allow-Methods':'GET,HEAD,PUT,DELETE,OPTIONS','Access-Control-Allow-Headers':'Authorization,Content-Type,Range','Access-Control-Expose-Headers':'Content-Range,Content-Length,ETag'});
   if(origin&&allowed.includes(origin))cors.set('Access-Control-Allow-Origin',origin);
-  let response;
+  let response,stage='configuration';
   try{
     if(origin&&!allowed.includes(origin))fail(403,'Este sitio no está autorizado.');
-    if(!env.AUDIO_BUCKET||!env.AUDIO_SIGNING_KEY||env.AUDIO_SIGNING_KEY.length<32)fail(503,'Biblioteca sin configurar.');
+    if(!env.AUDIO_BUCKET||!['head','put','get','list','delete'].every(method=>typeof env.AUDIO_BUCKET[method]==='function'))fail(503,'Falta vincular el bucket R2 al servicio de audio.');
+    if(typeof env.AUDIO_SIGNING_KEY!=='string'||env.AUDIO_SIGNING_KEY.length<32)fail(503,'Falta configurar una clave de firma válida para la biblioteca de audio.');
     if(request.method==='OPTIONS')response=new Response(null,{status:204});
     else{
       const url=new URL(request.url);
-      if(url.pathname.startsWith('/media/'))response=await media(request,env,url);
+      if(url.pathname.startsWith('/media/')){stage='playback';response=await media(request,env,url);}
       else{
         const scope=url.searchParams.get('scope')||'default';if(!SCOPES.test(scope))fail(400,'Encuentro inválido.');
         const write=['PUT','DELETE'].includes(request.method);
+        stage='firebase';
         const token=await authorize(request,env,scope,write,fetcher);
         if(url.pathname==='/catalog'&&request.method==='GET'){
+          stage='r2-list';
           let cursor,objects=[];
           do{const page=await env.AUDIO_BUCKET.list({prefix:scope+'/files/',include:['customMetadata','httpMetadata'],cursor});objects.push(...page.objects);cursor=page.truncated?page.cursor:undefined;}while(cursor);
+          stage='sign';
           const tracks=await Promise.all(objects.filter(o=>ID.test(o.key.split('/').pop())).map(o=>signedEntry(o,scope,request,env)));
           response=json({tracks,bytes:objects.reduce((sum,o)=>sum+o.size,0),maxFileBytes:MAX_BYTES});
         }else if(url.pathname==='/tracks'&&request.method==='PUT'){
           const kind=url.searchParams.get('kind');if(!['music','ambience','sfx'].includes(kind))fail(400,'Elige música, ambiente o efecto.');
           const label=(url.searchParams.get('name')||'Audio').normalize().trim().slice(0,120);if(!label)fail(400,'Escribe un nombre.');
-          const bytes=await boundedBody(request),contentType=sniff(bytes),id='r2_'+hex(await crypto.subtle.digest('SHA-256',bytes)),key=objectKey(scope,id);
+          stage='upload';
+          const bytes=await boundedBody(request),contentType=sniff(bytes);
+          stage='prepare';
+          const id='r2_'+hex(await crypto.subtle.digest('SHA-256',bytes)),key=objectKey(scope,id);
+          stage='r2-read';
           let object=await env.AUDIO_BUCKET.head(key),duplicate=Boolean(object);
-          if(!object){object=await env.AUDIO_BUCKET.put(key,bytes,{onlyIf:{etagDoesNotMatch:'*'},httpMetadata:{contentType},customMetadata:{label,kind,createdAt:String(Date.now())}});if(!object){object=await env.AUDIO_BUCKET.head(key);duplicate=true;}}
+          if(!object){
+            stage='r2-write';
+            object=await env.AUDIO_BUCKET.put(key,bytes,{onlyIf:{etagDoesNotMatch:'*'},httpMetadata:{contentType},customMetadata:{label,kind,createdAt:String(Date.now())}});
+            if(!object){stage='r2-read';object=await env.AUDIO_BUCKET.head(key);duplicate=true;}
+          }
+          if(!object)fail(503,SERVICE_ERRORS['r2-write']);
+          stage='sign';
           response=json({track:await signedEntry(object,scope,request,env),duplicate},duplicate?200:201);
         }else if(url.pathname.startsWith('/tracks/')&&request.method==='DELETE'){
           const id=url.pathname.slice('/tracks/'.length);if(!ID.test(id))fail(400,'Audio inválido.');
           const state=await firebaseRead(env,scopeRoot(scope)+'/audio_director',token,fetcher)||{};
           if([state.music?.trackId,state.ambience?.trackId].includes(id))fail(409,'Detén la pista antes de eliminarla.');
+          stage='r2-delete';
           await env.AUDIO_BUCKET.delete(objectKey(scope,id));response=json({deleted:true});
         }else fail(404,'Ruta no encontrada.');
       }
     }
-  }catch(error){response=json({error:error instanceof HttpError?error.message:'No se pudo completar la operación de audio.'},error.status||500);}
+  }catch(error){
+    if(error instanceof HttpError)response=json({error:error.message},error.status);
+    else{
+      // Do not log raw exceptions: upstream errors can embed token-bearing
+      // Firebase URLs, private object names or signed media URLs.
+      console.error('audio-library-failure',{stage});
+      response=json({error:SERVICE_ERRORS[stage]||SERVICE_ERRORS.configuration},503);
+    }
+  }
   for(const [name,value]of cors)response.headers.set(name,value);
   return response;
 };}

@@ -115,3 +115,28 @@ El workflow incluye esas pruebas y la UI en seis viewports TX-01. Las capturas
 se publican como artefactos cuando el navegador las complete. No se ha activado
 ni desplegado Cloudflare desde esta conversación; falta la comprobación real en
 la cuenta del titular y la escucha de un archivo real en dos dispositivos.
+
+## Cuando la subida falla
+
+El Worker devuelve mensajes distintos para configuración incompleta, consulta a
+Firebase, recepción del archivo, consulta/escritura en R2 y preparación del enlace.
+El formulario conserva ese mensaje junto al nombre del archivo. Un fallo de R2
+no confirma ni descarta por sí solo que una operación interrumpida alcanzara a
+guardar: comprobar el catálogo antes de reintentar; los reintentos completos se
+reutilizan por contenido.
+
+En el Worker deben existir `FIREBASE_DATABASE_URL` con la URL HTTPS de Realtime
+Database, `FIREBASE_PROJECT_ID` con `luminous-system`, el binding R2 `AUDIO_BUCKET`
+y el secreto `AUDIO_SIGNING_KEY`. Un texto o variable llamado `AUDIO_BUCKET` no
+sustituye al binding del bucket. La configuración del repositorio activa
+observabilidad; el registro propio de errores inesperados contiene únicamente una etapa fija,
+sin copiar excepciones crudas que puedan contener tokens o URLs privadas.
+
+**Fusionar el PR o publicar GitHub Pages no actualiza el Worker.** Estos mensajes
+y la observabilidad se activan después de desplegar `services/audio-r2` en la
+cuenta Cloudflare autorizada (`npm run deploy`) o actualizar y publicar el código
+del Worker desde su panel, manteniendo los bindings y secretos existentes.
+Si se actualiza el código desde el panel, activar allí también los registros
+cuando se necesiten; copiar el código no aplica la configuración de Wrangler.
+No volver a crear el bucket ni abrirlo al público. Las pruebas en memoria no
+verifican la configuración ni los permisos de la cuenta live.

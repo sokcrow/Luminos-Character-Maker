@@ -9,5 +9,5 @@
     "FIREBASE_DATABASE_URL": "https://luminous-system-default-rtdb.firebaseio.com",
     "ALLOWED_ORIGINS": "https://sokcrow.github.io"
   },
-  "observability": { "enabled": false }
+  "observability": { "enabled": true }
 }
