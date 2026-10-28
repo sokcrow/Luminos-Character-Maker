@@ -107,13 +107,13 @@
   let autoScroll=true;$('autoScrollToggle').onchange=()=>{autoScroll=$('autoScrollToggle').checked;log.dataset.autoScroll=String(autoScroll);};
   new MutationObserver(()=>{if(autoScroll){const scroll=log.querySelector('.dialogue-scroll-area');if(scroll)scroll.scrollTop=scroll.scrollHeight;}}).observe(log,{childList:true,subtree:true});
   let actors={},sort=false;
-  function actorImage(actor){return workspace.safeImage(actor.icono||actor.icono_jugador||actor.sprite||Object.values(actor.expresiones||{})[0]||'')||'Assets/Images/Buttons/Player.svg';}
+  function actorImage(id,actor){return workspace.resolveActorIcon(id,actor)||'Assets/Images/Buttons/Player.svg';}
   function render(){
    const players=[],npcs=[];const query=$('searchActors').value.trim().toLocaleLowerCase();
    for(const option of speaker.options){
     if(option.value==='narrador')continue;
     const actor=actors[option.value];if(!actor)continue;
-    (actor.sourceType==='player-profile'||actor.tipo==='Jugador'||actor.vinculo_jugador?players:npcs).push({id:option.value,name:option.textContent,actor});
+    (workspace.isPlayerActor(option.value,actor)?players:npcs).push({id:option.value,name:option.textContent,actor});
    }
    $('playerCount').textContent=String(players.length);$('npcCount').textContent=String(npcs.length);
    for(const [items,container,isPlayer] of [[players,$('playerGrid'),true],[npcs,$('npcGrid'),false]]){
@@ -122,7 +122,7 @@
     for(const item of items.filter(x=>isPlayer||x.name.toLocaleLowerCase().includes(query))){
      const button=doc.createElement('button');button.type='button';button.className='character'+(isPlayer?' player':'');button.dataset.actorId=item.id;
      button.setAttribute('aria-label','Hablar como '+item.name);
-     const image=doc.createElement('img');image.className='avatar';image.src=actorImage(item.actor);image.alt='';image.onerror=()=>{image.onerror=null;image.src='Assets/Images/Buttons/Player.svg';};
+     const image=doc.createElement('img');image.className='avatar';image.src=actorImage(item.id,item.actor);image.alt='';image.onerror=()=>{image.onerror=null;image.src='Assets/Images/Buttons/Player.svg';};
      const label=doc.createElement('span');label.className='label';label.textContent=item.name;button.append(image,label);
      button.onclick=()=>workspace.openComposer(item.id);container.appendChild(button);
     }
@@ -162,8 +162,9 @@
   const cancel=doc.createElement('button');cancel.type='button';cancel.className='muted-btn';cancel.textContent='Cancelar';cancel.onclick=()=>modal.close();
   const send=content.querySelector('#btn-send-dialogue');send.classList.add('primary-btn');send.textContent='Enviar';footer.append(cancel,send);nativeComposer.appendChild(footer);
   composeLayout.append(portrait,content);modal.appendChild(composeLayout);
-  function updatePortrait(){const actor=actors[speaker.value]||{};portraitImage.src=actorImage(actor);name.textContent=speaker.selectedOptions[0]?.textContent||'Narrador';const title=composerHeader.querySelector('h3');if(title.textContent==='Escribir intervención')title.textContent='Nueva intervención';}
+  function updatePortrait(){const actor=actors[speaker.value]||{};portraitImage.src=actorImage(speaker.value,actor);name.textContent=speaker.selectedOptions[0]?.textContent||'Narrador';const title=composerHeader.querySelector('h3');if(title.textContent==='Escribir intervención')title.textContent='Nueva intervención';}
   speaker.addEventListener('change',updatePortrait);new MutationObserver(updatePortrait).observe(modal,{attributes:true,attributeFilter:['open']});
+  doc.addEventListener('luminous:theatre-portraits-changed',()=>{render();updatePortrait();});
   sync();render();
   global.LuminousCanonicalDirector=Object.freeze({open:()=>{menu.open=true;sync();},close,mobile,tools});
  }

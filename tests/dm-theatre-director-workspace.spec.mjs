@@ -40,6 +40,18 @@ for(const [width,height] of sizes){
   await noSprite.locator('.btn-remove').click();
   expect(await page.evaluate(()=>window.testRead('campaña/base_datos_npcs/nosprite')?.nombre)).toBe('Sin imagen');
   await utility.getByRole('button',{name:'Cerrar herramientas',exact:true}).click();
+  await page.evaluate(()=>{
+   window.testWrite('campaña/base_datos_npcs/portrait_fixture',{nombre:'NPC con icono',icon_url:'Assets/Images/Buttons/Auto Dialog.svg',sprite:'Assets/Images/Buttons/Theatre.png'});
+   window.testWrite('campaña/jugadores/portrait_player',{actorId:'portrait_actor',icono_jugador:'Assets/Images/Buttons/Option.svg'});
+   window.testWrite('campaña/estado_mundo/escena_actual/actores/portrait_npc',{nombre:'NPC con icono',identityId:'portrait_fixture',sprite:'Assets/Images/Buttons/Theatre.png'});
+   window.testWrite('campaña/estado_mundo/escena_actual/actores/portrait_player',{nombre:'Jugador con icono',identityId:'portrait_actor',sourceType:'player-profile',sourceId:'portrait_player',sprite:'Assets/Images/Buttons/Theatre.png'});
+  });
+  if(mobile)await root.getByRole('tab',{name:'Elenco',exact:true}).click();
+  const npcPortrait=root.locator('[data-actor-id="portrait_npc"] .avatar');
+  const playerPortrait=root.locator('[data-actor-id="portrait_player"] .avatar');
+  await expect(npcPortrait).toHaveAttribute('src',/Auto%20Dialog\.svg$/);await expect(playerPortrait).toHaveAttribute('src',/Option\.svg$/);
+  await npcPortrait.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath(`canonical-portraits-${width}x${height}.png`)});
+  if(mobile)await root.getByRole('tab',{name:'Dirección',exact:true}).click();
   await root.getByRole('button',{name:'Ambiente',exact:true}).click();
   const audio=page.getByRole('dialog',{name:'Music Director',exact:true});await expect(audio).toBeVisible();
   await expect(audio.locator('.track-item')).toHaveCount(0);
