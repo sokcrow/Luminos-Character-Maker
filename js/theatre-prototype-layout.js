@@ -170,9 +170,24 @@
   const textarea=content.querySelector('#theatre-dialogue-input');textarea.classList.add('field-control','input-textarea');
   const footer=doc.createElement('div');footer.className='composer-footer';
   const cancel=doc.createElement('button');cancel.type='button';cancel.className='muted-btn';cancel.textContent='Cancelar';cancel.onclick=()=>modal.close();
+  const retire=doc.createElement('button');retire.type='button';retire.className='muted-btn';retire.id='composer-retire-actor';retire.textContent='Retirar del elenco';
+  const retireStatus=doc.createElement('p');retireStatus.setAttribute('role','status');retireStatus.className='hint-small';
+  retire.onclick=()=>{
+   const id=speaker.value;
+   const control=[...doc.querySelectorAll('#live-actors-list [data-actor-id]')].find(card=>card.dataset.actorId===id)?.querySelector('.btn-remove');
+   if(!control||control.disabled){retireStatus.textContent='Este personaje ya no está disponible o tiene un cambio pendiente.';return;}
+   retire.disabled=true;retire.dataset.pendingActor=id;retireStatus.textContent='';control.click();
+  };
+  doc.addEventListener('luminous:theatre-retire-result',event=>{
+   if(event.detail.actorId!==retire.dataset.pendingActor)return;
+   retire.disabled=false;delete retire.dataset.pendingActor;
+   if(event.detail.success){if(nativeComposer.dataset.actorId===event.detail.actorId)modal.close();}
+   else if(!event.detail.cancelled)retireStatus.textContent='No se pudo retirar el personaje. Revisa la conexión y los permisos.';
+  });
+  footer.appendChild(retire);nativeComposer.appendChild(retireStatus);
   const send=content.querySelector('#btn-send-dialogue');send.classList.add('primary-btn');send.textContent='Enviar';footer.append(cancel,send);nativeComposer.appendChild(footer);
   composeLayout.append(portrait,content);modal.appendChild(composeLayout);
-  function updatePortrait(){const actor=actors[speaker.value]||{};portraitImage.src=actorImage(speaker.value,actor);name.textContent=workspace.resolveActorName(speaker.value,actor);const title=composerHeader.querySelector('h3');if(title.textContent==='Escribir intervención')title.textContent='Nueva intervención';}
+  function updatePortrait(){retire.hidden=speaker.value==='narrador'||!actors[speaker.value];const actor=actors[speaker.value]||{};portraitImage.src=actorImage(speaker.value,actor);name.textContent=workspace.resolveActorName(speaker.value,actor);const title=composerHeader.querySelector('h3');if(title.textContent==='Escribir intervención')title.textContent='Nueva intervención';}
   speaker.addEventListener('change',updatePortrait);new MutationObserver(updatePortrait).observe(modal,{attributes:true,attributeFilter:['open']});
   doc.addEventListener('luminous:theatre-portraits-changed',()=>{render();updatePortrait();});
   sync();render();

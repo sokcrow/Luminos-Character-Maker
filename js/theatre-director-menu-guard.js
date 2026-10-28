@@ -6,7 +6,7 @@
   if (global.LuminousTheatreDirectorMenuGuard) return;
 
   const ACTOR_STUDIO_SCRIPT_ID = "theatre-actor-studio-script";
-  const ACTOR_STUDIO_SRC = "js/theatre-actor-studio.js?v=20261028-cast-library-1";
+  const ACTOR_STUDIO_SRC = "js/theatre-actor-studio.js?v=20261028-cast-library-2";
   const LOADER_ID = "theatre-actor-studio-loader";
   const SLOT_ID = "theatre-actor-studio-slot";
 

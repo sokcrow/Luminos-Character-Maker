@@ -31,9 +31,11 @@
             try {
                 const result = await action();
                 if (result === false) throw new Error("El personaje ya no está disponible o no tiene un sprite válido.");
+                return true;
             } catch (error) {
                 actorErrors.set(actorId, "No se pudo guardar el cambio. Revisa tu conexión y permisos.");
                 console.error("No se pudo actualizar el actor:", error);
+                return false;
             } finally { pendingActors.delete(actorId); renderLiveActors(); }
         }
 
@@ -327,16 +329,25 @@
                     db.ref(`${paths().scene}/actores/${actorId}/orientacion`).set(actorData.orientacion === "flip" ? "normal" : "flip");
                 });
                 card.querySelector(".btn-hide").disabled = !visibleActors.includes(actorId);
-                card.querySelector(".btn-remove")?.addEventListener("click", () => actorAction(actorId, async () => {
-                    await global.LuminousTheatreState.removeVisibleActor(actorId);
-                    await db.ref(paths().scene).transaction(current => {
-                        if (!current) return;
-                        if (current.actores) delete current.actores[actorId];
-                        current.actores_visibles = normalizeIdList(current.actores_visibles).filter(id => id !== actorId);
-                        if (current.active_actor === actorId) current.active_actor = null;
-                        return current;
+                card.querySelector(".btn-remove")?.addEventListener("click", async () => {
+                    if (pendingActors.has(actorId)) return;
+                    const name = global.LuminousDmTheatreWorkspace?.resolveActorName(actorId, actorData) || actorData.nombre || "este personaje";
+                    if (!global.confirm(`¿Retirar a ${name} del elenco de esta escena? Se conservará en tu biblioteca y podrás volver a añadirlo.`)) {
+                        document.dispatchEvent(new CustomEvent("luminous:theatre-retire-result", {detail:{actorId, cancelled:true}}));
+                        return;
+                    }
+                    const success = await actorAction(actorId, async () => {
+                        const result = await db.ref(paths().scene).transaction(current => {
+                            if (!current) return;
+                            if (current.actores) delete current.actores[actorId];
+                            current.actores_visibles = normalizeIdList(current.actores_visibles).filter(id => id !== actorId);
+                            if (current.active_actor === actorId) current.active_actor = null;
+                            return current;
+                        });
+                        if (!result.committed) return false;
                     });
-                }));
+                    document.dispatchEvent(new CustomEvent("luminous:theatre-retire-result", {detail:{actorId, success:Boolean(success)}}));
+                });
 
                 const viewerSelect = card.querySelector(".actor-viewer-select");
                 const getViewer = () => viewerSelect?.value || null;

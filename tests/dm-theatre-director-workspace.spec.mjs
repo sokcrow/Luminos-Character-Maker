@@ -10,6 +10,7 @@ for(const [width,height] of sizes){
   const root=page.getByRole('dialog',{name:'Director de Teatro',exact:true});
   await expect(root).toBeVisible();
   const mobile=width<=820||(width<=900&&height<=470);
+  await page.evaluate(()=>window.testWrite('campaña/base_datos_npcs/faction_fixture',{nombre:'Contacto de facción',faccion:'Facción de prueba',tags:['Contacto'],icono:'Assets/Images/Buttons/Player.svg'}));
   const addFromLibrary=root.getByRole('button',{name:'Añadir desde biblioteca',exact:true});
   await expect(addFromLibrary).toBeVisible();await addFromLibrary.click();
   const libraryDialog=page.getByRole('dialog',{name:'Herramientas de escena',exact:true});
@@ -18,6 +19,11 @@ for(const [width,height] of sizes){
   await expect(libraryDialog.locator('#dm-director-roster-grid')).toContainText('No hay personajes');
   await libraryDialog.getByRole('button',{name:'NPC',exact:true}).click();
   await expect(libraryDialog.getByRole('button',{name:'Añadir al elenco: Aldara',exact:true})).toBeVisible();
+  await libraryDialog.getByRole('combobox',{name:'Facción',exact:true}).selectOption('Facción de prueba');
+  await libraryDialog.getByRole('combobox',{name:'Etiqueta',exact:true}).selectOption('Contacto');
+  await expect(libraryDialog.locator('#dm-director-roster-grid strong')).toHaveText(['Contacto de facción']);
+  await libraryDialog.getByRole('combobox',{name:'Facción',exact:true}).selectOption('');
+  await libraryDialog.getByRole('combobox',{name:'Etiqueta',exact:true}).selectOption('');
   const libraryBounds=await libraryDialog.boundingBox();expect(libraryBounds.x).toBeGreaterThanOrEqual(0);expect(libraryBounds.x+libraryBounds.width).toBeLessThanOrEqual(width+1);
   await page.screenshot({path:info.outputPath(`actor-library-${width}x${height}.png`)});
   await libraryDialog.getByRole('button',{name:'Todos',exact:true}).click();
@@ -36,6 +42,10 @@ for(const [width,height] of sizes){
   await page.locator('#btn-send-dialogue').click();await expect(page.locator('#theatre-dialogue-input')).toHaveValue('');
   expect(await page.evaluate(()=>window.writeId)).toBe(1);
   await page.screenshot({path:info.outputPath(`composer-${width}x${height}.png`)});
+  page.once('dialog',dialog=>dialog.dismiss());
+  await composer.getByRole('button',{name:'Retirar del elenco',exact:true}).click();
+  await expect(composer).toBeVisible();
+  expect(await page.evaluate(()=>window.testRead('campaña/estado_mundo/escena_actual/actores/active_aldara')?.nombre)).toBe('Aldara');
   await composer.getByRole('button',{name:'Cerrar compositor',exact:true}).click();
   if(mobile)await root.getByRole('tab',{name:'Registro',exact:true}).click();
   await expect(page.locator('#theatre-log-container .dialogue-row')).toHaveCount(2);
@@ -50,6 +60,7 @@ for(const [width,height] of sizes){
   await expect(utility.getByRole('status').filter({hasText:'Personaje añadido'})).toBeVisible();
   await utility.getByRole('button',{name:'En escena',exact:true}).click();
   const noSprite=utility.locator('.actor-control-card').filter({hasText:'Sin imagen'});await expect(noSprite.locator('.btn-show')).toBeDisabled();
+  page.once('dialog',dialog=>dialog.accept());
   await noSprite.locator('.btn-remove').click();
   expect(await page.evaluate(()=>window.testRead('campaña/base_datos_npcs/nosprite')?.nombre)).toBe('Sin imagen');
   await utility.getByRole('button',{name:'Cerrar herramientas',exact:true}).click();

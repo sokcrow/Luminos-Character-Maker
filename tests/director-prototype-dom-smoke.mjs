@@ -129,7 +129,7 @@ utility.querySelector('[data-actor-type-filter="player"]').click();await tick();
 const libraryNames=()=>[...utility.querySelectorAll('#dm-director-roster-grid strong')].map(n=>n.textContent);
 assert.ok(libraryNames().includes('Primer actor'));assert.ok(libraryNames().includes('Segundo actor'),'all actorIds assignments are available');
 assert.equal(libraryNames().includes('Aldara'),false);
-assert.ok([...utility.querySelectorAll('#dm-director-roster-grid small')].every(n=>n.textContent==='Jugador · Añadir para escribir'));
+assert.ok([...utility.querySelectorAll('#dm-director-roster-grid small:first-of-type')].every(n=>n.textContent==='Jugador · Añadir para escribir'));
 const selectedOption=d.querySelector('#select-npc-roster option[value="library_two"]');
 assert.equal(selectedOption.dataset.sourceType,'player-profile');assert.equal(selectedOption.dataset.sourceId,'library_player');
 utility.querySelector('[aria-label="Añadir al elenco: Segundo actor"]').click();await tick();
@@ -142,6 +142,31 @@ assert.ok(libraryNames().includes('Aldara'));assert.equal(libraryNames().include
 utility.querySelector('header button').click();
 root.querySelector('#playerGrid [data-actor-id="'+addedId+'"]').click();await tick();
 assert.equal(d.querySelector('.composer-character-caption h3').textContent,'Segundo actor');d.getElementById('dm-theatre-composer-modal').close();
+
+// Existing faction/tag taxonomy filters the portrait grid, without separate copies.
+w.testWrite('campaña/base_datos_npcs/taxonomy_actor',{nombre:'Actor de facción',faccion:'Facción de prueba',etiquetas:['Contacto','Aliado'],sprite:'Assets/Images/Buttons/Theatre.png'});
+root.querySelector('#canonical-add-actors').click();await tick();
+utility.querySelector('[data-actor-type-filter="all"]').click();
+const faction=utility.querySelector('[aria-label="Facción"]'),tag=utility.querySelector('[aria-label="Etiqueta"]');
+faction.value='Facción de prueba';faction.dispatchEvent(new w.Event('change'));await tick();
+assert.deepEqual(libraryNames(),['Actor de facción']);
+tag.value='Contacto';tag.dispatchEvent(new w.Event('change'));await tick();assert.deepEqual(libraryNames(),['Actor de facción']);
+const search=utility.querySelector('input[type="search"]');search.value='Aliado';search.dispatchEvent(new w.Event('input'));await tick();assert.deepEqual(libraryNames(),['Actor de facción']);
+utility.querySelector('[aria-label="Añadir al elenco: Actor de facción"]').click();await tick();
+const retiredId=Object.entries(w.testRead('campaña/estado_mundo/escena_actual/actores')).find(([,a])=>a.identityId==='taxonomy_actor')[0];
+utility.querySelector('header button').click();
+root.querySelector('[data-actor-id="'+retiredId+'"]').click();await tick();
+const remove=d.getElementById('composer-retire-actor');assert.equal(remove.hidden,false);
+let confirmation='';w.confirm=message=>{confirmation=message;return false;};remove.click();await tick();
+assert.match(confirmation,/Actor de facción/);assert.ok(w.testRead('campaña/estado_mundo/escena_actual/actores/'+retiredId));assert.equal(remove.disabled,false);
+w.confirm=()=>true;w.rejectNextWrite=true;remove.click();await tick();
+assert.ok(w.testRead('campaña/estado_mundo/escena_actual/actores/'+retiredId),'failed write preserves scene actor');
+assert.equal(d.getElementById('dm-theatre-composer-modal').open,true);assert.match(d.querySelector('.composer-footer').previousElementSibling?.textContent||d.querySelector('.composer-content').textContent,/No se pudo retirar/);
+remove.click();await tick();
+assert.equal(w.testRead('campaña/estado_mundo/escena_actual/actores/'+retiredId),null);
+assert.equal(w.testRead('campaña/base_datos_npcs/taxonomy_actor').nombre,'Actor de facción','retiring preserves canonical library');
+assert.equal(d.getElementById('dm-theatre-composer-modal').open,false);
+w.LuminousDmTheatreWorkspace.openComposer('narrador');await tick();assert.equal(remove.hidden,true);d.getElementById('dm-theatre-composer-modal').close();
 
 root.querySelector('#playSceneBtn').click();await tick();assert.equal(root.open,false);assert.equal(d.querySelectorAll('#theatre-stage').length,1);
 assert.equal(d.querySelectorAll('#modulo-teatro>.stage-view-wrapper').length,1);

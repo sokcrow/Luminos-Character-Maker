@@ -13,7 +13,7 @@
   });
   const FALLBACK_NPC = ICONS.scene;
   const FALLBACK_PLAYER = ICONS.cast;
-  const state = { npcs: {}, actorLibrary: {}, players: {}, sceneActors: {}, activeTab: "voices", query: "", rosterType: "all", rosterLimit: 48 };
+  const state = { npcs: {}, actorLibrary: {}, players: {}, sceneActors: {}, activeTab: "voices", query: "", rosterType: "all", rosterFaction: "", rosterTag: "", rosterLimit: 48 };
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -74,6 +74,12 @@
   function isPlayerActor(actorId, actor = {}) {
     return actor.sourceType === "player-profile" || actor.tipo === "Jugador" || Boolean(actor.vinculo_jugador) || Boolean(linkedPlayer(actorId, actor));
   }
+
+  function actorTags(actor) {
+    const value = actor.etiquetas || actor.tags;
+    return (Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : Object.values(value || {})).map(tag => String(tag).trim()).filter(Boolean);
+  }
+  function actorFaction(actor) { return String(actor.faccion || actor.alineamiento || "Sin facción").trim(); }
 
   function portrait(url, fallback, label) {
     const frame = el("span", "dm-director-portrait");
@@ -265,6 +271,15 @@
       typeFilters.appendChild(filter);
     }
     cast.appendChild(typeFilters);
+    const facets = el("div", "dm-director-library-facets");
+    function facet(label, key) {
+      const field = el("label", "", label), select = el("select", "dm-director-search");
+      select.setAttribute("aria-label", label);
+      select.addEventListener("change", () => { state[key] = select.value; state.rosterLimit = 48; renderRoster(); });
+      field.appendChild(select); facets.appendChild(field); return select;
+    }
+    const factionFilter = facet("Facción", "rosterFaction"), tagFilter = facet("Etiqueta", "rosterTag");
+    cast.appendChild(facets);
     const rosterGrid = el("div", "dm-director-roster-grid");
     rosterGrid.id = "dm-director-roster-grid";
     cast.appendChild(rosterGrid);
@@ -403,11 +418,23 @@
     function renderRoster() {
       const query = state.query;
       const options = Array.from(npcSelect.options).filter(o => o.value);
+      const catalogActors = options.map(o => state.npcs[o.value] || state.actorLibrary[o.value] || {});
+      for (const [select, key, values, label] of [
+        [factionFilter, "rosterFaction", catalogActors.map(actorFaction), "Todas las facciones"],
+        [tagFilter, "rosterTag", catalogActors.flatMap(actorTags), "Todas las etiquetas"]
+      ]) {
+        const available = [...new Set(values)].sort((a,b) => a.localeCompare(b, "es"));
+        if (!available.includes(state[key])) state[key] = "";
+        select.replaceChildren(new Option(label, ""), ...available.map(value => new Option(value, value)));
+        select.value = state[key];
+      }
       const items = options.filter(o => {
         const actor = state.npcs[o.value] || state.actorLibrary[o.value] || {};
         const isPlayer = o.dataset.actorType === "player" || o.dataset.sourceType === "player-profile" || isPlayerActor(o.value, actor);
         return (state.rosterType === "all" || (state.rosterType === "player") === isPlayer) &&
-          resolveActorName(o.value, actor).toLocaleLowerCase().includes(query);
+          (!state.rosterFaction || actorFaction(actor) === state.rosterFaction) &&
+          (!state.rosterTag || actorTags(actor).includes(state.rosterTag)) &&
+          [resolveActorName(o.value, actor), actor.titulo, actorFaction(actor), ...actorTags(actor)].filter(Boolean).join(" ").toLocaleLowerCase().includes(query);
       });
       rosterGrid.replaceChildren();
       if (!items.length) {
@@ -433,6 +460,7 @@
         const labels = el("span", "dm-director-person-text");
         labels.appendChild(el("strong", "", name));
         labels.appendChild(el("small", "", isPlayer ? "Jugador · Añadir para escribir" : "NPC · Añadir para escribir"));
+        labels.appendChild(el("small", "", [actorFaction(actor), ...actorTags(actor)].join(" · ")));
         item.appendChild(labels);
         rosterGrid.appendChild(item);
       });
