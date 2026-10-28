@@ -145,3 +145,16 @@ console.log('Upload form: valid WAV bytes stored and downloaded, duplicate, per-
  assert.equal(f.lib.tracks('music').length,0);assert.equal(f.lib.bytes,0);f.close();
 }
 console.log('P2 stale catalog + failed follow-up: confirmed tracks, bytes, signed URLs and subsequent authoritative removal passed.');
+
+// An actual Worker storage exception must surface next to the selected file.
+{
+ const f=await fixture();const logger=console.error;
+ try {
+  console.error=()=>{};
+  f.backend.env.AUDIO_BUCKET.put=async()=>{throw Error('storage unavailable');};
+  const result=await f.start();
+  assert.equal(result.uploaded,0);assert.equal(f.backend.objects.size,0);
+  assert.match(f.w.document.querySelector('.audio-upload-results li').textContent,/Canción\.wav.*R2.*guardado/);
+ } finally {console.error=logger;f.close();}
+}
+console.log('Worker R2 failure is visible beside the selected file in the upload form.');
