@@ -103,6 +103,19 @@ assert.equal(root.querySelector('[data-actor-id="actor_178700003"] .label').text
 assert.equal(w.LuminousDmTheatreWorkspace.resolveActorName('actor_178700002',{nombre:'Alias de escena',identityId:'actor_178700001'}),'Alias de escena');
 assert.equal(w.testRead('campaña/estado_mundo/escena_actual/actores/actor_178700002').nombre,undefined,'resolution does not rewrite scene data');
 
+// An unrelated NPC with the scene alias must not steal a linked player's portrait.
+w.testWrite('campaña/base_datos_npcs/unrelated_alias',{nombre:'Alias',icono:'Assets/Images/Buttons/Theatre.png'});
+w.testWrite('campaña/actores/linked_dante',{nombre:'Dante',vinculo_jugador:'alias_player'});
+w.testWrite('campaña/jugadores/alias_player',{characterName:'Dante',icono_jugador:'Assets/Images/Buttons/Option.svg'});
+w.testWrite('campaña/estado_mundo/escena_actual/actores/alias_instance',{nombre:'Alias',identityId:'linked_dante',sprite:'Assets/Images/Buttons/Theatre.png'});await tick();
+assert.ok(cardIcon('alias_instance').src.endsWith('/Option.svg'),'linked profile wins over unrelated same-name NPC');
+root.querySelector('[data-actor-id="alias_instance"]').click();await tick();
+assert.equal(bigPortrait().src,cardIcon('alias_instance').src);
+assert.equal(d.querySelector('[data-actor-id="alias_instance"] .dm-director-portrait-image').src,cardIcon('alias_instance').src);
+w.testWrite('campaña/actores/linked_dante/icono','Assets/Images/Buttons/Auto Dialog.svg');await tick();
+assert.ok(cardIcon('alias_instance').src.endsWith('/Auto%20Dialog.svg'),'canonical identity still wins over profile');
+d.getElementById('dm-theatre-composer-modal').close();
+
 root.querySelector('#playSceneBtn').click();await tick();assert.equal(root.open,false);assert.equal(d.querySelectorAll('#theatre-stage').length,1);
 assert.equal(d.querySelectorAll('#modulo-teatro>.stage-view-wrapper').length,1);
 dom.window.close();

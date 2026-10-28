@@ -60,9 +60,15 @@
 
   function resolveActorIcon(actorId, actor = {}) {
     const ux = global.LuminousTheatreInterventionUx;
-    // Use the same canonical portrait resolver as the log, not the scene sprite.
-    const icon = ux?.resolveCanonicalActorIcon({ actorId, nombre: actor.nombre }, { [actorId]: actor }, [state.actorLibrary, state.npcs]);
-    return safeImage(icon) || safeImage(ux?.iconFromActor(linkedPlayer(actorId, actor))) || "";
+    const message = { actorId, nombre: actor.nombre }, scene = { [actorId]: actor };
+    const catalogs = [state.actorLibrary, state.npcs];
+    const ids = [actorId, actor.identityId, actor.identidadId, actor.sourceActorId, actor.sourceId];
+    // Restrict the first lookup to identity matches so a same-name NPC cannot
+    // outrank the player's linked profile. Keep legacy name lookup last.
+    const identityCatalogs = catalogs.map(catalog => Object.fromEntries(ids.filter(id => id && catalog[id]).map(id => [id, catalog[id]])));
+    return safeImage(ux?.resolveCanonicalActorIcon(message, scene, identityCatalogs)) ||
+      safeImage(ux?.iconFromActor(linkedPlayer(actorId, actor))) ||
+      safeImage(ux?.resolveCanonicalActorIcon(message, scene, catalogs)) || "";
   }
 
   function isPlayerActor(actorId, actor = {}) {
