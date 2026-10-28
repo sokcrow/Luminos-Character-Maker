@@ -45,6 +45,6 @@ export async function mountDirector(page) {
   for (const file of ['on-game-dashboard','theatre-hud','theatre-message-policy','theatre-actor-studio','theatre-dm-workspace','luminous-audio-director','director-prototype-theatre','director-prototype-audio','director-prototype-integration']) await page.addStyleTag({path:`css/${file}.css`});
   for (const file of ['theatre-engine','theatre-controls','on-game-dashboard']) await page.addScriptTag({path:`js/${file}.js`});
   await page.evaluate(()=>document.dispatchEvent(new Event('DOMContentLoaded')));
-  for (const file of ['theatre-director-menu-guard','director-prototype-templates','theatre-dm-workspace','theatre-prototype-layout','theatre-intervention-ux-core','audio-cloud-library','luminous-audio-director']) await page.addScriptTag({path:`js/${file}.js`});
+  for (const file of ['theatre-director-menu-guard','theatre-intervention-ux-core','director-prototype-templates','theatre-dm-workspace','theatre-prototype-layout','audio-cloud-library','luminous-audio-director']) await page.addScriptTag({path:`js/${file}.js`});
   await page.locator('.theatre-dm-menu-toggle').click();
 }

@@ -13,7 +13,7 @@
   });
   const FALLBACK_NPC = ICONS.scene;
   const FALLBACK_PLAYER = ICONS.cast;
-  const state = { npcs: {}, actorLibrary: {}, sceneActors: {}, activeTab: "voices", query: "", rosterLimit: 48 };
+  const state = { npcs: {}, actorLibrary: {}, players: {}, sceneActors: {}, activeTab: "voices", query: "", rosterLimit: 48 };
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -26,10 +26,53 @@
     if (typeof url !== "string" || !url.trim()) return "";
     try {
       const resolved = new URL(url.trim(), document.baseURI);
-      return ["http:", "https:"].includes(resolved.protocol) ? resolved.href : "";
+      if (resolved.protocol === "data:") return /^data:image\//i.test(url.trim()) ? url.trim() : "";
+      return ["http:", "https:", "blob:"].includes(resolved.protocol) ? resolved.href : "";
     } catch (_) {
       return "";
     }
+  }
+
+  function linkedPlayer(actorId, actor) {
+    const ids = [actorId, actor.identityId, actor.identidadId, actor.sourceActorId, actor.actorId];
+    if (actor.sourceType === "player-profile" && state.players[actor.sourceId]) return state.players[actor.sourceId];
+    if (actor.sourceType !== "player-profile") ids.push(actor.sourceId);
+    const records = [actor, ...ids.flatMap(id => [state.npcs[id], state.actorLibrary[id]]).filter(Boolean)];
+    for (const record of records) if (state.players[record.vinculo_jugador]) return state.players[record.vinculo_jugador];
+    const normalizedIds = new Set(ids.filter(id => typeof id === "string" && id));
+    const matches = Object.values(state.players).filter(player => {
+      const assigned = global.LuminousTheatreState?.normalizeAssignedActorIds?.([player?.actorIds, player?.actores, player?.actorId]) || [player?.actorId];
+      return assigned.some(id => normalizedIds.has(id));
+    });
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  function resolveActorName(actorId, actor = {}) {
+    if (actorId === "narrador") return "Narrador";
+    const ids = [actorId, actor.identityId, actor.identidadId, actor.sourceActorId, actor.sourceId, actor.actorId].filter(Boolean);
+    function nameFrom(record, profile = false) {
+      const values = profile ? [record?.characterName, record?.character_name, record?.nombre, record?.name] : [record?.nombre, record?.name];
+      return values.find(value => typeof value === "string" && value.trim() && !ids.includes(value.trim()) && !/^actor[_-]\d+/i.test(value.trim()))?.trim() || "";
+    }
+    return nameFrom(actor) || ids.map(id => nameFrom(state.actorLibrary[id]) || nameFrom(state.npcs[id])).find(Boolean) ||
+      nameFrom(linkedPlayer(actorId, actor), true) || "Personaje sin nombre";
+  }
+
+  function resolveActorIcon(actorId, actor = {}) {
+    const ux = global.LuminousTheatreInterventionUx;
+    const message = { actorId, nombre: actor.nombre }, scene = { [actorId]: actor };
+    const catalogs = [state.actorLibrary, state.npcs];
+    const ids = [actorId, actor.identityId, actor.identidadId, actor.sourceActorId, actor.sourceId];
+    // Restrict the first lookup to identity matches so a same-name NPC cannot
+    // outrank the player's linked profile. Keep legacy name lookup last.
+    const identityCatalogs = catalogs.map(catalog => Object.fromEntries(ids.filter(id => id && catalog[id]).map(id => [id, catalog[id]])));
+    return safeImage(ux?.resolveCanonicalActorIcon(message, scene, identityCatalogs)) ||
+      safeImage(ux?.iconFromActor(linkedPlayer(actorId, actor))) ||
+      safeImage(ux?.resolveCanonicalActorIcon(message, scene, catalogs)) || "";
+  }
+
+  function isPlayerActor(actorId, actor = {}) {
+    return actor.sourceType === "player-profile" || actor.tipo === "Jugador" || Boolean(actor.vinculo_jugador) || Boolean(linkedPlayer(actorId, actor));
   }
 
   function portrait(url, fallback, label) {
@@ -40,6 +83,7 @@
     fallbackImg.setAttribute("aria-hidden", "true");
     frame.appendChild(fallbackImg);
     const source = safeImage(url);
+    frame.dataset.portraitSource = source;
     if (source) {
       const img = document.createElement("img");
       img.className = "dm-director-portrait-image";
@@ -318,10 +362,14 @@
       voiceGrid.replaceChildren();
       Array.from(speakerSelect.options).forEach(option => {
         const actorId = option.value;
-        if (actorId !== "narrador") return;
+        if (actorId !== "narrador") {
+          const name = resolveActorName(actorId, state.sceneActors[actorId]);
+          if (option.textContent !== name) option.textContent = name;
+          option.dataset.nombre = name;
+          return;
+        }
         const data = state.sceneActors[actorId] || {};
-        const icon = option.dataset.icono || data.icono || data.sprite ||
-          (data.expresiones && Object.values(data.expresiones).find(Boolean)) || "";
+        const icon = resolveActorIcon(actorId, data) || option.dataset.icono || "";
         const item = button("", () => openComposer(actorId));
         item.classList.add("dm-director-person-card", "dm-director-voice");
         item.dataset.selected = String(actorId === chosen);
@@ -350,9 +398,8 @@
       items.slice(0, state.rosterLimit).forEach(option => {
         const id = option.value;
         const actor = state.npcs[id] || state.actorLibrary[id] || {};
-        const isPlayer = option.dataset.sourceType === "player-profile";
-        const icon = actor.icono || actor.icono_jugador || actor.sprite || actor.url ||
-          (actor.expresiones && Object.values(actor.expresiones).find(Boolean)) || "";
+        const isPlayer = option.dataset.sourceType === "player-profile" || isPlayerActor(id, actor);
+        const icon = resolveActorIcon(id, actor);
         const item = button("", () => {
           npcSelect.value = id;
           document.getElementById("btn-spawn-npc")?.click();
@@ -388,9 +435,8 @@
         const head = card.firstElementChild;
         if (head) {
           head.classList.add("dm-director-actor-head");
-          const icon = actor.icono || actor.sprite ||
-            (actor.expresiones && Object.values(actor.expresiones).find(Boolean)) || "";
-          head.prepend(portrait(icon, FALLBACK_NPC, actor.nombre || "Personaje"));
+          const icon = resolveActorIcon(id, actor);
+          head.prepend(portrait(icon, FALLBACK_NPC, resolveActorName(id, actor)));
           const speak = button("Hablar", () => openComposer(id), ICONS.speak);
           speak.classList.add("dm-director-actor-speak");
           head.appendChild(speak);
@@ -410,6 +456,15 @@
           const expression = card.querySelector(".actor-expression-select");
           if (expression) more.prepend(expression);
         }
+      }
+      for (const card of list.querySelectorAll(".actor-control-card[data-dm-decorated]")) {
+        const id = card.dataset.actorId, actor = state.sceneActors[id] || {};
+        const frame = card.querySelector(".dm-director-actor-head > .dm-director-portrait");
+        const source = resolveActorIcon(id, actor);
+        const label = card.querySelector(".actor-name");
+        const name = resolveActorName(id, actor);
+        if (label && label.textContent !== name) label.textContent = name;
+        if (frame && frame.dataset.portraitSource !== source) frame.replaceWith(portrait(source, FALLBACK_NPC, resolveActorName(id, actor)));
       }
       castCount.textContent = Object.keys(state.sceneActors).length + " en el elenco · " +
         list.querySelectorAll('[data-visible="true"]').length + " visibles";
@@ -471,11 +526,13 @@
     if (db) {
       const roots = [
         ["campaña/base_datos_npcs", "npcs"],
-        ["campaña/actores", "actorLibrary"]
+        ["campaña/actores", "actorLibrary"],
+        ["campaña/jugadores", "players"]
       ];
       roots.forEach(([path, key]) => db.ref(path).on("value", snap => {
         state[key] = snap.val() || {};
-        renderRoster();
+        renderRoster();renderSpeakers();decorateActors();
+        document.dispatchEvent(new CustomEvent("luminous:theatre-portraits-changed"));
       }));
       const scenePath = global.LuminousTheatreState?.getPaths?.().scene || "campaña/estado_mundo/escena_actual";
       db.ref(scenePath + "/actores").on("value", snap => {
@@ -507,7 +564,7 @@
     renderRoster();
     refreshPreview();
     activate("voices");
-    global.LuminousDmTheatreWorkspace = Object.freeze({ activate, openComposer, safeImage });
+    global.LuminousDmTheatreWorkspace = Object.freeze({ activate, openComposer, safeImage, resolveActorIcon, resolveActorName, isPlayerActor });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });

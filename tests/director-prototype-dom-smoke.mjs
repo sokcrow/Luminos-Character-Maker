@@ -48,7 +48,75 @@ audio.querySelector('#pa-playBtn').click();await tick();assert.equal(w.testRead(
 audio.querySelector('[data-mode="custom"]').click();assert.equal(audio.querySelector('#pa-customScreen').classList.contains('active'),true);
 assert.equal(audio.querySelector('#pa-customScreen .audio-cloud-library')!==null,true);
 audio.querySelector('[data-audio-close]').click();assert.equal(audio.open,false);assert.equal(root.open,true);
+// Portrait aliases and persistent/profile links must beat scene body sprites.
+w.testWrite('campaña/base_datos_npcs/portrait_npc',{nombre:'NPC con retrato',icon_url:'Assets/Images/Buttons/Auto Dialog.svg',sprite:'Assets/Images/Buttons/Theatre.png'});
+w.testWrite('campaña/actores/profile_actor',{nombre:'Jugador con retrato',tipo:'Jugador',vinculo_jugador:'portrait_player',sprite:'Assets/Images/Buttons/Theatre.png'});
+w.testWrite('campaña/jugadores/portrait_player',{actorIds:{profile_actor:true},icono_jugador:'Assets/Images/Buttons/Option.svg'});
+w.testWrite('campaña/estado_mundo/escena_actual/actores/portrait_npc_instance',{nombre:'NPC con retrato',identityId:'portrait_npc',sprite:'Assets/Images/Buttons/Theatre.png'});
+w.testWrite('campaña/estado_mundo/escena_actual/actores/portrait_player_instance',{nombre:'Jugador con retrato',identityId:'profile_actor',sourceType:'player-profile',sourceId:'portrait_player',sprite:'Assets/Images/Buttons/Theatre.png'});
+w.testWrite('campaña/teatro/log/portrait_check',{actorId:'portrait_npc_instance',nombre:'NPC con retrato',mensaje:'Icono compartido',tipo_dialogo:'dialogo'});
+await tick();
+const cardIcon=id=>root.querySelector('[data-actor-id="'+id+'"] .avatar');
+assert.ok(cardIcon('portrait_npc_instance').src.endsWith('/Auto%20Dialog.svg'),'NPC card resolves icon_url from the persistent record instead of sprite');
+assert.equal(cardIcon('portrait_npc_instance').src,d.querySelector('[data-message-id="portrait_check"] .hex-portrait img').src,'card and log resolve the same icon');
+assert.ok(cardIcon('portrait_player_instance').src.endsWith('/Option.svg'),'player card resolves the linked profile portrait');
+root.querySelector('[data-actor-id="portrait_npc_instance"]').click();await tick();
+const bigPortrait=()=>d.querySelector('.composer-big-portrait');assert.equal(bigPortrait().src,cardIcon('portrait_npc_instance').src);
+w.testWrite('campaña/base_datos_npcs/portrait_npc',{nombre:'NPC con retrato',avatar:'Assets/Images/Buttons/Option.svg',sprite:'Assets/Images/Buttons/Theatre.png'});await tick();
+assert.ok(cardIcon('portrait_npc_instance').src.endsWith('/Option.svg'),'canonical changes refresh cards without removing/readding the actor');
+assert.equal(bigPortrait().src,cardIcon('portrait_npc_instance').src,'open composer refreshes with the canonical icon');
+assert.equal(d.querySelector('[data-message-id="portrait_check"] .hex-portrait img').src,cardIcon('portrait_npc_instance').src);
+assert.equal(d.querySelector('[data-actor-id="portrait_npc_instance"] .dm-director-portrait-image').src,cardIcon('portrait_npc_instance').src,'live cast management uses the same portrait');
+assert.equal(d.querySelector('[aria-label="Añadir al elenco: NPC con retrato"] .dm-director-portrait-image').src,cardIcon('portrait_npc_instance').src,'catalog uses the same portrait');
+d.getElementById('dm-theatre-composer-modal').close();
+w.testWrite('campaña/jugadores/portrait_player/icono_jugador','Assets/Images/Buttons/Auto Dialog.svg');await tick();
+assert.ok(cardIcon('portrait_player_instance').src.endsWith('/Auto%20Dialog.svg'),'profile changes refresh an already-present player');
+w.testWrite('campaña/estado_mundo/escena_actual/actores/legacy_player_instance',{nombre:'Jugador vinculado por identidad',identityId:'profile_actor',sprite:'Assets/Images/Buttons/Theatre.png'});await tick();
+assert.ok(d.querySelector('#playerGrid [data-actor-id="legacy_player_instance"]'),'player assignment resolves older scene copies');
+assert.ok(cardIcon('legacy_player_instance').src.endsWith('/Auto%20Dialog.svg'));
+assert.equal(w.testRead('campaña/estado_mundo/escena_actual/actores/portrait_npc_instance').sprite,'Assets/Images/Buttons/Theatre.png','stage sprite is unchanged');
+assert.ok(root.querySelector('[data-actor-id="player_instance"] .avatar').src.endsWith('/Player.svg'),'missing portrait uses official fallback rather than body sprite');
+const imageData='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E';
+assert.equal(w.LuminousDmTheatreWorkspace.safeImage(imageData),imageData);
+assert.equal(w.LuminousDmTheatreWorkspace.safeImage('data:text/html,unsafe'),'');
+assert.equal(w.LuminousDmTheatreWorkspace.safeImage('javascript:alert(1)'),'');
+
+// A nameless scene instance must resolve its real name without exposing storage IDs.
+w.testWrite('campaña/base_datos_npcs/actor_178700001',{nombre:'Dante',icono:'Assets/Images/Buttons/Option.svg'});
+w.testWrite('campaña/estado_mundo/escena_actual/actores/actor_178700002',{identityId:'actor_178700001',sprite:'Assets/Images/Buttons/Theatre.png'});await tick();
+const danteCard=()=>root.querySelector('[data-actor-id="actor_178700002"]');
+assert.equal(danteCard().querySelector('.label').textContent,'Dante');
+assert.equal(d.querySelector('#theatre-speaker-select option[value="actor_178700002"]').dataset.nombre,'Dante');
+danteCard().click();await tick();
+assert.equal(d.querySelector('.composer-character-caption h3').textContent,'Dante');
+d.querySelector('#theatre-dialogue-input').value='Nombre de la ficha';d.querySelector('#btn-send-dialogue').click();await tick();
+assert.equal(Object.values(w.testRead('campaña/teatro/cola')).at(-1).nombre,'Dante','published dialogue uses the resolved name');
+w.testWrite('campaña/base_datos_npcs/actor_178700001/nombre','Dante renovado');await tick();
+assert.equal(danteCard().querySelector('.label').textContent,'Dante renovado');
+assert.equal(d.querySelector('.composer-character-caption h3').textContent,'Dante renovado');
+d.getElementById('dm-theatre-composer-modal').close();
+w.testWrite('campaña/jugadores/portrait_player/characterName','Jugador de ficha');
+w.testWrite('campaña/estado_mundo/escena_actual/actores/nameless_player',{sourceType:'player-profile',sourceId:'portrait_player'});
+w.testWrite('campaña/estado_mundo/escena_actual/actores/actor_178700003',{});await tick();
+assert.equal(root.querySelector('[data-actor-id="nameless_player"] .label').textContent,'Jugador de ficha');
+assert.equal(root.querySelector('[data-actor-id="actor_178700003"] .label').textContent,'Personaje sin nombre');
+assert.equal(w.LuminousDmTheatreWorkspace.resolveActorName('actor_178700002',{nombre:'Alias de escena',identityId:'actor_178700001'}),'Alias de escena');
+assert.equal(w.testRead('campaña/estado_mundo/escena_actual/actores/actor_178700002').nombre,undefined,'resolution does not rewrite scene data');
+
+// An unrelated NPC with the scene alias must not steal a linked player's portrait.
+w.testWrite('campaña/base_datos_npcs/unrelated_alias',{nombre:'Alias',icono:'Assets/Images/Buttons/Theatre.png'});
+w.testWrite('campaña/actores/linked_dante',{nombre:'Dante',vinculo_jugador:'alias_player'});
+w.testWrite('campaña/jugadores/alias_player',{characterName:'Dante',icono_jugador:'Assets/Images/Buttons/Option.svg'});
+w.testWrite('campaña/estado_mundo/escena_actual/actores/alias_instance',{nombre:'Alias',identityId:'linked_dante',sprite:'Assets/Images/Buttons/Theatre.png'});await tick();
+assert.ok(cardIcon('alias_instance').src.endsWith('/Option.svg'),'linked profile wins over unrelated same-name NPC');
+root.querySelector('[data-actor-id="alias_instance"]').click();await tick();
+assert.equal(bigPortrait().src,cardIcon('alias_instance').src);
+assert.equal(d.querySelector('[data-actor-id="alias_instance"] .dm-director-portrait-image').src,cardIcon('alias_instance').src);
+w.testWrite('campaña/actores/linked_dante/icono','Assets/Images/Buttons/Auto Dialog.svg');await tick();
+assert.ok(cardIcon('alias_instance').src.endsWith('/Auto%20Dialog.svg'),'canonical identity still wins over profile');
+d.getElementById('dm-theatre-composer-modal').close();
+
 root.querySelector('#playSceneBtn').click();await tick();assert.equal(root.open,false);assert.equal(d.querySelectorAll('#theatre-stage').length,1);
 assert.equal(d.querySelectorAll('#modulo-teatro>.stage-view-wrapper').length,1);
 dom.window.close();
-console.log('Approved prototype integration: exact navigation/sections, live player/NPC split, native close/cancel/reopen, one stage, one publishing route, action type, empty audio catalog, disabled transport and R2 UI passed.');
+console.log('Approved prototype integration: exact navigation/sections, live player/NPC split, native close/cancel/reopen, one stage, one publishing route, action type, empty audio catalog, disabled transport, R2 UI and canonical NPC/player portraits across cards/log/composer with live updates passed.');
