@@ -75,3 +75,18 @@
 }
 .on-game-dashboard:has(.theatre-dm-menu[open]) > .luminous-audio-floating {display:none}
 .luminous-music-director input[type="search"]{width:100%;min-width:0;min-height:44px;padding:9px 12px;margin:0 0 12px;border:1px solid #795d43;background:#131014;color:#f3e1ca}
+.audio-cloud-library{grid-column:1/-1;border:1px solid #85663f;background:#151214;padding:16px;min-width:0}
+.audio-cloud-library h3{color:#e4c492;font:normal 22px Georgia,serif;margin:0 0 12px}
+.audio-cloud-library p{color:#d8c9b5;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.audio-cloud-library input,.audio-cloud-library select,.audio-cloud-library button,.audio-library-setup summary{box-sizing:border-box;min-width:0;min-height:44px;max-width:100%}
+.audio-cloud-library button,.audio-library-setup summary{padding:9px 12px;border:1px solid #a5845c;background:#332225;color:#f3e0c4;cursor:pointer}
+.audio-cloud-library button:disabled{opacity:.5;cursor:default}
+.audio-cloud-library label{display:grid;gap:8px;color:#d8c9b5;font-size:13px}
+.audio-cloud-library input,.audio-cloud-library select{width:100%;padding:10px;border:1px solid #816340;background:#131014;color:#f3e1ca}
+.audio-upload-controls{display:grid;grid-template-columns:minmax(140px,1fr) minmax(200px,2fr) auto;gap:12px;align-items:end;margin:18px 0}
+.audio-upload-controls progress{width:100%;height:8px;grid-column:1/-1;accent-color:#e2b77f}
+.audio-library-setup{margin:12px 0}.audio-library-setup[open]{display:grid;gap:12px}.audio-library-setup summary{list-style:revert}
+.audio-cloud-files{max-height:300px;overflow:auto;scrollbar-width:thin}
+.audio-cloud-file{display:flex;gap:12px;justify-content:space-between;align-items:center;border-bottom:1px solid #564331;padding:8px 0;color:#e3d1b8;font-size:13px}
+.audio-cloud-file span{min-width:0;overflow-wrap:anywhere}.audio-cloud-file button{flex:none}
+@media(max-width:900px){.audio-upload-controls{grid-template-columns:minmax(0,1fr)}.audio-cloud-library{padding:12px}.audio-cloud-library input[type=file]{font-size:12px}.audio-cloud-file{align-items:start}}

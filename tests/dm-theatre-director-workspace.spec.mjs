@@ -40,6 +40,10 @@ for (const [width,height] of sizes) {
   await expect.poll(()=>page.evaluate(()=>window.testRead('campaña/audio_director/music')?.active)).toBe(true);
   await page.getByRole('button',{name:'Pausa',exact:true}).click();
   await expect.poll(()=>page.evaluate(()=>window.testRead('campaña/audio_director/music')?.active)).toBe(false);
+  await expect(page.getByRole('heading',{name:'Mis archivos',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Subir archivos',exact:true})).toBeDisabled();
+  await page.getByText('Conectar biblioteca',{exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Dirección de biblioteca',exact:true})).toBeVisible();
   await page.screenshot({path:testInfo.outputPath(`music-${width}.png`)});
   await page.getByRole('button',{name:'Volver a Teatro',exact:true}).click();
   await page.getByRole('tab',{name:'Biblioteca',exact:true}).click();

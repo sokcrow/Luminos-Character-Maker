@@ -66,8 +66,37 @@
   let lastFocus = null;
   let statusNode = null;
   let hintNode = null;
+  let cloudLibrary = null;
+  let libraryRevision = null;
+  const availableTracks = kind => LIBRARY[kind].concat(cloudLibrary?.tracks(kind) || []);
+  function refreshCloudView() {
+    if (!panel) return;
+    panel.querySelectorAll('[data-audio-select]').forEach(select => {
+      const kind = select.dataset.audioSelect;
+      const chosen = select.value;
+      select.replaceChildren();
+      availableTracks(kind).forEach(entry => {
+        const option = global.document.createElement('option'); option.value = entry.id; option.textContent = entry.label; select.appendChild(option);
+      });
+      if (Array.from(select.options).some(o => o.value === chosen)) select.value = chosen;
+      const group = select.closest('[data-audio-kind]');
+      if (group) {
+        let remote = group.querySelector('.audio-remote-choices');
+        if (!remote) { remote = global.document.createElement('div'); remote.className = 'audio-remote-choices'; select.after(remote); }
+        remote.replaceChildren();
+        (cloudLibrary?.tracks(kind) || []).forEach(entry => {
+          const card = global.document.createElement('button'); card.type = 'button'; card.className = 'audio-track-card'; card.textContent = entry.label;
+          card.setAttribute('aria-pressed', String(select.value === entry.id));
+          card.addEventListener('click', () => { select.value = entry.id; group.querySelectorAll('.audio-track-card').forEach(node => node.setAttribute('aria-pressed', String(node === card))); });
+          remote.appendChild(card);
+        });
+      }
+    });
+    // Reconcile loop intent only; refreshing a catalog never replays a cue.
+    receiveLoop('music', musicState); receiveLoop('ambience', ambienceState);
+  }
 
-  const byId = (kind, id) => LIBRARY[kind].find((entry) => entry.id === id);
+  const byId = (kind, id) => availableTracks(kind).find((entry) => entry.id === id);
   const adjustedVolume = (bus, gain) => (prefs[bus] / 100) * gain;
 
   function applyVolumes() {
@@ -101,7 +130,9 @@
     if (!element || !element.src) return;
     const result = element.play();
     if (result && typeof result.catch === "function") {
-      result.catch(() => { setHint("El navegador requiere un toque para reproducir. Pulsa «Activar audio»."); });
+      result.catch(error => { setHint(error?.name === 'NotAllowedError'
+        ? 'El navegador requiere un toque para reproducir. Pulsa «Activar audio».'
+        : 'No se pudo reproducir el archivo. Revisa su formato y tu conexión.'); });
     }
   }
   function setHint(message) {
@@ -125,7 +156,7 @@
     const element = kind === "music" ? music : ambience;
     const oldKey = kind === "music" ? previousMusicKey : previousAmbienceKey;
     const entry = state ? byId(kind, state.trackId) : null;
-    const nextKey = entry ? entry.id + ":" + String(state.startedAt || 0) + ":" + String(state.active) + ":" + String(state.positionMs || 0) : "off";
+    const nextKey = entry ? entry.id + ":" + String(state.startedAt || 0) + ":" + String(state.active) + ":" + String(state.positionMs || 0) + (entry.expiresAt ? ":" + entry.url : "") : "off";
     if (kind === "music") musicState = state;
     else ambienceState = state;
     if (nextKey === oldKey) { updateStatus(); return; }
@@ -143,9 +174,17 @@
     }
     updateStatus();
   }
-  function playEffect(id) {
+  function playEffect(id, at) {
     const entry = byId("sfx", id);
-    if (!entry) return false;
+    if (!entry || entry.expiresAt && entry.expiresAt <= Date.now()) {
+      if (cloudLibrary?.endpoint && /^r2_[a-f0-9]{64}$/.test(id)) {
+        cloudLibrary.refresh().then(() => {
+          const resolved = byId("sfx", id);
+          if (resolved && (!at || Math.abs(serverNow() - at) <= 5000) && resolved.expiresAt > Date.now()) playEffect(id, at);
+        }).catch(error => setHint(error.message));
+      }
+      return false;
+    }
     // Limit concurrent bursts and always release ended audio elements.
     if (oneShots.size >= 12) return false;
     const sound = new Audio(entry.url);
@@ -155,9 +194,9 @@
     sound.addEventListener("ended", release, { once: true });
     sound.addEventListener("error", release, { once: true });
     const result = sound.play();
-    if (result && typeof result.catch === "function") result.catch(() => {
+    if (result && typeof result.catch === "function") result.catch(error => {
       release();
-      setHint("Pulsa «Activar audio» para permitir los sonidos.");
+      setHint(error?.name === 'NotAllowedError' ? 'Pulsa «Activar audio» para permitir los sonidos.' : 'No se pudo reproducir este efecto. Revisa el archivo y la conexión.');
     });
     return true;
   }
@@ -174,7 +213,7 @@
     // Reconnecting may deliver a newer nonce that is nevertheless long expired.
     const age = serverNow() - Number(cue.at);
     if (!Number.isFinite(age) || age < -5000 || age > 5000) return;
-    playEffect(cue.cueId);
+    playEffect(cue.cueId, cue.at);
   }
   function updateStatus() {
     if (!statusNode) return;
@@ -192,7 +231,8 @@
     if (!panel) return;
     const section = panel.querySelector("[data-audio-director]");
     if (section) section.hidden = !isDirector;
-    panel.querySelectorAll("[data-audio-command]").forEach((button) => { button.disabled = !isDirector || Boolean(pendingWrite); });
+    cloudLibrary?.setDirector(isDirector);
+    panel.querySelectorAll("[data-audio-command]").forEach((button) => { button.disabled = !isDirector || Boolean(pendingWrite) || Boolean(cloudLibrary?.deleting); });
   }
   function showPanel() {
     if (!panel) return;
@@ -203,6 +243,7 @@
     first && first.focus();
     applyVolumes();
     updateStatus();
+    if (cloudLibrary?.endpoint) cloudLibrary.refresh().catch(error => setHint(error.message));
   }
   function closePanel() {
     if (!panel) return;
@@ -247,7 +288,7 @@
     playSafely(element);
   }
   function command(type) {
-    if (!isDirector || !audioRef || pendingWrite) return;
+    if (!isDirector || !audioRef || pendingWrite || cloudLibrary?.deleting) return;
     const stamp = global.firebase.database.ServerValue.TIMESTAMP;
     const selects = (kind) => panel.querySelector('[data-audio-select="' + kind + '"]');
     if (type === "play-music") {
@@ -433,6 +474,8 @@
     updateDirectorView();
   }
   function detachFirebase() {
+    cloudLibrary?.destroy(); cloudLibrary = null; libraryRevision = null;
+    oneShots.forEach(sound => sound.pause()); oneShots.clear();
     if (audioRef && audioListener) audioRef.off("value", audioListener);
     if (configRef && configListener) configRef.off("value", configListener);
     if (offsetRef && offsetListener) offsetRef.off("value", offsetListener);
@@ -463,6 +506,10 @@
       authenticatedUser = user;
       if (!user) return;
       database = global.firebase.database();
+      if (global.LuminousAudioLibrary) {
+        cloudLibrary = new global.LuminousAudioLibrary({user, db: database, onChange: refreshCloudView, onBusyChange: updateDirectorView});
+        cloudLibrary.mount(panel);
+      }
       configRef = database.ref("campaña/config/dm_uid");
       configListener = (snapshot) => {
         isDirector = user.uid === BOOTSTRAP_DM || user.uid === snapshot.val();
@@ -475,6 +522,10 @@
       audioRef = database.ref(ROOT);
       audioListener = (snapshot) => {
         const value = snapshot.val() || {};
+        if (value.library_revision !== libraryRevision) {
+          libraryRevision = value.library_revision;
+          if (cloudLibrary?.endpoint) cloudLibrary.refresh().catch(error => setHint(error.message));
+        }
         receiveLoop("music", value.music);
         receiveLoop("ambience", value.ambience);
         receiveCue(value.cue);
@@ -501,6 +552,23 @@
       return false; // Standalone/cross-origin viewer remains independently usable.
     }
   }
+  [music, ambience].forEach((element, index) => {
+    let retrying = false;
+    element.addEventListener('playing', () => { retrying = false; });
+    element.addEventListener('error', () => {
+      const kind = index === 0 ? 'music' : 'ambience';
+      const state = index === 0 ? musicState : ambienceState;
+      if (!cloudLibrary?.endpoint || !String(state?.trackId || '').startsWith('r2_')) return;
+      if (retrying) { setHint('No se pudo cargar este audio. Revisa el archivo y la conexión.'); return; }
+      retrying = true;
+      cloudLibrary.refresh().then(() => {
+        const current = index === 0 ? musicState : ambienceState;
+        if (current?.trackId !== state.trackId) return;
+        if (index === 0) previousMusicKey = null; else previousAmbienceKey = null;
+        receiveLoop(kind, current);
+      }).catch(error => setHint(error.message));
+    });
+  });
   function init() {
     if (isHostedInsideAudioShell()) return;
     buildPanel();
@@ -519,7 +587,8 @@
     setVolume,
     registerElement,
     playEffect,
-    openOptions: showPanel
+    openOptions: showPanel,
+    getAvailableTracks: kind => availableTracks(kind).map(entry => ({...entry}))
   });
   if (global.document.readyState === "loading") global.document.addEventListener("DOMContentLoaded", init, { once: true });
   else init();

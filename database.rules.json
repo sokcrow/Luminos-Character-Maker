@@ -455,13 +455,16 @@
               "audio_director": {
                 ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña/config/dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
                 "music": {
-                  ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('trackId').val() === 'lament') || (newData.child('active').val() === false && newData.child('trackId').val() === '')) && (!newData.child('positionMs').exists() || (newData.child('positionMs').isNumber() && newData.child('positionMs').val() >= 0))"
+                  ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && (((newData.child('trackId').val() === 'lament' || newData.child('trackId').val().matches(/^r2_[a-f0-9]{64}$/))) || (newData.child('active').val() === false && newData.child('trackId').val() === '')) && (!newData.child('positionMs').exists() || (newData.child('positionMs').isNumber() && newData.child('positionMs').val() >= 0))"
                 },
                 "ambience": {
-                  ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('active').val() === true && newData.child('trackId').val() === 'bus') || (newData.child('active').val() === false && newData.child('trackId').val() === ''))"
+                  ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('active').val() === true && (newData.child('trackId').val() === 'bus' || newData.child('trackId').val().matches(/^r2_[a-f0-9]{64}$/))) || (newData.child('active').val() === false && newData.child('trackId').val() === ''))"
                 },
                 "cue": {
-                  ".validate": "newData.hasChildren(['cueId', 'nonce', 'at']) && (newData.child('cueId').val() === 'coin-heads' || newData.child('cueId').val() === 'coin-tails') && newData.child('nonce').isString() && newData.child('at').isNumber()"
+                  ".validate": "newData.hasChildren(['cueId', 'nonce', 'at']) && (newData.child('cueId').val() === 'coin-heads' || newData.child('cueId').val() === 'coin-tails' || (newData.child('cueId').isString() && newData.child('cueId').val().matches(/^r2_[a-f0-9]{64}$/))) && newData.child('nonce').isString() && newData.child('at').isNumber()"
+                },
+                "library_revision": {
+                  ".validate": "newData.isNumber()"
                 }
               }
             },
@@ -556,13 +559,16 @@
       "audio_director": {
         ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
         "music": {
-          ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('trackId').val() === 'lament') || (newData.child('active').val() === false && newData.child('trackId').val() === '')) && (!newData.child('positionMs').exists() || (newData.child('positionMs').isNumber() && newData.child('positionMs').val() >= 0))"
+          ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && (((newData.child('trackId').val() === 'lament' || newData.child('trackId').val().matches(/^r2_[a-f0-9]{64}$/))) || (newData.child('active').val() === false && newData.child('trackId').val() === '')) && (!newData.child('positionMs').exists() || (newData.child('positionMs').isNumber() && newData.child('positionMs').val() >= 0))"
         },
         "ambience": {
-          ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('active').val() === true && newData.child('trackId').val() === 'bus') || (newData.child('active').val() === false && newData.child('trackId').val() === ''))"
+          ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('active').val() === true && (newData.child('trackId').val() === 'bus' || newData.child('trackId').val().matches(/^r2_[a-f0-9]{64}$/))) || (newData.child('active').val() === false && newData.child('trackId').val() === ''))"
         },
         "cue": {
-          ".validate": "newData.hasChildren(['cueId', 'nonce', 'at']) && (newData.child('cueId').val() === 'coin-heads' || newData.child('cueId').val() === 'coin-tails') && newData.child('nonce').isString() && newData.child('at').isNumber()"
+          ".validate": "newData.hasChildren(['cueId', 'nonce', 'at']) && (newData.child('cueId').val() === 'coin-heads' || newData.child('cueId').val() === 'coin-tails' || (newData.child('cueId').isString() && newData.child('cueId').val().matches(/^r2_[a-f0-9]{64}$/))) && newData.child('nonce').isString() && newData.child('at').isNumber()"
+        },
+        "library_revision": {
+          ".validate": "newData.isNumber()"
         }
       }
     },

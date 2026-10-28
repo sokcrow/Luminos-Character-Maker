@@ -39,12 +39,12 @@ export async function mountDirector(page) {
     }; }
     window.writeId=0;window.testDb={ref};window.testRead=read;window.testWrite=write;
     const database=()=>window.testDb;database.ServerValue={TIMESTAMP:{'.sv':'timestamp'}};
-    window.firebase={apps:[{}],database,auth:()=>({currentUser:{uid:'dm'},onAuthStateChanged:fn=>{fn({uid:'dm'});return()=>{};}})};
+    window.firebase={apps:[{}],database,auth:()=>({currentUser:{uid:'dm',getIdToken:async()=>window.testToken||'not-configured'},onAuthStateChanged:fn=>{fn({uid:'dm',getIdToken:async()=>window.testToken||'not-configured'});return()=>{};}})};
     window.LuminousInstanceControl={bindDashboard(){}};
   },{actor,scenePath});
   for (const file of ['on-game-dashboard','theatre-hud','theatre-message-policy','theatre-actor-studio','theatre-dm-workspace','luminous-audio-director']) await page.addStyleTag({path:`css/${file}.css`});
   for (const file of ['theatre-engine','theatre-controls','on-game-dashboard']) await page.addScriptTag({path:`js/${file}.js`});
   await page.evaluate(()=>document.dispatchEvent(new Event('DOMContentLoaded')));
-  for (const file of ['theatre-director-menu-guard','theatre-dm-workspace','theatre-intervention-ux-core','luminous-audio-director']) await page.addScriptTag({path:`js/${file}.js`});
+  for (const file of ['theatre-director-menu-guard','theatre-dm-workspace','theatre-intervention-ux-core','audio-cloud-library','luminous-audio-director']) await page.addScriptTag({path:`js/${file}.js`});
   await page.locator('.theatre-dm-menu-toggle').click();
 }

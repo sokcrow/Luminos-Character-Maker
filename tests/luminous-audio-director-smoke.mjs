@@ -64,7 +64,7 @@ for (const page of ["index.html", "hoja_personaje.html", "pantalla_dm.html", "ho
   assert.match(markup, /js\/luminous-audio-director\.js/);
 }
 const combatViewer = read("Battle-viewer.html");
-assert.match(combatViewer, /html=html\.replace\('<\/body>','<script src="js\/luminous-audio-director\.js/);
+assert.match(combatViewer, /html=html\.replace\('<\/body>','<script src="js\/audio-cloud-library\.js/);
 
 assert.match(js, /isHostedInsideAudioShell/, "Combat iframe must not double up music");
 assert.match(css, /max-width:600px/);

@@ -73,3 +73,20 @@ reproducen después de confirmarse su escritura. Las preferencias son personales
 
 Las reglas están en el PR; **no se desplegaron**. La sincronización remota
 requiere desplegarlas por el procedimiento habitual después de revisar el cambio.
+
+## Archivos propios con R2
+
+La ampliación de biblioteca está en `js/audio-cloud-library.js` y
+`services/audio-r2/`. Añade Mis archivos para subir canciones, ambientes y efectos
+mediante la sesión del DM. Los binarios y metadatos están en R2 privado, no en el
+repositorio. Firebase mantiene las órdenes y `library_revision` para refrescar el
+catálogo compartido. El motor de audio continúa siendo único.
+
+Esta ampliación reemplaza la limitación de catálogo fijo descrita en la sección
+anterior **cuando se configure el servicio**. Sin dirección de Worker siguen
+funcionando únicamente las pistas registradas, y la subida aparece deshabilitada
+con un acceso contextual a Conectar biblioteca. No se simula una subida local ni
+se presenta un blob: como archivo compartido.
+
+Activación, comandos, secretos, límites y pruebas:
+[services/audio-r2/README.md](../services/audio-r2/README.md).

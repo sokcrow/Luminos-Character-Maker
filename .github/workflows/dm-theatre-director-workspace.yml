@@ -10,6 +10,10 @@ on:
       - 'js/theatre-engine.js'
       - 'js/theatre-intervention-ux-core.js'
       - 'js/luminous-audio-director.js'
+      - 'js/audio-cloud-library.js'
+      - 'services/audio-r2/**'
+      - 'tests/audio-r2*'
+      - 'tests/helpers/audio-r2-fixture.mjs'
       - 'css/luminous-audio-director.css'
       - 'database.rules.json'
       - 'tests/luminous-audio-director-smoke.mjs'
@@ -34,6 +38,9 @@ jobs:
       - name: JS syntax and canonical Theatre contracts
         run: |
           node --check js/luminous-audio-director.js
+          node --check js/audio-cloud-library.js
+          node --check services/audio-r2/worker.mjs
+          node tests/audio-r2-worker-smoke.mjs
           node --check js/theatre-engine.js
           node --check js/theatre-intervention-ux-core.js
           node tests/luminous-audio-director-smoke.mjs
@@ -51,7 +58,9 @@ jobs:
           npm install --no-save @playwright/test@1.55.0 jsdom@26.1.0
           npx playwright install --with-deps chromium
       - name: Real Theatre modules with in-memory Firebase
-        run: node tests/dm-theatre-director-dom-smoke.mjs
+        run: |
+          node tests/dm-theatre-director-dom-smoke.mjs
+          node tests/audio-r2-client-smoke.mjs
       - name: Mobile, tablet and desktop Director UI
         run: npx playwright test tests/dm-theatre-director-workspace.spec.mjs --reporter=line --workers=1
 

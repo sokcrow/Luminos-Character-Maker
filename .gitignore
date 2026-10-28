@@ -6,3 +6,7 @@ functions/vendor/
 # Generated browser evidence (uploaded by the Director workflow)
 test-results/
 playwright-report/
+
+# Audio service credentials and local development state
+services/audio-r2/.dev.vars*
+services/audio-r2/.wrangler/
