@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {mountDirector} from './helpers/dm-director-fixture.mjs';
+import {setup,jwt,origin,wavBytes} from './helpers/audio-r2-fixture.mjs';
 test.use({screenshot:'only-on-failure',trace:'retain-on-failure'});
 const sizes=[[360,800],[390,844],[844,390],[768,1024],[1280,720],[1920,1080]];
 for(const [width,height] of sizes){
@@ -58,6 +59,28 @@ for(const [width,height] of sizes){
   await audio.getByRole('tab',{name:/Mis archivos|Archivos/}).click();
   await expect(audio.getByRole('button',{name:'Subir archivos',exact:true})).toBeDisabled();
   await audio.getByText('Conectar biblioteca',{exact:true}).click();await expect(audio.getByRole('textbox',{name:'Dirección de biblioteca',exact:true})).toBeVisible();
+  const backend=setup(),endpoint='https://limbus-audio.account.workers.dev';let rejectUpload=false;
+  await page.route(endpoint+'/**',async route=>{
+   const req=route.request(),headers=req.headers();
+   const response=rejectUpload&&req.method()==='PUT'
+    ? new Response(JSON.stringify({error:'Inicia sesión en Limbus.'}),{status:401,headers:{'Content-Type':'application/json'}})
+    : await backend.handler(new Request(req.url(),{method:req.method(),headers:{...headers,Origin:origin},...(req.method()==='PUT'?{body:req.postDataBuffer()}:{})}),backend.env);
+   // The fixture page has a null browser origin; only this in-memory transport
+   // adapts CORS. Production Worker origin validation is exercised separately.
+   await route.fulfill({status:response.status,headers:{...Object.fromEntries(response.headers),'access-control-allow-origin':headers.origin||'null','access-control-allow-methods':'GET,HEAD,PUT,DELETE,OPTIONS','access-control-allow-headers':'Authorization,Content-Type,Range'},body:Buffer.from(await response.arrayBuffer())});
+  });
+  await page.evaluate(({endpoint,token})=>{window.testToken=token;window.testWrite('campaña/config/audio_service_url',endpoint);},{endpoint,token:jwt('dm')});
+  const upload=audio.getByRole('button',{name:'Subir archivos',exact:true});await expect(upload).toBeEnabled();
+  await audio.getByLabel('Seleccionar archivos de audio',{exact:true}).setInputFiles({name:'Prueba.wav',mimeType:'audio/wav',buffer:Buffer.from(wavBytes())});
+  await upload.click();
+  const result=audio.locator('.audio-upload-results li');
+  await expect(result).toHaveText('Prueba.wav — Guardado en la biblioteca.');await expect(upload).toBeEnabled();
+  expect(backend.objects.size).toBe(1);
+  rejectUpload=true;await upload.click();
+  await expect(result).toHaveText('Prueba.wav — Inicia sesión en Limbus.');await expect(upload).toBeEnabled();
+  await result.scrollIntoViewIfNeeded();await expect(result).toBeVisible();
+  const resultBounds=await result.boundingBox();expect(resultBounds.x).toBeGreaterThanOrEqual(0);expect(resultBounds.x+resultBounds.width).toBeLessThanOrEqual(width);
+  expect(backend.objects.size).toBe(1,'rejected attempt cannot add an object');
   await page.screenshot({path:info.outputPath(`files-${width}x${height}.png`)});
   await audio.getByRole('button',{name:'Volver a Teatro',exact:true}).click();
   await close.click();await expect(root).not.toBeVisible();

@@ -14,6 +14,22 @@
       return url.origin;
     } catch (_) { return ''; }
   }
+  class UploadError extends Error {
+    constructor(message,code){super(message);this.code=code;}
+  }
+  function responseResult(status,text) {
+    let result;try{result=JSON.parse(text);}catch{}
+    if(status>=200&&status<300){
+      if(result&&typeof result==='object')return result;
+      throw Error('La biblioteca no confirmó que el archivo se guardara. Puedes reintentar.');
+    }
+    const fallback=status===401?'Tu sesión no pudo validarse. Vuelve a iniciar sesión en Limbus.'
+      :status===403?'La biblioteca rechazó la operación. Comprueba los permisos del Director y la conexión de la biblioteca.'
+      :status===413?'El máximo es 25 MB por archivo.'
+      :status===415?'Usa un archivo MP3, OGG, WAV, FLAC o M4A válido.'
+      :'La biblioteca no pudo completar la operación. Puedes reintentar.';
+    throw Error(typeof result?.error==='string'?result.error.slice(0,500):fallback);
+  }
   class Library {
     constructor({user,db,onChange,onBusyChange,isDirector=false}) {
       this.user=user;this.db=db;this.onChange=onChange;this.onBusyChange=onBusyChange;this.director=isDirector;
@@ -32,23 +48,28 @@
     tracks(kind){return this.entries.filter(entry=>entry.kind===kind);}
     message(text){this.status=text;if(this.statusNode)this.statusNode.textContent=text;}
     setDirector(value){this.director=value;this.render();}
-    async request(path,{method='GET',body,kind,name,onProgress,signal}={}) {
+    async request(path,{method='GET',body,kind,name,onProgress,signal,isCancelled}={}) {
       if(!this.endpoint)throw Error('Primero conecta la biblioteca de audio.');
       const endpoint=this.endpoint,url=new URL(path,endpoint);url.searchParams.set('scope',this.scope);
       if(kind)url.searchParams.set('kind',kind);if(name)url.searchParams.set('name',name);
-      const token=await this.user.getIdToken();
+      let token;
+      try{token=await this.user.getIdToken();}catch{throw Error('No se pudo validar tu sesión. Revisa la conexión y vuelve a iniciar sesión en Limbus.');}
+      if(isCancelled?.())throw new UploadError(this.uploadCancelled?'Subida cancelada por ti.':'La sesión de audio cambió. Vuelve a intentar la subida.','stopped');
+      if(typeof token!=='string'||!token)throw Error('Inicia sesión en Limbus antes de subir archivos.');
       if(this.destroyed||endpoint!==this.endpoint)throw Error('La sesión de audio cambió.');
       if(body) return new Promise((resolve,reject)=>{
         const xhr=new global.XMLHttpRequest();this.xhr=xhr;
         xhr.open(method,url.href);xhr.setRequestHeader('Authorization','Bearer '+token);xhr.setRequestHeader('Content-Type','application/octet-stream');
+        xhr.timeout=180000;
+        const finish=()=>{if(this.xhr===xhr)this.xhr=null;};
         xhr.upload.onprogress=event=>{if(event.lengthComputable)onProgress?.(event.loaded/event.total);};
-        xhr.onload=()=>{this.xhr=null;let result;try{result=JSON.parse(xhr.responseText);}catch{reject(Error('El servicio devolvió una respuesta inválida.'));return;}if(xhr.status>=200&&xhr.status<300)resolve(result);else reject(Error(result.error||'No se pudo subir el archivo.'));};
-        xhr.onerror=()=>{this.xhr=null;reject(Error('La conexión se interrumpió. Puedes reintentar la subida.'));};
-        xhr.onabort=()=>{this.xhr=null;reject(Error('Subida cancelada.'));};xhr.send(body);
+        xhr.onload=()=>{finish();try{resolve(responseResult(xhr.status,xhr.responseText));}catch(error){reject(error);}};
+        xhr.onerror=()=>{finish();reject(Error('No se pudo conectar con la biblioteca. Revisa tu conexión y la dirección autorizada del sitio en el servicio de audio.'));};
+        xhr.ontimeout=()=>{finish();reject(Error('La biblioteca tardó demasiado en confirmar la subida. Comprueba Mis archivos antes de reintentar.'));};
+        xhr.onabort=()=>{finish();reject(new UploadError(this.uploadCancelled?'Subida cancelada por ti.':'La conexión de la biblioteca cambió durante la subida. Vuelve a intentar.','stopped'));};xhr.send(body);
       });
       const response=await global.fetch(url.href,{method,headers:{Authorization:'Bearer '+token},signal,cache:'no-store',redirect:'error'});
-      let result;try{result=await response.json();}catch{throw Error('El servicio de audio no respondió correctamente.');}
-      if(!response.ok)throw Error(result.error||'No se pudo completar la operación.');return result;
+      return responseResult(response.status,await response.text());
     }
     refresh({invalidateUrls=false}={}) {
       // Recovery must fetch a new ticket even if an ordinary refresh is in flight.
@@ -59,9 +80,7 @@
       this.pendingRefresh=this.request('/catalog').then(result=>{
         if(this.destroyed||generation!==this.generation)return;
         const old=new Map(this.entries.map(e=>[e.id,e]));
-        this.entries=(result.tracks||[]).filter(entry=>{
-          try{const u=new URL(entry.url);return ID.test(entry.id)&&KINDS[entry.kind]&&u.origin===this.endpoint&&u.pathname===`/media/${this.scope}/${entry.id}`&&Number.isFinite(entry.bytes)&&entry.bytes>0&&typeof entry.label==='string';}catch{return false;}
-        }).map(entry=>{
+        this.entries=(result.tracks||[]).filter(entry=>this.validEntry(entry)).map(entry=>{
           const cached=old.get(entry.id);
           return !invalidateUrls && cached?.expiresAt>Date.now()+120000 ? {...entry,url:cached.url,expiresAt:cached.expiresAt} : entry;
         });
@@ -69,28 +88,74 @@
       }).finally(()=>{this.pendingRefresh=null;});
       return this.pendingRefresh;
     }
+    validEntry(entry) {
+      try{const u=new URL(entry.url);return ID.test(entry.id)&&KINDS[entry.kind]&&u.origin===this.endpoint&&u.pathname===`/media/${this.scope}/${entry.id}`&&Number.isFinite(entry.bytes)&&entry.bytes>0&&typeof entry.label==='string';}catch{return false;}
+    }
+    renderUploadResults() {
+      if(!this.uploadResults)return;
+      this.uploadResults.replaceChildren();
+      for(const result of this.uploadReport||[]){
+        const row=global.document.createElement('li');row.dataset.status=result.status;
+        row.textContent=result.file+' — '+result.message;
+        this.uploadResults.appendChild(row);
+      }
+      this.uploadResults.hidden=!this.uploadReport?.length;
+    }
+    cancelUpload() {
+      this.uploadCancelled=true;this.xhr?.abort();
+    }
     async upload(files,kind) {
       if(!this.director||this.busy)throw Error('Sólo el DM puede subir archivos.');
       if(!KINDS[kind])throw Error('Elige un tipo de audio.');
-      this.busy=true;this.render();let done=0,duplicates=0;const failures=[];
+      const generation=this.generation;
+      const current=()=>!this.destroyed&&generation===this.generation;
+      this.uploadCancelled=false;
+      this.uploadReport=Array.from(files,file=>({file:file.name,status:'pending',message:'En espera.'}));
+      this.busy=true;this.render();let done=0,duplicates=0,cancelled=0;const failures=[],warnings=[];
+      const update=(report,status,message)=>{Object.assign(report,{status,message});this.renderUploadResults();};
       try {
-        for(const file of files){
-          if(this.destroyed)break;
-          if(!file.size||file.size>LIMIT){failures.push(file.name+': el máximo es 25 MB y no puede estar vacío.');continue;}
-          if(!/\.(mp3|ogg|oga|wav|flac|m4a)$/i.test(file.name)){failures.push(file.name+': formato no compatible.');continue;}
-          this.message('Subiendo '+file.name+'…');
+        for(const [index,file] of Array.from(files).entries()){
+          const report=this.uploadReport[index];
+          const stopped=()=>this.uploadCancelled||this.destroyed||generation!==this.generation;
+          if(stopped()){
+            if(this.uploadCancelled){cancelled++;update(report,'cancelled','Subida cancelada por ti.');}
+            else {const reason='La sesión de audio cambió. Vuelve a intentar la subida.';failures.push(file.name+': '+reason);update(report,'error',reason);}
+            continue;
+          }
+          if(this.progress)this.progress.value=0;
           try{
-            const result=await this.request('/tracks',{method:'PUT',body:file,kind,name:file.name.replace(/\.[^.]+$/,''),onProgress:value=>{if(this.progress)this.progress.value=value;}});
-            if(result.duplicate)duplicates++;else done++;
-          }catch(error){failures.push(file.name+': '+error.message);}
+            if(!file.size||file.size>LIMIT)throw Error('El máximo es 25 MB y el archivo no puede estar vacío.');
+            if(!/\.(mp3|ogg|oga|wav|flac|m4a)$/i.test(file.name))throw Error('Formato no compatible. Usa MP3, OGG, WAV, FLAC o M4A.');
+            this.message('Subiendo '+file.name+'…');update(report,'uploading','Enviando archivo…');
+            const result=await this.request('/tracks',{method:'PUT',body:file,kind,name:file.name.replace(/\.[^.]+$/,''),isCancelled:stopped,onProgress:value=>{
+              if(this.progress)this.progress.value=value;
+              if(value>=1&&report.status==='uploading')update(report,'confirming','Archivo enviado. Esperando confirmación de guardado…');
+            }});
+            if(!this.validEntry(result.track))throw Error('La biblioteca no confirmó que el archivo se guardara. Comprueba Mis archivos antes de reintentar.');
+            if(this.destroyed||generation!==this.generation)throw Error('La sesión de audio cambió. Comprueba el archivo en la biblioteca anterior.');
+            // A confirmed Worker response is evidence of storage even when a
+            // later catalog refresh or Firebase notification is unavailable.
+            const entry=result.track;
+            this.entries=this.entries.filter(item=>item.id!==entry.id).concat(entry);
+            this.bytes=this.entries.reduce((sum,item)=>sum+item.bytes,0);
+            if(result.duplicate){duplicates++;update(report,'duplicate','Ya estaba guardado en la biblioteca.');}
+            else {done++;update(report,'saved','Guardado en la biblioteca.');}
+            this.onChange();
+          }catch(error){
+            if(error.code==='stopped'&&this.uploadCancelled){cancelled++;update(report,'cancelled',error.message);}
+            else {failures.push(file.name+': '+error.message);update(report,'error',error.message);}
+          }
         }
-        if(!this.destroyed){
-          await this.refresh();
-          if(done)await this.db.ref('campaña/audio_director/library_revision').set(global.firebase.database.ServerValue.TIMESTAMP);
-          this.message(`${done} subidos · ${duplicates} ya estaban en la biblioteca.`+(failures.length?' '+failures.join(' '):''));
+        if(!this.destroyed&&generation===this.generation){
+          if(done||duplicates){
+            try{if(this.pendingRefresh)await this.pendingRefresh.catch(()=>{});if(current())await this.refresh();}catch{warnings.push('Los archivos confirmados están guardados, pero no se pudo actualizar el listado. Vuelve a abrir Mis archivos.');}
+            if(done&&current())try{await this.db.ref('campaña/audio_director/library_revision').set(global.firebase.database.ServerValue.TIMESTAMP);}
+            catch{warnings.push('Los archivos están guardados, pero no se pudo avisar a los demás participantes. Revisa la conexión y los permisos de la mesa.');}
+          }
+          if(current())this.message(`${done} subidos · ${duplicates} ya estaban en la biblioteca.`+(cancelled?` ${cancelled} cancelados.`:'')+(failures.length?' '+failures.join(' '):'')+(warnings.length?' '+warnings.join(' '):''));
         }
       } finally {this.busy=false;if(this.progress)this.progress.value=0;this.render();}
-      return {uploaded:done,duplicates,failures};
+      return {uploaded:done,duplicates,failures,cancelled,warnings};
     }
     async remove(entry) {
       if(!this.director||this.busy)return;
@@ -116,12 +181,13 @@
       const kindLabel=node('label','Tipo de archivo');const kind=node('select');kind.setAttribute('aria-label','Tipo de archivo');for(const [value,label]of Object.entries(KINDS)){const option=node('option',label);option.value=value;kind.appendChild(option);}kindLabel.appendChild(kind);form.appendChild(kindLabel);
       const fileLabel=node('label','Seleccionar archivos · hasta 25 MB cada uno');const files=node('input');files.type='file';files.multiple=true;files.accept='.mp3,.ogg,.oga,.wav,.flac,.m4a';files.setAttribute('aria-label','Seleccionar archivos de audio');fileLabel.appendChild(files);form.appendChild(fileLabel);
       const upload=node('button','Subir archivos');upload.type='button';upload.onclick=()=>{const selected=Array.from(files.files||[]);if(!selected.length){this.message('Selecciona al menos un archivo.');return;}this.upload(selected,kind.value).catch(error=>this.message(error.message));};form.appendChild(upload);
-      const cancel=node('button','Cancelar subida actual');cancel.type='button';cancel.onclick=()=>this.xhr?.abort();form.appendChild(cancel);this.cancel=cancel;
+      const cancel=node('button','Cancelar subida');cancel.type='button';cancel.onclick=()=>this.cancelUpload();form.appendChild(cancel);this.cancel=cancel;
       this.progress=node('progress');this.progress.max=1;this.progress.value=0;this.progress.setAttribute('aria-label','Progreso de subida');form.appendChild(this.progress);
       this.host.appendChild(form);this.form=form;
+      this.statusNode=node('p');this.statusNode.setAttribute('role','status');this.statusNode.setAttribute('aria-live','polite');this.statusNode.setAttribute('aria-atomic','true');this.host.appendChild(this.statusNode);
+      this.uploadResults=node('ul');this.uploadResults.className='audio-upload-results';this.uploadResults.setAttribute('aria-label','Resultado de subida por archivo');this.uploadResults.hidden=true;this.host.appendChild(this.uploadResults);
       const search=node('input');search.type='search';search.placeholder='Buscar en mis archivos…';search.setAttribute('aria-label','Buscar en mis archivos');search.oninput=()=>this.renderList(search.value);this.host.appendChild(search);this.search=search;
       this.list=node('div');this.list.className='audio-cloud-files';this.host.appendChild(this.list);
-      this.statusNode=node('p');this.statusNode.setAttribute('role','status');this.host.appendChild(this.statusNode);
       panel.querySelector('.luminous-audio-scroll').appendChild(this.host);this.render();
     }
     renderList(query='') {
@@ -137,7 +203,7 @@
       this.usage.textContent=this.entries.length+' archivos · '+bytesLabel(this.bytes)+' utilizados';
       this.form.querySelectorAll('input,select,button').forEach(n=>{n.disabled=this.busy||!this.endpoint;});
       this.cancel.disabled=!this.busy;this.cancel.hidden=!this.busy;
-      this.statusNode.textContent=this.status||'';this.renderList(this.search.value);
+      this.statusNode.textContent=this.status||'';this.renderUploadResults();this.renderList(this.search.value);
     }
     destroy(){this.destroyed=true;this.generation++;global.clearInterval(this.timer);this.xhr?.abort();this.configRef.off('value',this.configListener);this.host?.remove();}
   }

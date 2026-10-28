@@ -90,3 +90,10 @@
 .audio-cloud-file{display:flex;gap:12px;justify-content:space-between;align-items:center;border-bottom:1px solid #564331;padding:8px 0;color:#e3d1b8;font-size:13px}
 .audio-cloud-file span{min-width:0;overflow-wrap:anywhere}.audio-cloud-file button{flex:none}
 @media(max-width:900px){.audio-upload-controls{grid-template-columns:minmax(0,1fr)}.audio-cloud-library{padding:12px}.audio-cloud-library input[type=file]{font-size:12px}.audio-cloud-file{align-items:start}}
+
+/* Upload outcomes stay next to the controls, before the file catalog. */
+.audio-upload-results{list-style:none;padding:0;margin:12px 0;display:grid;gap:8px;min-width:0}
+.audio-upload-results[hidden]{display:none}
+.audio-upload-results li{padding:10px 12px;border:1px solid #85663f;border-radius:4px;color:#eddfcb;font-size:13px;line-height:1.5;overflow-wrap:anywhere;min-width:0}
+.audio-upload-results li[data-status=error]{border-color:#d17c7c;background:#421d25;color:#ffe2e2}
+.audio-upload-results li[data-status=saved],.audio-upload-results li[data-status=duplicate]{border-color:#80a684;background:#203326;color:#e2f3de}
