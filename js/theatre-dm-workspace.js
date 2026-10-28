@@ -82,7 +82,7 @@
     const currentTitle = panel.querySelector(".panel-title");
     if (currentTitle) currentTitle.textContent = "DIRECCIÓN DE ESCENA";
 
-    const intro = el("p", "dm-director-intro", "Elige una acción para dirigir el Teatro.");
+    const intro = el("p", "dm-director-intro", "Director de Teatro · Elenco, escena y ambiente");
     const nav = el("div", "dm-director-tabs");
     nav.setAttribute("role", "tablist");
     nav.setAttribute("aria-label", "Herramientas del director");
@@ -90,8 +90,8 @@
     const navButtons = new Map();
 
     [
-      ["voices", "Hablar", ICONS.speak],
-      ["cast", "Elenco", ICONS.cast],
+      ["voices", "Teatro", ICONS.speak],
+      ["cast", "Biblioteca", ICONS.cast],
       ["scenes", "Escenas", ICONS.scene],
       ["settings", "Ajustes", ICONS.settings]
     ].forEach(([key, label, icon]) => {
@@ -120,26 +120,76 @@
 
     panel.insertBefore(intro, currentTitle?.nextSibling || panel.firstChild);
     intro.after(nav);
+    const closeDirector = button("Volver al escenario", () => { menu.open = false; });
+    closeDirector.classList.add("dm-director-close");
+    nav.after(closeDirector);
     Array.from(views.values()).forEach(view => panel.appendChild(view));
 
     const voices = views.get("voices");
-    voices.appendChild(el("h4", "dm-director-section-title", "¿Quién habla?"));
-    voices.appendChild(el("p", "dm-director-hint", "Selecciona un personaje del elenco para abrir su diálogo, o usa el narrador."));
+    const sections = el("nav", "dm-director-mobile-sections");
+    sections.setAttribute("aria-label", "Secciones de Teatro");
+    [ ["actors", "Elenco"], ["stage", "Escena"], ["tools", "Acciones"] ].forEach(([key, label]) => {
+      const control = button(label, () => {
+        voices.dataset.mobileView = key;
+        sections.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === control)));
+      });
+      control.setAttribute("aria-pressed", String(key === "actors"));
+      sections.appendChild(control);
+    });
+    voices.before(sections);
+    voices.dataset.mobileView = "actors";
+    const castPane = el("section", "dm-director-cast-pane dm-director-pane");
+    const stagePane = el("section", "dm-director-stage-pane dm-director-pane");
+    const toolsPane = el("aside", "dm-director-tools-pane dm-director-pane");
+    voices.append(castPane, stagePane, toolsPane);
+    castPane.appendChild(el("h4", "dm-director-section-title", "Personajes en escena"));
+    const castCount = el("p", "dm-director-hint");
+    castCount.id = "dm-director-cast-count";
+    castPane.appendChild(castCount);
+    castPane.appendChild(button("Gestionar elenco · Biblioteca", () => activate("cast"), ICONS.cast));
+    castPane.appendChild(el("p", "dm-director-hint", "Mostrar y ocultar no retiran al personaje. Hablar puede mostrarlo al publicarse la intervención."));
     const voiceGrid = el("div", "dm-director-voice-grid");
     voiceGrid.id = "dm-director-voice-grid";
-    voices.appendChild(voiceGrid);
+    toolsPane.appendChild(voiceGrid);
     const composerStatus = el("p", "dm-director-hint");
     composerStatus.setAttribute("role", "status");
     composerStatus.hidden = true;
-    voices.appendChild(composerStatus);
-    voices.appendChild(button("Redactar mensaje", () => openComposer(), ICONS.speak));
+    toolsPane.appendChild(composerStatus);
+    toolsPane.prepend(el("h4", "dm-director-section-title", "Acciones rápidas"));
+    toolsPane.appendChild(button("Ambiente · Music Director", () => {
+      if (global.LuminousAudio) global.LuminousAudio.openOptions();
+      else { composerStatus.hidden = false; composerStatus.textContent = "El audio está cargando. Intenta de nuevo."; }
+    }));
+    toolsPane.appendChild(button("Cambiar escenario", () => activate("scenes"), ICONS.scene));
+    toolsPane.appendChild(button("Presentación y ritmo", () => activate("settings"), ICONS.settings));
+    const stageSlot = el("div", "dm-director-stage-slot");
+    stagePane.appendChild(stageSlot);
+    const log = el("section", "");
+    log.id = "theatre-log-container";
+    log.setAttribute("aria-label", "Registro de Teatro");
+    const logScroll = el("div", "dialogue-scroll-area");
+    logScroll.appendChild(el("p", "dm-director-log-empty", "El teatro está en silencio…"));
+    log.appendChild(logScroll);
+    stagePane.appendChild(log);
+    // Move the real stage, never clone a renderer or its IDs.
+    const stage = document.querySelector("#modulo-teatro > .stage-view-wrapper");
+    const stageHome = stage ? document.createComment("theatre-stage-home") : null;
+    if (stage) stage.before(stageHome);
+    function syncStage() {
+      if (stage) {
+        if (menu.open) stageSlot.appendChild(stage);
+        else stageHome.after(stage);
+      }
+      menu.querySelector("summary")?.setAttribute("aria-expanded", String(menu.open));
+    }
+    syncStage();
     const nextMessage = button("Siguiente intervención", () => {
       const original = document.getElementById("btn-theatre-message-next");
       if (original && !original.disabled) original.click();
     }, "Assets/Images/Buttons/Foward.svg");
     nextMessage.classList.add("dm-director-next");
     nextMessage.disabled = true;
-    voices.appendChild(nextMessage);
+    toolsPane.appendChild(nextMessage);
 
     const cast = views.get("cast");
     cast.appendChild(el("h4", "dm-director-section-title", "Añadir personajes"));
@@ -147,6 +197,14 @@
     search.type = "search";
     search.placeholder = "Buscar NPC o personaje...";
     search.setAttribute("aria-label", "Buscar NPC o personaje");
+    const libraryStatus = el("p", "dm-director-hint");
+    libraryStatus.setAttribute("role", "status");
+    cast.appendChild(libraryStatus);
+    document.addEventListener("luminous:theatre-cast-result", event => {
+      libraryStatus.textContent = event.detail.message;
+      renderRoster();
+    });
+    document.addEventListener("luminous:theatre-cast-ready", renderRoster);
     cast.appendChild(search);
     const rosterGrid = el("div", "dm-director-roster-grid");
     rosterGrid.id = "dm-director-roster-grid";
@@ -159,8 +217,8 @@
       const nativeSpawn = document.getElementById("btn-spawn-npc");
       if (nativeSpawn) nativeSpawn.tabIndex = -1;
     }
-    cast.appendChild(el("h4", "dm-director-section-title", "Elenco disponible en esta escena"));
-    if (originalCast) cast.appendChild(originalCast);
+
+    if (originalCast) castPane.appendChild(originalCast);
     if (originalStudio) cast.appendChild(originalStudio);
 
     const scenes = views.get("scenes");
@@ -207,12 +265,15 @@
     });
 
     function openComposer(actorId) {
+      composer.dataset.actorId = actorId === undefined ? speakerSelect.value : actorId;
       if (actorId !== undefined && !Array.from(speakerSelect.options).some(o => o.value === actorId)) {
         activate("voices");
         composerStatus.textContent = "Este personaje ya no está disponible para hablar. Selecciona otro del elenco.";
         composerStatus.hidden = false;
         return false;
       }
+      composer.dataset.actorRetired = "false";
+      modalHeading.querySelector("h3").textContent = "Escribir intervención";
       composerStatus.hidden = true;
       lastTrigger = document.activeElement;
       if (actorId !== undefined) {
@@ -227,6 +288,7 @@
 
     function activate(next) {
       state.activeTab = next;
+      sections.hidden = next !== "voices";
       views.forEach((view, key) => {
         const selected = key === next;
         view.hidden = !selected;
@@ -251,9 +313,12 @@
 
     function renderSpeakers() {
       const chosen = speakerSelect.value;
+      castCount.textContent = Object.keys(state.sceneActors).length + " en el elenco · " +
+        document.querySelectorAll('#live-actors-list [data-visible="true"]').length + " visibles";
       voiceGrid.replaceChildren();
       Array.from(speakerSelect.options).forEach(option => {
         const actorId = option.value;
+        if (actorId !== "narrador") return;
         const data = state.sceneActors[actorId] || {};
         const icon = option.dataset.icono || data.icono || data.sprite ||
           (data.expresiones && Object.values(data.expresiones).find(Boolean)) || "";
@@ -292,6 +357,7 @@
           npcSelect.value = id;
           document.getElementById("btn-spawn-npc")?.click();
         });
+        item.disabled = Boolean(document.getElementById("btn-spawn-npc")?.disabled);
         item.classList.add("dm-director-person-card");
         item.setAttribute("aria-label", "Añadir al elenco: " + option.textContent);
         item.appendChild(portrait(icon, isPlayer ? FALLBACK_PLAYER : FALLBACK_NPC, option.textContent));
@@ -332,11 +398,21 @@
         const identity = card.querySelector(".actor-identity-controls");
         if (identity) {
           const more = el("details", "dm-director-actor-advanced");
-          more.appendChild(el("summary", "", "Identidad y presentación"));
+          more.appendChild(el("summary", "", "Movimiento, identidad y presentación"));
           identity.parentNode.insertBefore(more, identity);
           more.appendChild(identity);
+          const actions = card.querySelector(".actor-buttons");
+          if (actions) {
+            const movement = el("div", "dm-director-movement");
+            actions.querySelectorAll(".btn-move, .btn-flip").forEach(control => movement.appendChild(control));
+            more.prepend(movement);
+          }
+          const expression = card.querySelector(".actor-expression-select");
+          if (expression) more.prepend(expression);
         }
       }
+      castCount.textContent = Object.keys(state.sceneActors).length + " en el elenco · " +
+        list.querySelectorAll('[data-visible="true"]').length + " visibles";
       if (!list.querySelector(".actor-control-card") && !list.querySelector(".dm-director-empty")) {
         list.appendChild(el("p", "dm-director-empty", "No hay actores en el elenco. Añade uno de la biblioteca."));
       }
@@ -394,6 +470,13 @@
       const scenePath = global.LuminousTheatreState?.getPaths?.().scene || "campaña/estado_mundo/escena_actual";
       db.ref(scenePath + "/actores").on("value", snap => {
         state.sceneActors = snap.val() || {};
+        const selected = composer.dataset.actorId;
+        if (modal.open && selected && selected !== "narrador" && !state.sceneActors[selected]) {
+          composer.dataset.actorRetired = "true";
+          composerStatus.textContent = "El personaje fue retirado del elenco. Conservamos tu texto; elige otro personaje para enviarlo.";
+          composerStatus.hidden = false;
+          modalHeading.querySelector("h3").textContent = "Personaje retirado · cierra y elige otro";
+        }
         renderSpeakers();
         // Existing casting renderer owns card recreation and click handlers.
         decorateActors();
@@ -401,7 +484,14 @@
     }
 
     menu.addEventListener("toggle", () => {
+      syncStage();
       if (menu.open) activate(state.activeTab);
+      else menu.querySelector("summary")?.focus({ preventScroll: true });
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && menu.open && !modal.open && document.getElementById("luminous-audio-panel")?.hidden !== false) {
+        menu.open = false; menu.querySelector("summary")?.focus();
+      }
     });
     renderSpeakers();
     renderRoster();

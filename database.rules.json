@@ -451,6 +451,18 @@
                 "$lootId": {
                   ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true && ((auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || ((!newData.exists() && data.child('uid').val() === auth.uid) || (newData.hasChildren(['uid','playerId','expiresAt']) && newData.child('uid').val() === auth.uid && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() > now && newData.child('expiresAt').val() <= now + 120000 && (!data.exists() || data.child('expiresAt').val() < now || (data.child('uid').val() === auth.uid && data.child('playerId').val() === newData.child('playerId').val())) && root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('jugadores').child(newData.child('playerId').val()).child('uid').val() === auth.uid)))"
                 }
+              },
+              "audio_director": {
+                ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('members').child(auth.uid).val() === true && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña/config/dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+                "music": {
+                  ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('trackId').val() === 'lament') || (newData.child('active').val() === false && newData.child('trackId').val() === '')) && (!newData.child('positionMs').exists() || (newData.child('positionMs').isNumber() && newData.child('positionMs').val() >= 0))"
+                },
+                "ambience": {
+                  ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('active').val() === true && newData.child('trackId').val() === 'bus') || (newData.child('active').val() === false && newData.child('trackId').val() === ''))"
+                },
+                "cue": {
+                  ".validate": "newData.hasChildren(['cueId', 'nonce', 'at']) && (newData.child('cueId').val() === 'coin-heads' || newData.child('cueId').val() === 'coin-tails') && newData.child('nonce').isString() && newData.child('at').isNumber()"
+                }
               }
             },
             "dm_private": {
@@ -539,6 +551,18 @@
         "$lootId": {
           ".read": "auth != null",
           ".write": "auth != null && ((auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1') || ((!newData.exists() && data.child('uid').val() === auth.uid) || (newData.hasChildren(['uid','playerId','expiresAt']) && newData.child('uid').val() === auth.uid && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() > now && newData.child('expiresAt').val() <= now + 120000 && (!data.exists() || data.child('expiresAt').val() < now || (data.child('uid').val() === auth.uid && data.child('playerId').val() === newData.child('playerId').val())) && (root.child('campaña').child('jugadores').child(newData.child('playerId').val()).child('uid').val() === auth.uid || root.child('campaña').child('jugadores').child(newData.child('playerId').val()).child('vinculado_a').val() === auth.uid || root.child('campaña').child('jugadores').child(newData.child('playerId').val()).child('vinculo_jugador').val() === auth.uid) && root.child('campaña').child('loot_encounters').child(root.child('campaña').child('loot_instances').child($lootId).child('encounterId').val()).child('meta').child('participants').child(newData.child('playerId').val()).val() === true && root.child('campaña').child('loot_encounters').child(root.child('campaña').child('loot_instances').child($lootId).child('encounterId').val()).child('meta').child('open').val() === true)))"
+        }
+      },
+      "audio_director": {
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+        "music": {
+          ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('trackId').val() === 'lament') || (newData.child('active').val() === false && newData.child('trackId').val() === '')) && (!newData.child('positionMs').exists() || (newData.child('positionMs').isNumber() && newData.child('positionMs').val() >= 0))"
+        },
+        "ambience": {
+          ".validate": "newData.hasChildren(['trackId', 'active', 'startedAt']) && newData.child('trackId').isString() && newData.child('active').isBoolean() && newData.child('startedAt').isNumber() && ((newData.child('active').val() === true && newData.child('trackId').val() === 'bus') || (newData.child('active').val() === false && newData.child('trackId').val() === ''))"
+        },
+        "cue": {
+          ".validate": "newData.hasChildren(['cueId', 'nonce', 'at']) && (newData.child('cueId').val() === 'coin-heads' || newData.child('cueId').val() === 'coin-tails') && newData.child('nonce').isString() && newData.child('at').isNumber()"
         }
       }
     },

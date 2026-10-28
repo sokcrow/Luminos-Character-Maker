@@ -307,6 +307,7 @@
             display: none; /* hidden by default */
         }
     </style>
+  <link rel="stylesheet" href="css/luminous-audio-director.css?v=20261028-director-3">
 </head>
 <body>
 
@@ -401,9 +402,6 @@
         const audioMusic = document.getElementById('audio-music');
 
         // Set volume for audios
-        audioInicio.volume = 0.4;
-        audioSfx.volume = 0.2;
-        audioMusic.volume = 0.4;
 
         // State flag: 0 if not played, 1 if played
         let voicePlayed = 0;
@@ -497,5 +495,6 @@
             flavorText.innerText = '"No pierdas tiempo, entra ya!"';
         });
     </script>
+  <script src="js/luminous-audio-director.js?v=20261028-director-3"></script>
 </body>
 </html>

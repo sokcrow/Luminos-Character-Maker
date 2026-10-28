@@ -2,3 +2,7 @@ node_modules/
 
 # Firebase Functions generated runtime bundle
 functions/vendor/
+
+# Generated browser evidence (uploaded by the Director workflow)
+test-results/
+playwright-report/

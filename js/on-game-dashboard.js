@@ -331,6 +331,11 @@
         const languageSelect = document.getElementById("theatre-language-select");
         const text = dialogueInput?.value.trim() || "";
         if (!text) return;
+        const composer = document.querySelector(".theatre-dm-composer");
+        if (composer?.dataset.actorRetired === "true") {
+          alert("Este personaje fue retirado del elenco. Cierra el compositor y elige otro personaje.");
+          return;
+        }
         if (btnSendDialogue?.dataset.sending === "true") return;
 
         if (btnSendDialogue) {
@@ -387,7 +392,9 @@
 
           if (!queued?.queued) {
             throw new Error(
-              queued?.reason === "transition"
+              queued?.reason === "actor-retired"
+                ? "El personaje fue retirado del elenco. El mensaje no fue enviado."
+                : queued?.reason === "transition"
                 ? "La escena está en transición. El mensaje no fue enviado."
                 : "Theater rechazó el mensaje."
             );
