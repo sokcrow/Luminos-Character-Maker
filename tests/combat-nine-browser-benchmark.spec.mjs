@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import os from 'node:os';
+import {canonicalUnits} from './helpers/combat-pair-validation.mjs';
 import {fixture,npcBenchmarkPlan} from './helpers/combat-nine-fixture.mjs';
 
 const harnessRoot=process.cwd(),base='http://127.0.0.1:4173';
@@ -78,7 +79,7 @@ function instrument(options={}){
   }
   function start(event,cue,args){
     if(!event){data.errors.push('Missing presentation identity: '+cue);return null;}
-    const row={roundId:event.roundId,sequence:event.sequence,cue,owner:args?.[0]?.ownerId||null,opponent:args?.[1]?.ownerId||null,index:cue==='powerCoin'?args?.[1]?.index:cue==='hitCoin'?args?.[2]:null,result:resultValue(cue,args),startAt:now(),playAt:event.timing?.playAt??null,paintAt:null,endAt:null};
+    const row={round:event.round,roundId:event.roundId,sequence:event.sequence,cue,owner:args?.[0]?.ownerId||null,opponent:args?.[1]?.ownerId||null,index:cue==='powerCoin'?args?.[1]?.index:cue==='hitCoin'?args?.[2]:null,result:resultValue(cue,args),startAt:now(),playAt:event.timing?.playAt??null,paintAt:null,endAt:null};
     data.cues.push(row);requestAnimationFrame(()=>{
       row.paintAt=now();
       if(['actionStart','actionApproach','clashStart','clashOutcome','hitMotion'].includes(cue))row.scene={
@@ -175,7 +176,7 @@ test('Authenticated Battle Viewers compare identical Clashes before and after',a
       const directory=path.join(output,`${iteration+1}-${label}`);fs.mkdirSync(directory,{recursive:true});
       const contexts=[],pages=[],frames=[],errors=[],blocked=[];
       let trace;
-      const result={label,iteration,sha:labels[label],viewports,seed:'0x1234abcd',accounts:clientCount,players:clientCount-1,fixture:pair?'1 player + 1 opposed NPC, 3 Coins, repeated rounds':'8 player actions + 2 opposed NPC actions, 3 Coins',complete:false,errors,blocked,clients:[],rounds:[]};
+      const result={schemaVersion:pair?2:1,label,iteration,sha:labels[label],viewports,seed:'0x1234abcd',accounts:clientCount,players:clientCount-1,fixture:pair?'1 player + 1 opposed NPC, 3 Coins, repeated rounds':'8 player actions + 2 opposed NPC actions, 3 Coins',complete:false,errors,blocked,clients:[],rounds:[]};
       try{
         if(pair){trace=await browser.newBrowserCDPSession();await trace.send('Tracing.start',{categories:'devtools.timeline,v8,blink.user_timing',transferMode:'ReturnAsStream'});}
         for(let index=0;index<clientCount;index++){
@@ -214,7 +215,19 @@ test('Authenticated Battle Viewers compare identical Clashes before and after',a
         await Promise.all([pages[0].screenshot({path:path.join(directory,`dm-clash-${cycle}.png`)}),pages[pair?1:2].screenshot({path:path.join(directory,`player-clash-${cycle}.png`)})]);
         await expect.poll(async()=>(await admin('campaña/combate/estado'))?.round,{timeout:180000}).toBe(cycle+1);
         for(const frame of frames)await expect.poll(()=>frame.evaluate(()=>({round:LuminousCombat073.uiState().round,running:LuminousCombatAuthority073.state.runningLocal})),{timeout:60000}).toEqual({round:cycle+1,running:false});
-        if(pair)result.rounds.push({round:cycle,wallMs:Date.now()-cycleStart,settled:await Promise.all(frames.map(frame=>frame.evaluate(()=>({heap:performance.memory?.usedJSHeapSize,animations:document.getAnimations().filter(a=>a.playState==='running').length,visibility:document.visibilityState,dpr:devicePixelRatio}))))});
+        if(pair){
+          const authority=await admin('campaña/combate/authority/current');
+          const saved=authority?.checkpoint;
+          const canonical=saved?.stateJson?JSON.parse(saved.stateJson):saved?.combatants;
+          const clients=await Promise.all(frames.map(frame=>frame.evaluate(cycle=>({
+            units:Object.fromEntries(Object.entries(LuminousCombat073.combatants()).map(([id,u])=>[id,{
+              hp:u.hp,sp:u.sp,lifeState:u.lifeState||null,statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],shieldPools:u.shieldPools||{},
+            }])),
+            cues:__nine.cues.filter(cue=>cue.round===cycle),
+          }),cycle)));
+          result.rounds.push({round:cycle,seed:authority.seed,canonical:canonicalUnits(canonical),clients,
+            wallMs:Date.now()-cycleStart,settled:await Promise.all(frames.map(frame=>frame.evaluate(()=>({heap:performance.memory?.usedJSHeapSize,animations:document.getAnimations().filter(a=>a.playState==='running').length,visibility:document.visibilityState,dpr:devicePixelRatio}))))});
+        }
         }
         result.wallMs=Date.now()-started;
         result.authority=await admin('campaña/combate/authority/current');
@@ -299,6 +312,7 @@ test('Authenticated Battle Viewers compare identical Clashes before and after',a
       }
       console.log('NINE_BROWSER_CASE',JSON.stringify(cases.at(-1)));
     }
-  }finally{fs.writeFileSync(path.join(output,'manifest.json'),JSON.stringify({labels,viewports,cases},null,2));await new Promise(resolve=>server.close(resolve));}
+  }finally{fs.writeFileSync(path.join(output,'manifest.json'),JSON.stringify({schemaVersion:pair?2:1,labels,viewports,cases},null,2));await new Promise(resolve=>server.close(resolve));}
   expect(cases.every(row=>row.complete),JSON.stringify(cases,null,2)).toBe(true);
 });
+
