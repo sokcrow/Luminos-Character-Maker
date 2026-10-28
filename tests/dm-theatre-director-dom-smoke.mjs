@@ -42,5 +42,66 @@ for(let i=0;i<6;i++)await w.LuminousTheatreState.updateVisibleActors('cast_'+i,{
 assert.equal(Object.values(w.testRead('campaña/estado_mundo/escena_actual/actores_visibles')).length,5);
 assert.ok(!Object.values(w.testRead('campaña/estado_mundo/escena_actual/actores_visibles')).includes('cast_0'));
 assert.ok(w.testRead('campaña/estado_mundo/escena_actual/actores/cast_0'));
+// P1: player queues use persistent assigned IDs, not the DM's spawned IDs.
+const sprite = 'Assets/Images/Buttons/Theatre.png';
+w.testWrite('campaña/actores/player_actor', {nombre:'Jugador asignado',sprite});
+w.testWrite('campaña/base_datos_npcs/player_npc', {nombre:'Asignado desde NPC',sprite});
+w.testWrite('campaña/estado_mundo/escena_actual/actores/player_instance', {nombre:'Jugador asignado',sourceId:'player_actor',sprite});
+for (const id of ['player_actor','player_npc']) {
+  const message = {actorId:id,mensaje:'Mensaje de jugador',sprite};
+  // A legacy/direct player queue entry has no actorScope field.
+  const result = await w.LuminousTheatreState.publishIntervention('player_'+id,message);
+  assert.equal(result.published,true);
+  assert.equal(result.payload.actorId,id);
+  assert.equal(w.testRead('campaña/estado_mundo/escena_actual/actores/'+id),null);
+  assert.ok(!Object.values(w.testRead('campaña/estado_mundo/escena_actual/actores_visibles')).includes(id));
+  const queued = await w.LuminousTheatreState.enqueueIntervention(message);
+  assert.equal(queued.queued,true);
+  assert.equal(w.testRead('campaña/teatro/cola/'+queued.key).actorScope,'assigned');
+}
+assert.equal((await w.LuminousTheatreState.publishIntervention('missing',{actorId:'not_registered',nombre:'Jugador asignado'})).published,false);
+// A queued scene instance stays retired even if a library ID happens to match.
+const scoped = await w.LuminousTheatreState.enqueueIntervention({actorId:'cast_0',mensaje:'Instancia temporal',sprite});
+const scopedMessage = w.testRead('campaña/teatro/cola/'+scoped.key);
+assert.equal(scopedMessage.actorScope,'scene');
+w.testWrite('campaña/estado_mundo/escena_actual/actores/cast_0',null);
+w.testWrite('campaña/actores/cast_0',{nombre:'Otra identidad',sprite});
+assert.equal((await w.LuminousTheatreState.publishIntervention('scoped',scopedMessage)).reason,'actor-retired');
+assert.equal(w.testRead('campaña/estado_mundo/escena_actual/actores/cast_0'),null);
+// P2: switching A -> B tracks B; a roster's automatic Narrator fallback does not.
+w.testWrite('campaña/estado_mundo/escena_actual/actores/speaker_a',{nombre:'A',sprite});
+w.testWrite('campaña/estado_mundo/escena_actual/actores/speaker_b',{nombre:'B',sprite});
+w.LuminousDmTheatreWorkspace.openComposer('speaker_a');
+const speaker = d.querySelector('#theatre-speaker-select');
+const composer = d.querySelector('.theatre-dm-composer');
+speaker.value='speaker_b';speaker.dispatchEvent(new w.Event('change',{bubbles:true}));
+w.testWrite('campaña/estado_mundo/escena_actual/actores/speaker_a',null);await tick();
+assert.equal(composer.dataset.actorId,'speaker_b');
+assert.equal(composer.dataset.actorRetired,'false');
+d.querySelector('#theatre-dialogue-input').value='Mensaje para B';
+const beforeSend=w.writeId;d.querySelector('#btn-send-dialogue').click();await tick();
+assert.equal(w.writeId,beforeSend+1);
+assert.equal(d.querySelector('#theatre-dialogue-input').value,'');
+w.testWrite('campaña/estado_mundo/escena_actual/actores/speaker_b',null);await tick();
+assert.equal(speaker.value,'narrador');
+assert.equal(composer.dataset.actorId,'speaker_b');
+assert.equal(composer.dataset.actorRetired,'true');
+speaker.value='narrador';speaker.dispatchEvent(new w.Event('change',{bubbles:true}));
+assert.equal(composer.dataset.actorId,'narrador');
+assert.equal(composer.dataset.actorRetired,'false');
+console.log('P1 assigned IDs / retired instance scope and P2 explicit speaker switching: passed');
 console.log('DOM functional integration passed: real engine + controls + compositor + canonical log + audio play/pause + retirement.');
 w.close();
+
+// End-to-end legacy player path: raw push -> DM queue processor -> archive.
+await mountDirector(page);
+const playerWindow=dom.window;
+playerWindow.testWrite('campaña/actores/assigned_e2e',{nombre:'Jugador E2E',sprite});
+playerWindow.testDb.ref('campaña/teatro/cola').push({actorId:'assigned_e2e',nombre:'Jugador E2E',mensaje:'Hola',sprite,createdAt:Date.now()});
+const deadline=Date.now()+6000;
+while (Date.now()<deadline && !Object.values(playerWindow.testRead('campaña/teatro/log')||{}).some(message=>message.actorId==='assigned_e2e')) await tick();
+assert.equal(Object.values(playerWindow.testRead('campaña/teatro/log')).filter(message=>message.actorId==='assigned_e2e').length,1);
+assert.equal(Object.values(playerWindow.testRead('campaña/teatro/cola')||{}).filter(message=>message.actorId==='assigned_e2e').length,0);
+assert.equal(playerWindow.testRead('campaña/estado_mundo/escena_actual/actores/assigned_e2e'),null);
+playerWindow.close();
+console.log('Legacy assigned player queue: published and archived exactly once without a cast instance.');

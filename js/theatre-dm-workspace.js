@@ -423,7 +423,17 @@
       state.rosterLimit = 48;
       renderRoster();
     });
-    speakerSelect.addEventListener("change", renderSpeakers);
+    speakerSelect.addEventListener("change", event => {
+      // Roster refreshes may reset the native select to Narrator. They must not
+      // silently replace a retired speaker; an intentional selection does.
+      if (!event.detail?.theatreRosterRefresh) {
+        composer.dataset.actorId = speakerSelect.value;
+        composer.dataset.actorRetired = "false";
+        modalHeading.querySelector("h3").textContent = "Escribir intervención";
+        composerStatus.hidden = true;
+      }
+      renderSpeakers();
+    });
     const npcObserver = new MutationObserver(renderRoster);
     npcObserver.observe(npcSelect, { childList: true, subtree: true });
     const castList = document.getElementById("live-actors-list");

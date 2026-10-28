@@ -917,6 +917,25 @@
         return true;
     }
 
+    async function resolveInterventionActor(message, scene) {
+        const actorId = message?.actorId;
+        if (!actorId) return { data: {}, sceneInstance: false };
+        const instance = scene.actores?.[actorId];
+        // An intervention queued for a scene instance must never fall back to a
+        // library record after retirement. Player composers also legitimately
+        // queue persistent assigned IDs without adding a temporary scene instance.
+        if (message.actorScope === "scene") {
+            return instance ? { data: instance, sceneInstance: true } : null;
+        }
+        const [actor, npc] = await Promise.all([
+            db.ref(`campaña/actores/${actorId}`).once("value"),
+            db.ref(`campaña/base_datos_npcs/${actorId}`).once("value")
+        ]);
+        const data = actor.val() || npc.val();
+        if (data && typeof data === "object") return { data, sceneInstance: false };
+        return message.actorScope !== "assigned" && instance ? { data: instance, sceneInstance: true } : null;
+    }
+
     async function publishIntervention(messageId, message) {
         const paths = getPaths();
         const scene = await getFreshScene();
@@ -924,25 +943,24 @@
             return { published: false, reason: scene.transitioning ? "transition" : "stale" };
         }
 
-        if (message?.actorId && !scene.actores?.[message.actorId]) {
-            return { published: false, reason: "actor-retired" };
-        }
+        const resolvedActor = await resolveInterventionActor(message, scene);
+        if (!resolvedActor) return { published: false, reason: "actor-retired" };
         const type = message?.tipo_dialogo || "dialogo";
         const active = Boolean(message?.actorId && type !== "pensamiento" && type !== "narracion");
-        const sceneActor = message?.actorId ? (scene?.actores?.[message.actorId] || {}) : {};
+        const sceneActor = resolvedActor.data;
         const canonicalName = type === "narracion"
             ? ""
             : resolveCanonicalIdentityText(sceneActor.nombre, message?.nombre);
         const canonicalTitle = type === "narracion"
             ? ""
             : resolveCanonicalIdentityText(sceneActor.titulo, message?.titulo);
-        if (active) {
+        if (active && resolvedActor.sceneInstance) {
             await updateVisibleActors(message.actorId, message);
             await revealPreparedExpression(message.actorId, message.expression, message.sprite);
         }
 
         // A retirement may have landed while preparing the visible expression.
-        if (message?.actorId && !(await getFreshScene()).actores?.[message.actorId]) {
+        if (resolvedActor.sceneInstance && !(await getFreshScene()).actores?.[message.actorId]) {
             return { published: false, reason: "actor-retired" };
         }
         const activePayload = {
@@ -977,9 +995,12 @@
         const paths = getPaths();
         const scene = await getFreshScene();
         if (scene.transitioning) return { queued: false, reason: "transition" };
-        if (message?.actorId && !scene.actores?.[message.actorId]) return { queued: false, reason: "actor-retired" };
+        const actorScope = message?.actorScope || (scene.actores?.[message?.actorId] ? "scene" : "assigned");
+        const resolvedActor = await resolveInterventionActor(Object.assign({}, message, { actorScope }), scene);
+        if (!resolvedActor) return { queued: false, reason: "actor-retired" };
         const ref = db.ref(paths.queue).push();
         await ref.set(Object.assign({}, message, {
+            actorScope: resolvedActor.sceneInstance ? "scene" : "assigned",
             createdAt: global.firebase.database.ServerValue.TIMESTAMP,
             roomId: paths.roomId
         }));

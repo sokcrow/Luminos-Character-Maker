@@ -89,4 +89,22 @@ for (const [width,height] of sizes) {
   expect(result).toEqual({published:false,reason:'actor-retired'});
   expect(await page.evaluate(()=>window.testRead('campaña/estado_mundo/escena_actual/actores/active_aldara'))).toBeNull();
  });
+ test(`Explicit speaker change survives retirement of previous actor ${width}x${height}`,async({page})=>{
+  await page.setViewportSize({width,height});await mount(page);
+  await page.evaluate(()=>window.testWrite('campaña/estado_mundo/escena_actual/actores/speaker_b',{nombre:'B',sprite:'Assets/Images/Buttons/Theatre.png'}));
+  await page.locator('.actor-control-card[data-actor-id="active_aldara"] .dm-director-actor-speak').click();
+  await page.locator('#theatre-speaker-select').selectOption('speaker_b');
+  await page.evaluate(()=>window.testWrite('campaña/estado_mundo/escena_actual/actores/active_aldara',null));
+  await expect(page.locator('.theatre-dm-composer')).toHaveAttribute('data-actor-id','speaker_b');
+  await expect(page.locator('.theatre-dm-composer')).toHaveAttribute('data-actor-retired','false');
+  await page.locator('#theatre-dialogue-input').fill('Habla B');
+  await page.locator('#btn-send-dialogue').click();
+  await expect(page.locator('#theatre-dialogue-input')).toHaveValue('');
+  await page.evaluate(()=>window.testWrite('campaña/estado_mundo/escena_actual/actores/speaker_b',null));
+  await expect(page.locator('.theatre-dm-composer')).toHaveAttribute('data-actor-retired','true');
+  await page.locator('#theatre-speaker-select').selectOption('narrador');
+  await expect(page.locator('.theatre-dm-composer')).toHaveAttribute('data-actor-id','narrador');
+  await expect(page.locator('.theatre-dm-composer')).toHaveAttribute('data-actor-retired','false');
+ });
+
 }

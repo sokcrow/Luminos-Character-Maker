@@ -437,7 +437,9 @@
           speakerSelect.appendChild(option);
         }
         speakerSelect.value = currentSelection && actors[currentSelection] ? currentSelection : "narrador";
-        speakerSelect.dispatchEvent(new Event("change"));
+        speakerSelect.dispatchEvent(new CustomEvent("change", {
+          detail: { theatreRosterRefresh: true }
+        }));
       });
 
       speakerSelect?.addEventListener("change", (event) => {
