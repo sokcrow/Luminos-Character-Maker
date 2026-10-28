@@ -60,6 +60,8 @@
   const receivedCues = new Set();
   let ownCue = null;
   let pendingWrite = null;
+  let pendingMusicResume = null;
+  let effectsGeneration = 0;
   let serverOffset = 0;
   let mounted = false;
   let panel = null;
@@ -141,6 +143,11 @@
     if (hintNode) hintNode.textContent = message;
   }
   function serverNow() { return Date.now() + serverOffset; }
+  const musicIntentKey = state => JSON.stringify([state?.trackId || '', Boolean(state?.active), Number(state?.startedAt) || 0, Number(state?.positionMs) || 0, state?.loop !== false]);
+  function cancelMusicResume() {
+    pendingMusicResume?.cancel();
+    pendingMusicResume = null;
+  }
   function syncPosition(element, state) {
     if (!element || !state || !state.active || !Number.isFinite(state.startedAt) || state.startedAt <= 0) return;
     function seek() {
@@ -155,6 +162,7 @@
     else element.addEventListener("loadedmetadata", seek, { once: true });
   }
   function receiveLoop(kind, state) {
+    if (kind === 'music' && pendingMusicResume && pendingMusicResume.intent !== musicIntentKey(state)) cancelMusicResume();
     const element = kind === "music" ? music : ambience;
     const oldKey = kind === "music" ? previousMusicKey : previousAmbienceKey;
     const entry = state ? byId(kind, state.trackId) : null;
@@ -177,14 +185,16 @@
     }
     updateStatus();
   }
-  function playEffect(id, at) {
+  function playEffect(id, at, generation = effectsGeneration) {
+    if (generation !== effectsGeneration) return false;
     const entry = byId("sfx", id);
     if (!entry || entry.expiresAt && entry.expiresAt <= Date.now()) {
       if (cloudLibrary?.endpoint && /^r2_[a-f0-9]{64}$/.test(id)) {
         cloudLibrary.refresh().then(() => {
+          if (generation !== effectsGeneration) return;
           const resolved = byId("sfx", id);
-          if (resolved && (!at || Math.abs(serverNow() - at) <= 5000) && resolved.expiresAt > Date.now()) playEffect(id, at);
-        }).catch(error => setHint(error.message));
+          if (resolved && (!at || Math.abs(serverNow() - at) <= 5000) && resolved.expiresAt > Date.now()) playEffect(id, at, generation);
+        }).catch(error => { if (generation === effectsGeneration) setHint(error.message); });
       }
       return false;
     }
@@ -216,6 +226,7 @@
     receivedCues.add(token);
     if (receivedCues.size > 128) receivedCues.delete(receivedCues.values().next().value);
     if (cue.action === 'stop') {
+      effectsGeneration++;
       oneShots.forEach(sound => sound.pause());
       oneShots.clear();
       return;
@@ -273,7 +284,8 @@
     }
     const ref = audioRef;
     const previous = channel === "music" ? musicState : ambienceState;
-    const request = {};
+    let settle;
+    const request = { done: new Promise(resolve => { settle = resolve; }) };
     pendingWrite = request;
     updateDirectorView();
     try {
@@ -292,6 +304,7 @@
       return false;
     } finally {
       if (pendingWrite === request) pendingWrite = null;
+      settle();
       updateDirectorView();
     }
   }
@@ -303,18 +316,72 @@
     if (element.src !== url) element.src = url;
     playSafely(element);
   }
+  function playMusic(entry, resume) {
+    const commit = position => directorWrite('music', {
+      trackId: entry.id, active: true,
+      startedAt: position ? serverNow() - position : global.firebase.database.ServerValue.TIMESTAMP,
+      loop: musicState?.loop !== false
+    });
+    const url = new URL(entry.url, global.location.href).href;
+    const metadataReady = () => music.readyState >= 1 && Number.isFinite(music.duration) && music.duration > 0;
+    if (!resume || music.src === url && metadataReady()) {
+      previewLoopOnGesture('music', entry);
+      return commit(resume && resume < music.duration * 1000 ? resume : 0);
+    }
+    // preload=none means a reloaded paused track may not have a duration yet.
+    // Unlock media on the gesture, but validate before publishing shared intent.
+    const ref = audioRef, user = authenticatedUser;
+    const request = { intent: musicIntentKey(musicState), cancelled: false };
+    let finish, timer;
+    const ready = new Promise(resolve => {
+      let settled = false;
+      const cleanup = () => {
+        music.removeEventListener('loadedmetadata', loaded);
+        music.removeEventListener('durationchange', loaded);
+        music.removeEventListener('error', failed);
+        global.clearTimeout(timer);
+      };
+      finish = success => { if (settled) return; settled = true; const durationMs = success ? music.duration * 1000 : null; cleanup(); resolve(durationMs); };
+      const loaded = () => { if (metadataReady()) finish(true); };
+      const failed = () => finish(false);
+      music.addEventListener('loadedmetadata', loaded);
+      music.addEventListener('durationchange', loaded);
+      music.addEventListener('error', failed);
+      timer = global.setTimeout(failed, 15000);
+    });
+    request.cancel = () => { request.cancelled = true; finish(false); };
+    pendingMusicResume = request;
+    setHint('Cargando la duración de la pista para reanudar…');
+    updateDirectorView();
+    previewLoopOnGesture('music', entry);
+    if (metadataReady()) finish(true);
+    const current = () => !request.cancelled && pendingMusicResume === request && audioRef === ref && authenticatedUser === user && musicIntentKey(musicState) === request.intent;
+    return ready.then(async durationMs => {
+      if (!current()) return;
+      if (!durationMs) {
+        pendingMusicResume = null; music.pause(); updateDirectorView();
+        setHint('No se pudo cargar la duración de esta pista. Intenta reproducirla de nuevo.');
+        return;
+      }
+      // An independent effects command may still be waiting for Firebase.
+      while (pendingWrite) { await pendingWrite.done; if (!current()) return; }
+      const position = resume < durationMs ? resume : 0;
+      pendingMusicResume = null;
+      try { music.currentTime = position / 1000; } catch (_) {}
+      return commit(position);
+    });
+  }
   function command(type) {
     if (!isDirector || !audioRef || pendingWrite || cloudLibrary?.deleting) return;
     const stamp = global.firebase.database.ServerValue.TIMESTAMP;
     const selects = (kind) => panel.querySelector('[data-audio-select="' + kind + '"]');
+    if (['play-music','pause-music','stop-music'].includes(type)) cancelMusicResume();
     if (type === "play-music") {
       const trackId = selects("music").value;
       const entry = byId("music", trackId);
       if (entry) {
-        previewLoopOnGesture("music", entry);
-        let resume = musicState?.trackId === trackId && !musicState?.active ? Number(musicState.positionMs) || 0 : 0;
-        if (Number.isFinite(music.duration) && music.duration > 0 && resume >= music.duration * 1000) resume = 0;
-        directorWrite("music", { trackId, active: true, startedAt: resume ? serverNow() - resume : stamp, loop: musicState?.loop !== false });
+        const resume = musicState?.trackId === trackId && !musicState?.active ? Number(musicState.positionMs) || 0 : 0;
+        playMusic(entry, resume);
       }
     } else if (type === "pause-music") {
       if (!musicState?.active) return;
@@ -342,8 +409,9 @@
       const cueId = selects("sfx").value;
       if (!byId("sfx", cueId)) return;
       const nonce = audioRef.child("events").push().key;
+      const generation = effectsGeneration;
       ownCue = nonce;
-      directorWrite("cue", { cueId, nonce, at: stamp }).then(ok => { if (ok) playEffect(cueId); });
+      directorWrite("cue", { cueId, nonce, at: stamp }).then(ok => { if (ok) playEffect(cueId, undefined, generation); });
     }
   }
   let canonicalFilter = 'all', canonicalFavorites = new Set(), canonicalShuffle = false;
@@ -397,6 +465,7 @@
     canonicalNode('playBtn').setAttribute('aria-label',musicState?.active?'Pausar':'Reproducir');
     for(const id of ['playBtn','prevBtn','nextBtn','repeatBtn','seek','stopAllEffects','stopAllQuick'])canonicalNode(id).disabled=!isDirector||Boolean(pendingWrite)||Boolean(cloudLibrary?.deleting);
     if (musicState?.trackId && !selected) canonicalNode('playBtn').disabled = true;
+    if (pendingMusicResume) canonicalNode('playBtn').disabled = true;
     canonicalNode('repeatBtn').setAttribute('aria-pressed',String(musicState?.loop!==false));
     for(const id of ['musicVolume','footerVolume'])canonicalNode(id).value=prefs.music;
     canonicalNode('sfxVolume').value=prefs.sfx;
@@ -561,6 +630,8 @@
     updateDirectorView();
   }
   function detachFirebase() {
+    cancelMusicResume();
+    effectsGeneration++;
     cloudLibrary?.destroy(); cloudLibrary = null; libraryRevision = null;
     oneShots.forEach(sound => sound.pause()); oneShots.clear();
     if (audioRef && audioListener) audioRef.off("value", audioListener);

@@ -7,7 +7,7 @@ const backend=setup(),bytes=new Uint8Array([73,68,51,4,0,0,0,0,0,4,1,2,3,4]);
 const endpoint='https://limbus-audio.account.workers.dev';
 const pause=()=>new Promise(resolve=>setTimeout(resolve,20));
 async function until(check){const limit=Date.now()+3000;while(!check()&&Date.now()<limit)await pause();assert.ok(check(),'condition timed out');}
-function audioMock(w){w.audioElements=[];w.Audio=class extends w.EventTarget{constructor(src=''){super();this.src=src;this.paused=true;this.duration=60;this.currentTime=0;this.readyState=1;this.plays=0;w.audioElements.push(this);}play(){this.paused=false;this.plays++;return Promise.resolve();}pause(){this.paused=true;}load(){}removeAttribute(key){this[key]='';}};}
+function audioMock(w,{duration=60,readyState=1}={}){w.audioElements=[];w.Audio=class extends w.EventTarget{constructor(src=''){super();this.src=src;this.paused=true;this.duration=duration;this.currentTime=0;this.readyState=readyState;this.plays=0;w.audioElements.push(this);}play(){this.paused=false;this.plays++;return Promise.resolve();}pause(){this.paused=true;}load(){}removeAttribute(key){this[key]='';}};}
 function fetchMock(w){w.fetch=(url,options={})=>backend.handler(new Request(String(url),{...options,headers:{...options.headers,Origin:origin}}),backend.env);}
 let dom;
 const page={route:async()=>{},locator:selector=>({click:async()=>dom.window.document.querySelector(selector).click()}),setContent:async html=>{dom=new JSDOM(html,{url:origin,runScripts:'outside-only',pretendToBeVisual:true});const w=dom.window;w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};w.alert=()=>{};w.confirm=()=>true;audioMock(w);fetchMock(w);},evaluate:async(fn,arg)=>dom.window.eval(`(${fn.toString()})(${JSON.stringify(arg)})`),addStyleTag:async()=>{},addScriptTag:async({path})=>dom.window.eval(await fs.readFile(path,'utf8'))};
@@ -40,9 +40,9 @@ async function player(){
  w.eval(await fs.readFile('js/audio-cloud-library.js','utf8'));w.eval(await fs.readFile('js/luminous-audio-director.js','utf8'));await until(()=>w.audioElements[0]?.src.includes(song.id));return w;
 }
 const listener=await player();assert.equal(listener.audioElements[0].paused,false);assert.equal(listener.document.querySelector('.audio-cloud-library').hidden,true);
-async function reloadedDirector(){
+async function reloadedDirector(metadata){
  const dom=new JSDOM('<!doctype html><html><head></head><body class="on-game-dashboard"></body></html>',{url:origin,runScripts:'outside-only',pretendToBeVisual:true});
- const w=dom.window;audioMock(w);fetchMock(w);w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
+ const w=dom.window;audioMock(w,metadata);fetchMock(w);w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  const database=()=>dm.testDb;database.ServerValue=dm.firebase.database.ServerValue;
  w.firebase={apps:[{}],database,auth:()=>({currentUser:{uid:'dm'},onAuthStateChanged:fn=>fn({uid:'dm',getIdToken:async()=>jwt('dm')})})};
  for(const path of ['js/director-prototype-templates.js','js/audio-cloud-library.js','js/luminous-audio-director.js'])w.eval(await fs.readFile(path,'utf8'));
@@ -100,6 +100,35 @@ for(const fromCard of [false,true]){
  assert.equal(dm.testRead('campaña/audio_director/music').trackId,song.id);
  assert.ok(reloadMusic.currentTime<1,'footer and card restart a completed song at zero');
 }
+// Old clients could store a completed song as a pause at its full duration.
+// A reloaded media element has no duration until loadedmetadata arrives.
+dm.testWrite('campaña/audio_director/music',{trackId:song.id,active:false,startedAt:0,positionMs:60000,loop:false});
+const unknown=await reloadedDirector({duration:NaN,readyState:0}),unknownMusic=unknown.audioElements[0];
+unknown.document.querySelector('#pa-playBtn').click();
+assert.equal(dm.testRead('campaña/audio_director/music').active,false,'do not publish a resume before metadata validates its position');
+unknownMusic.duration=60;unknownMusic.readyState=1;unknownMusic.dispatchEvent(new unknown.Event('loadedmetadata'));
+await until(()=>dm.testRead('campaña/audio_director/music')?.active);
+assert.ok(unknownMusic.currentTime<1,'a legacy full-duration position restarts from zero once metadata loads');
+assert.ok(Date.now()-dm.testRead('campaña/audio_director/music').startedAt<1000);
+await until(()=>!unknown.document.querySelector('#pa-playBtn').disabled);
+dm.testWrite('campaña/audio_director/music',{trackId:song.id,active:false,startedAt:0,positionMs:20000,loop:false});
+unknownMusic.duration=NaN;unknownMusic.readyState=0;
+unknown.document.querySelector('#pa-playBtn').click();assert.equal(dm.testRead('campaña/audio_director/music').active,false);
+unknownMusic.readyState=1;unknownMusic.dispatchEvent(new unknown.Event('loadedmetadata'));
+assert.equal(dm.testRead('campaña/audio_director/music').active,false,'metadata without a finite duration is not enough to validate a pause');
+unknownMusic.duration=60;unknownMusic.dispatchEvent(new unknown.Event('durationchange'));
+await until(()=>dm.testRead('campaña/audio_director/music')?.active);
+assert.ok(Math.abs(unknownMusic.currentTime-20)<1,'a true intermediate pause retains its position after metadata loads');
+await until(()=>!unknown.document.querySelector('#pa-playBtn').disabled);
+// A changed shared intent cancels an older metadata wait; its late event must
+// not start an obsolete song after another DM has stopped/replaced it.
+dm.testWrite('campaña/audio_director/music',{trackId:song.id,active:false,startedAt:0,positionMs:15000,loop:false});
+unknownMusic.duration=NaN;unknownMusic.readyState=0;unknown.document.querySelector('#pa-playBtn').click();
+dm.testWrite('campaña/audio_director/music',{trackId:'lament',active:false,startedAt:0});
+unknownMusic.duration=60;unknownMusic.readyState=1;unknownMusic.dispatchEvent(new unknown.Event('loadedmetadata'));await pause();
+assert.equal(dm.testRead('campaña/audio_director/music').trackId,'lament');assert.equal(dm.testRead('campaña/audio_director/music').active,false);
+// Restore R2 music for the existing player and protected-delete regressions.
+dm.testWrite('campaña/audio_director/music',{trackId:song.id,active:true,startedAt:Date.now(),loop:false});
 // Uploaded SFX travels through the same cue bus, exactly once per listener.
 d.querySelector('[aria-label="Tipo de archivo"]').value='sfx';const sound=bytes.slice();sound[13]=99;
 Object.defineProperty(files,'files',{configurable:true,value:[new dm.File([sound],'Golpe.mp3',{type:'audio/mpeg'})]});submit.click();
@@ -128,13 +157,34 @@ dm.testWrite('campaña/audio_director/cue',stoppedCue);
 await until(()=>!d.querySelector('[data-audio-command="cue"]').disabled);d.querySelector('[data-audio-command="cue"]').click();
 await until(()=>listener.audioElements.filter(element=>element.src.includes(effect.id)).length===2);
 d.querySelector('#pa-stopAllQuick').click();await until(()=>listener.audioElements.filter(element=>element.src.includes(effect.id)).every(element=>element.paused));
+// A cue awaiting its R2 catalog must also be cancelled by a newer stop cue.
+const delayedBytes=bytes.slice();delayedBytes[13]=17;
+const delayedResult=await backend.request('/tracks?kind=sfx&name=Pending',{method:'PUT',body:delayedBytes});
+const delayedEffect=(await delayedResult.json()).track;
+const fetchBeforeDelay=listener.fetch;let releaseEffectCatalog;
+listener.fetch=async(...args)=>{
+ const response=await fetchBeforeDelay(...args);
+ if(new URL(args[0]).pathname==='/catalog'&&!releaseEffectCatalog)await new Promise(resolve=>{releaseEffectCatalog=resolve;});
+ return response;
+};
+dm.testWrite('campaña/audio_director/library_revision',Date.now());await until(()=>releaseEffectCatalog);
+dm.testWrite('campaña/audio_director/cue',{cueId:delayedEffect.id,nonce:'pending-r2-cue',at:Date.now()});
+await until(()=>!d.querySelector('#pa-stopAllEffects').disabled);d.querySelector('#pa-stopAllEffects').click();
+await until(()=>dm.testRead('campaña/audio_director/cue')?.action==='stop');
+releaseEffectCatalog();
+await until(()=>listener.LuminousAudio.getAvailableTracks('sfx').some(entry=>entry.id===delayedEffect.id));await pause();
+assert.equal(listener.audioElements.some(element=>element.src.includes(delayedEffect.id)),false,'a stopped pending cue cannot start after its catalog arrives');
+listener.fetch=fetchBeforeDelay;
+dm.testWrite('campaña/audio_director/cue',{cueId:delayedEffect.id,nonce:'fresh-r2-cue-after-stop',at:Date.now()});
+await until(()=>listener.audioElements.some(element=>element.src.includes(delayedEffect.id)));
+assert.equal(listener.audioElements.find(element=>element.src.includes(delayedEffect.id)).paused,false,'fresh cues remain playable after the stop generation changes');
 // Deleting a currently referenced song fails; stopping makes deletion possible.
 let songRow=[...d.querySelectorAll('.audio-cloud-file')].find(row=>row.textContent.includes('Mi canción'));
 songRow.querySelector('button').click();await until(()=>d.querySelector('.audio-cloud-library [role=status]').textContent.includes('Detén la pista'));
-assert.equal(backend.objects.size,2);
+assert.equal(backend.objects.size,3);
 await until(()=>!d.querySelector('[data-audio-command="stop-music"]').disabled);d.querySelector('[data-audio-command="stop-music"]').click();backend.setActive({});await pause();
 songRow=[...d.querySelectorAll('.audio-cloud-file')].find(row=>row.textContent.includes('Mi canción'));songRow.querySelector('button').click();
-await until(()=>backend.objects.size===1&&!submit.disabled);
+await until(()=>backend.objects.size===2&&!submit.disabled);
 assert.equal(dm.LuminousAudio.getAvailableTracks('music').length,1);
-reloaded.close();late.close();listener.close();dm.close();
+unknown.close();reloaded.close();late.close();listener.close();dm.close();
 console.log('R2 client integration passed: upload/deduplication, shared song/clock, signing-key recovery, paused R2 resume after DM reload, completed-track replay, shared stop for ambience/one-shots, late-join suppression and protected delete.');
