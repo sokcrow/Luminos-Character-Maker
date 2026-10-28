@@ -61,7 +61,7 @@ jobs:
           node tests/dm-dialogue-input-visible-smoke.mjs
       - name: Playwright Chromium dependencies
         run: |
-          npm install --no-save @playwright/test@1.55.0 jsdom@26.1.0
+          npm install --no-save @playwright/test@1.55.0 jsdom@26.1.0 miniflare@4.20260730.0
           npx playwright install --with-deps chromium
       - name: Real Theatre modules with in-memory Firebase
         run: |
@@ -69,6 +69,7 @@ jobs:
           node tests/director-prototype-dom-smoke.mjs
           node tests/audio-r2-client-smoke.mjs
           node tests/audio-r2-upload-feedback-smoke.mjs
+          node tests/audio-r2-workerd-smoke.mjs
       - name: Mobile, tablet and desktop Director UI
         run: npx playwright test tests/dm-theatre-director-workspace.spec.mjs --reporter=line --workers=1
 

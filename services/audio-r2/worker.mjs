@@ -29,7 +29,10 @@ async function firebaseRead(env,path,token,fetcher){
   if(base.protocol!=='https:' || base.username || base.password || !/\.(firebaseio\.com|firebasedatabase\.app)$/.test(base.hostname)) fail(503,'La dirección de Firebase del servicio de audio falta o no es válida.');
   const url=new URL('/'+path.split('/').map(encodeURIComponent).join('/')+'.json',base);
   url.searchParams.set('auth',token);
-  const response=await fetcher(url,{headers:{Accept:'application/json'},redirect:'error'});
+  const response=await fetcher(url,{headers:{Accept:'application/json'},redirect:'manual'});
+  // Workers rejects redirect:'error' before dispatch. Manual preserves the
+  // no-redirect boundary without forwarding the Firebase token elsewhere.
+  if(response.status>=300&&response.status<400)fail(503,'Firebase redirigió la consulta. Revisa la dirección directa de la base de datos en el servicio de audio.');
   if(!response.ok) fail(response.status===401||response.status===403?401:503,'No se pudo validar la sesión de juego.');
   try{return await response.json();}catch{fail(503,'Firebase no devolvió una respuesta válida para comprobar la sesión.');}
 }
