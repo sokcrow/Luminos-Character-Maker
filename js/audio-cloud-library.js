@@ -50,8 +50,11 @@
       let result;try{result=await response.json();}catch{throw Error('El servicio de audio no respondió correctamente.');}
       if(!response.ok)throw Error(result.error||'No se pudo completar la operación.');return result;
     }
-    refresh() {
-      if(this.pendingRefresh)return this.pendingRefresh;
+    refresh({invalidateUrls=false}={}) {
+      // Recovery must fetch a new ticket even if an ordinary refresh is in flight.
+      if(this.pendingRefresh)return invalidateUrls
+        ? this.pendingRefresh.catch(()=>{}).then(()=>this.refresh({invalidateUrls:true}))
+        : this.pendingRefresh;
       const generation=this.generation;
       this.pendingRefresh=this.request('/catalog').then(result=>{
         if(this.destroyed||generation!==this.generation)return;
@@ -60,7 +63,7 @@
           try{const u=new URL(entry.url);return ID.test(entry.id)&&KINDS[entry.kind]&&u.origin===this.endpoint&&u.pathname===`/media/${this.scope}/${entry.id}`&&Number.isFinite(entry.bytes)&&entry.bytes>0&&typeof entry.label==='string';}catch{return false;}
         }).map(entry=>{
           const cached=old.get(entry.id);
-          return cached?.expiresAt>Date.now()+120000 ? {...entry,url:cached.url,expiresAt:cached.expiresAt} : entry;
+          return !invalidateUrls && cached?.expiresAt>Date.now()+120000 ? {...entry,url:cached.url,expiresAt:cached.expiresAt} : entry;
         });
         this.bytes=Number(result.bytes)||0;this.render();this.onChange();
       }).finally(()=>{this.pendingRefresh=null;});

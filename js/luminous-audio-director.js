@@ -561,7 +561,7 @@
       if (!cloudLibrary?.endpoint || !String(state?.trackId || '').startsWith('r2_')) return;
       if (retrying) { setHint('No se pudo cargar este audio. Revisa el archivo y la conexión.'); return; }
       retrying = true;
-      cloudLibrary.refresh().then(() => {
+      cloudLibrary.refresh({invalidateUrls:true}).then(() => {
         const current = index === 0 ? musicState : ambienceState;
         if (current?.trackId !== state.trackId) return;
         if (index === 0) previousMusicKey = null; else previousAmbienceKey = null;
