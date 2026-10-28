@@ -482,3 +482,138 @@ body.on-game-dashboard #theatre-director-panel input:focus-visible { outline: 2p
 
 .on-game-dashboard #theatre-director-panel .dm-director-action:disabled { opacity: .48; cursor: default; }
 .on-game-dashboard #theatre-director-panel .dm-director-action:disabled:hover { background: #26201a; border-color: #765c35; }
+
+/* Director surface: the menu button opens a stage-sized workspace. */
+.on-game-dashboard #modulo-teatro > .theatre-dm-menu { aspect-ratio:auto; }
+.on-game-dashboard #theatre-director-panel[data-workspace="true"] {
+  position:fixed!important; inset:0!important; width:100%!important; height:100dvh!important;
+  padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left))!important;
+  display:grid; grid-template-rows:auto auto auto minmax(0,1fr); gap:8px; overflow:hidden;
+  background:radial-gradient(ellipse at 0 0,#39141988,transparent 50%),#0b090b!important;
+  border:1px solid #8a6548!important; scrollbar-gutter:auto;
+}
+.on-game-dashboard #theatre-director-panel .panel-title {font:normal 28px Georgia,serif!important;letter-spacing:.08em;padding-right:160px}
+.on-game-dashboard #theatre-director-panel .dm-director-intro {margin:0;color:#bba180}
+.on-game-dashboard #theatre-director-panel .dm-director-close {position:absolute;right:18px;top:18px;max-width:145px;z-index:5;background:#6b2023}
+.on-game-dashboard #theatre-director-panel .dm-director-tabs {position:static;display:flex;gap:8px;padding:8px 0;margin:0;background:transparent}
+.on-game-dashboard #theatre-director-panel .dm-director-tab {flex-direction:row;min-height:44px;padding:8px 18px;border-radius:2px;font-size:13px!important}
+.on-game-dashboard #theatre-director-panel .dm-director-tab[aria-selected="true"] {background:linear-gradient(120deg,#7e2728,#301315);border-color:#d3956a;box-shadow:none}
+.on-game-dashboard #theatre-director-panel .dm-director-view {overflow:auto;min-height:0;padding:8px;align-content:start}
+.on-game-dashboard #theatre-director-panel #dm-director-view-voices {display:grid;grid-template-columns:minmax(250px,27%) minmax(0,1fr) minmax(190px,19%);gap:14px;padding:0;overflow:hidden;align-content:stretch}
+.on-game-dashboard #theatre-director-panel .dm-director-pane {min-width:0;min-height:0;border:1px solid #796047;background:linear-gradient(150deg,#171415,#09090a);padding:14px;overflow:auto;scrollbar-width:thin;scrollbar-color:#826546 #151113;display:flex;flex-direction:column;gap:12px}
+.on-game-dashboard #theatre-director-panel .dm-director-stage-pane {padding:0;overflow:hidden;gap:0}
+.on-game-dashboard #theatre-director-panel .dm-director-stage-slot {flex:0 0 32%;min-height:100px;position:relative;overflow:hidden;background:#08080a}
+.on-game-dashboard #theatre-director-panel .dm-director-stage-slot .stage-view-wrapper {position:relative!important;width:100%!important;height:100%!important;min-height:0;aspect-ratio:auto!important;overflow:hidden}
+.on-game-dashboard #theatre-director-panel .dm-director-stage-slot #theatre-stage {min-height:0;height:100%}
+.on-game-dashboard #theatre-director-panel .dm-director-stage-slot .theatre-dialogue-wrapper {display:none}
+.on-game-dashboard #theatre-director-panel .dm-director-stage-slot .theatre-location {top:8px;font-size:14px}
+.on-game-dashboard #theatre-director-panel .dm-director-voice-grid {grid-template-columns:1fr}
+.on-game-dashboard #theatre-director-panel .dm-director-roster-grid {grid-template-columns:repeat(auto-fill,minmax(230px,1fr));align-items:start}
+.on-game-dashboard #theatre-director-panel .dm-director-action {border-radius:2px;font-weight:500!important}
+.on-game-dashboard #theatre-director-panel .actor-control-card {border-radius:2px;background:linear-gradient(140deg,#302322,#121214);padding:10px}
+.on-game-dashboard #theatre-director-panel .actor-control-card[data-visible="true"] {border-color:#cca763;box-shadow:inset 3px 0 #cca763}
+.on-game-dashboard #theatre-director-panel .actor-buttons {margin-top:10px}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-head {grid-template-columns:50px minmax(0,1fr)!important}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-head .dm-director-actor-speak {grid-column:1/-1;grid-row:auto}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-head .dm-director-portrait {grid-row:span 2}
+.on-game-dashboard #theatre-director-panel .dm-director-actor-advanced select {width:100%;min-height:44px}
+.on-game-dashboard #theatre-director-panel .dm-director-movement {display:flex;gap:8px;margin:8px 0}
+.on-game-dashboard #theatre-director-panel .dm-director-movement button {min-width:44px;min-height:44px}
+.on-game-dashboard #theatre-director-panel .dm-director-mobile-sections {display:none}
+.on-game-dashboard #theatre-director-panel input,.on-game-dashboard #theatre-director-panel select,.on-game-dashboard #theatre-director-panel button {min-height:44px;min-width:0;box-sizing:border-box;max-width:100%}
+.on-game-dashboard #theatre-director-panel > * {content-visibility:visible;contain-intrinsic-size:none}
+.on-game-dashboard #theatre-director-panel .dm-director-section-title {font:normal 19px Georgia,serif!important;color:#dfc39f}
+.on-game-dashboard #theatre-director-panel .dm-director-log-empty {text-align:center;color:#62594d;font-style:italic}
+@media(max-width:900px) {
+ .on-game-dashboard #theatre-director-panel[data-workspace="true"] {padding:12px!important;grid-template-rows:auto auto auto auto minmax(0,1fr)}
+ .on-game-dashboard #theatre-director-panel .panel-title {font-size:20px!important;padding-right:124px;min-height:44px;display:flex;align-items:center}
+ .on-game-dashboard #theatre-director-panel .dm-director-close {top:12px;right:12px;width:116px;font-size:11px!important}
+ .on-game-dashboard #theatre-director-panel .dm-director-tabs {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:0}
+ .on-game-dashboard #theatre-director-panel .dm-director-tab {padding:8px 2px;font-size:11px!important}
+ .on-game-dashboard #theatre-director-panel .dm-director-tab img {display:none}
+ .on-game-dashboard #theatre-director-panel .dm-director-mobile-sections {display:flex;gap:6px}
+ .on-game-dashboard #theatre-director-panel .dm-director-mobile-sections button {flex:1}
+ .on-game-dashboard #theatre-director-panel .dm-director-mobile-sections button[aria-pressed="true"] {background:#64422d;border-color:#e2be87}
+ .on-game-dashboard #theatre-director-panel #dm-director-view-voices {display:flex}
+ .on-game-dashboard #theatre-director-panel #dm-director-view-voices > * {display:none;flex:1}
+ .on-game-dashboard #theatre-director-panel #dm-director-view-voices[data-mobile-view="actors"] > .dm-director-cast-pane,
+ .on-game-dashboard #theatre-director-panel #dm-director-view-voices[data-mobile-view="stage"] > .dm-director-stage-pane,
+ .on-game-dashboard #theatre-director-panel #dm-director-view-voices[data-mobile-view="tools"] > .dm-director-tools-pane {display:flex}
+ .on-game-dashboard #theatre-director-panel .dm-director-view:not(#dm-director-view-voices) {grid-row:4/-1}
+}
+@media(max-height:430px) and (orientation:landscape) {
+ .on-game-dashboard #theatre-director-panel[data-workspace="true"] {padding:6px 12px!important;gap:4px;grid-template-rows:auto auto auto minmax(0,1fr)}
+ .on-game-dashboard #theatre-director-panel .dm-director-intro {display:none}
+ .on-game-dashboard #theatre-director-panel .dm-director-close {top:6px}
+ .on-game-dashboard #theatre-director-panel .dm-director-view:not(#dm-director-view-voices) {grid-row:3/-1}
+}
+
+/* Canonical parchment log; rotate the mask, never the portrait. */
+.on-game-dashboard #theatre-director-panel #theatre-log-container {
+ --bg-color:#d8cdb8;
+ --text-color:#1a1a1a;
+ --border-dark:#2a1610;
+ --accent-gold:#c59c5c;
+ --divider-color:#a39581;
+ display:flex;
+ flex-direction:column;
+ flex:1 1 auto;
+ min-height:0;
+ height:auto;
+ width:100%;
+ max-width:100%;
+ background-color:var(--bg-color);
+ background-image:repeating-linear-gradient(transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 6px);
+ border:12px solid var(--border-dark);
+ border-radius:8px;
+ box-shadow:0 0 0 4px #000 inset,0 10px 30px rgba(0,0,0,.8);
+ overflow:hidden;
+ padding:0;
+ font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+ gap:0;
+ color:var(--text-color);
+ scroll-margin:0;
+}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-scroll-area {
+ flex:1;
+ overflow-y:auto;
+ overflow-x:hidden;
+ min-height:0;
+ padding:20px 40px;
+ z-index:1;
+ position:relative;
+ box-sizing:border-box;
+ scrollbar-color:var(--border-dark) rgba(0,0,0,.1);
+}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-scroll-area::-webkit-scrollbar {width:10px}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-scroll-area::-webkit-scrollbar-track {background:rgba(0,0,0,.1);border-left:1px solid var(--divider-color)}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-scroll-area::-webkit-scrollbar-thumb {background:var(--border-dark)}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row {display:flex;align-items:center;gap:20px;margin-bottom:15px;min-height:100px;animation:fadeIn .3s ease-in;background:transparent;border:0;box-shadow:none;}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-divider {border:none;border-top:2px solid var(--divider-color);margin:15px 0}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .character-col {display:flex;flex-direction:column;align-items:center;width:92px;flex-shrink:0}
+/* Retrato heptagonal invertido 180 grados, dejando el contenido de la imagen derecho. */
+.on-game-dashboard #theatre-director-panel #theatre-log-container .hex-border {width:58px;height:58px;padding:3px;box-sizing:border-box;background:linear-gradient(145deg,#d4af55 0%,#6c4f21 48%,#271b10 100%);border-radius:0;clip-path:polygon(50% 100%,12% 83%,0% 45%,22% 0%,78% 0%,100% 45%,88% 83%);display:flex;justify-content:center;align-items:center;flex-shrink:0;filter:drop-shadow(0 5px 8px rgba(0,0,0,.35))}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .hex-portrait {width:52px;height:52px;background:#15120e;border-radius:0;clip-path:polygon(50% 100%,12% 83%,0% 45%,22% 0%,78% 0%,100% 45%,88% 83%);overflow:hidden;display:flex;justify-content:center;align-items:center;flex-shrink:0}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .hex-portrait img {width:100%;height:100%;object-fit:cover;object-position:center;border-radius:0}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .canon-initial {font-size:18px;color:#e5d4b3;font-weight:700}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .character-name {margin-top:8px;font-weight:800;font-size:1.1rem;color:var(--text-color);text-transform:capitalize;text-shadow:none!important;text-align:center;overflow-wrap:anywhere}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .text-col {flex:1;font-size:1.3rem;color:var(--text-color);line-height:1.4;font-weight:500;padding-right:15px;min-width:0}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .text-col p {margin:0;color:var(--text-color);white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word}
+/* Normas originales de presentación para narración, acciones y pensamientos. */
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row.is-centered-log-entry {display:grid;grid-template-columns:minmax(0,1fr);justify-items:stretch;align-items:center}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row.is-centered-log-entry .character-col {display:none!important}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row.is-centered-log-entry .text-col {width:100%;max-width:none;margin:0;padding-left:18px;padding-right:18px;text-align:center}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row.is-centered-log-entry .text-col p {margin-left:auto;margin-right:auto;text-align:center}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row.is-action .text-col p,.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row.is-thought .text-col p {font-style:italic}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row.is-action .text-col p {letter-spacing:.02em}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row.is-narration .text-col,.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row.is-system .text-col {opacity:.9}
+.on-game-dashboard #theatre-director-panel #theatre-log-container .canon-empty {text-align:center;color:#62605b;font-style:italic;padding:30px 10px}
+/* Adaptación de espacio: misma identidad visual a tamaños estrechos, sin compresión horizontal. */
+@media(max-width:900px){.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-scroll-area{padding:14px 18px}}
+@media(max-width:500px){.on-game-dashboard #theatre-director-panel #theatre-log-container{border-width:8px}.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-scroll-area{padding:10px 12px}.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row{gap:10px;min-height:70px;margin-bottom:10px}.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-divider{margin:9px 0}.on-game-dashboard #theatre-director-panel #theatre-log-container .character-col{width:76px}.on-game-dashboard #theatre-director-panel #theatre-log-container .character-name{font-size:13px}.on-game-dashboard #theatre-director-panel #theatre-log-container .text-col{font-size:16px;padding-right:0}}
+@media(max-height:500px){.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-row{min-height:66px}.on-game-dashboard #theatre-director-panel #theatre-log-container .dialogue-scroll-area{padding-top:8px;padding-bottom:8px}}
+.on-game-dashboard .theatre-dm-menu[open] > summary {display:none!important}
+.on-game-dashboard #theatre-director-panel[data-workspace="true"] > * {content-visibility:visible;contain-intrinsic-size:none}
+.on-game-dashboard .theatre-dm-menu-toggle{display:flex!important;align-items:center;justify-content:center;gap:8px;width:auto!important;height:auto!important;min-height:48px;min-width:118px;padding:8px 14px!important;border:1px solid #bd9662!important;border-radius:2px!important;background:#25171c!important;color:#f3dcbb;font:15px Georgia,serif;box-shadow:0 4px 18px #0009}
+.on-game-dashboard .theatre-dm-menu-toggle::before{display:none!important}
+.on-game-dashboard .theatre-dm-menu-toggle > img{position:static!important;transform:none!important;width:24px!important;height:24px!important}

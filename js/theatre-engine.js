@@ -861,18 +861,16 @@
         if (!actorId) return false;
         if (!getValidSpriteUrl(actorData?.sprite || actorData?.url)) return false;
         const scene = await getFreshScene();
-        if (scene.transitioning) return false;
+        if (scene.transitioning || !scene.actores?.[actorId]) return false;
 
-        const maxVisible = getVisibleLimit(scene);
-        const visibleRef = db.ref(`${getPaths().scene}/actores_visibles`);
-        await visibleRef.transaction((current) => {
-            const visibles = normalizeIdList(current);
-            if (visibles.includes(actorId)) return visibles;
-            visibles.push(actorId);
-            while (visibles.length > maxVisible) visibles.shift();
-            return visibles;
+        const result = await db.ref(getPaths().scene).transaction((current) => {
+            if (!current?.actores?.[actorId] || current.transitioning) return;
+            const visibles = normalizeIdList(current.actores_visibles).filter(id => current.actores[id]);
+            if (!visibles.includes(actorId)) visibles.push(actorId);
+            current.actores_visibles = visibles.slice(-getVisibleLimit(current));
+            return current;
         });
-        return true;
+        return result.committed;
     }
 
     async function removeVisibleActor(actorId) {
@@ -891,14 +889,17 @@
 
     async function prepareExpression(actorId, expression) {
         if (!actorId || !expression) return false;
-        await db.ref(`${getPaths().scene}/actores/${actorId}/expresionPreparada`).set(expression);
-        return true;
+        const result = await db.ref(`${getPaths().scene}/actores/${actorId}`).transaction(current => {
+            if (!current) return;
+            return Object.assign({}, current, { expresionPreparada: expression });
+        });
+        return result.committed;
     }
 
     async function revealPreparedExpression(actorId, expression, sprite) {
         if (!actorId) return false;
         const scene = await getFreshScene();
-        if (scene.transitioning) return false;
+        if (scene.transitioning || !scene.actores?.[actorId]) return false;
 
         const validSprite = getValidSpriteUrl(sprite);
         if (!validSprite) return false;
@@ -907,9 +908,32 @@
         if (expression) updates.expresionActiva = expression;
         updates.sprite = validSprite;
         if (Object.keys(updates).length) {
-            await db.ref(`${getPaths().scene}/actores/${actorId}`).update(updates);
+            const result = await db.ref(`${getPaths().scene}/actores/${actorId}`).transaction(current => {
+                if (!current) return;
+                return Object.assign({}, current, updates);
+            });
+            if (!result.committed) return false;
         }
         return true;
+    }
+
+    async function resolveInterventionActor(message, scene) {
+        const actorId = message?.actorId;
+        if (!actorId) return { data: {}, sceneInstance: false };
+        const instance = scene.actores?.[actorId];
+        // An intervention queued for a scene instance must never fall back to a
+        // library record after retirement. Player composers also legitimately
+        // queue persistent assigned IDs without adding a temporary scene instance.
+        if (message.actorScope === "scene") {
+            return instance ? { data: instance, sceneInstance: true } : null;
+        }
+        const [actor, npc] = await Promise.all([
+            db.ref(`campaña/actores/${actorId}`).once("value"),
+            db.ref(`campaña/base_datos_npcs/${actorId}`).once("value")
+        ]);
+        const data = actor.val() || npc.val();
+        if (data && typeof data === "object") return { data, sceneInstance: false };
+        return message.actorScope !== "assigned" && instance ? { data: instance, sceneInstance: true } : null;
     }
 
     async function publishIntervention(messageId, message) {
@@ -919,20 +943,26 @@
             return { published: false, reason: scene.transitioning ? "transition" : "stale" };
         }
 
+        const resolvedActor = await resolveInterventionActor(message, scene);
+        if (!resolvedActor) return { published: false, reason: "actor-retired" };
         const type = message?.tipo_dialogo || "dialogo";
         const active = Boolean(message?.actorId && type !== "pensamiento" && type !== "narracion");
-        const sceneActor = message?.actorId ? (scene?.actores?.[message.actorId] || {}) : {};
+        const sceneActor = resolvedActor.data;
         const canonicalName = type === "narracion"
             ? ""
             : resolveCanonicalIdentityText(sceneActor.nombre, message?.nombre);
         const canonicalTitle = type === "narracion"
             ? ""
             : resolveCanonicalIdentityText(sceneActor.titulo, message?.titulo);
-        if (active) {
+        if (active && resolvedActor.sceneInstance) {
             await updateVisibleActors(message.actorId, message);
             await revealPreparedExpression(message.actorId, message.expression, message.sprite);
         }
 
+        // A retirement may have landed while preparing the visible expression.
+        if (resolvedActor.sceneInstance && !(await getFreshScene()).actores?.[message.actorId]) {
+            return { published: false, reason: "actor-retired" };
+        }
         const activePayload = {
             messageId: messageId || null,
             nombre: canonicalName,
@@ -965,8 +995,12 @@
         const paths = getPaths();
         const scene = await getFreshScene();
         if (scene.transitioning) return { queued: false, reason: "transition" };
+        const actorScope = message?.actorScope || (scene.actores?.[message?.actorId] ? "scene" : "assigned");
+        const resolvedActor = await resolveInterventionActor(Object.assign({}, message, { actorScope }), scene);
+        if (!resolvedActor) return { queued: false, reason: "actor-retired" };
         const ref = db.ref(paths.queue).push();
         await ref.set(Object.assign({}, message, {
+            actorScope: resolvedActor.sceneInstance ? "scene" : "assigned",
             createdAt: global.firebase.database.ServerValue.TIMESTAMP,
             roomId: paths.roomId
         }));
@@ -1262,6 +1296,7 @@
         clampVisibleLimit,
         clampPercentage,
         getVisibleLimit,
+        isValidSprite: value => Boolean(getValidSpriteUrl(value)),
         getRenderIds,
         resolveCanonicalIdentityText,
         resolveIdentityPresentation,
