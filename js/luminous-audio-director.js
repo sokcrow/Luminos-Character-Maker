@@ -57,6 +57,7 @@
   let previousAmbienceKey = null;
   let firstCueReceived = false;
   let previousCue = null;
+  const receivedCues = new Set();
   let ownCue = null;
   let pendingWrite = null;
   let serverOffset = 0;
@@ -207,10 +208,18 @@
     if (!firstCueReceived) {
       firstCueReceived = true;
       previousCue = token;
+      if (token) receivedCues.add(token);
       return; // A late join never replays the last sound of a previous scene.
     }
-    if (!token || token === previousCue) return;
+    if (!token || token === previousCue || receivedCues.has(token)) return;
     previousCue = token;
+    receivedCues.add(token);
+    if (receivedCues.size > 128) receivedCues.delete(receivedCues.values().next().value);
+    if (cue.action === 'stop') {
+      oneShots.forEach(sound => sound.pause());
+      oneShots.clear();
+      return;
+    }
     if (token === ownCue) { ownCue = null; return; }
     // Reconnecting may deliver a newer nonce that is nevertheless long expired.
     const age = serverNow() - Number(cue.at);
@@ -268,7 +277,8 @@
     pendingWrite = request;
     updateDirectorView();
     try {
-      await ref.child(channel).set(data);
+      if (channel === 'effects') await ref.update(data);
+      else await ref.child(channel).set(data);
       setHint("Se envió el cambio a la campaña.");
       return true;
     } catch (_) {
@@ -302,7 +312,8 @@
       const entry = byId("music", trackId);
       if (entry) {
         previewLoopOnGesture("music", entry);
-        const resume = musicState?.trackId === trackId && !musicState?.active ? Number(musicState.positionMs) || 0 : 0;
+        let resume = musicState?.trackId === trackId && !musicState?.active ? Number(musicState.positionMs) || 0 : 0;
+        if (Number.isFinite(music.duration) && music.duration > 0 && resume >= music.duration * 1000) resume = 0;
         directorWrite("music", { trackId, active: true, startedAt: resume ? serverNow() - resume : stamp, loop: musicState?.loop !== false });
       }
     } else if (type === "pause-music") {
@@ -321,6 +332,12 @@
       }
     } else if (type === "stop-ambience") {
       directorWrite("ambience", { active: false, trackId: "", startedAt: 0 });
+    } else if (type === 'stop-effects') {
+      const nonce = audioRef.child('events').push().key;
+      directorWrite('effects', {
+        ambience: { active: false, trackId: '', startedAt: 0 },
+        cue: { action: 'stop', cueId: '', nonce, at: stamp }
+      });
     } else if (type === "cue") {
       const cueId = selects("sfx").value;
       if (!byId("sfx", cueId)) return;
@@ -379,6 +396,7 @@
     canonicalNode('playBtn').textContent=musicState?.active?'Ⅱ':'▶';
     canonicalNode('playBtn').setAttribute('aria-label',musicState?.active?'Pausar':'Reproducir');
     for(const id of ['playBtn','prevBtn','nextBtn','repeatBtn','seek','stopAllEffects','stopAllQuick'])canonicalNode(id).disabled=!isDirector||Boolean(pendingWrite)||Boolean(cloudLibrary?.deleting);
+    if (musicState?.trackId && !selected) canonicalNode('playBtn').disabled = true;
     canonicalNode('repeatBtn').setAttribute('aria-pressed',String(musicState?.loop!==false));
     for(const id of ['musicVolume','footerVolume'])canonicalNode(id).value=prefs.music;
     canonicalNode('sfxVolume').value=prefs.sfx;
@@ -429,7 +447,11 @@
     }
     node('mobileLibrary').onclick=()=>mobilePane('library');node('mobileMixer').onclick=()=>mobilePane('mixer');
     global.addEventListener('resize',()=>mobilePane(app.dataset.mobile||'library'));mobilePane('library');
-    node('playBtn').onclick=()=>command(musicState?.active?'pause-music':'play-music');
+    node('playBtn').onclick=()=>{
+      if (musicState?.active) command('pause-music');
+      else if (musicState?.trackId) canonicalPlay('music', musicState.trackId);
+      else command('play-music');
+    };
     function next(delta){
       const tracks=availableTracks('music');if(!tracks.length)return;
       const index=tracks.findIndex(t=>t.id===musicState?.trackId);
@@ -439,7 +461,7 @@
     node('prevBtn').onclick=()=>next(-1);node('nextBtn').onclick=()=>next(1);
     node('shuffleBtn').onclick=()=>{canonicalShuffle=!canonicalShuffle;node('shuffleBtn').setAttribute('aria-pressed',String(canonicalShuffle));};
     node('repeatBtn').onclick=()=>{if(musicState&&!pendingWrite)directorWrite('music',{...musicState,loop:musicState.loop===false});};
-    node('stopAllEffects').onclick=node('stopAllQuick').onclick=()=>command('stop-ambience');
+    node('stopAllEffects').onclick=node('stopAllQuick').onclick=()=>command('stop-effects');
     node('seek').onchange=()=>{
       if(!isDirector||pendingWrite||!musicState||!Number.isFinite(music.duration)||music.duration<=0)return;
       const positionMs=Number(node('seek').value)/1000*music.duration*1000;
@@ -453,7 +475,7 @@
     music.addEventListener('timeupdate',progress);music.addEventListener('loadedmetadata',progress);
     music.addEventListener('ended',()=>{
       if(isDirector&&!pendingWrite&&musicState?.active&&musicState.loop===false)
-        directorWrite('music',{...musicState,active:false,startedAt:0,positionMs:Number.isFinite(music.duration)?music.duration*1000:0});
+        directorWrite('music',{...musicState,active:false,startedAt:0,positionMs:0});
     });
     renderCanonicalAudio();
   }
@@ -552,6 +574,7 @@
     offsetListener = null;
     firstCueReceived = false;
     previousCue = null;
+    receivedCues.clear();
     ownCue = null;
     pendingWrite = null;
     isDirector = false;

@@ -45,6 +45,10 @@ for(const [width,height] of sizes){
   await expect.poll(()=>page.evaluate(()=>window.testRead('campaña/audio_director/music')?.active)).toBe(true);
   await audio.getByRole('button',{name:'Pausar',exact:true}).click();
   await expect.poll(()=>page.evaluate(()=>window.testRead('campaña/audio_director/music')?.active)).toBe(false);
+  await audio.getByRole('tab',{name:/Efectos/}).click();
+  await audio.getByRole('button',{name:'Detener ambientes y efectos',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>window.testRead('campaña/audio_director/cue')?.action)).toBe('stop');
+  await audio.getByRole('tab',{name:/Música/}).click();
   await page.screenshot({path:info.outputPath(`music-${width}x${height}.png`)});
   if(width<=960){
    await audio.getByRole('button',{name:'Mezclador',exact:true}).click();await expect(audio.getByRole('slider',{name:'Volumen de efectos',exact:true})).toBeVisible();

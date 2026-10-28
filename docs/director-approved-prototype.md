@@ -19,6 +19,8 @@ Misma cabecera Música / Efectos / Mis archivos, biblioteca lateral, catálogo, 
 
 ## Comprobaciones
 
+Correcciones de revisión: el transporte inferior reanuda el ID compartido, incluso tras recargar con una canción R2 pausada; una pista completada sin repetición reinicia su posición; los controles de parada publican una señal `cue` de acción `stop` y detienen ambiente y efectos puntuales en los clientes. Esta señal requiere desplegar las reglas RTDB actualizadas de este PR en campaña global y encuentros aislados. No se desplegaron desde esta tarea. Los participantes deben cargar la versión nueva del cliente para atender la señal de parada.
+
 Prueba DOM específica: `node tests/director-prototype-dom-smoke.mjs`. Comprueba estructura de referencia, separación de jugadores y NPC con datos reales del fixture, apertura/cierre/cancelación/reapertura, vuelta al visor con un único escenario, publicación única, Acción y controles de audio/R2. Se mantienen las regresiones de actores retirados, IDs asignados, catálogo R2, firmas, permisos y reloj compartido.
 
 Prueba visual y funcional: `npx playwright test tests/dm-theatre-director-workspace.spec.mjs --workers=1`. Cubre 360×800, 390×844, 844×390, 768×1024, 1280×720 y 1920×1080. Guarda capturas de elenco, registro, compositor, música y archivos; verifica que el cierre esté dentro del viewport y reciba el clic, y recorre los controles reales.

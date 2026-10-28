@@ -40,6 +40,14 @@ async function player(){
  w.eval(await fs.readFile('js/audio-cloud-library.js','utf8'));w.eval(await fs.readFile('js/luminous-audio-director.js','utf8'));await until(()=>w.audioElements[0]?.src.includes(song.id));return w;
 }
 const listener=await player();assert.equal(listener.audioElements[0].paused,false);assert.equal(listener.document.querySelector('.audio-cloud-library').hidden,true);
+async function reloadedDirector(){
+ const dom=new JSDOM('<!doctype html><html><head></head><body class="on-game-dashboard"></body></html>',{url:origin,runScripts:'outside-only',pretendToBeVisual:true});
+ const w=dom.window;audioMock(w);fetchMock(w);w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
+ const database=()=>dm.testDb;database.ServerValue=dm.firebase.database.ServerValue;
+ w.firebase={apps:[{}],database,auth:()=>({currentUser:{uid:'dm'},onAuthStateChanged:fn=>fn({uid:'dm',getIdToken:async()=>jwt('dm')})})};
+ for(const path of ['js/director-prototype-templates.js','js/audio-cloud-library.js','js/luminous-audio-director.js'])w.eval(await fs.readFile(path,'utf8'));
+ await until(()=>w.audioElements[0]?.src.includes(song.id));return w;
+}
 // Ordinary refreshes retain usable URLs; load-error recovery replaces revoked
 // tickets, including when an ordinary catalog request is already in flight.
 const music=listener.audioElements[0],originalUrl=music.src;
@@ -72,6 +80,26 @@ backend.env.AUDIO_SIGNING_KEY='third-rotated-signing-key-with-at-least-32-charac
 music.dispatchEvent(new listener.Event('error'));
 await until(()=>music.src!==previousUrl);
 assert.equal((await backend.handler(new Request(music.src),backend.env)).status,200);
+// P2: reloading a DM while R2 music is paused must resume the displayed shared
+// track and position, regardless of the hidden selector's default/local choice.
+dm.testWrite('campaña/audio_director/music',{trackId:song.id,active:false,startedAt:0,positionMs:12345,loop:false});
+const reloaded=await reloadedDirector(),reloadMusic=reloaded.audioElements[0];
+assert.equal(reloaded.document.querySelector('#pa-nowTitle').textContent,'Mi canción');
+reloaded.document.querySelector('#pa-playBtn').click();await until(()=>dm.testRead('campaña/audio_director/music')?.active);
+assert.equal(dm.testRead('campaña/audio_director/music').trackId,song.id,'footer must resume the shared R2 song after reload');
+assert.ok(Math.abs(reloadMusic.currentTime-12.345)<1,'a pause resumes its stored position');
+// P2: completion without repeat is not a resumable pause at the last sample.
+for(const fromCard of [false,true]){
+ await until(()=>!reloaded.document.querySelector('#pa-playBtn').disabled);
+ reloadMusic.currentTime=60;reloadMusic.paused=true;reloadMusic.dispatchEvent(new reloaded.Event('ended'));
+ await until(()=>dm.testRead('campaña/audio_director/music')?.active===false);
+ assert.equal(dm.testRead('campaña/audio_director/music').positionMs,0,'an ended track is ready to restart');
+ await until(()=>!reloaded.document.querySelector('#pa-playBtn').disabled);
+ const play=fromCard?reloaded.document.querySelector('[data-track-id="'+song.id+'"] .play'):reloaded.document.querySelector('#pa-playBtn');
+ play.click();await until(()=>dm.testRead('campaña/audio_director/music')?.active);
+ assert.equal(dm.testRead('campaña/audio_director/music').trackId,song.id);
+ assert.ok(reloadMusic.currentTime<1,'footer and card restart a completed song at zero');
+}
 // Uploaded SFX travels through the same cue bus, exactly once per listener.
 d.querySelector('[aria-label="Tipo de archivo"]').value='sfx';const sound=bytes.slice();sound[13]=99;
 Object.defineProperty(files,'files',{configurable:true,value:[new dm.File([sound],'Golpe.mp3',{type:'audio/mpeg'})]});submit.click();
@@ -83,6 +111,23 @@ await until(()=>listener.audioElements.filter(element=>element.src.includes(effe
 dm.testWrite('campaña/audio_director/cue',dm.testRead('campaña/audio_director/cue'));await pause();
 assert.equal(listener.audioElements.filter(element=>element.src.includes(effect.id)).length,1);
 const late=await player();assert.equal(late.audioElements.filter(element=>element.src.includes(effect.id)).length,0);
+// P2: both stop controls halt continuous ambience and already-started one-shots
+// on the DM and remote players, without stopping the music channel.
+d.querySelector('[data-audio-command="play-ambience"]').click();await until(()=>dm.testRead('campaña/audio_director/ambience')?.active);
+await until(()=>dm.audioElements.some(element=>element.src.includes(effect.id)));
+const playedCue=dm.testRead('campaña/audio_director/cue');
+d.querySelector('#pa-stopAllEffects').click();
+await until(()=>dm.testRead('campaña/audio_director/cue')?.action==='stop'&&dm.testRead('campaña/audio_director/ambience')?.active===false);
+for(const w of [dm,listener,reloaded])assert.equal(w.audioElements.find(element=>element.src.includes(effect.id)).paused,true);
+assert.equal(listener.audioElements[1].paused,true);assert.equal(listener.audioElements[0].paused,false);
+const stoppedCue=dm.testRead('campaña/audio_director/cue');dm.testWrite('campaña/audio_director/cue',stoppedCue);await pause();
+assert.equal(listener.audioElements.filter(element=>element.src.includes(effect.id)).length,1,'duplicate stop cannot replay a cue');
+dm.testWrite('campaña/audio_director/cue',playedCue);await pause();
+assert.equal(listener.audioElements.filter(element=>element.src.includes(effect.id)).length,1,'rollback to an already handled cue cannot restart a stopped effect');
+dm.testWrite('campaña/audio_director/cue',stoppedCue);
+await until(()=>!d.querySelector('[data-audio-command="cue"]').disabled);d.querySelector('[data-audio-command="cue"]').click();
+await until(()=>listener.audioElements.filter(element=>element.src.includes(effect.id)).length===2);
+d.querySelector('#pa-stopAllQuick').click();await until(()=>listener.audioElements.filter(element=>element.src.includes(effect.id)).every(element=>element.paused));
 // Deleting a currently referenced song fails; stopping makes deletion possible.
 let songRow=[...d.querySelectorAll('.audio-cloud-file')].find(row=>row.textContent.includes('Mi canción'));
 songRow.querySelector('button').click();await until(()=>d.querySelector('.audio-cloud-library [role=status]').textContent.includes('Detén la pista'));
@@ -91,5 +136,5 @@ await until(()=>!d.querySelector('[data-audio-command="stop-music"]').disabled);
 songRow=[...d.querySelectorAll('.audio-cloud-file')].find(row=>row.textContent.includes('Mi canción'));songRow.querySelector('button').click();
 await until(()=>backend.objects.size===1&&!submit.disabled);
 assert.equal(dm.LuminousAudio.getAvailableTracks('music').length,1);
-late.close();listener.close();dm.close();
-console.log('R2 client integration passed: real file upload, duplicate prevention, catalog, DM/player synchronized song, signing-key rotation recovery (including pending refresh), one-shot SFX, late-join suppression and protected delete.');
+reloaded.close();late.close();listener.close();dm.close();
+console.log('R2 client integration passed: upload/deduplication, shared song/clock, signing-key recovery, paused R2 resume after DM reload, completed-track replay, shared stop for ambience/one-shots, late-join suppression and protected delete.');

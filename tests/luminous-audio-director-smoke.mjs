@@ -117,6 +117,25 @@ function snapshot(v){return{val:()=>v??null,child:path=>snapshot(path.split('/')
 const allowed=uid=>new Function('auth','root','$encounterId',`return (${scopedAudio['.write']});`)({uid},snapshot(dbState),'room');
 assert.equal(allowed('host'),true);
 for(const uid of ['player','global-dm','outsider'])assert.equal(allowed(uid),false);
+// Validate the stop cue union in both campaigns, retaining the same DM-only
+// authority and rejecting blank play cues or malformed stop messages.
+function cueSnapshot(value){return{
+ val:()=>value??null,exists:()=>value!==null&&value!==undefined,
+ isString:()=>typeof value==='string',isNumber:()=>typeof value==='number'&&Number.isFinite(value),
+ hasChildren:keys=>keys.every(key=>value?.[key]!==undefined&&value?.[key]!==null),
+ child:key=>cueSnapshot(value?.[key])
+};}
+const stopCue={action:'stop',cueId:'',nonce:'stop-1',at:Date.now()};
+for(const audioRules of [rules,scopedAudio]){
+ const expression=audioRules.cue['.validate'].replace(/\.matches\(/g,'.match(');
+ const valid=value=>Boolean(new Function('newData',`return (${expression});`)(cueSnapshot(value)));
+ assert.equal(valid(stopCue),true);
+ for(const cueId of ['coin-heads','coin-tails','r2_'+'a'.repeat(64)])assert.equal(valid({cueId,nonce:'play-1',at:Date.now()}),true);
+ for(const value of [{cueId:'',nonce:'x',at:1},{...stopCue,cueId:'coin-heads'},{...stopCue,at:'now'},{...stopCue,nonce:42},{...stopCue,action:'unknown'}])assert.equal(valid(value),false);
+}
+const globalWrite=uid=>new Function('auth','root',`return (${rules['.write']});`)(uid?{uid}:null,snapshot(dbState));
+assert.equal(globalWrite('global-dm'),true);
+for(const uid of ['player','outsider',null])assert.equal(globalWrite(uid),false);
 console.log('Audio reconnect freshness, rejected-write rollback and isolated authority: OK');
 
 // Shared clock and pause preserve a late listener's position without a second player.
