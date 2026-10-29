@@ -188,7 +188,7 @@
   function close() {if(state.busy)return;state.open=false;ensureModal().hidden=true;returnFocus?.focus?.();}
   function install() {
     if (!global.document || !live() || global.document.getElementById("btn-creature-compendium")) return false;
-    const anchor = global.document.getElementById("btn-postcombat-loot") || global.document.getElementById("btn-global-inventory");
+    const anchor = global.document.getElementById("btn-global-inventory");
     const parent = anchor?.parentElement || global.document.querySelector("#combat-entry-menu nav") || global.document.getElementById("mirror-bar");
     if (!parent) return false;
     const button = global.document.createElement("button");button.id="btn-creature-compendium";button.type="button";button.className="hud-menu-item";button.textContent="Compendio";
@@ -199,3 +199,4 @@
     if (!install()) {let tries=0;const timer=global.setInterval(()=>{if(install()||++tries>120)global.clearInterval(timer);},250);}
   }
 })(typeof window !== "undefined" ? window : globalThis);
+
