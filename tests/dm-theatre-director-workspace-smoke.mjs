@@ -11,7 +11,7 @@ const runtime = fs.readFileSync(new URL("../js/on-game-dashboard.js", import.met
 new vm.Script(workspace, { filename: "theatre-dm-workspace.js" });
 
 assert.match(html, /css\/theatre-dm-workspace\.css\?v=20261028-director-3/);
-assert.match(html, /js\/theatre-dm-workspace\.js\?v=20261029-director-tools-3/);
+assert.match(html, /js\/theatre-dm-workspace\.js\?v=20261029-dm-roll-menu-1/);
 assert.ok(html.indexOf("js/on-game-dashboard.js") < html.indexOf("js/theatre-dm-workspace.js"), "workspace must keep the original send handler installed");
 assert.ok(html.includes('id="theatre-speaker-select"') && html.includes('id="btn-send-dialogue"'), "canonical send controls must be retained");
 assert.match(workspace, /\["voices", "Teatro"/);

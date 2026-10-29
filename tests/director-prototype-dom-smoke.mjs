@@ -188,7 +188,7 @@ w.testWrite('campaña/jugadores/check_player',{uid:'check-player-uid',characterN
 for(const file of ['proficiency-runtime','theatre-roll-visualizer','theatre-check-coordinator'])w.eval(await fs.readFile('js/'+file+'.js','utf8'));
 w.LuminousTheatreCheckCoordinator.bindAuthorizedData();
 await tick();root.querySelector('[data-tool="checks"]').click();await tick();
-assert.equal(d.getElementById('theatre-check-director').parentElement.id,'dm-director-view-checks');
+assert.equal(d.getElementById('theatre-check-director').parentElement.id,'dm-roll-menu');
 assert.equal(d.getElementById('dm-director-view-checks').hidden,false);assert.equal(d.getElementById('dm-director-view-scenes').hidden,true);
 d.getElementById('theatre-check-target-player').value='check-player-uid';d.getElementById('theatre-check-ability').value='str';d.getElementById('theatre-check-threshold').value='12';
 d.getElementById('theatre-check-send').click();await tick();
