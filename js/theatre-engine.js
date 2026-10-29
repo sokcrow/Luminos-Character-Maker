@@ -1048,6 +1048,7 @@
             });
 
             await db.ref(paths.scene).update({
+                nombre: payload.nombre || "",
                 fondo: payload.fondo || "",
                 locacion: payload.locacion || "",
                 escenarioId: payload.escenarioId || null,

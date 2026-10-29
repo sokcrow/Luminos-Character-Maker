@@ -68,12 +68,27 @@
    root.querySelectorAll('[data-mobile-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.mobileTab===view)));
   }
   root.querySelectorAll('[data-mobile-tab]').forEach(b=>b.onclick=()=>mobile(b.dataset.mobileTab));
+  const sceneView=doc.getElementById('dm-director-view-scenes');
+  const sceneGroups={};
+  for(const [group,ids] of Object.entries({background:['theatre-background-input'],scene:['theatre-scenario-name','theatre-location-input','theatre-scenario-tags']})){
+   const section=doc.createElement('section');section.dataset.sceneFields=group;
+   const heading=doc.createElement('h3');heading.textContent=group==='background'?'Fondo del escenario':'Título y lugar';section.appendChild(heading);
+   for(const id of ids){const input=doc.getElementById(id);if(!input)continue;const label=doc.createElement('label');label.textContent=({ 'theatre-background-input':'Imagen del fondo (URL)','theatre-scenario-name':'Título','theatre-location-input':'Lugar','theatre-scenario-tags':'Etiquetas de escenario'})[id];label.appendChild(input);section.appendChild(label);}
+   sceneView.appendChild(section);sceneGroups[group]=section;
+  }
+  const applyScene=doc.getElementById('btn-update-scene');
+  const applyRow=doc.createElement('div');applyRow.className='canonical-scene-apply';applyScene.textContent='Aplicar cambios a la escena';applyRow.appendChild(applyScene);sceneView.appendChild(applyRow);
+  const checksButton=doc.createElement('button');checksButton.type='button';checksButton.className='tool-item';checksButton.dataset.tool='checks';checksButton.textContent='Checks y tiradas';checksButton.onclick=()=>tools('checks');root.querySelector('.tool-list').prepend(checksButton);
   function tools(view){
    notes.hidden=true;native.hidden=false;
-   workspace.activate(view);header.querySelector('h2').textContent=({cast:'Gestionar elenco',scenes:'Escenario y localización',settings:'Presentación y ritmo'})[view];
-   // Casting management includes both live scene controls and the catalog.
+   const route=view==='background'||view==='scene'?'scenes':view;
+   workspace.activate(route);header.querySelector('h2').textContent=({cast:'Gestionar elenco',scenes:'Biblioteca de escenarios',background:'Fondo del escenario',scene:'Título y lugar',settings:'Presentación y ritmo',checks:'Checks y tiradas'})[view];
    native.querySelector('.dm-director-cast-pane').hidden=false;
-   native.dataset.canonicalView=view;
+   native.dataset.canonicalView=route;utility.dataset.toolView=view;
+   if(route==='scenes'){
+    for(const child of sceneView.children)child.hidden=view!=='scenes' && child!==sceneGroups[view] && child!==applyRow;
+    if(view==='scenes')Object.values(sceneGroups).forEach(section=>section.hidden=false);
+   }
    if(view==='cast')selectCastPane(false);
    if(!utility.open)utility.showModal();
   }
@@ -97,9 +112,9 @@
   root.querySelectorAll('[data-tool]').forEach(b=>b.onclick=async()=>{
    const tool=b.dataset.tool;
    if(tool==='actors')tools('cast');
-   else if(tool==='background'||tool==='scene')tools('scenes');
+   else if(tool==='background'||tool==='scene'||tool==='checks')tools(tool);
    else if(tool==='notes'){
-    header.querySelector('h2').textContent='Notas del DM · este dispositivo';native.hidden=true;notes.hidden=false;utility.showModal();notes.focus();
+    header.querySelector('h2').textContent='Notas del DM · este dispositivo';native.hidden=true;notes.hidden=false;utility.dataset.toolView='notes';utility.showModal();notes.focus();
    }else if(tool==='clear'&&global.confirm('¿Eliminar el registro de Teatro de este encuentro?')){
     try{const path=global.LuminousTheatreState.getPaths().log;await global.firebase.database().ref(path).remove();status('Registro eliminado.');}
     catch(_){status('No se pudo eliminar el registro. Revisa la conexión y los permisos.');}
@@ -116,7 +131,7 @@
   }
   let autoScroll=true;$('autoScrollToggle').onchange=()=>{autoScroll=$('autoScrollToggle').checked;log.dataset.autoScroll=String(autoScroll);};
   new MutationObserver(()=>{if(autoScroll){const scroll=log.querySelector('.dialogue-scroll-area');if(scroll)scroll.scrollTop=scroll.scrollHeight;}}).observe(log,{childList:true,subtree:true});
-  let actors={},sort=false;
+  let actors={},sort=false,sceneInputsInitialized=false;
   function actorImage(id,actor){return workspace.resolveActorIcon(id,actor)||'Assets/Images/Buttons/Player.svg';}
   function render(){
    const players=[],npcs=[];const query=$('searchActors').value.trim().toLocaleLowerCase();
@@ -144,6 +159,12 @@
   const scenePath=global.LuminousTheatreState?.getPaths?.().scene||'campaña/estado_mundo/escena_actual';
   global.firebase?.database?.().ref(scenePath).on('value',snapshot=>{
    const scene=snapshot.val()||{};actors=scene.actores||{};render();
+   if(!sceneInputsInitialized){
+    sceneInputsInitialized=true;
+    for(const [id,value] of Object.entries({'theatre-background-input':scene.fondo,'theatre-scenario-name':scene.nombre,'theatre-location-input':scene.locacion,'theatre-scenario-tags':(scene.sub_etiquetas||[]).join(', '),'theatre-scenario-region':scene.region||scene.seccion||scene.capitulo,'theatre-scenario-category':scene.categoria})){
+     const input=doc.getElementById(id);if(input&&!input.value)input.value=value||'';
+    }
+   }
    $('sceneTitle').textContent=scene.nombre||scene.locacion||'Sin escenario';
    $('sceneLocation').textContent=scene.locacion?'Lugar · '+scene.locacion:'';
   });

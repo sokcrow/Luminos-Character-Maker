@@ -14,6 +14,10 @@ const page={route:async()=>{},locator:s=>({click:async()=>dom.window.document.qu
 await mountDirector(page);await tick();
 const w=dom.window,d=w.document,root=d.getElementById('dm-canonical-director'),menu=d.querySelector('.theatre-dm-menu');
 assert.equal(root.open,true);
+assert.equal(d.getElementById('theatre-background-input').value,'https://assets.test/old.png');
+assert.equal(d.getElementById('theatre-location-input').value,'Lugar guardado');
+assert.equal(d.getElementById('theatre-scenario-region').closest('section').id,'theatre-scenario-library-metadata');
+
 assert.deepEqual([...root.querySelectorAll('[data-step] .step-name')].map(n=>n.textContent),['ACTORES','ESCRIBIR','ESCENA']);
 assert.deepEqual([...root.querySelectorAll('[data-mobile-tab]')].map(n=>n.textContent),['Elenco','Registro','Dirección']);
 assert.equal(root.querySelectorAll('#npcGrid .character').length,1);
@@ -168,7 +172,76 @@ assert.equal(w.testRead('campaña/base_datos_npcs/taxonomy_actor').nombre,'Actor
 assert.equal(d.getElementById('dm-theatre-composer-modal').open,false);
 w.LuminousDmTheatreWorkspace.openComposer('narrador');await tick();assert.equal(remove.hidden,true);d.getElementById('dm-theatre-composer-modal').close();
 
+// Tools route to separate live controls, and late Checks mount in their own view.
+root.querySelector('[data-tool="background"]').click();await tick();
+assert.equal(utility.dataset.toolView,'background');
+assert.equal(d.querySelector('[data-scene-fields="background"]').hidden,false);
+assert.equal(d.querySelector('[data-scene-fields="scene"]').hidden,true);
+assert.equal(d.getElementById('theatre-background-input').closest('[data-scene-fields]').dataset.sceneFields,'background');
+utility.querySelector('header button').click();root.querySelector('[data-tool="scene"]').click();await tick();
+assert.equal(d.querySelector('[data-scene-fields="scene"]').hidden,false);assert.equal(d.querySelector('[data-scene-fields="background"]').hidden,true);
+utility.querySelector('header button').click();
+const oldAuth=w.firebase.auth;
+const dmUid='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1';
+w.firebase.auth=()=>({currentUser:{uid:dmUid},onAuthStateChanged:fn=>{fn({uid:dmUid});return()=>{};}});
+w.testWrite('campaña/jugadores/check_player',{uid:'check-player-uid',characterName:'Jugador para check'});
+for(const file of ['proficiency-runtime','theatre-roll-visualizer','theatre-check-coordinator'])w.eval(await fs.readFile('js/'+file+'.js','utf8'));
+w.LuminousTheatreCheckCoordinator.bindAuthorizedData();
+await tick();root.querySelector('[data-tool="checks"]').click();await tick();
+assert.equal(d.getElementById('theatre-check-director').parentElement.id,'dm-director-view-checks');
+assert.equal(d.getElementById('dm-director-view-checks').hidden,false);assert.equal(d.getElementById('dm-director-view-scenes').hidden,true);
+d.getElementById('theatre-check-target-player').value='check-player-uid';d.getElementById('theatre-check-ability').value='str';d.getElementById('theatre-check-threshold').value='12';
+d.getElementById('theatre-check-send').click();await tick();
+assert.ok(Object.keys(w.testRead('theatre_check_commands/check-player-uid')||{}).length,'real Checks issues its existing command from the routed view');
+assert.equal(d.querySelectorAll('#theatre-check-director').length,1);
+utility.querySelector('header button').click();w.firebase.auth=oldAuth;
+
+// Split tools apply independently after a fresh load, preserving the other route.
+const alerts=[];w.alert=message=>alerts.push(message);
+root.querySelector('[data-tool="background"]').click();
+d.getElementById('theatre-background-input').value='https://assets.test/new.png';
+// Hidden library drafts must not replace current scene data, including newer updates.
+d.getElementById('theatre-location-input').value='Borrador oculto';
+w.testWrite('campaña/estado_mundo/escena_actual/locacion','Lugar actualizado');
+d.getElementById('btn-update-scene').click();await tick();
+for(let i=0;i<150&&w.testRead('campaña/estado_mundo/escena_actual').transitioning;i++)await tick();
+await tick();
+let applied=w.testRead('campaña/estado_mundo/escena_actual');
+assert.equal(applied.fondo,'https://assets.test/new.png');assert.equal(applied.locacion,'Lugar actualizado');
+assert.equal(applied.nombre,'Escena guardada');assert.equal(applied.escenarioId,'stored-scene');assert.equal(applied.region,'Región guardada');assert.equal(applied.categoria,'Categoría guardada');assert.deepEqual(Object.values(applied.sub_etiquetas),['noche']);
+utility.querySelector('header button').click();root.querySelector('[data-tool="scene"]').click();
+d.getElementById('theatre-scenario-name').value='Título renovado';d.getElementById('theatre-location-input').value='Nuevo lugar';d.getElementById('theatre-scenario-tags').value='día, aliado';
+d.getElementById('theatre-background-input').value='https://assets.test/hidden-draft.png';
+w.testWrite('campaña/estado_mundo/escena_actual/fondo','https://assets.test/current.png');
+d.getElementById('btn-update-scene').click();await tick();
+for(let i=0;i<150&&w.testRead('campaña/estado_mundo/escena_actual').transitioning;i++)await tick();
+await tick();
+applied=w.testRead('campaña/estado_mundo/escena_actual');
+assert.equal(applied.fondo,'https://assets.test/current.png');assert.equal(applied.locacion,'Nuevo lugar');assert.equal(applied.nombre,'Título renovado');assert.equal(applied.escenarioId,'stored-scene');assert.equal(applied.region,'Región guardada');assert.equal(applied.categoria,'Categoría guardada');assert.deepEqual(Object.values(applied.sub_etiquetas),['día','aliado']);assert.deepEqual(alerts,[]);
+utility.querySelector('header button').click();
+
 root.querySelector('#playSceneBtn').click();await tick();assert.equal(root.open,false);assert.equal(d.querySelectorAll('#theatre-stage').length,1);
 assert.equal(d.querySelectorAll('#modulo-teatro>.stage-view-wrapper').length,1);
 dom.window.close();
+// Authentication may finish after the approved layout has moved the tags input.
+await mountDirector(page,{delayDashboardAuth:true});await tick();
+const late=dom.window,lateDoc=late.document;
+assert.equal(lateDoc.getElementById('theatre-scenario-region'),null);
+late.testReleaseAuth();await tick();
+for(const id of ['theatre-scenario-region','theatre-scenario-category']) {
+ const input=lateDoc.getElementById(id);
+ assert.equal(input.closest('section').id,'theatre-scenario-library-metadata');
+ assert.equal(input.closest('[data-scene-fields="scene"]'),null,'late auth must not expose library-only metadata in Título/lugar');
+ assert.equal(lateDoc.querySelectorAll('#'+id).length,1);
+}
+lateDoc.querySelector('[data-tool="scene"]').click();await tick();
+assert.equal(lateDoc.getElementById('theatre-scenario-library-metadata').closest('[hidden]')!==null,true);
+lateDoc.getElementById('dm-canonical-utility').close();lateDoc.getElementById('sceneLibraryBtn').click();await tick();
+assert.equal(lateDoc.getElementById('theatre-scenario-library-metadata').closest('[hidden]'),null);
+lateDoc.getElementById('theatre-scenario-region').value='Región editada';lateDoc.getElementById('theatre-scenario-category').value='Categoría editada';
+lateDoc.getElementById('btn-save-scenario').click();await tick();
+const saved=Object.values(late.testRead('campaña/escenarios')||{}).at(-1);
+assert.equal(saved.region,'Región editada');assert.equal(saved.categoria,'Categoría editada');
+late.close();
+
 console.log('Approved prototype integration: exact navigation/sections, live player/NPC split, native close/cancel/reopen, one stage, one publishing route, action type, empty audio catalog, disabled transport, R2 UI and canonical NPC/player portraits across cards/log/composer with live updates passed.');
