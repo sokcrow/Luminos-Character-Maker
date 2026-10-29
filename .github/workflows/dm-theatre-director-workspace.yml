@@ -1,34 +1,9 @@
 name: DM Theatre Director Workspace
 
+# Deep regression suite: run on demand in Actions when its module changes.
+# The pull-request gate is kept in ci-pr-essentials.yml to avoid redundant red checks.
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'hoja_de_DM.html'
-      - 'js/theatre-dm-workspace.js'
-      - 'js/director-prototype-templates.js'
-      - 'js/theatre-prototype-layout.js'
-      - 'css/director-prototype-*.css'
-      - 'tests/director-prototype-dom-smoke.mjs'
-      - 'js/theatre-controls.js'
-      - 'js/theatre-engine.js'
-      - 'js/theatre-intervention-ux-core.js'
-      - 'js/luminous-audio-director.js'
-      - 'js/audio-cloud-library.js'
-      - 'services/audio-r2/**'
-      - 'tests/audio-r2*'
-      - 'tests/helpers/audio-r2-fixture.mjs'
-      - 'css/luminous-audio-director.css'
-      - 'database.rules.json'
-      - 'tests/luminous-audio-director-smoke.mjs'
-      - 'js/theatre-actor-studio.js'
-      - 'js/theatre-director-menu-guard.js'
-      - 'css/theatre-actor-studio.css'
-      - 'css/theatre-dm-workspace.css'
-      - 'tests/dm-theatre-director-workspace*'
-      - 'tests/dm-theatre-director-dom-smoke.mjs'
-      - 'tests/helpers/dm-director-fixture.mjs'
-      - '.github/workflows/dm-theatre-director-workspace.yml'
+  workflow_dispatch:
 
 jobs:
   director-workspace:

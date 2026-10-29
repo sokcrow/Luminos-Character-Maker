@@ -1,61 +1,9 @@
 name: Trait Check Power Smoke
 
+# Deep regression suite: run on demand in Actions when its module changes.
+# The pull-request gate is kept in ci-pr-essentials.yml to avoid redundant red checks.
 on:
-  pull_request:
-    paths:
-      - "js/archetype-trait-catalog.js"
-      - "js/player-archetype-runtime-core.js"
-      - "js/player-stats-ability-bar.js"
-      - "js/skill-trait-breakdown-patch.js"
-      - "js/trait-engine.js"
-      - "js/player-trait-runtime.js"
-      - "js/rogue-class-runtime.js"
-      - "js/champion-archetype-runtime.js"
-      - "js/banneret-archetype-runtime.js"
-      - "js/samurai-archetype-runtime.js"
-      - "js/bladesinger-archetype-runtime.js"
-      - "tests/trait-special-check-regression.mjs"
-      - "js/derived-stats-engine.js"
-      - "js/trait-standardization-runtime.js"
-      - "js/ranger-class-runtime.js"
-      - "pantalla_dm.html"
-      - "tests/trait-manual-dm-integration-smoke.mjs"
-      - "tests/trait-skill-score-visibility-smoke.mjs"
-      - "tests/trait-visual-browser-smoke.mjs"
-      - "tests/fixtures/jackpot-performance-browser.html"
-      - "tests/trait-dm-composer-target-smoke.mjs"
-      - "js/theatre-check-coordinator.js"
-      - "hoja_personaje.html"
-      - "tests/trait-check-power-smoke.mjs"
-      - ".github/workflows/trait-check-power-smoke.yml"
-  push:
-    branches: [main]
-    paths:
-      - "js/archetype-trait-catalog.js"
-      - "js/player-archetype-runtime-core.js"
-      - "js/player-stats-ability-bar.js"
-      - "js/skill-trait-breakdown-patch.js"
-      - "js/trait-engine.js"
-      - "js/player-trait-runtime.js"
-      - "js/rogue-class-runtime.js"
-      - "js/champion-archetype-runtime.js"
-      - "js/banneret-archetype-runtime.js"
-      - "js/samurai-archetype-runtime.js"
-      - "js/bladesinger-archetype-runtime.js"
-      - "tests/trait-special-check-regression.mjs"
-      - "js/derived-stats-engine.js"
-      - "js/trait-standardization-runtime.js"
-      - "js/ranger-class-runtime.js"
-      - "pantalla_dm.html"
-      - "tests/trait-manual-dm-integration-smoke.mjs"
-      - "tests/trait-skill-score-visibility-smoke.mjs"
-      - "tests/trait-visual-browser-smoke.mjs"
-      - "tests/fixtures/jackpot-performance-browser.html"
-      - "tests/trait-dm-composer-target-smoke.mjs"
-      - "js/theatre-check-coordinator.js"
-      - "hoja_personaje.html"
-      - "tests/trait-check-power-smoke.mjs"
-      - ".github/workflows/trait-check-power-smoke.yml"
+  workflow_dispatch:
 
 jobs:
   trait-check-power:

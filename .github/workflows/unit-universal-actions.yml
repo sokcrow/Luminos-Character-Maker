@@ -1,8 +1,9 @@
 name: Unit Universal Actions
+# Deep regression suite: run on demand in Actions when its module changes.
+# The pull-request gate is kept in ci-pr-essentials.yml to avoid redundant red checks.
 on:
-  pull_request:
-    branches: [main]
-    paths: ['combat/**','Battle-viewer.html','js/**','css/combat-mobile-runtime.css','database.rules.json','tests/unit-universal*','tests/unit-independent*','.github/workflows/unit-universal-actions.yml']
+  workflow_dispatch:
+
 jobs:
   universal-actions:
     runs-on: ubuntu-latest

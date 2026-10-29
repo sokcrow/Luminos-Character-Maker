@@ -1,22 +1,9 @@
 name: Unified spells and playback catch-up
+# Deep regression suite: run on demand in Actions when its module changes.
+# The pull-request gate is kept in ci-pr-essentials.yml to avoid redundant red checks.
 on:
-  pull_request:
-    paths:
-      - 'js/**'
-      - 'css/dm-player-loadout-manager.css'
-      - 'css/theatre-spell-loadout.css'
-      - 'css/combat-v073-spell-availability.css'
-      - 'hoja_personaje.html'
-      - 'Battle-viewer.html'
-      - 'tests/*spell*'
-      - 'tests/combat-playback-catchup-smoke.mjs'
-      - 'tests/combat-playback-six-viewers-recovery-smoke.mjs'
-      - 'tests/combat-ten-participants-realtime-smoke.mjs'
-      - 'tests/combat-shared-clock-smoke.mjs'
-      - '.github/workflows/unified-spells-playback.yml'
-  push:
-    branches: ['codex/unified-spells-playback-catchup']
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

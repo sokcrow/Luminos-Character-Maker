@@ -1,17 +1,9 @@
 name: Universal Encounter Start
+# Deep regression suite: run on demand in Actions when its module changes.
+# The pull-request gate is kept in ci-pr-essentials.yml to avoid redundant red checks.
 on:
-  pull_request:
-    paths:
-      - 'js/**'
-      - 'database.rules.json'
-      - 'tests/unit-independent*'
-      - 'tests/combat-v073-class-trait-quick-actions-smoke.mjs'
-      - 'Battle-viewer.html'
-      - 'combat/**'
-      - 'tests/combat*encounter*'
-      - 'tests/combat-event*'
-      - '.github/workflows/combat-encounter-start.yml'
   workflow_dispatch:
+
 jobs:
   encounter-start:
     runs-on: ubuntu-latest

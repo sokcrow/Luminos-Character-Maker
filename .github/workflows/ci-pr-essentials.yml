@@ -1,0 +1,47 @@
+name: PR Essentials
+
+# Single fast, deterministic baseline for changed JavaScript and JSON files.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-essentials-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changed-file-syntax:
+    name: Changed JS/JSON syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate changed JavaScript and JSON
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          checked=0
+          while IFS= read -r -d '' file; do
+            [[ -f "$file" ]] || continue
+            case "$file" in
+              *.js|*.mjs|*.cjs)
+                node --check "$file"
+                checked=$((checked + 1))
+                ;;
+              *.json)
+                node -e 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"))' "$file"
+                checked=$((checked + 1))
+                ;;
+            esac
+          done < <(git diff --name-only --diff-filter=ACMRT -z "$BASE_SHA" HEAD)
+          echo "Validated $checked changed JS/JSON files."
