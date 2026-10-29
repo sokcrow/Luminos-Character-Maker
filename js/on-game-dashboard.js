@@ -187,17 +187,26 @@
         }).catch((error) => alert("Error al guardar: " + error));
       });
 
-      async function useScenarioFromInputs() {
-        const data = scenarioPayload();
+      async function useScenarioFromInputs(tool) {
+        let data = scenarioPayload();
+        if (tool === "background" || tool === "scene") {
+          const active = (await database.ref(paths().scene).once("value")).val() || {};
+          const changes = tool === "background" ? { fondo: data.fondo } : {
+            nombre: data.nombre, locacion: data.locacion, sub_etiquetas: data.sub_etiquetas
+          };
+          // A split tool edits only its visible fields; hidden library drafts
+          // must never replace the active scene's complementary metadata.
+          data = Object.assign({}, active, changes);
+        }
         if (!data.fondo || !data.locacion) {
           alert("Fondo y localización son obligatorios para usar el escenario.");
           return;
         }
-        await theatre.changeScene(Object.assign({}, data, { escenarioId: scenarioSelect?.value || null }));
+        await theatre.changeScene(Object.assign({}, data, { escenarioId: tool === "background" || tool === "scene" ? data.escenarioId || null : scenarioSelect?.value || null }));
       }
 
       btnUseScenario?.addEventListener("click", () => useScenarioFromInputs().catch((error) => alert("Error aplicando escenario: " + error)));
-      btnUpdateScene?.addEventListener("click", () => useScenarioFromInputs().catch((error) => alert("Error aplicando escenario: " + error)));
+      btnUpdateScene?.addEventListener("click", () => useScenarioFromInputs(document.getElementById("dm-canonical-utility")?.dataset.toolView).catch((error) => alert("Error aplicando escenario: " + error)));
 
       btnDeleteScenario?.addEventListener("click", () => {
         const scenarioId = scenarioSelect?.value;

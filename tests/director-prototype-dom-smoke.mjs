@@ -14,6 +14,9 @@ const page={route:async()=>{},locator:s=>({click:async()=>dom.window.document.qu
 await mountDirector(page);await tick();
 const w=dom.window,d=w.document,root=d.getElementById('dm-canonical-director'),menu=d.querySelector('.theatre-dm-menu');
 assert.equal(root.open,true);
+assert.equal(d.getElementById('theatre-background-input').value,'https://assets.test/old.png');
+assert.equal(d.getElementById('theatre-location-input').value,'Lugar guardado');
+
 assert.deepEqual([...root.querySelectorAll('[data-step] .step-name')].map(n=>n.textContent),['ACTORES','ESCRIBIR','ESCENA']);
 assert.deepEqual([...root.querySelectorAll('[data-mobile-tab]')].map(n=>n.textContent),['Elenco','Registro','Dirección']);
 assert.equal(root.querySelectorAll('#npcGrid .character').length,1);
@@ -191,6 +194,30 @@ d.getElementById('theatre-check-send').click();await tick();
 assert.ok(Object.keys(w.testRead('theatre_check_commands/check-player-uid')||{}).length,'real Checks issues its existing command from the routed view');
 assert.equal(d.querySelectorAll('#theatre-check-director').length,1);
 utility.querySelector('header button').click();w.firebase.auth=oldAuth;
+
+// Split tools apply independently after a fresh load, preserving the other route.
+const alerts=[];w.alert=message=>alerts.push(message);
+root.querySelector('[data-tool="background"]').click();
+d.getElementById('theatre-background-input').value='https://assets.test/new.png';
+// Hidden library drafts must not replace current scene data, including newer updates.
+d.getElementById('theatre-location-input').value='Borrador oculto';
+w.testWrite('campaña/estado_mundo/escena_actual/locacion','Lugar actualizado');
+d.getElementById('btn-update-scene').click();await tick();
+for(let i=0;i<150&&w.testRead('campaña/estado_mundo/escena_actual').transitioning;i++)await tick();
+await tick();
+let applied=w.testRead('campaña/estado_mundo/escena_actual');
+assert.equal(applied.fondo,'https://assets.test/new.png');assert.equal(applied.locacion,'Lugar actualizado');
+assert.equal(applied.nombre,'Escena guardada');assert.equal(applied.escenarioId,'stored-scene');assert.equal(applied.region,'Región guardada');assert.equal(applied.categoria,'Categoría guardada');assert.deepEqual(Object.values(applied.sub_etiquetas),['noche']);
+utility.querySelector('header button').click();root.querySelector('[data-tool="scene"]').click();
+d.getElementById('theatre-scenario-name').value='Título renovado';d.getElementById('theatre-location-input').value='Nuevo lugar';d.getElementById('theatre-scenario-tags').value='día, aliado';
+d.getElementById('theatre-background-input').value='https://assets.test/hidden-draft.png';
+w.testWrite('campaña/estado_mundo/escena_actual/fondo','https://assets.test/current.png');
+d.getElementById('btn-update-scene').click();await tick();
+for(let i=0;i<150&&w.testRead('campaña/estado_mundo/escena_actual').transitioning;i++)await tick();
+await tick();
+applied=w.testRead('campaña/estado_mundo/escena_actual');
+assert.equal(applied.fondo,'https://assets.test/current.png');assert.equal(applied.locacion,'Nuevo lugar');assert.equal(applied.nombre,'Título renovado');assert.equal(applied.escenarioId,'stored-scene');assert.equal(applied.region,'Región guardada');assert.equal(applied.categoria,'Categoría guardada');assert.deepEqual(Object.values(applied.sub_etiquetas),['día','aliado']);assert.deepEqual(alerts,[]);
+utility.querySelector('header button').click();
 
 root.querySelector('#playSceneBtn').click();await tick();assert.equal(root.open,false);assert.equal(d.querySelectorAll('#theatre-stage').length,1);
 assert.equal(d.querySelectorAll('#modulo-teatro>.stage-view-wrapper').length,1);
