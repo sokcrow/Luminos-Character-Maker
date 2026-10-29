@@ -66,6 +66,13 @@ for(const [width,height] of sizes){
   await toolsDialog.getByRole('button',{name:'Cerrar herramientas',exact:true}).click();
   await root.getByRole('button',{name:'Checks y tiradas',exact:true}).click();
   await expect(toolsDialog.locator('#theatre-check-director')).toBeVisible();
+  await expect(toolsDialog.getByRole('tab',{name:/Jugador/})).toBeVisible();
+  await expect(toolsDialog.getByRole('tab',{name:/NPC/})).toBeVisible();
+  await expect(toolsDialog.getByRole('tab',{name:/Enfrentada/})).toBeVisible();
+  await toolsDialog.getByRole('button',{name:'Resultados',exact:true}).click();
+  await expect(toolsDialog.locator('.roll-results')).toBeVisible();
+  await toolsDialog.getByRole('button',{name:/Pendientes/}).click();
+
   await expect(toolsDialog.locator('#theatre-check-send')).toBeVisible();
   await page.screenshot({path:info.outputPath(`director-checks-${width}x${height}.png`)});
   await toolsDialog.getByRole('button',{name:'Cerrar herramientas',exact:true}).click();
@@ -94,7 +101,7 @@ for(const [width,height] of sizes){
   await expect(npcPortrait).toHaveAttribute('src',/Auto%20Dialog\.svg$/);await expect(playerPortrait).toHaveAttribute('src',/Option\.svg$/);
   await npcPortrait.scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath(`canonical-portraits-${width}x${height}.png`)});
   if(mobile)await root.getByRole('tab',{name:'Dirección',exact:true}).click();
-  await root.getByRole('button',{name:'Ambiente',exact:true}).click();
+  await root.getByRole('button',{name:'Música',exact:true}).click();
   const audio=page.getByRole('dialog',{name:'Music Director',exact:true});await expect(audio).toBeVisible();
   await expect(audio.locator('.track-item')).toHaveCount(0);
   await expect(audio.locator('#pa-trackList')).toHaveText('No hay pistas que coincidan.');

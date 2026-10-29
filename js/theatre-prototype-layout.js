@@ -98,6 +98,12 @@
    if(b.dataset.step==='actors')mobile('actors');
    else if(b.dataset.step==='write')workspace.openComposer();else close();
   });
+  const quickActions=root.querySelector('.action-grid');
+  for(const action of quickActions.querySelectorAll('[data-action]')){
+   const type=action.dataset.action;
+   if(!['ambience','narration','action'].includes(type)){action.remove();continue;}
+   if(type==='ambience'){const label=action.querySelector('.act-name');if(label)label.textContent='Música';action.setAttribute('aria-label','Música');}
+  }
   const speaker=doc.getElementById('theatre-speaker-select');
   $('addDialogueBtn').onclick=$('composeHintBtn').onclick=()=>workspace.openComposer();
   root.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>{

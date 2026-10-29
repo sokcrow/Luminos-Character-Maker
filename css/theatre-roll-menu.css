@@ -1,0 +1,44 @@
+/* Layout from the approved DM roll prototype; the runtime supplies every value. */
+body.on-game-dashboard #dm-canonical-utility:has(#dm-roll-menu):not([data-tool-view=checks]) #dm-roll-menu{display:none}
+body.on-game-dashboard #dm-canonical-utility[data-tool-view=checks]{width:min(1160px,96vw);max-width:96vw}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu{border:1px solid #705b47;background:linear-gradient(135deg,#1b1718,#0c0c0d);color:#eadfce;font:16px Georgia,serif;padding:6px;box-shadow:inset 0 0 0 4px #08090a}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-head{padding:22px 24px;border:1px solid #443b32;border-bottom:1px solid #705b47;display:grid;gap:8px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-head small{font:11px system-ui,sans-serif;letter-spacing:.15em;text-transform:uppercase;color:#aa9b8d}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-head h2{font:28px Georgia,serif;color:#c9ad88;margin:0}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-head p{font:14px/1.5 system-ui,sans-serif;color:#aa9b8d;margin:0}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-mode-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:16px 24px;border-bottom:1px solid #493c31}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-mode-tabs button{display:grid;gap:5px;text-align:left;padding:13px 16px;min-height:60px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-mode-tabs button span{font-size:18px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-mode-tabs button small{font:11px system-ui,sans-serif;color:#aa9b8d}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu button[aria-selected=true],body.on-game-dashboard #dm-canonical-utility #dm-roll-menu button[aria-pressed=true]{background:linear-gradient(#68302f,#321b1c)!important;border-color:#c29b77!important;color:#fff1df!important}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-core{border:1px solid #443b32;background:none;padding:0;margin:0;width:100%;font:16px Georgia,serif}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-check-director-header,body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-check-compose-title>span{display:none}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-check-director-workspace{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:0}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu :is(.theatre-check-compose,.roll-npc-form){border:0;border-right:1px solid #493c31;background:none;padding:24px;margin:0;grid-column:1;grid-row:1}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-check-inbox{border:0;background:#09090b80;padding:22px 18px;grid-column:2;grid-row:1;display:flex;flex-direction:column;gap:20px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-check-compose-grid,body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-npc-roll-grid,body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-npc-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu label{display:grid;gap:8px;font:13px system-ui,sans-serif;color:#c7b6a5;letter-spacing:normal}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu label.wide{grid-column:1/-1}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu :is(input:not([type=checkbox]),select){min-height:46px;height:auto;padding:11px!important;background:#0b0b0d!important;border-color:#62513f!important}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-settings{border-top:1px solid #493c31;margin:20px 0;padding-top:4px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu summary{min-height:48px;cursor:pointer;color:#c9ad88;font-size:15px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-settings label{margin:12px 0}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-follow-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-follow-tabs button{font-size:14px;padding:10px 8px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu :is(.roll-empty,.theatre-check-empty){padding:25px 12px;border:1px dashed #493e34;text-align:center;color:#aa9b8d;font:13px/1.6 system-ui,sans-serif}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-result{padding:12px;border-bottom:1px solid #493c31;display:grid;gap:6px;font:13px/1.5 system-ui,sans-serif}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-result strong{font:17px Georgia,serif;color:#eadfce}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-result b{color:#c9ad88}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-summary,body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-npc-roll-preview{margin:0;margin-top:auto;border-top:1px solid #493c31;padding:18px 0 0;background:none;color:#eadfce;display:grid;gap:12px;font:14px Georgia,serif}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-status:empty{display:none}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-status{padding:12px;color:#e8c4a4;font:14px/1.5 system-ui,sans-serif}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-check-compose-actions{border-top:1px solid #705b47;padding-top:18px;display:flex;flex-wrap:wrap;gap:10px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu :is(#theatre-check-send,#theatre-npc-roll-button){background:linear-gradient(#73312f,#3a1c1e)!important;border-color:#ad795d!important;min-height:48px;min-width:180px}
+body.on-game-dashboard #dm-canonical-director .action-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:800px){body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-check-director-workspace{grid-template-columns:1fr}body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .theatre-check-inbox{grid-column:1;grid-row:2;border-top:1px solid #493c31}body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-mode-tabs{padding:12px}body.on-game-dashboard #dm-canonical-utility #dm-roll-menu :is(.theatre-check-compose,.roll-npc-form){padding:18px;border-right:0}}
+@media(max-width:470px){body.on-game-dashboard #dm-canonical-utility[data-tool-view=checks]{max-width:100vw;width:100vw;padding:8px}body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-mode-tabs{gap:5px;padding:10px}body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-mode-tabs button{padding:11px 8px;text-align:center}body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-mode-tabs button small{display:none}body.on-game-dashboard #dm-canonical-utility #dm-roll-menu :is(.theatre-check-compose-grid,.theatre-npc-roll-grid,.theatre-npc-check-grid){grid-template-columns:1fr}body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-head{padding:17px 12px}body.on-game-dashboard #dm-canonical-utility #dm-roll-menu :is(.theatre-check-compose,.roll-npc-form){padding:16px 12px}}
+
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-participant{display:grid;grid-template-columns:60px minmax(0,1fr);gap:14px;align-items:center;padding:14px;border:1px solid #594b3e;background:#100e10;grid-column:1/-1}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-participant-portrait{width:60px;height:60px;object-fit:cover;border:1px solid #594b3e}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-coins{display:flex;justify-content:center;gap:8px}
+body.on-game-dashboard #dm-canonical-utility #dm-roll-menu .roll-coin{width:29px;height:29px;border-radius:50%;border:1px solid #8c6b43;box-shadow:inset 0 0 0 3px #171210,inset 0 0 0 4px #665036;background:linear-gradient(130deg,#4f3820,#1a1511)}

@@ -377,7 +377,7 @@
     const documentRef = doc || global.document;
     if (!documentRef?.head || !hasTheatre(documentRef)) return null;
     const link = ensureStyle(documentRef, "theatre-roll-visualizer-stylesheet", "css/theatre-roll-visualizer.css", "theatre-roll-visualizer");
-    const script = ensureScript(documentRef, "theatre-roll-visualizer-script", "js/theatre-roll-visualizer.js", "theatre-roll-visualizer");
+    const script = ensureScript(documentRef, "theatre-roll-visualizer-script", "js/theatre-roll-visualizer.js?v=20261029-roll-history-2", "theatre-roll-visualizer");
     return { link, script };
   }
 
@@ -394,7 +394,7 @@
     const documentRef = doc || global.document;
     if (!documentRef?.head || !hasTheatre(documentRef)) return null;
     const link = ensureStyle(documentRef, "theatre-opposed-checks-stylesheet", "css/theatre-opposed-checks.css", "theatre-opposed-checks");
-    const script = ensureScript(documentRef, "theatre-opposed-checks-script", "js/theatre-opposed-checks.js", "theatre-opposed-checks");
+    const script = ensureScript(documentRef, "theatre-opposed-checks-script", "js/theatre-opposed-checks.js?v=20261029-dm-roll-menu-1", "theatre-opposed-checks");
     return { link, script };
   }
 

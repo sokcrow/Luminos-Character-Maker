@@ -810,4 +810,5 @@
     getClientId: () => CLIENT_ID,
     getConfig: () => Object.assign({}, config),
   });
+  if (typeof global.CustomEvent === "function") global.dispatchEvent?.(new global.CustomEvent("luminous:theatre-rolls-ready"));
 })(window);
