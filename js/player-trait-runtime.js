@@ -623,8 +623,12 @@ ${response}`);
   }
 
   function refresh() {
-    mountTray();
-    state.tray?.refresh?.();
+    if (global.LuminousPlayerStatsPaint) {
+      global.LuminousPlayerStatsPaint.request('traits', mountTray);
+    } else {
+      mountTray();
+      state.tray?.refresh?.();
+    }
     emit("luminous:traits-refreshed", { playerId: state.playerId, traits: resolveTraits() });
   }
 
