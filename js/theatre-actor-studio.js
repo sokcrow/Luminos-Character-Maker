@@ -64,8 +64,8 @@
   }
 
   function sourceLabel(root) {
-    if (root === ROOTS.base) return "BASE PRINCIPAL";
-    if (root === ROOTS.legacy) return "BASE LEGACY";
+    if (root === ROOTS.base) return "BIBLIOTECA DE PERSONAJES";
+    if (root === ROOTS.legacy) return "BIBLIOTECA DE PERSONAJES";
     return "NUEVO REGISTRO";
   }
 
@@ -80,9 +80,9 @@
     panel.innerHTML = `
       <header class="theatre-master-header">
         <div>
-          <span class="theatre-master-eyebrow">MASTER DATABASE / DM AUTHORITY</span>
-          <h4>CONTROL MAESTRO DE ACTORES</h4>
-          <p>Administra la fuente persistente. El cast de escena es temporal y se controla por separado.</p>
+          <span class="theatre-master-eyebrow">BIBLIOTECA DEL DM</span>
+          <h4>EDITOR DE PERSONAJES</h4>
+          <p>Crea personajes, asigna sus imágenes y vincúlalos a un jugador. Después añádelos al elenco para escribir.</p>
         </div>
         <span id="theatre-master-status" class="theatre-master-status">SIN SELECCIÓN</span>
       </header>
@@ -90,8 +90,8 @@
       <div class="theatre-master-layout">
         <aside class="theatre-master-browser">
           <label for="theatre-master-search">BUSCAR</label>
-          <input id="theatre-master-search" type="search" placeholder="Jugador, NPC, actorId..." autocomplete="off">
-          <label for="theatre-master-source-select">FUENTES PERSISTENTES / JUGADORES</label>
+          <input id="theatre-master-search" type="search" placeholder="Buscar personaje..." autocomplete="off">
+          <label for="theatre-master-source-select">PERSONAJES GUARDADOS / JUGADORES</label>
           <select id="theatre-master-source-select" size="11" aria-label="Fuentes persistentes de actores"></select>
           <div class="theatre-master-browser-actions">
             <button id="theatre-master-new-npc" type="button">+ NUEVO NPC</button>
@@ -103,7 +103,7 @@
         <div class="theatre-master-editor">
           <div class="theatre-master-source-meta">
             <span id="theatre-master-source-kind">NUEVO REGISTRO</span>
-            <code id="theatre-master-source-path">campaña/base_datos_npcs</code>
+            <code hidden id="theatre-master-source-path">campaña/base_datos_npcs</code>
           </div>
 
           <div class="theatre-master-fields">
@@ -233,7 +233,7 @@
       .forEach(([playerId, player]) => {
         const actorId = linkedActorId(playerId, player);
         const actor = actorId ? persistentRecord(actorId)?.data : null;
-        const label = `${playerLabel(playerId, player)} ${actorId ? `· ${actor?.nombre || actorId}` : "· SIN ACTOR THEATRE"}`;
+        const label = `${playerLabel(playerId, player)} ${actorId ? `· ${actor?.nombre || "Personaje sin nombre"}` : "· Por configurar"}`;
         if (filter && !`${label} ${playerId} ${actorId || ""}`.toLowerCase().includes(filter)) return;
         const option = doc.createElement("option");
         option.value = `player:${playerId}`;
@@ -251,7 +251,7 @@
       .sort((a, b) => String(a[1]?.nombre || a[0]).localeCompare(String(b[1]?.nombre || b[0])))
       .forEach(([actorId, actor]) => {
         const record = persistentRecord(actorId);
-        const label = `${actor?.tipo === "Jugador" ? "[PJ]" : "[NPC]"} ${actor?.nombre || actorId} · ${sourceLabel(record?.root)}`;
+        const label = `${actor?.tipo === "Jugador" ? "[PJ]" : "[NPC]"} ${actor?.nombre || "Personaje sin nombre"} · ${sourceLabel(record?.root)}`;
         if (filter && !`${label} ${actorId} ${actor?.titulo || ""}`.toLowerCase().includes(filter)) return;
         const option = doc.createElement("option");
         option.value = `actor:${actorId}`;

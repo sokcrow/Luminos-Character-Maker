@@ -31,9 +31,11 @@
             try {
                 const result = await action();
                 if (result === false) throw new Error("El personaje ya no está disponible o no tiene un sprite válido.");
+                return true;
             } catch (error) {
                 actorErrors.set(actorId, "No se pudo guardar el cambio. Revisa tu conexión y permisos.");
                 console.error("No se pudo actualizar el actor:", error);
+                return false;
             } finally { pendingActors.delete(actorId); renderLiveActors(); }
         }
 
@@ -82,40 +84,24 @@
 
             const playerGroup = document.createElement("optgroup");
             playerGroup.label = "PERSONAJES JUGADORES";
-            for (const [playerId, player] of Object.entries(playerDatabase)) {
-                let actorId = null;
-                let actorData = null;
-                if (player.actorId && npcDatabase[player.actorId]) {
-                    actorId = player.actorId;
-                    actorData = npcDatabase[actorId];
-                } else {
-                    actorId = Object.keys(npcDatabase).find((id) =>
-                        npcDatabase[id]?.vinculo_jugador === playerId && npcDatabase[id]?.tipo === "Jugador"
-                    );
-                    if (actorId) actorData = npcDatabase[actorId];
-                }
-                if (!actorData) continue;
-                const option = document.createElement("option");
-                option.value = actorId;
-                option.textContent = actorData.nombre || getPlayerLabel(playerId, player);
-                option.dataset.sourceType = "player-profile";
-                option.dataset.sourceId = playerId;
-                playerGroup.appendChild(option);
-            }
-            selectNpcRoster.appendChild(playerGroup);
-
             const npcGroup = document.createElement("optgroup");
             npcGroup.label = "NPCs / PERSONAJES DEL DM";
             for (const [actorId, actorData] of Object.entries(npcDatabase)) {
-                if (actorData?.tipo === "Jugador") continue;
+                const matches = Object.entries(playerDatabase).filter(([playerId, player]) =>
+                    actorData?.vinculo_jugador === playerId ||
+                    normalizeIdList([player?.actorIds, player?.actores, player?.actorId]).includes(actorId));
+                const explicitPlayer = actorData?.vinculo_jugador;
+                const linked = playerDatabase[explicitPlayer] ? [explicitPlayer, playerDatabase[explicitPlayer]] : matches.length === 1 ? matches[0] : null;
+                const isPlayer = matches.length > 0 || actorData?.tipo === "Jugador" || Boolean(actorData?.vinculo_jugador);
                 const option = document.createElement("option");
                 option.value = actorId;
-                option.textContent = actorData?.nombre || "Sin Nombre";
-                option.dataset.sourceType = "npc";
-                option.dataset.sourceId = actorId;
-                npcGroup.appendChild(option);
+                option.textContent = actorData?.nombre || actorData?.name || (linked ? getPlayerLabel(...linked) : "Personaje sin nombre");
+                option.dataset.sourceType = linked ? "player-profile" : "npc";
+                option.dataset.sourceId = linked ? linked[0] : actorId;
+                option.dataset.actorType = isPlayer ? "player" : "npc";
+                (isPlayer ? playerGroup : npcGroup).appendChild(option);
             }
-            selectNpcRoster.appendChild(npcGroup);
+            selectNpcRoster.append(playerGroup, npcGroup);
         }
 
         function loadRoster() {
@@ -231,7 +217,8 @@
 
             const expressions = npcData.expresiones || {};
             const actorPayload = {
-                nombre: npcData.nombre || selectedId,
+                nombre: npcData.nombre || npcData.name || option.textContent || "Personaje sin nombre",
+                tipo: option.dataset.actorType === "player" ? "Jugador" : "NPC",
                 titulo: npcData.titulo || "",
                 color_nombre: npcData.color_nombre || "",
                 color_titulo: npcData.color_titulo || "",
@@ -342,16 +329,25 @@
                     db.ref(`${paths().scene}/actores/${actorId}/orientacion`).set(actorData.orientacion === "flip" ? "normal" : "flip");
                 });
                 card.querySelector(".btn-hide").disabled = !visibleActors.includes(actorId);
-                card.querySelector(".btn-remove")?.addEventListener("click", () => actorAction(actorId, async () => {
-                    await global.LuminousTheatreState.removeVisibleActor(actorId);
-                    await db.ref(paths().scene).transaction(current => {
-                        if (!current) return;
-                        if (current.actores) delete current.actores[actorId];
-                        current.actores_visibles = normalizeIdList(current.actores_visibles).filter(id => id !== actorId);
-                        if (current.active_actor === actorId) current.active_actor = null;
-                        return current;
+                card.querySelector(".btn-remove")?.addEventListener("click", async () => {
+                    if (pendingActors.has(actorId)) return;
+                    const name = global.LuminousDmTheatreWorkspace?.resolveActorName(actorId, actorData) || actorData.nombre || "este personaje";
+                    if (!global.confirm(`¿Retirar a ${name} del elenco de esta escena? Se conservará en tu biblioteca y podrás volver a añadirlo.`)) {
+                        document.dispatchEvent(new CustomEvent("luminous:theatre-retire-result", {detail:{actorId, cancelled:true}}));
+                        return;
+                    }
+                    const success = await actorAction(actorId, async () => {
+                        const result = await db.ref(paths().scene).transaction(current => {
+                            if (!current) return;
+                            if (current.actores) delete current.actores[actorId];
+                            current.actores_visibles = normalizeIdList(current.actores_visibles).filter(id => id !== actorId);
+                            if (current.active_actor === actorId) current.active_actor = null;
+                            return current;
+                        });
+                        if (!result.committed) return false;
                     });
-                }));
+                    document.dispatchEvent(new CustomEvent("luminous:theatre-retire-result", {detail:{actorId, success:Boolean(success)}}));
+                });
 
                 const viewerSelect = card.querySelector(".actor-viewer-select");
                 const getViewer = () => viewerSelect?.value || null;
