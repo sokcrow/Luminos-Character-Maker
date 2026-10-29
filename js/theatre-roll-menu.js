@@ -87,12 +87,35 @@
    const config=(await db.ref('campaña/config/dm_uid').once('value')).val();if(gen!==generation||(user.uid!==config&&user.uid!=='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))return;
    const room=global.LuminousTheatreCheckCoordinator?.roomKey?.()||'default';const children=new Map();
    const listen=(path,fn)=>{const ref=db.ref(path).limitToLast(30);const on=snap=>{if(gen===generation)fn(snap.val()||{});};ref.on('value',on,()=>{if(gen===generation)feedback('No se pudieron cargar todos los resultados. Revisa la conexión y los permisos.');});const off=()=>ref.off('value',on);unsub.push(off);return off;};
+   // Firebase keys are chronological push IDs. Read older pages until this
+   // room has its own window; another room must not consume that window.
+   const listenPlayer=(path,fn)=>{
+    const root=db.ref(path),ref=root.orderByKey().limitToLast(30);let revision=0,active=true;
+    const on=async snapshot=>{
+     const version=++revision,matching={};let page=snapshot.val()||{};
+     const current=()=>active&&gen===generation&&version===revision;
+     try{
+      while(current()){
+       const keys=Object.keys(page).sort();
+       for(const id of keys){const record=page[id];if((record.roomKey||'default')===room)matching[id]=record;}
+       if(Object.keys(matching).length>=30||keys.length<30)break;
+       const boundary=keys[0];
+       const older=(await root.orderByKey().endAt(boundary).limitToLast(31).once('value')).val()||{};
+       delete older[boundary];page=older;
+       if(!Object.keys(page).length)break;
+      }
+      if(current())fn(Object.fromEntries(Object.keys(matching).sort().slice(-30).map(id=>[id,matching[id]])));
+     }catch(_){if(current())feedback('No se pudieron cargar todos los resultados de esta mesa. Revisa la conexión.');}
+    };
+    ref.on('value',on,()=>{if(active&&gen===generation)feedback('No se pudieron cargar los resultados de esta mesa.');});
+    const off=()=>{active=false;revision++;ref.off('value',on);};unsub.push(off);return off;
+   };
    const names=new Map();
    const playersRef=db.ref('campaña/jugadores');const onPlayers=snap=>{
     if(gen!==generation)return;const players=Object.values(snap.val()||{}).filter(p=>p?.uid);profiles=Object.fromEntries(players.map(p=>[p.uid,p]));refreshPortraits();
     const uids=new Set(players.map(p=>p.uid));for(const p of players)names.set(p.uid,p.characterName||p.character_name||p.nombre||p.name||'Jugador');
     for(const[uid,off]of children)if(!uids.has(uid)){off();children.delete(uid);for(const key of history.keys())if(key.startsWith('player:'+uid+':'))history.delete(key);}
-    for(const p of players)if(!children.has(p.uid))children.set(p.uid,listen('theatre_check_results/'+p.uid,records=>{
+    for(const p of players)if(!children.has(p.uid))children.set(p.uid,listenPlayer('theatre_check_results/'+p.uid,records=>{
      for(const key of history.keys())if(key.startsWith('player:'+p.uid+':'))history.delete(key);
      for(const[id,r]of Object.entries(records))if((r.roomKey||'default')===room)history.set('player:'+p.uid+':'+id,{name:names.get(p.uid)||'Jugador',label:r.label||'Check',total:typeof r.total==='number'?r.total:null,outcome:r.outcome,time:r.clientCompletedAt||r.completedAt||0});renderHistory();
     }));renderHistory();
@@ -108,7 +131,7 @@
  doc.addEventListener('luminous:theatre-check-mode',event=>{if(mode!=='npc'){mode=event.detail?.mode==='opposed'?'opposed':'player';applyMode();}});
  function start(){const host=$('dm-director-view-checks');if(!host)return;bindControls();new MutationObserver(bindControls).observe(host,{childList:true,subtree:true});
   host.addEventListener('keydown',event=>{if(!event.target.closest('.roll-mode-tabs'))return;if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const tabs=[...modeTabs.querySelectorAll('button')],index=tabs.indexOf(doc.activeElement),next=event.key==='Home'?0:event.key==='End'?2:(index+(event.key==='ArrowRight'?1:2))%3;selectMode(tabs[next].dataset.rollMode);tabs[next].focus();});
-  global.firebase?.auth?.().onAuthStateChanged(bindHistory);global.addEventListener('luminous:player-instance-changed',bindHistory);
+  global.firebase?.auth?.().onAuthStateChanged(bindHistory);global.addEventListener('luminous:player-instance-changed',bindHistory);global.addEventListener('luminous:theatre-rolls-ready',bindHistory);
  }
  global.LuminousDmRollMenu=Object.freeze({selectMode});if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);

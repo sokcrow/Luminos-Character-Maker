@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 const scenePath = "campaña/estado_mundo/escena_actual";
 const actor = {nombre:"Aldara", icono:"Assets/Images/Buttons/Player.svg", sprite:"Assets/Images/Buttons/Theatre.png", expresiones:{Neutral:"Assets/Images/Buttons/Theatre.png"}};
-export async function mountDirector(page, {delayDashboardAuth = false, authUid = "dm", lateChecks = false} = {}) {
+export async function mountDirector(page, {delayDashboardAuth = false, authUid = "dm", lateChecks = false, lateRollVisualizer = false} = {}) {
   await page.route('http://dm-workspace.test/**', async route => {
     const pathname = decodeURIComponent(new URL(route.request().url()).pathname).slice(1);
     const target = path.resolve(pathname);
@@ -25,18 +25,21 @@ export async function mountDirector(page, {delayDashboardAuth = false, authUid =
       for(const k of keys.slice(0,-1)) n=n[k]??={};
       const before=read(p); if(v===null) delete n[keys.at(-1)]; else n[keys.at(-1)]=resolveStamp(v);
       for(const l of [...listeners]) {
-        if (l.event==='value' && (p===l.p || p.startsWith(l.p+'/') || l.p.startsWith(p+'/'))) l.fn(snap(l.p));
+        if (l.event==='value' && (p===l.p || p.startsWith(l.p+'/') || l.p.startsWith(p+'/'))) l.fn(snap(l.p,l.project?l.project():read(l.p)));
         if (l.event==='child_added' && p.startsWith(l.p+'/') && before===null && v!==null) l.fn(snap(p));
       }
     }
     const checkedWrite = async (p,v) => { if(window.rejectNextWrite){window.rejectNextWrite=false;throw Error('PERMISSION_DENIED');} write(p,v); };
-    function ref(p='') { return {key:p.split('/').pop(),toString:()=>p,child:k=>ref(p+'/'+k),
-      on(event,fn){listeners.push({p,event,fn});if(event==='value')fn(snap(p));},off(event,fn){for(let i=listeners.length-1;i>=0;i--)if(listeners[i].p===p&&listeners[i].event===event&&listeners[i].fn===fn)listeners.splice(i,1);},
-      once:async()=>snap(p),set:v=>checkedWrite(p,v),remove:()=>checkedWrite(p,null),
+    function ref(p='',q={}) {
+      const project=()=>{const value=read(p);if(!q.keyOrder&&!q.last)return value;let entries=Object.entries(value||{}).sort(([a],[b])=>a<b?-1:a>b?1:0);if(q.end!==undefined)entries=entries.filter(([key])=>key<=q.end);if(q.last)entries=entries.slice(-q.last);return Object.fromEntries(entries);};
+      return {key:p.split('/').pop(),toString:()=>p,child:k=>ref(p+'/'+k),
+      on(event,fn){listeners.push({p,event,fn,project});if(event==='value')fn(snap(p,project()));},off(event,fn){for(let i=listeners.length-1;i>=0;i--)if(listeners[i].p===p&&listeners[i].event===event&&listeners[i].fn===fn)listeners.splice(i,1);},
+      once:async()=>{window.testQueries.push({p,...q});return snap(p,project());},set:v=>checkedWrite(p,v),remove:()=>checkedWrite(p,null),
       update:async values=>{for(const[k,v]of Object.entries(values))await checkedWrite(p?p+'/'+k:k,v);},
       transaction:async(fn,done)=>{const next=fn(clone(read(p)));let committed=next!==undefined;if(committed)await checkedWrite(p,next);const result={committed,snapshot:snap(p)};done?.(null,committed,result.snapshot);return result;},
-      push(v){const r=ref(p+'/msg_'+(++window.writeId));if(v!==undefined)r.set(v);return r;},orderByChild(){return this;},limitToLast(){return this;},limitToFirst(){return this;}
+      push(v){const r=ref(p+'/msg_'+(++window.writeId));if(v!==undefined)r.set(v);return r;},orderByChild(){return this;},orderByKey(){return ref(p,{...q,keyOrder:true});},endAt(end){return ref(p,{...q,end});},limitToLast(last){return ref(p,{...q,last});},limitToFirst(){return this;}
     }; }
+    window.testQueries=[];window.testListenerCount=p=>listeners.filter(l=>l.p===p).length;
     window.writeId=0;window.testDb={ref};window.testRead=read;window.testWrite=write;
     const database=()=>window.testDb;database.ServerValue={TIMESTAMP:{'.sv':'timestamp'}};
     window.firebase={apps:[{}],database,auth:()=>({currentUser:{uid:authUid,getIdToken:async()=>window.testToken||'not-configured'},onAuthStateChanged:fn=>{fn({uid:authUid,getIdToken:async()=>window.testToken||'not-configured'});return()=>{};}})};
@@ -50,7 +53,7 @@ export async function mountDirector(page, {delayDashboardAuth = false, authUid =
   for (const file of ['on-game-dashboard','theatre-hud','theatre-message-policy','theatre-actor-studio','theatre-dm-workspace','luminous-audio-director','director-prototype-theatre','director-prototype-audio','director-prototype-integration','theatre-check-coordinator','dm-npc-rolls','theatre-opposed-checks','theatre-roll-menu']) await page.addStyleTag({path:`css/${file}.css`});
   for (const file of ['theatre-engine','theatre-controls','on-game-dashboard']) await page.addScriptTag({path:`js/${file}.js`});
   await page.evaluate(()=>document.dispatchEvent(new Event('DOMContentLoaded')));
-  for (const file of ['theatre-director-menu-guard','theatre-intervention-ux-core','proficiency-runtime','theatre-roll-visualizer','theatre-check-coordinator','director-prototype-templates','theatre-dm-workspace','theatre-prototype-layout','theatre-roll-menu','audio-cloud-library','luminous-audio-director'].filter(file=>!lateChecks || file!=='theatre-check-coordinator')) await page.addScriptTag({path:`js/${file}.js`});
+  for (const file of ['theatre-director-menu-guard','theatre-intervention-ux-core','proficiency-runtime','theatre-roll-visualizer','theatre-check-coordinator','director-prototype-templates','theatre-dm-workspace','theatre-prototype-layout','theatre-roll-menu','audio-cloud-library','luminous-audio-director'].filter(file=>(!lateChecks || file!=='theatre-check-coordinator') && (!lateRollVisualizer || file!=='theatre-roll-visualizer'))) await page.addScriptTag({path:`js/${file}.js`});
   if(lateChecks) await page.addScriptTag({path:'js/theatre-check-coordinator.js'});
   await page.locator('.theatre-dm-menu-toggle').click();
 }
