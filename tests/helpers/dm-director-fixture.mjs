@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 const scenePath = "campaña/estado_mundo/escena_actual";
 const actor = {nombre:"Aldara", icono:"Assets/Images/Buttons/Player.svg", sprite:"Assets/Images/Buttons/Theatre.png", expresiones:{Neutral:"Assets/Images/Buttons/Theatre.png"}};
-export async function mountDirector(page) {
+export async function mountDirector(page, {delayDashboardAuth = false} = {}) {
   await page.route('http://dm-workspace.test/**', async route => {
     const pathname = decodeURIComponent(new URL(route.request().url()).pathname).slice(1);
     const target = path.resolve(pathname);
@@ -42,6 +42,11 @@ export async function mountDirector(page) {
     window.firebase={apps:[{}],database,auth:()=>({currentUser:{uid:'dm',getIdToken:async()=>window.testToken||'not-configured'},onAuthStateChanged:fn=>{fn({uid:'dm',getIdToken:async()=>window.testToken||'not-configured'});return()=>{};}})};
     window.LuminousInstanceControl={bindDashboard(){}};
   },{actor,scenePath});
+  if (delayDashboardAuth) await page.evaluate(() => {
+    const original = window.firebase.auth, pending = [];
+    window.firebase.auth = () => ({...original(), onAuthStateChanged(fn) { pending.push(fn); return () => {}; }});
+    window.testReleaseAuth = () => { for (const fn of pending.splice(0)) fn(original().currentUser); };
+  });
   for (const file of ['on-game-dashboard','theatre-hud','theatre-message-policy','theatre-actor-studio','theatre-dm-workspace','luminous-audio-director','director-prototype-theatre','director-prototype-audio','director-prototype-integration','theatre-check-coordinator','dm-npc-rolls','theatre-opposed-checks']) await page.addStyleTag({path:`css/${file}.css`});
   for (const file of ['theatre-engine','theatre-controls','on-game-dashboard']) await page.addScriptTag({path:`js/${file}.js`});
   await page.evaluate(()=>document.dispatchEvent(new Event('DOMContentLoaded')));

@@ -16,6 +16,7 @@ const w=dom.window,d=w.document,root=d.getElementById('dm-canonical-director'),m
 assert.equal(root.open,true);
 assert.equal(d.getElementById('theatre-background-input').value,'https://assets.test/old.png');
 assert.equal(d.getElementById('theatre-location-input').value,'Lugar guardado');
+assert.equal(d.getElementById('theatre-scenario-region').closest('section').id,'theatre-scenario-library-metadata');
 
 assert.deepEqual([...root.querySelectorAll('[data-step] .step-name')].map(n=>n.textContent),['ACTORES','ESCRIBIR','ESCENA']);
 assert.deepEqual([...root.querySelectorAll('[data-mobile-tab]')].map(n=>n.textContent),['Elenco','Registro','Dirección']);
@@ -222,4 +223,25 @@ utility.querySelector('header button').click();
 root.querySelector('#playSceneBtn').click();await tick();assert.equal(root.open,false);assert.equal(d.querySelectorAll('#theatre-stage').length,1);
 assert.equal(d.querySelectorAll('#modulo-teatro>.stage-view-wrapper').length,1);
 dom.window.close();
+// Authentication may finish after the approved layout has moved the tags input.
+await mountDirector(page,{delayDashboardAuth:true});await tick();
+const late=dom.window,lateDoc=late.document;
+assert.equal(lateDoc.getElementById('theatre-scenario-region'),null);
+late.testReleaseAuth();await tick();
+for(const id of ['theatre-scenario-region','theatre-scenario-category']) {
+ const input=lateDoc.getElementById(id);
+ assert.equal(input.closest('section').id,'theatre-scenario-library-metadata');
+ assert.equal(input.closest('[data-scene-fields="scene"]'),null,'late auth must not expose library-only metadata in Título/lugar');
+ assert.equal(lateDoc.querySelectorAll('#'+id).length,1);
+}
+lateDoc.querySelector('[data-tool="scene"]').click();await tick();
+assert.equal(lateDoc.getElementById('theatre-scenario-library-metadata').closest('[hidden]')!==null,true);
+lateDoc.getElementById('dm-canonical-utility').close();lateDoc.getElementById('sceneLibraryBtn').click();await tick();
+assert.equal(lateDoc.getElementById('theatre-scenario-library-metadata').closest('[hidden]'),null);
+lateDoc.getElementById('theatre-scenario-region').value='Región editada';lateDoc.getElementById('theatre-scenario-category').value='Categoría editada';
+lateDoc.getElementById('btn-save-scenario').click();await tick();
+const saved=Object.values(late.testRead('campaña/escenarios')||{}).at(-1);
+assert.equal(saved.region,'Región editada');assert.equal(saved.categoria,'Categoría editada');
+late.close();
+
 console.log('Approved prototype integration: exact navigation/sections, live player/NPC split, native close/cancel/reopen, one stage, one publishing route, action type, empty audio catalog, disabled transport, R2 UI and canonical NPC/player portraits across cards/log/composer with live updates passed.');

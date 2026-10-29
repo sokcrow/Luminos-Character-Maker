@@ -64,21 +64,27 @@
       const btnUpdateScene = document.getElementById("btn-update-scene");
 
       function ensureScenarioMetadataInputs() {
-        if (!tagsInput || document.getElementById("theatre-scenario-region")) return;
-        const region = document.createElement("input");
-        region.id = "theatre-scenario-region";
-        region.type = "text";
-        region.placeholder = "Región / sección / capítulo";
-        region.style.cssText = tagsInput.style.cssText;
-
-        const category = document.createElement("input");
-        category.id = "theatre-scenario-category";
-        category.type = "text";
-        category.placeholder = "Categoría / área";
-        category.style.cssText = tagsInput.style.cssText;
-
-        tagsInput.parentElement?.insertBefore(region, tagsInput);
-        tagsInput.parentElement?.insertBefore(category, tagsInput);
+        if (!tagsInput || !scenarioSelect) return;
+        let host = document.getElementById("theatre-scenario-library-metadata");
+        if (!host) {
+          host = document.createElement("section");
+          host.id = "theatre-scenario-library-metadata";
+          host.setAttribute("aria-label", "Organización de la biblioteca de escenarios");
+          // The selector stays in Biblioteca when the layout moves the tags
+          // input into Título/lugar. Never anchor library-only fields to tags.
+          scenarioSelect.parentElement.after(host);
+        }
+        for (const [id, labelText] of [["theatre-scenario-region", "Región / sección / capítulo"], ["theatre-scenario-category", "Categoría / área"]]) {
+          let input = document.getElementById(id);
+          if (!input) {
+            input = document.createElement("input");input.id = id;input.type = "text";
+            input.placeholder = labelText;input.style.cssText = tagsInput.style.cssText;
+          }
+          if (!host.contains(input)) {
+            const label = document.createElement("label");label.textContent = labelText;
+            label.appendChild(input);host.appendChild(label);
+          }
+        }
       }
 
       ensureScenarioMetadataInputs();
