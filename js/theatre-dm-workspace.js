@@ -143,7 +143,8 @@
       ["voices", "Teatro", ICONS.speak],
       ["cast", "Biblioteca", ICONS.cast],
       ["scenes", "Escenas", ICONS.scene],
-      ["settings", "Ajustes", ICONS.settings]
+      ["settings", "Ajustes", ICONS.settings],
+      ["checks", "Checks", ICONS.speak]
     ].forEach(([key, label, icon]) => {
       const tab = button(label, () => activate(key), icon);
       tab.classList.add("dm-director-tab");
@@ -305,6 +306,19 @@
     } else {
       scenes.appendChild(preview);
     }
+
+    const checks = views.get("checks");
+    const checksLoading = el("p", "dm-director-hint", "Cargando Checks…");
+    checksLoading.setAttribute("role", "status"); checks.appendChild(checksLoading);
+    function collectChecks() {
+      for (const id of ["theatre-check-director", "theatre-npc-roll-director"]) {
+        const node = document.getElementById(id);
+        if (node && node.parentElement !== checks) checks.appendChild(node);
+      }
+      checksLoading.hidden = Boolean(checks.querySelector("#theatre-check-director"));
+    }
+    new MutationObserver(collectChecks).observe(panel, { childList: true, subtree: true });
+    collectChecks();
 
     const settings = views.get("settings");
     settings.appendChild(el("h4", "dm-director-section-title", "Presentación y ritmo"));

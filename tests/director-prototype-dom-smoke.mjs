@@ -168,6 +168,30 @@ assert.equal(w.testRead('campaña/base_datos_npcs/taxonomy_actor').nombre,'Actor
 assert.equal(d.getElementById('dm-theatre-composer-modal').open,false);
 w.LuminousDmTheatreWorkspace.openComposer('narrador');await tick();assert.equal(remove.hidden,true);d.getElementById('dm-theatre-composer-modal').close();
 
+// Tools route to separate live controls, and late Checks mount in their own view.
+root.querySelector('[data-tool="background"]').click();await tick();
+assert.equal(utility.dataset.toolView,'background');
+assert.equal(d.querySelector('[data-scene-fields="background"]').hidden,false);
+assert.equal(d.querySelector('[data-scene-fields="scene"]').hidden,true);
+assert.equal(d.getElementById('theatre-background-input').closest('[data-scene-fields]').dataset.sceneFields,'background');
+utility.querySelector('header button').click();root.querySelector('[data-tool="scene"]').click();await tick();
+assert.equal(d.querySelector('[data-scene-fields="scene"]').hidden,false);assert.equal(d.querySelector('[data-scene-fields="background"]').hidden,true);
+utility.querySelector('header button').click();
+const oldAuth=w.firebase.auth;
+const dmUid='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1';
+w.firebase.auth=()=>({currentUser:{uid:dmUid},onAuthStateChanged:fn=>{fn({uid:dmUid});return()=>{};}});
+w.testWrite('campaña/jugadores/check_player',{uid:'check-player-uid',characterName:'Jugador para check'});
+for(const file of ['proficiency-runtime','theatre-roll-visualizer','theatre-check-coordinator'])w.eval(await fs.readFile('js/'+file+'.js','utf8'));
+w.LuminousTheatreCheckCoordinator.bindAuthorizedData();
+await tick();root.querySelector('[data-tool="checks"]').click();await tick();
+assert.equal(d.getElementById('theatre-check-director').parentElement.id,'dm-director-view-checks');
+assert.equal(d.getElementById('dm-director-view-checks').hidden,false);assert.equal(d.getElementById('dm-director-view-scenes').hidden,true);
+d.getElementById('theatre-check-target-player').value='check-player-uid';d.getElementById('theatre-check-ability').value='str';d.getElementById('theatre-check-threshold').value='12';
+d.getElementById('theatre-check-send').click();await tick();
+assert.ok(Object.keys(w.testRead('theatre_check_commands/check-player-uid')||{}).length,'real Checks issues its existing command from the routed view');
+assert.equal(d.querySelectorAll('#theatre-check-director').length,1);
+utility.querySelector('header button').click();w.firebase.auth=oldAuth;
+
 root.querySelector('#playSceneBtn').click();await tick();assert.equal(root.open,false);assert.equal(d.querySelectorAll('#theatre-stage').length,1);
 assert.equal(d.querySelectorAll('#modulo-teatro>.stage-view-wrapper').length,1);
 dom.window.close();

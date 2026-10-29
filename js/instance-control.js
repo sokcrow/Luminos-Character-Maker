@@ -385,7 +385,7 @@
     const documentRef = doc || global.document;
     if (!documentRef?.head || !hasTheatre(documentRef)) return null;
     const link = ensureStyle(documentRef, "theatre-check-coordinator-stylesheet", "css/theatre-check-coordinator.css", "theatre-check-coordinator");
-    const script = ensureScript(documentRef, "theatre-check-coordinator-script", "js/theatre-check-coordinator.js", "theatre-check-coordinator");
+    const script = ensureScript(documentRef, "theatre-check-coordinator-script", "js/theatre-check-coordinator.js?v=20261029-director-tools-1", "theatre-check-coordinator");
     const retry = ensureScript(documentRef, "theatre-check-retry-watchdog-script", "js/theatre-check-retry-watchdog.js", "theatre-check-coordinator");
     return { link, script, retry };
   }
@@ -405,7 +405,7 @@
     // Script insertion order keeps the DM roll bridge behind the canonical engines.
     ensureScript(documentRef, "theatre-coin-engine-core-script", "js/coin-engine-core.js", "dm-npc-rolls");
     ensureScript(documentRef, "theatre-npc-stats-engine-script", "js/npc-stats-engine.js", "dm-npc-rolls");
-    ensureScript(documentRef, "theatre-dm-npc-roll-script", "js/dm-npc-rolls.js", "dm-npc-rolls");
+    ensureScript(documentRef, "theatre-dm-npc-roll-script", "js/dm-npc-rolls.js?v=20261029-director-tools-1", "dm-npc-rolls");
   }
 
   function ensureDmLocationControl({ db, doc } = {}) {
