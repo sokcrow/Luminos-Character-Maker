@@ -21,6 +21,17 @@ for (const concept of ['data-panel="roster"','data-panel="art"','data-panel="inf
   assert.ok(html.includes(concept), `Missing required UI affordance: ${concept}`);
 }
 assert.ok(html.includes('@media(max-width:900px)'), 'Mobile needs its own layout');
+assert.ok(html.includes('js/spell-catalog-core.js'), 'Spells must use the canonical spell catalog');
+assert.ok(html.includes('window.LuminousSpellCatalog'), 'Spells must resolve from the canonical spell source');
+assert.ok(html.includes('data-ability="spells"'), 'Spells must be a real interactive player section');
+assert.ok(html.includes('data-ability="skills"'), 'Combat Skills remain separately accessible');
+assert.ok(html.includes("event==='hit'&&!viewerTargeted"), 'Only an actually hit viewer may record being hit');
+assert.ok(html.includes("event==='identified'&&!current.seen&&!current.hit"), 'Identification requires prior evidence');
+assert.ok(html.includes("!idsFor(unit,kind).includes"), 'Observation cannot add unrelated abilities to a creature');
+assert.ok(html.includes('luminous:bestiary-combat-observation'), 'The prototype exposes a player-scoped combat event adapter');
+assert.ok(html.includes('localStorage.setItem(STORAGE_KEY'), 'Prototype knowledge is retained locally');
+assert.ok(!html.includes('data-debug'), 'No debug controls may appear in player UI');
+
 assert.ok(html.includes('(orientation:landscape)'), 'Mobile landscape needs its own layout');
 assert.ok(html.includes('min-height:46px'), 'Mobile touch targets need adequate height');
 assert.ok(html.includes('state.skills.set('), 'Skill details must resolve from live catalogs');
