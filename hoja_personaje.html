@@ -673,10 +673,7 @@
                 <div class="sheet-app-icon">📋</div>
                 <span>Misiones</span>
               </button>
-              <button type="action" name="act_tab_codex" class="sheet-app-btn">
-                <div class="sheet-app-icon">📚</div>
-                <span>Codex</span>
-              </button>
+
               <button type="action" name="act_tab_mapa" class="sheet-app-btn">
                 <div class="sheet-app-icon">🗺️</div>
                 <span>Mapa</span>
@@ -685,14 +682,7 @@
                 <div class="sheet-app-icon">📝</div>
                 <span>Notas</span>
               </button>
-              <button
-                type="action"
-                name="act_tab_parts"
-                class="sheet-app-btn sheet-show-parts-btn"
-              >
-                <div class="sheet-app-icon">🧩</div>
-                <span>Partes</span>
-              </button>
+
               <button
                 type="action"
                 name="act_tab_settings"
@@ -5582,7 +5572,7 @@
           <!-- Apego Tab Content -->
 
           <!-- Abnormality Parts List (Moved from Parts Tab) -->
-          <div class="sheet-tab-content sheet-tab-profile">
+          <div class="sheet-tab-content sheet-tab-profile"><section class="player-profile-card" aria-label="Perfil del personaje"><div class="player-profile-portrait"><img id="player-profile-icon" alt="Retrato del personaje" hidden><span id="player-profile-fallback" aria-hidden="true">◈</span></div><h2 id="player-profile-name">Personaje</h2><div id="player-profile-session"></div></section><div id="player-profile-legacy" hidden inert aria-hidden="true">
             <div class="sheet-app-header">
               <h2>Perfil</h2>
               <button
@@ -5986,7 +5976,7 @@
                 </details>
               </div>
             </div>
-          </div>
+          </div></div>
 
           <!-- Contratos / Misiones Tab -->
           <div class="sheet-tab-content sheet-tab-contratos">
@@ -7482,22 +7472,8 @@
 
           <!-- Notas Tab -->
           <div class="sheet-tab-content sheet-tab-notas">
-            <div class="sheet-app-header"><h2>Notas</h2></div>
-            <div class="sheet-app-body" style="height: calc(100% - 60px)">
-              <textarea
-                style="
-                  width: 100%;
-                  height: 100%;
-                  background: transparent;
-                  border: 1px solid #333;
-                  color: #ccc;
-                  padding: 10px;
-                  resize: none;
-                  font-family: inherit;
-                "
-                placeholder="Escribe tus notas aquí..."
-              ></textarea>
-            </div>
+ <div class="sheet-app-header"><h2>Notas</h2></div>
+ <section id="player-notebook" class="player-notebook" aria-label="Cuaderno personal"></section>
           </div>
         </div>
         <!-- End Phone Screen -->
@@ -7566,6 +7542,8 @@
             <span>Habilidades</span>
           </button>
 
+          <button type="button" name="act_hud_rules" class="hud-menu-item" title="Reglas · Codex" aria-label="Abrir reglas del juego"><span aria-hidden="true">▤</span><span>Reglas</span></button>
+
           <!-- Apego (Hablar) -->
           <button type="button" name="act_hud_apego" class="hud-menu-item" title="Apego" aria-label="Abrir apego">
             <img src="Assets/Images/Buttons/Apego.png" width="40" height="40" alt="" aria-hidden="true" class="hud-menu-local-icon" style="width:40px;height:40px;object-fit:contain;">
@@ -7619,6 +7597,7 @@
       />
 
       <!-- Global Modals for HUD -->
+      <div id="rules-modal" class="hud-modal player-rules-modal" aria-hidden="true"><div class="hud-modal-content"><button type="button" name="act_hud_close" class="hud-modal-close" aria-label="Cerrar reglas">×</button><div class="hud-modal-body" id="player-rules-content"></div></div></div>
       <div id="stats-modal" class="hud-modal modal-stats">
         <div class="hud-modal-content">
           <button type="action" name="act_hud_close" class="hud-modal-close">
@@ -13445,12 +13424,15 @@
     <script src="js/player-mobile-runtime.js?v=20261006-mobile-runtime-3"></script>
     <script src="js/player-terminal-fullscreen.js?v=20261006-cellphone-context-1"></script>
     <script src="js/loot-live-postcombat-runtime.js?v=20261030-progression-1"></script>
-    <script src="js/player-postcombat-loot.js?v=20261024-anatomy-1"></script>
+    <script src="js/player-contextual-dock.js?v=20261030-player-ui-2"></script>
+    <script src="js/player-postcombat-loot.js?v=20261030-player-ui-1"></script>
     <script src="js/creature-compendium-ui.js?v=20261030-progression-1"></script>
     <script src="hoja_personaje.js?v=20261004-shop-commerce-1&menu=20261006-mobile-menu-2"></script>
     <link rel="stylesheet" href="css/theatre-spell-loadout.css?v=20261022-unified-spells-1">
     <script src="js/scene-time-core.js?v=20261022-spell-review-2"></script>
     <script src="js/theatre-spell-loadout.js?v=20261022-spell-review-2"></script>
+    <link rel="stylesheet" href="css/player-notebook.css?v=20261030-player-ui-1">
+    <script src="js/player-notebook.js?v=20261030-player-ui-1"></script>
     <script src="js/player-hud-navigation.js?v=20261007-mobile-touch-menu-3"></script>
     <script src="js/audio-cloud-library.js?v=20261028-upload-2"></script>
   <script src="js/luminous-audio-director.js?v=20261028-catalog-1"></script>
