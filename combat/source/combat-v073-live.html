@@ -5588,6 +5588,11 @@ function spawnCombatant(d){
   c.style.bottom=`${d.y}%`;
   c.innerHTML=`<div class="combatant"><svg class="diegetic-floor" viewBox="-100 -100 200 200"><polygon class="floor-bg-poly" points="${h.full}"/><polyline class="hp-track" points="${h.front}"/><polyline class="hp-transition-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/><polyline class="hp-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:${100-pct}"/>${staggerThresholdMarkup(h.frontPoints,thresholds)}<polyline class="shield-fill-line" points="${h.front}" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:100"/></svg><div class="top-ui-panel" id="ui-panel-${d.id}" style="top:60px"><div class="speed-number">${d.speed}</div><div class="action-slots">${slots}</div></div><div class="sprite-anchor" id="anchor-${d.id}" style="bottom:${d.spriteY}px;margin-left:${d.spriteX}px;transform:scale(calc(${d.scale} * var(--scene-depth-scale,1) * var(--creature-size-scale,1)))"><img src="${d.img}" class="sprite-img" id="sprite-${d.id}" onerror="this.style.opacity='.25'">${staggerGlassMarkup()}</div><div class="stagger-pop" aria-live="polite"></div><div class="floating-hp-group"><div class="name-plate">${d.name}</div><div class="hp-number">${d.hp}</div></div><div class="floating-sp-group sp-neutral">${d.sp}</div><div class="status-effect-strip" id="statuses-${d.id}" aria-label="Status Effects"></div></div>`;
   field.appendChild(c);
+  // Hydration recreates the slot nodes; restore input for every existing slot,
+  // not only slots appended later by grantActionSlotToUnit.
+  if(d.id===PLAYER_ID)unitSlots(d.id).forEach((slot,index)=>{
+    slot.onclick=()=>{if(d.id===PLAYER_ID)selectSlot(index)}
+  });
   window.LuminousCombatStage073?.refreshUnit(combatData[d.id]);
   (combatData[d.id].triggeredStaggerThresholds||[]).forEach(index=>removeStaggerThresholdVisual(d.id,index));
   applyStaggerGlassStage(d.id,combatData[d.id].staggerStage);

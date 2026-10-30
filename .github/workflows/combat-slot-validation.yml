@@ -1,0 +1,19 @@
+name: Combat slot input
+on:
+  pull_request:
+    paths:
+      - 'combat/**'
+      - 'Battle-viewer.html'
+      - 'scripts/build-combat-live.mjs'
+      - 'tests/combat-slot-rehydration-smoke.mjs'
+      - '.github/workflows/combat-slot-validation.yml'
+jobs:
+  slots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/build-combat-live.mjs --check
+      - run: node tests/combat-slot-rehydration-smoke.mjs
