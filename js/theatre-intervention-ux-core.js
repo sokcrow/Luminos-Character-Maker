@@ -351,6 +351,56 @@
     return container;
   }
 
+  // Director uses the SAME subscription and presentation rules as the player log.
+  // Only the DM surface owns these base rows; player rendering remains unchanged.
+  function renderDirectorLog() {
+    const container = doc.querySelector("#dm-canonical-director #theatre-log-container, #theatre-director-panel #theatre-log-container");
+    const area = container?.querySelector(".dialogue-scroll-area");
+    if (!area) return;
+    const signature = JSON.stringify(logEntries.map(([id, message]) => [id, message,
+      resolveCanonicalActorIcon(message, sceneActors, catalogs())]));
+    if (container.__directorLogSignature === signature) return;
+    container.__directorLogSignature = signature;
+    const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
+    area.replaceChildren();
+    if (!logEntries.length) {
+      const empty = doc.createElement("p");
+      empty.className = "dm-director-log-empty";
+      empty.textContent = "El teatro está en silencio…";
+      area.appendChild(empty);
+    }
+    logEntries.forEach(([id, message], index) => {
+      if (index) {
+        const divider = doc.createElement("hr");
+        divider.className = "dialogue-divider";
+        area.appendChild(divider);
+      }
+      const presentation = logPresentation(message);
+      const row = doc.createElement("div");
+      const types = {dialogo: "dialogue", actuar: "action", pensamiento: "thought", narracion: "narration", sistema: "system"};
+      row.className = "dialogue-row is-" + types[presentation.type] + (presentation.centered ? " is-centered-log-entry" : "");
+      row.dataset.messageId = id;
+      if (presentation.showPortrait) {
+        const character = doc.createElement("div"); character.className = "character-col";
+        const border = doc.createElement("div"); border.className = "hex-border";
+        const portrait = doc.createElement("div"); portrait.className = "hex-portrait";
+        const image = doc.createElement("img");
+        image.src = resolveCanonicalActorIcon(message, sceneActors, catalogs()) || initialsIcon(message.nombre);
+        image.alt = "";
+        image.addEventListener("error", () => { image.src = initialsIcon(message.nombre); }, {once:true});
+        portrait.appendChild(image); border.appendChild(portrait); character.appendChild(border);
+        const name = doc.createElement("span"); name.className = "character-name";
+        name.textContent = message.nombre || "Personaje";
+        character.appendChild(name); row.appendChild(character);
+      }
+      const column = doc.createElement("div"); column.className = "text-col";
+      const text = doc.createElement("p");
+      text.textContent = String(message.mensaje || "").replace(/^\/em\s*/i, "");
+      column.appendChild(text); row.appendChild(column); area.appendChild(row);
+    });
+    if (atBottom && container.dataset.autoScroll !== 'false') area.scrollTop = area.scrollHeight;
+  }
+
   function decorateLog() {
     if (isDmView()) return;
     const container = ensureLogObserver();
@@ -391,7 +441,8 @@
   }
 
   function scheduleLogDecoration() {
-    if (isDmView() || !playerTheatreActive()) return;
+    if (isDmView()) { renderDirectorLog(); return; }
+    if (!playerTheatreActive()) return;
     if (typeof global.queueMicrotask === "function") global.queueMicrotask(decorateLog);
     else global.setTimeout(decorateLog, 0);
     global.setTimeout(decorateLog, 40);
@@ -455,6 +506,7 @@
     bindScene();
     bindLog();
     ensureLogObserver();
+    if (isDmView()) renderDirectorLog();
     return true;
   }
 

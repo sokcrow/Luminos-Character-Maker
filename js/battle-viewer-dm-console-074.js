@@ -464,7 +464,7 @@
     if(!session?.claimEnd)throw new Error('Actualiza el visor antes de finalizar el encuentro.');
     const claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:(units)=>{runEncounterEndAll(units);if(normalized!=="cancelled")halvePlayerSanity(units);}});
     const alreadyEnded=claimed.estado.phase==='ENDED';
-    if(!alreadyEnded)claimed.combatMetrics=global.LuminousCombatMvpRuntime?.snapshotMetrics?.()||{};
+    if(!alreadyEnded)claimed.combatMetrics=claimed.mvpCheckpoint?.metrics||claimed.combatMetrics||{};
     try{
     const resolved={combatants:claimed.combatants};
     if (!alreadyEnded && normalized !== "cancelled") {
@@ -816,3 +816,4 @@
     else boot();
   }
 })(typeof window !== "undefined" ? window : globalThis);
+

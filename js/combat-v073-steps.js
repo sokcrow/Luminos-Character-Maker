@@ -76,14 +76,14 @@
       assertActive();
       let event;
       if (capture) {
-        const timing = schedulePresentation(name);
+        const timing = schedulePresentation(name, args);
         event = emit('Presentation', null, { cue: name, args: args.map(presentationValue), combatants: snapshot(), ...(timing ? { timing } : {}) });
         // Enqueue the result before local animation. Transport acknowledgements
         // are drained at action checkpoints, outside the animation clock.
         await publish();
       }
-      if (enabled) await presentScheduled(event, async () => {
-        assertActive(); notify(onPresentation, name, args); await presentation[name]?.(...args);
+      if (enabled) await presentScheduled(event, async visual => {
+        assertActive(); notify(onPresentation, name, args); await presentation[name]?.(...args, visual);
       });
     }
     function powerState(entry, remaining, opponent) {
@@ -322,9 +322,10 @@
         return copy(journal.slice(start));
       }, setPresentationEnabled(value) { enabled = Boolean(value); }, presentationEnabled: () => enabled,
       capturePresentation(value) { capture = Boolean(value); },
-      async present(cue, args) { if (enabled) { notify(onPresentation, cue, args); await presentation[cue]?.(...args); } },
+      async present(cue, args, visual) { if (enabled) { visual?.check(); notify(onPresentation, cue, args); await presentation[cue]?.(...args, visual); } },
       acceptEvent(event) { journal.push(freeze(copy(event))); sequence = Math.max(sequence, event.sequence); notify(onEvent, event); },
       resetJournal(cursor = 0) { journal = []; sequence = Number(cursor) || 0; } });
   }
   global.LuminousCombatSteps = Object.freeze({ version: VERSION, schemaVersion: SCHEMA, create });
 })(typeof window === 'undefined' ? globalThis : window);
+

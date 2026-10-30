@@ -21,6 +21,8 @@
   });
 
   const BROWSER_DEPENDENCIES = Object.freeze([
+    "js/compendium-progression-core.js?v=20261030-1",
+    "js/compendium-progression-live.js?v=20261030-progression-2",
     "js/content-registry.js",
     "js/item-icon-registry.js",
     "js/item-runtime-engine.js",
@@ -37,6 +39,8 @@
     "js/item-economy-standard.js",
     "js/coin-engine-core.js",
     "js/creature-type-catalog.js",
+    "js/ranger-class-runtime.js",
+    "js/unit-loot-profile-contract.js?v=20261030-progression-2",
     "js/loot-social-profile-contract.js",
     "js/loot-encounter-context.js",
     "js/corpse-harvest-runtime.js?v=20261024-anatomy-1",
@@ -52,6 +56,11 @@
     "js/item-catalog-feather-raw-fiber.js",
     "js/item-catalog-salvage-raw.js",
     "js/unit-catalog-kobold-tier1.js?v=20261023-shared-belongings-1",
+    "js/skill-catalog-cave-sapphire-spiders.js",
+    "js/unit-catalog-beast-cr0.js",
+    "js/unit-catalog-goblin.js",
+    "js/unit-catalog-wolf.js",
+    "js/unit-catalog-cave-sapphire-spiders.js",
     "js/loot-instance-runtime.js?v=20261024-anatomy-1",
     "js/loot-check-runtime.js?v=20261024-anatomy-1",
     "js/loot-knowledge-runtime.js?v=20261024-anatomy-1",
@@ -123,14 +132,14 @@
   }
   async function ensureDependencies() {
     if (typeof document === "undefined") {
-      BROWSER_DEPENDENCIES.forEach((src) => safeRequire("./" + src.replace(/^js\//, "")));
+      BROWSER_DEPENDENCIES.forEach((src) => safeRequire("./" + src.split("?")[0].replace(/^js\//, "")));
       return true;
     }
     if (dependencyPromise) return dependencyPromise;
     dependencyPromise = (async () => {
       // async=false preserves execution order while downloads overlap.
       await Promise.all(BROWSER_DEPENDENCIES.map(loadBrowserScript));
-      if (!inventory()?.createItemInstance || !lootInstances()?.generateLootInstance || !postCombat()?.applyResolvedAction || !delivery()?.materializeRecovery || !knowledge()?.mergeFacts) {
+      if (!global.LuminousCompendiumProgression || !global.LuminousCompendiumProgressLive || !inventory()?.createItemInstance || !lootInstances()?.generateLootInstance || !postCombat()?.applyResolvedAction || !delivery()?.materializeRecovery || !knowledge()?.mergeFacts) {
         throw new Error("LOOT_LIVE_RUNTIME_DEPENDENCIES_INCOMPLETE");
       }
       return true;
@@ -418,6 +427,9 @@
       lootProfile: unitTruth?.lootProfile,
     });
 
+    const progressionPlayerId=clean(options.playerId || options.actorId);
+    const progressionRecord=progressionPlayerId ? await onceValue(db, `campaña/compendium_progress/${safeKey(progressionPlayerId)}/units/${safeKey(locked.sourceUnitId)}`) : null;
+    options={...options,observationRewards:global.LuminousCompendiumProgression?.bonuses(progressionRecord||{})};
     const actorIdentityOptions = {
       ...options,
       state: options.state || await onceValue(db, `${ROOTS.postCombat}/${lootInstanceId}`) || postCombat().createInteractionState(locked),
@@ -970,3 +982,4 @@
   global.LuminousLootLivePostCombatRuntime = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof window !== "undefined" ? window : globalThis);
+

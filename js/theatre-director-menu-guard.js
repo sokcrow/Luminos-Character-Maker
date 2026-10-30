@@ -6,7 +6,7 @@
   if (global.LuminousTheatreDirectorMenuGuard) return;
 
   const ACTOR_STUDIO_SCRIPT_ID = "theatre-actor-studio-script";
-  const ACTOR_STUDIO_SRC = "js/theatre-actor-studio.js";
+  const ACTOR_STUDIO_SRC = "js/theatre-actor-studio.js?v=20261028-cast-library-2";
   const LOADER_ID = "theatre-actor-studio-loader";
   const SLOT_ID = "theatre-actor-studio-slot";
 
@@ -126,7 +126,7 @@
 
     loader.append(summary, slot);
     const quickCast = director.querySelector(".npc-spawner-section");
-    if (quickCast) director.insertBefore(loader, quickCast);
+    if (quickCast) quickCast.parentNode.insertBefore(loader, quickCast);
     else director.appendChild(loader);
 
     loader.addEventListener("toggle", () => {

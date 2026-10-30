@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "limbus-audio",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-27",
+  "r2_buckets": [{ "binding": "AUDIO_BUCKET", "bucket_name": "limbus-audio" }],
+  "vars": {
+    "FIREBASE_PROJECT_ID": "luminous-system",
+    "FIREBASE_DATABASE_URL": "https://luminous-system-default-rtdb.firebaseio.com",
+    "ALLOWED_ORIGINS": "https://sokcrow.github.io"
+  },
+  "observability": { "enabled": true }
+}

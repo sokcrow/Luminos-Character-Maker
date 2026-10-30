@@ -13,7 +13,7 @@
     if(raw?.estado?.encounterId&&live(raw))return;
     if(raw?.estado&&live(raw)&&Object.keys(raw.combatants||{}).length)
       return {...raw,estado:{...(typeof raw.estado==='object'?raw.estado:{}),encounterId:id,encounterCreatedAt:time,active:true}};
-    return {...(raw||{}),combatants:null,reserves:null,defeated:null,departed:null,participants:null,plannedActions:null,readyPlayers:null,independentIntents:null,independentReceipts:null,authority:null,playback:null,
+    return {...(raw||{}),combatants:null,reserves:null,defeated:null,departed:null,participants:null,mvpCheckpoint:null,combatMetrics:null,xpPlans:null,plannedActions:null,readyPlayers:null,independentIntents:null,independentReceipts:null,authority:null,playback:null,
       estado:{encounterId:id,encounterCreatedAt:time,phase:'PRE_COMBAT_PLANNING',active:true,round:1,presentation:'full',createdBy:uid,updatedAt:time},
       planningStartedAt:time,planningDuration:60};
   }
@@ -46,7 +46,7 @@
   const updateRoot=(db,update)=>updatePath(db,ROOT,update);
   function canSeal(raw,payload){
     if(!raw||!['PRE_COMBAT_PLANNING','PLANNING'].includes(String(raw.estado?.phase||raw.estado).toUpperCase())||Number(raw.estado?.round||1)!==payload.round)return false;
-    if(Object.entries(raw.independentIntents||{}).some(([owner,rows])=>Object.entries(rows||{}).some(([id,row])=>Number(row.round)===Number(payload.round)&&(!raw.independentReceipts?.[owner]?.[id]||raw.independentReceipts[owner][id].pendingInventory))))return false;
+    if(Object.entries(raw.independentIntents||{}).some(([owner,rows])=>Object.entries(rows||{}).some(([id,row])=>Number(row.round)===Number(payload.round)&&(!raw.independentReceipts?.[owner]?.[id]||(raw.independentReceipts[owner][id].pendingInventory||raw.independentReceipts[owner][id].pendingObservation)))))return false;
     const members=global.LuminousCombatParticipants?.players(raw.combatants)||[];
     if(members.length!==Object.keys(payload.plans||{}).length)return false;
     const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>k!=='updatedAt').map(k=>[k,stable(v[k])])):v;
@@ -93,6 +93,7 @@
     const deployment=global.LuminousCombatDeploymentRuntime;
     if(!deployment)throw Error('Espera a que cargue el encuentro.');
     units=units.map(unit=>global.LuminousNpcBelongings?.initialize(unit)||unit);
+    if(global.LuminousCompendiumProgressLive){const current=(await db.ref(ROOT).once('value')).val()||{};units=await global.LuminousCompendiumProgressLive.prepareLoot(db,units,[...Object.values(current.combatants||{}),...units]);}
     const response=await updateRoot(db,raw=>{
       if(!raw||blocked(raw)||!['PRE_COMBAT_PLANNING','PLANNING','SETUP'].includes(String(raw.estado?.phase||raw.estado).toUpperCase()))return;
       const combatants={...(raw.combatants||{})},reserves={...(raw.reserves||{})};
@@ -155,7 +156,10 @@
       if(!global.LuminousCombatXpRuntime?.eligibleVictoryPlayers
         || !validId(xpAward?.encounterId)
         || !Array.isArray(recipients)
-        || recipients.length!==xpAward.participantCount
+        || recipients.length+(xpAward.npcIds||[]).length!==xpAward.participantCount
+        || !Array.isArray(xpAward.npcIds||[])
+        || (xpAward.npcIds||[]).some(id=>!validId(id))
+        || new Set(xpAward.npcIds||[]).size!==(xpAward.npcIds||[]).length
         || recipients.some(id=>!validId(id))
         || new Set(recipients).size!==recipients.length
         || !Number.isSafeInteger(xpAward.xpPerParticipant)
@@ -166,13 +170,13 @@
         db.ref(`campaña/jugadores/${id}/encounterXpAwards/${xpAward.encounterId}`)
           .once('value').then(snapshot=>snapshot.val())));
       if(receipts.some((receipt,index)=>!receipt
-        || receipt.xp !== (xpAward.awards.find(row=>row.kind==='player'&&row.id===recipients[index])?.xp ?? xpAward.xpPerParticipant)
+        || receipt.xp !== ((xpAward.awards||[]).find(row=>row.kind==='player'&&row.id===recipients[index])?.xp ?? xpAward.xpPerParticipant)
         || receipt.totalXp!==xpAward.totalXp
         || receipt.participantCount!==xpAward.participantCount))
         throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
       const npcIds=xpAward.npcIds||[];
       const npcReceipts=await Promise.all(npcIds.map(id=>db.ref('campaña/base_datos_npcs/'+id+'/encounterXpAwards/'+xpAward.encounterId).once('value').then(s=>s.val())));
-      if(npcReceipts.some((receipt,index)=>!receipt||receipt.xp!==xpAward.awards.find(row=>row.kind==='npc'&&row.id===npcIds[index])?.xp
+      if(npcReceipts.some((receipt,index)=>!receipt||receipt.xp!==(xpAward.awards||[]).find(row=>row.kind==='npc'&&row.id===npcIds[index])?.xp
         ||receipt.totalXp!==xpAward.totalXp||receipt.participantCount!==xpAward.participantCount))throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
     }
     const response=await updateRoot(db,raw=>{
@@ -183,9 +187,12 @@
         if(xpAward.encounterId!==raw.estado.encounterId
           || expected.length!==actual.length
           || expected.some((id,index)=>id!==actual[index]))return;
+        const expectedNpcs=global.LuminousCombatXpRuntime.eligibleVictoryNpcs(raw);
+        const actualNpcs=[...(xpAward.npcIds||[])].sort();
+        if(expectedNpcs.length!==actualNpcs.length||expectedNpcs.some((id,index)=>id!==actualNpcs[index]))return;
       }
       const finalEncounter={...raw,combatMetrics:combatMetrics||raw.combatMetrics||{}};
-      const mvp=global.LuminousCombatMvpRuntime?.selectMvp(finalEncounter)||null;
+      const mvp=(result==='victory'?xpAward?.mvp:null)||global.LuminousCombatMvpRuntime?.selectMvp(finalEncounter)||null;
       const roster=global.LuminousCombatMvpRuntime?.eligibleActors(raw)||[];
       const resultRoster=roster.map(a=>({id:a.id,kind:a.kind,name:a.name,portrait:a.portrait,level:a.level,unitId:a.unitId}));
       const rewardRows=result==='victory'?(xpAward?.awards||[]).map(a=>({id:a.kind+':'+a.id,xp:a.xp,baseXp:a.baseXp,bonusXp:a.bonusXp})):resultRoster.map(a=>({id:a.id,xp:0,baseXp:0,bonusXp:0}));
@@ -201,3 +208,5 @@
   }
   global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,deploy,participantIndex,claimEnd,commitEnd,failEnd,endErrorMessage,updatePath,updateRoot,canSeal,presentation});
 })(typeof window!=='undefined'?window:globalThis);
+
+

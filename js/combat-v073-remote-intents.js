@@ -276,10 +276,10 @@
       for(let attempt=0;attempt<3&&!committed;attempt++){
         const raw=(await s.db.ref('campaña/combate').once('value')).val();
         if(!raw)return false;
-        if(raw.independentReceipts?.[playerId]?.[intentId]){await finishInventory(s,playerId,intentId,raw.independentReceipts[playerId][intentId]);committed=true;break;}
+        if(raw.independentReceipts?.[playerId]?.[intentId]){const receipt=raw.independentReceipts[playerId][intentId];if(receipt.pendingObservation)await global.LuminousCompendiumProgressLive.finishObservation(s,playerId,intentId,receipt);await finishInventory(s,playerId,intentId,receipt);committed=true;break;}
         const row=raw.independentIntents?.[playerId]?.[intentId];
         if(!row){committed=true;break;}
-        const phase=norm(raw.estado?.phase||raw.estado?.state||raw.estado),turn=Number(raw.estado?.round||s.round)||1;
+        const phase=norm(raw.estado?.phase||raw.estado?.state||raw.estado?.status||raw.estado),turn=Number(raw.estado?.round||s.round)||1;
         const sealed=['sealed','running'].includes(norm(raw.authority?.current?.phase));
         const live=runtime()?.combatants?.()||{};
         let units=Object.entries(raw.combatants||{}).map(([id,unit])=>({...clone(live[id]||{}),...clone(unit),id}));
@@ -316,6 +316,9 @@
           return [entry.id,authority.compactUnit(entry)];
         })):null;
         const delivery=result.used&&inventoryBefore?inventoryDelivery(inventoryBefore,unit.inventario_activo,row.encounterId,intentId):null;
+        const observationTarget=units.find(entry=>entry.id===clean(row.targetId));
+        const observationDelivery=result.used&&result.success&&row.sourceType==='universal'&&row.sourceId==='analyse'&&global.LuminousCompendiumProgression?.unitId(observationTarget)
+          ? {fact:row.choice,target:{libraryUnitId:global.LuminousCompendiumProgression.unitId(observationTarget),name:observationTarget.name}} : null;
         const expected=stable([raw.combatants,raw.estado,row,raw.readyPlayers,raw.plannedActions,raw.planningAi]);
         const transaction=await session.updateRoot(s.db,current=>{
           if(!current||current.independentReceipts?.[playerId]?.[intentId]||stable([current.combatants,current.estado,current.independentIntents?.[playerId]?.[intentId],current.readyPlayers,current.plannedActions,current.planningAi])!==expected)return;
@@ -326,12 +329,13 @@
             next.combatants[id].actionSlotIndex=Object.fromEntries(Array.from({length:canonical.actionSlots},(_,index)=>[index,true]));
           }
           next.independentReceipts ||= {};next.independentReceipts[playerId] ||= {};
-          next.independentReceipts[playerId][intentId]={encounterId:row.encounterId||null,round:turn,unitId:row.unitId,sourceId:row.sourceId,cost:row.cost,applied:result.used===true&&!delivery,result:clone(result),
-            ...(delivery?{pendingInventory:true,inventoryDelivery:delivery}:{})};
+          next.independentReceipts[playerId][intentId]={encounterId:row.encounterId||null,round:turn,unitId:row.unitId,sourceId:row.sourceId,cost:row.cost,applied:result.used===true&&!delivery&&!observationDelivery,result:clone(result),
+            ...(delivery?{pendingInventory:true,inventoryDelivery:delivery}:{}),...(observationDelivery?{pendingObservation:true,observationDelivery}:{})};
           if(snapshot)delete next.planningAi;
           return next;
         });
         committed=transaction.committed;
+        if(committed&&observationDelivery)await global.LuminousCompendiumProgressLive.finishObservation(s,playerId,intentId,{pendingObservation:true,observationDelivery});
         if(committed&&delivery)await finishInventory(s,playerId,intentId,{pendingInventory:true,inventoryDelivery:delivery});
         if(committed&&snapshot)authority.applySnapshot(snapshot);
       }
@@ -387,3 +391,4 @@
   for(const event of ['online','focus'])global.addEventListener(event,()=>{state.independentRetryCount=0;scheduleIndependentIntents();});
   start();
 })(window);
+

@@ -62,7 +62,7 @@
 
   function mount() {
     if (!dependenciesReady()) return false;
-    const director = $("theatre-director-panel");
+    const director = $("dm-director-view-checks") || $("theatre-director-panel");
     if (!director) return false;
     if ($("theatre-npc-roll-director")) {
       state.mounted = true;

@@ -75,13 +75,14 @@ assert.equal(data['campaña/jugadores/a'].level,3);
 const repeated=await xp.awardVictoryXp({db,encounter});
 assert.ok(repeated.awards.every(row=>!row.awarded));
 assert.equal(data['campaña/jugadores/a'].xp,230);
-// A changed reward after a partial payout must never be mistaken for an
-// idempotent success; the encounter cannot seal with inconsistent receipts.
+// A retry must use the frozen payout even if inputs changed after payment.
 const inconsistent=copy(encounter);inconsistent.estado.fixedEncounterXp=100;
-await assert.rejects(()=>xp.awardVictoryXp({db,encounter:inconsistent}),/ENCOUNTER_XP_RECEIPT_MISMATCH/);
+const frozen=await xp.awardVictoryXp({db,encounter:inconsistent});
+assert.equal(frozen.totalXp,first.totalXp);
+assert.ok(frozen.awards.every(row=>!row.awarded));
 assert.equal(data['campaña/jugadores/a'].xp,230);
 const retry=copy(encounter);retry.estado.encounterId='xp-smoke-b';
-failAt=2;
+failAt=3;
 await assert.rejects(()=>xp.awardVictoryXp({db,encounter:retry}),/SIMULATED_DISCONNECT/);
 assert.equal(data['campaña/jugadores/a'].xp,360);
 assert.equal(data['campaña/jugadores/b'].xp,430);
@@ -109,3 +110,4 @@ assert.match(dm,/xpRuntime\.awardVictoryXp\(/);
 assert.ok(dm.indexOf('xpRuntime.awardVictoryXp')<dm.indexOf('session.commitEnd('));
 assert.match(session,/xpAward\.encounterId!==raw\.estado\.encounterId/);
 console.log('CR (33 Units), Victory XP, Escape, retries and atomic receipts: OK');
+

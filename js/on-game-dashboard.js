@@ -64,21 +64,27 @@
       const btnUpdateScene = document.getElementById("btn-update-scene");
 
       function ensureScenarioMetadataInputs() {
-        if (!tagsInput || document.getElementById("theatre-scenario-region")) return;
-        const region = document.createElement("input");
-        region.id = "theatre-scenario-region";
-        region.type = "text";
-        region.placeholder = "Región / sección / capítulo";
-        region.style.cssText = tagsInput.style.cssText;
-
-        const category = document.createElement("input");
-        category.id = "theatre-scenario-category";
-        category.type = "text";
-        category.placeholder = "Categoría / área";
-        category.style.cssText = tagsInput.style.cssText;
-
-        tagsInput.parentElement?.insertBefore(region, tagsInput);
-        tagsInput.parentElement?.insertBefore(category, tagsInput);
+        if (!tagsInput || !scenarioSelect) return;
+        let host = document.getElementById("theatre-scenario-library-metadata");
+        if (!host) {
+          host = document.createElement("section");
+          host.id = "theatre-scenario-library-metadata";
+          host.setAttribute("aria-label", "Organización de la biblioteca de escenarios");
+          // The selector stays in Biblioteca when the layout moves the tags
+          // input into Título/lugar. Never anchor library-only fields to tags.
+          scenarioSelect.parentElement.after(host);
+        }
+        for (const [id, labelText] of [["theatre-scenario-region", "Región / sección / capítulo"], ["theatre-scenario-category", "Categoría / área"]]) {
+          let input = document.getElementById(id);
+          if (!input) {
+            input = document.createElement("input");input.id = id;input.type = "text";
+            input.placeholder = labelText;input.style.cssText = tagsInput.style.cssText;
+          }
+          if (!host.contains(input)) {
+            const label = document.createElement("label");label.textContent = labelText;
+            label.appendChild(input);host.appendChild(label);
+          }
+        }
       }
 
       ensureScenarioMetadataInputs();
@@ -187,17 +193,26 @@
         }).catch((error) => alert("Error al guardar: " + error));
       });
 
-      async function useScenarioFromInputs() {
-        const data = scenarioPayload();
+      async function useScenarioFromInputs(tool) {
+        let data = scenarioPayload();
+        if (tool === "background" || tool === "scene") {
+          const active = (await database.ref(paths().scene).once("value")).val() || {};
+          const changes = tool === "background" ? { fondo: data.fondo } : {
+            nombre: data.nombre, locacion: data.locacion, sub_etiquetas: data.sub_etiquetas
+          };
+          // A split tool edits only its visible fields; hidden library drafts
+          // must never replace the active scene's complementary metadata.
+          data = Object.assign({}, active, changes);
+        }
         if (!data.fondo || !data.locacion) {
           alert("Fondo y localización son obligatorios para usar el escenario.");
           return;
         }
-        await theatre.changeScene(Object.assign({}, data, { escenarioId: scenarioSelect?.value || null }));
+        await theatre.changeScene(Object.assign({}, data, { escenarioId: tool === "background" || tool === "scene" ? data.escenarioId || null : scenarioSelect?.value || null }));
       }
 
       btnUseScenario?.addEventListener("click", () => useScenarioFromInputs().catch((error) => alert("Error aplicando escenario: " + error)));
-      btnUpdateScene?.addEventListener("click", () => useScenarioFromInputs().catch((error) => alert("Error aplicando escenario: " + error)));
+      btnUpdateScene?.addEventListener("click", () => useScenarioFromInputs(document.getElementById("dm-canonical-utility")?.dataset.toolView).catch((error) => alert("Error aplicando escenario: " + error)));
 
       btnDeleteScenario?.addEventListener("click", () => {
         const scenarioId = scenarioSelect?.value;
@@ -331,6 +346,11 @@
         const languageSelect = document.getElementById("theatre-language-select");
         const text = dialogueInput?.value.trim() || "";
         if (!text) return;
+        const composer = document.querySelector(".theatre-dm-composer");
+        if (composer?.dataset.actorRetired === "true") {
+          alert("Este personaje fue retirado del elenco. Cierra el compositor y elige otro personaje.");
+          return;
+        }
         if (btnSendDialogue?.dataset.sending === "true") return;
 
         if (btnSendDialogue) {
@@ -351,9 +371,9 @@
             color_titulo: ""
           };
 
-          if (!speakerSelect || speakerSelect.value === "narrador") {
+          if ((!speakerSelect || speakerSelect.value === "narrador") && type !== "actuar") {
             type = "narracion";
-          } else {
+          } else if (speakerSelect && speakerSelect.value !== "narrador") {
             const option = speakerSelect.options[speakerSelect.selectedIndex];
             const expressionOption = expressionSelect?.options[expressionSelect.selectedIndex];
             speaker = {
@@ -387,7 +407,9 @@
 
           if (!queued?.queued) {
             throw new Error(
-              queued?.reason === "transition"
+              queued?.reason === "actor-retired"
+                ? "El personaje fue retirado del elenco. El mensaje no fue enviado."
+                : queued?.reason === "transition"
                 ? "La escena está en transición. El mensaje no fue enviado."
                 : "Theater rechazó el mensaje."
             );
@@ -430,7 +452,9 @@
           speakerSelect.appendChild(option);
         }
         speakerSelect.value = currentSelection && actors[currentSelection] ? currentSelection : "narrador";
-        speakerSelect.dispatchEvent(new Event("change"));
+        speakerSelect.dispatchEvent(new CustomEvent("change", {
+          detail: { theatreRosterRefresh: true }
+        }));
       });
 
       speakerSelect?.addEventListener("change", (event) => {

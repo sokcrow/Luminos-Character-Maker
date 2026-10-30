@@ -565,8 +565,9 @@
     bindPlayer();
     installResolvedCheckBridge();
     installPlayerRollBridge();
-    syncPlayerSkillPreviews();
-    syncPlayerAbilityPreviews();
+    const paint = () => { syncPlayerSkillPreviews(); syncPlayerAbilityPreviews(); };
+    if (global.LuminousPlayerStatsPaint) global.LuminousPlayerStatsPaint.request('trait-breakdown', paint);
+    else paint();
     syncDmSkillPreviews();
   }
 

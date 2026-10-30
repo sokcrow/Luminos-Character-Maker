@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Centro de Mando - ON GAME</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -10,8 +10,15 @@
   <link rel="stylesheet" href="css/theatre-dialogue.css">
   <link rel="stylesheet" href="css/theatre-hud.css?v=20261004-dm-input-visible-1">
   <link rel="stylesheet" href="css/theatre-message-policy.css?v=20261004-dm-input-visible-1">
+  <link rel="stylesheet" href="css/theatre-dm-workspace.css?v=20261028-director-3">
   <link rel="stylesheet" href="css/weather-fx.css">
   <link rel="stylesheet" href="css/dm-item-instance-editor.css" />
+  <link rel="stylesheet" href="css/luminous-audio-director.css?v=20261028-upload-1">
+  <link rel="stylesheet" href="css/director-prototype-theatre.css?v=20261028-canonical-1">
+  <link rel="stylesheet" href="css/director-prototype-audio.css?v=20261028-canonical-1">
+  <link rel="stylesheet" href="css/director-prototype-integration.css?v=20261029-director-tools-3">
+  <link rel="stylesheet" href="css/game-input-policy.css?v=20261028-interactions-1">
+  <script defer src="js/game-input-policy.js?v=20261028-interactions-1"></script>
 </head>
 <body class="on-game-dashboard">
   <nav class="master-control-bar" aria-label="Control de instancia">
@@ -52,8 +59,8 @@
       </div>
 
       <details class="theatre-dm-menu">
-        <summary class="theatre-dm-menu-toggle" title="Mostrar u ocultar controles del director" aria-label="Mostrar u ocultar controles del director">
-          <img src="Assets/Images/Buttons/Menu.svg" alt="">
+        <summary class="theatre-dm-menu-toggle" title="Abrir Director de Teatro" aria-label="Abrir Director de Teatro">
+          <img src="Assets/Images/Buttons/Menu.svg" alt=""><span>Director</span>
         </summary>
         <div id="theatre-director-panel" class="director-controls">
           <h3 class="panel-title">CONTROL DE CASTING</h3>
@@ -62,7 +69,7 @@
             <select id="select-npc-roster" class="strict-dropdown">
               <option value="">Cargando NPCs disponibles...</option>
             </select>
-            <button id="btn-spawn-npc" class="btn-action">INYECTAR A ESCENA</button>
+            <button id="btn-spawn-npc" class="btn-action">AÑADIR A ESCENA</button>
           </div>
 
           <div class="active-actors-list" id="live-actors-list" style="margin-bottom: 20px;"></div>
@@ -143,13 +150,13 @@
        closes and the shared instance returns to Theatre. -->
   <script src="js/loot-live-postcombat-runtime.js?v=20261024-anatomy-1"></script>
   <script src="js/dm-on-game-startup-gate.js?v=20261021-dm-start-button-1"></script>
-  <script src="js/theatre-director-menu-guard.js"></script>
+  <script src="js/theatre-director-menu-guard.js?v=20261029-director-tools-3"></script>
   <script src="js/weather-readonly-engine.js"></script>
   <script src="js/weather-fx.js"></script>
   <script src="js/game-loading-coordinator.js?v=20261005-real-gates-1"></script>
   <script src="js/combat-participants.js"></script>
     <script src="js/combat-session-lifecycle.js?v=20261021-dm-start-button-1"></script>
-    <script src="js/instance-control.js?v=20261021-dm-start-button-1"></script>
+    <script src="js/instance-control.js?v=20261029-director-tools-3"></script>
   <script>
     (function () {
       const combatModule = document.getElementById("modulo-combate");
@@ -255,12 +262,24 @@
   <script src="js/dm-managed-effect-engine.js"></script>
   <script src="js/language-catalog-engine.js"></script>
   <script src="js/bond-engine.js"></script>
-  <script src="js/theatre-engine.js?v=20261004-theatre-send-recovery-2"></script>
+  <script src="js/theatre-engine.js?v=20261029-director-tools-3"></script>
   <script src="js/character-manager-live-sync.js"></script>
-  <script src="js/theatre-controls.js?v=20261004-theatre-send-recovery-2"></script>
+  <script src="js/theatre-controls.js?v=20261029-director-tools-3"></script>
   <script src="js/theatre-language-policy.js"></script>
   <script src="js/theatre-message-policy.js?v=20261004-dm-input-visible-1"></script>
-  <script src="js/on-game-dashboard.js?v=20261021-encounter-3"></script>
+  <script src="js/on-game-dashboard.js?v=20261029-director-tools-3"></script>
   <script src="js/dm-item-instance-editor.js"></script>
+  <script id="theatre-intervention-ux-core-runtime-script" src="js/theatre-intervention-ux-core.js?v=20261028-canonical-1"></script>
+  <script src="js/director-prototype-templates.js?v=20261028-canonical-2"></script>
+  <script src="js/theatre-dm-workspace.js?v=20261029-director-tools-3"></script>
+  <script src="js/theatre-prototype-layout.js?v=20261029-director-tools-3"></script>
+  <script src="js/audio-cloud-library.js?v=20261028-upload-2"></script>
+  <script src="js/luminous-audio-director.js?v=20261028-catalog-1"></script>
+  <script src="js/compendium-progression-dm-bootstrap.js?v=20261030-progression-2"></script>
+    <script src="js/session-mvp-runtime.js?v=20261030-mvp-recovery-2"></script>
+    <script src="js/session-mvp-ui.js?v=20261030-mvp-recovery-2"></script>
+    <script src="js/combat-results-ui.js?v=20261030-mvp-recovery-2"></script>
 </body>
 </html>
+
+

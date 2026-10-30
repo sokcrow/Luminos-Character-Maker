@@ -10,6 +10,9 @@
     state: 'campaña/combate/estado'
   });
   const LIBRARY_SYNC_SCRIPT = 'js/combat-unit-library-sync.js?v=20261021-belongings-1';
+  // These three default cards are always offered by renderDefenseSkills().
+  // RTDB authorizes READY by equippedSkillIndex, not by the visible combat menu.
+  const DEFAULT_DEFENSE_SKILL_IDS = Object.freeze(['Evade', 'Guard', 'Counter']);
   const clean = (value) => String(value ?? '').trim();
   const safe = (value, fallback = 'id') => clean(value).replace(/[.#$\[\]\/]/g, '_') || fallback;
   const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -226,6 +229,14 @@
       ['skillDeck','skillSlotIds','skillIds','equippedSkillIndex'].some(key => player[key] != null || player.characterBuild?.[key] != null);
     const slotIds = hasPlayerLoadout ? skillSlotIdsFor(player) : skillSlotIdsFor(source);
     const ids = [...new Set(slotIds)];
+    // A granted / equipment Skill can be selectable outside the 3/2/1 Deck.
+    // Authorize it on the DM-owned combatant without altering the Deck slots.
+    const loadout = global.LuminousCombatSkillLoadout074;
+    const grantedIds = [
+      ...(loadout?.grantedSkillIdsFor?.(source) || []),
+      ...(global.LuminousEquipmentEffects?.grantedSkillIds?.(source) || [])
+    ].map(clean).filter(Boolean);
+    const authorizedSkillIds = [...new Set([...ids, ...grantedIds, ...DEFAULT_DEFENSE_SKILL_IDS])];
     const spellSource = spellSelectionProvided(player) ? player : source;
     const spellIds = spellIdsForDeployment(spellSource);
     const slots = slotsFor(source);
@@ -276,7 +287,7 @@
       skillDeck: hasPlayerLoadout ? clone(player.characterBuild?.skillDeck || player.skillDeck || null) : clone(source.skillDeck || null),
       skillIds: ids,
       skillSlotIds: slotIds,
-      equippedSkillIndex: equipped(ids),
+      equippedSkillIndex: equipped(authorizedSkillIds),
       spellIds,
       spellSelectionIndex: Object.fromEntries(spellIds.map(spellId => [spellId, true])),
       usableItemIndex: usableItems(source),

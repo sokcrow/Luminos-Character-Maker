@@ -222,13 +222,19 @@
 
   function boot() {
     ensureMilestoneTraitModifierPatch();
-    sync();
+    const scheduleSync = () => {
+      if (global.LuminousPlayerStatsPaint) {
+        global.LuminousPlayerStatsPaint.request('stat-tooltip', syncPlayerTooltip);
+        syncDmTooltips();
+      } else sync();
+    };
+    scheduleSync();
     [
       "luminous:player-data",
       "luminous:traits-refreshed",
       "luminous:class-runtime-loaded",
       "luminous:player-instance-changed",
-    ].forEach((name) => global.addEventListener?.(name, sync));
+    ].forEach((name) => global.addEventListener?.(name, scheduleSync));
     doc.addEventListener?.("change", (event) => {
       if (event.target?.closest?.("#stats-modal, #dashboard-jugadores")) sync();
     });

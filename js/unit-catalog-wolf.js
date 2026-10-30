@@ -79,7 +79,66 @@
     return loadout ? [...(loadout.tier1 || []), ...(loadout.tier2 || [])] : [];
   }
 
-  const DEFINITIONS = Object.freeze({
+  const freezeCompendiumContent = value => {
+    if (value && typeof value === 'object') { Object.values(value).forEach(freezeCompendiumContent); Object.freeze(value); }
+    return value;
+  };
+  const COMPENDIUM_CONTENT = freezeCompendiumContent({
+  "wolf": {
+    "basicDescription": "Cánido de hocico alargado, orejas erguidas y cuerpo musculoso cubierto de pelo. Su silueta y postura cambian al avanzar, vigilar o amenazar.",
+    "lore": {
+      "context": "Puede vivir en grupos y recorrer límites poco ocupados de las regiones. Encontrarlo acompañado no identifica automáticamente al miembro que dirige el grupo.",
+      "behavior": "Persigue y presiona junto a otros miembros del grupo, alternando aproximaciones, mordidas y cambios de posición. Los aullidos pueden coordinar respuestas sin que cada vocalización equivalga a una capacidad especial."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Tiene anatomía biológica de cánido. Colmillos, piel y tejidos internos requieren examen; una capacidad de manada no es un componente físico recuperable."
+      }
+    }
+  },
+  "dire_wolf": {
+    "basicDescription": "Cánido de gran tamaño y constitución pesada, con cabeza y mandíbula prominentes. Su volumen lo distingue de un lobo común.",
+    "lore": {
+      "context": "Los relatos sobre lobos enormes pueden mezclar encuentros reales con exageraciones. El ejemplar observado y sus relaciones con otros animales deben registrarse por separado.",
+      "behavior": "Su volumen le permite ejercer una presión física mayor que la de un lobo común. Puede alternar acecho y embestidas, mientras la conducta de sus compañeros revela su papel dentro del grupo."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su cuerpo es biológico. La mayor talla modifica las estructuras que se examinan, pero no garantiza cantidades ni propiedades de los materiales recuperables."
+      }
+    }
+  }
+});
+
+  const DEFINITIONS = Object.freeze(Object.fromEntries(Object.entries({
     wolf: Object.freeze({
       id: 'wolf', name: 'Wolf', species: 'wolf', variant: 'standard', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       challengeRating: 0.25, // Monster Manual (2025): CR 1/4, 50 XP
@@ -141,7 +200,7 @@
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'wolf-batch', oneLeaderPerEncounter: true, physicalProfilePending: false, speedPending: false, scoresPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Dire Wolf', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 4,
     }),
-  });
+  }).map(([id, unit]) => [id, Object.freeze({ ...unit, ...COMPENDIUM_CONTENT[id] })])));
 
   function get(id) { return DEFINITIONS[String(id || '')] ? clone(DEFINITIONS[String(id || '')]) : null; }
   function list() { return Object.values(DEFINITIONS).map(clone); }
@@ -201,3 +260,4 @@
   wolfRuntime?.install?.();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+

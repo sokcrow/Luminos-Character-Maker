@@ -8,7 +8,7 @@
   const finite=v=>Number.isFinite(Number(v))?Math.max(0,Number(v)):0;
   const side=u=>clean(u?.faction||u?.side||u?.team).toLowerCase();
   const escaped=u=>u?.escaped===true||u?.departed===true||['escape','escaped'].includes(clean(u?.departureReason||u?.exitReason).toLowerCase());
-  const isPlayer=u=>u?.isPlayer===true||['player','jugador'].includes(clean(u?.actorCategory||u?.category||u?.canonicalScope).toLowerCase());
+  const isPlayer=u=>global.LuminousCombatParticipants?.isPlayer?.(u)===true||u?.isPlayer===true||['player','jugador'].includes(clean(u?.actorCategory||u?.category||u?.canonicalScope).toLowerCase());
   const playerId=u=>clean(u?.canonicalPlayerKey||u?.ownerPlayerId||u?.playerId||u?.characterLink?.playerId);
   const npcId=u=>clean(u?.persistentNpcId||u?.npcId||u?.characterLink?.npcId||u?.actorId);
   const actorName=(u,id)=>clean(u?.displayName||u?.characterName||u?.nombre||u?.name||id);
@@ -39,6 +39,7 @@
     if(!global.LuminousCombatAuthority073?.isDm?.())return;
     const round=Math.max(0,Math.floor(Number(event.round)||0));
     if(event.type==='RoundSealed'&&round===1&&!roundOneStarted){resetMetrics();roundOneStarted=true;}
+    if(!['DamageApplied','HealingApplied','ShieldApplied','UnitStaggered','StatusChanged','UnitDefeated','EvadeResolved','ActionFinished'].includes(event.type))return;
     const key=round+':'+event.sequence+':'+event.type;
     if(seenEvents.has(key))return;
     seenEvents.add(key);
@@ -48,13 +49,15 @@
     const amount=Math.abs((Number(event.after)||0)-(Number(event.before)||0));
     if(event.type==='DamageApplied'&&owner!==target&&Number(event.before)>Number(event.after))row.damage+=amount;
     if(event.type==='HealingApplied'&&owner!==target&&Number(event.after)>Number(event.before))row.healing+=amount;
-    if(event.type==='ShieldApplied')row.protection+=Math.max(0,Number(event.power||event.shield||event.result?.shield)||0);
+    if(event.type==='ShieldApplied')row.protection+=finite(event.amount ?? event.power ?? event.shield ?? event.result?.shield);
     if(event.type==='UnitStaggered')row.control+=1;
     if(event.type==='StatusChanged'&&owner!==target)row.control+=0.25;
     if(event.type==='UnitDefeated'&&owner!==target)row.objective+=1;
-    if(event.type==='HitEvaded'||event.type==='EvadeResolved'&&event.evaded)row.protection+=1;
+    if(event.type==='EvadeResolved'&&event.evaded)row.protection+=1;
     if(event.type==='ActionFinished'&&event.result?.support)row.support+=1;
   }
+  function checkpoint(){return {metrics:snapshotMetrics(),seenEvents:[...seenEvents],roundOneStarted};}
+  function restore(saved){resetMetrics();if(!saved)return;metrics=JSON.parse(JSON.stringify(saved.metrics||{}));seenEvents=new Set(saved.seenEvents||[]);roundOneStarted=saved.roundOneStarted===true;}
   function snapshotMetrics(){return JSON.parse(JSON.stringify(metrics));}
   function selectMvp(encounter={}){
     const actors=eligibleActors(encounter);
@@ -73,7 +76,8 @@
     return victory&&isWinner?Math.floor(xp*115/100):xp;
   }
   function sessionXp(level){return Math.max(100,100*Math.floor(Math.max(1,Math.floor(finite(level)||1))/5));}
-  const api=Object.freeze({WEIGHTS,eligibleActors,selectMvp,bonus,sessionXp,recordEvent,snapshotMetrics,resetMetrics});
+  const api=Object.freeze({WEIGHTS,eligibleActors,selectMvp,bonus,sessionXp,recordEvent,snapshotMetrics,resetMetrics,checkpoint,restore});
   global.LuminousCombatMvpRuntime=api;
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
+

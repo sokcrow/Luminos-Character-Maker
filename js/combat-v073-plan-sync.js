@@ -200,6 +200,13 @@
         return saved;
       }catch(error){
         console.error('[Combat073 PlanSync]',error);
+        // A rejected write cannot later be acknowledged. Unlock this selection
+        // for editing; keep timeout/offline writes pending until acknowledged.
+        const denied=String(error?.code||error?.message||'').toUpperCase().includes('PERMISSION_DENIED');
+        if(request===delivery.request&&detail.ready===true&&denied&&!global.LuminousCombat073?.uiState?.().running&&Number(global.LuminousCombat073?.uiState?.().round)===Number(detail.round)){
+          forgetReady(detail.readyIntentId);
+          global.LuminousCombat073?.restorePlanning?.(clone(detail.plans||[]),false);
+        }
         if(request)reportDelivery('error',detail.round,request,error?.code||error?.message||'READY_SAVE_FAILED');
         return false;
       }
@@ -275,16 +282,24 @@
       const receipts=(await s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}`).once('value')).val()||{};
       // Keep the unacknowledged identity even if its server receipt arrived
       // after timeout. A matching receipt is recovery, not a new activation.
-      const previous=Object.entries(intents).find(([key,row])=>(!receipts[key]||receipts[key].pendingInventory)&&['encounterId','unitId','round','sourceId','sourceType','targetId','cost','targetSlotIndex','choice','variant'].every(key=>(row[key]??null)===(payload[key]??null)));
+      const previous=Object.entries(intents).find(([key,row])=>(!receipts[key]||(receipts[key].pendingInventory||receipts[key].pendingObservation))&&['encounterId','unitId','round','sourceId','sourceType','targetId','cost','targetSlotIndex','choice','variant'].every(key=>(row[key]??null)===(payload[key]??null)));
       const remembered=independentPending(s)[fingerprint];
       const requestId=remembered?.id||previous?.[0]||(global.crypto?.randomUUID?.()||`${Date.now()}-${++independentIntentCounter}`).replace(/[.#$\[\]\/]/g,'_');
       rememberIndependent(s,fingerprint,{id:requestId,round:payload.round});
-      if(!intents[requestId])await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(requestId)}`).set(payload);
+      try {
+        if(!intents[requestId])await s.db.ref(`${ROOT}/independentIntents/${safe(s.playerId)}/${safe(requestId)}`).set(payload);
+      } catch(error) {
+        // The server never accepted this request: do not retain a phantom Free
+        // Action in the outbox or block READY as if a receipt were pending.
+        rememberIndependent(s,fingerprint,null);
+        if(String(error?.code||'').toLowerCase()==='permission_denied')return {used:false,reason:'permission_denied'};
+        throw error;
+      }
       independentDeliveryFailed=false;
       const receiptRef=s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}/${safe(requestId)}`);
       const receipt=await new Promise((resolve,reject)=>{
         let timer;
-        const done=snapshot=>{const row=snapshot.val();if(!row||row.pendingInventory)return;receiptRef.off('value',done);global.clearTimeout(timer);resolve(row);};
+        const done=snapshot=>{const row=snapshot.val();if(!row||row.pendingInventory||row.pendingObservation)return;receiptRef.off('value',done);global.clearTimeout(timer);resolve(row);};
         timer=global.setTimeout(()=>{receiptRef.off('value',done);reject(new Error('independent_confirmation_pending'));},12000);
         receiptRef.on('value',done,error=>{receiptRef.off('value',done);global.clearTimeout(timer);reject(error);});
       });
@@ -301,7 +316,7 @@
   }
   async function confirmIndependentChoices(s){
     const [requests,receipts]=await Promise.all(['independentIntents','independentReceipts'].map(path=>s.db.ref(`${ROOT}/${path}/${safe(s.playerId)}`).once('value').then(snapshot=>snapshot.val()||{})));
-    if(Object.entries(requests).some(([id,row])=>row.encounterId===s.encounterId&&Number(row.round)===Number(s.round)&&(!receipts[id]||receipts[id].pendingInventory)))throw new Error('Espera a que el DM confirme la habilidad pendiente antes de READY.');
+    if(Object.entries(requests).some(([id,row])=>row.encounterId===s.encounterId&&Number(row.round)===Number(s.round)&&(!receipts[id]||(receipts[id].pendingInventory||receipts[id].pendingObservation))))throw new Error('Espera a que el DM confirme la habilidad pendiente antes de READY.');
     independentDeliveryFailed=false;
   }
   global.addEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);
@@ -313,3 +328,4 @@
   global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.14-bounded-confirmation',ROOT,delivery,READY_TIMEOUT_MS,sync:syncReady,syncReady,requestIndependentAction,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
   ensureEconomyMenu();global.setTimeout(()=>ensureCoreBridges().catch(error=>console.error('[Combat073 core bridges]',error)),0);
 })(window);
+

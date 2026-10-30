@@ -21,6 +21,7 @@
     instance: null,
     autoOpened: null,
     renderGeneration: 0,
+    availabilityGeneration: 0,
     selectedLootId: null,
     claim: null,
     claims: {},
@@ -93,18 +94,16 @@
   function ensureButton() {
     let button = global.document?.getElementById(BUTTON_ID);
     if (button) return button;
-    const inventory = global.document?.getElementById("btn-global-inventory");
-    const menu = inventory?.parentElement || global.document?.querySelector(".hud-menu-dropdown") || global.document?.querySelector('#combat-entry-menu nav') || global.document?.getElementById('mirror-bar');
-    if (!menu) return null;
+    const dock = global.LuminousPlayerContextualDock;
+    if (!dock) return null;
     button = global.document.createElement("button");
     button.id = BUTTON_ID;
     button.type = "button";
-    button.className = "hud-menu-item";
+    button.className = "player-loot-opportunity";
     button.title = "Revisar botín post-combate";
     button.innerHTML = '<img src="Assets/Icons/items/utility/harvest_kit.png" width="40" height="40" alt="" aria-hidden="true" class="hud-menu-local-icon" style="width:40px;height:40px;object-fit:contain;"><span>Botín</span><span class="postcombat-loot-badge">0</span>';
     button.addEventListener("click", () => open());
-    if (inventory?.nextSibling) menu.insertBefore(button, inventory.nextSibling);
-    else menu.appendChild(button);
+    dock.mount(button);
     return button;
   }
 
@@ -791,6 +790,46 @@
     }
   }
 
+  async function refreshAvailability() {
+    const generation = ++state.availabilityGeneration;
+    const button = ensureButton();
+    if (!button) return;
+    const encounter = state.encounters[state.activeEncounterId];
+    if (!encounter) {
+      button.classList.toggle("available", false);
+      global.LuminousPlayerContextualDock?.refresh();
+      return;
+    }
+    try {
+      const [corpses, snapshot] = await Promise.all([
+        Promise.all(Object.values(encounter.corpses || {}).map(readCorpse)),
+        state.db.ref(`campaña/jugadores/${resolvePlayerId()}`).once("value"),
+      ]);
+      if (generation !== state.availabilityGeneration) return;
+      const actor = snapshot.val() || {}, playerId = resolvePlayerId();
+      actor.id = actor.id || playerId;
+      const count = corpses.filter(corpse => {
+        const interaction = corpse.interaction;
+        if (!interaction?.lootInstanceId) return false;
+        const context = {playerId, state: interaction, lootInstance: corpse.loot, unitTruth: corpse.anatomyUnit};
+        return live().availableActions(interaction, actor, context).length > 0 ||
+          postCombat().corpseBelongings(interaction).length > 0 || pendingForPlayer(interaction).length > 0 ||
+          Object.values(state.requests || {}).some(row => row?.lootInstanceId === interaction.lootInstanceId &&
+            (row.status === "pending" || row.status === "processing"));
+      }).length;
+      button.classList.toggle("available", count > 0);
+      button.setAttribute("aria-label", `Revisar botín: ${count} restos con recuperaciones disponibles o pendientes`);
+      const badge = button.querySelector(".postcombat-loot-badge");
+      if (badge) badge.textContent = String(count);
+      global.LuminousPlayerContextualDock?.refresh();
+    } catch (error) {
+      if (generation !== state.availabilityGeneration) return;
+      button.classList.toggle("available", false);
+      global.LuminousPlayerContextualDock?.refresh();
+      console.warn("No se pudo comprobar el botín disponible", error);
+    }
+  }
+
   async function refreshEncounters() {
     if (!state.db) return;
     const snap = await state.db.ref(live().ROOTS.encounterLoot).once("value");
@@ -798,13 +837,7 @@
     const latest = latestEncounter();
     if (state.activeEncounterId && state.activeEncounterId !== latest?.id) leaveCorpse().catch(()=>{});
     state.activeEncounterId = latest?.id || null;
-    const corpseCount = latest ? Object.keys(latest.corpses || {}).length : 0;
-    const button = ensureButton();
-    if (button) {
-      button.classList.toggle("available", corpseCount > 0);
-      const badge = button.querySelector(".postcombat-loot-badge");
-      if (badge) badge.textContent = String(corpseCount);
-    }
+    await refreshAvailability();
     if (state.open && state.activeEncounterId) await render();
     maybeOpenResult();
   }
@@ -837,6 +870,7 @@
     if (state.busy) {setMessage("Termina la recuperación antes de cerrar.",true);return;}
     state.open = false;
     state.renderGeneration++;
+    refreshAvailability();
     leaveCorpse().catch(() => {});
     const modal = global.document?.getElementById(MODAL_ID);
     modal?.classList.remove("open");
@@ -853,11 +887,7 @@
       const latest = latestEncounter();
       if (state.activeEncounterId && state.activeEncounterId !== latest?.id) leaveCorpse().catch(()=>{});
       state.activeEncounterId = latest?.id || null;
-      const count = latest ? Object.keys(latest.corpses || {}).length : 0;
-      const button = ensureButton();
-      button?.classList.toggle("available", count > 0);
-      const badge = button?.querySelector(".postcombat-loot-badge");
-      if (badge) badge.textContent = String(count);
+      refreshAvailability().catch(error => console.warn("No se pudo comprobar el botín disponible", error));
       if (state.open && !state.activeEncounterId) close();
       if (state.open) render().catch((error) => showLootError(error));
       maybeOpenResult();
@@ -869,11 +899,11 @@
     leasesRef.on("value",onLease);
     state.listeners.push(()=>leasesRef.off("value",onLease));
     const requestsRef = state.db.ref(`${live().ROOTS.requests}/${resolvePlayerId()}`);
-    const onRequests = snapshot => { state.requests = snapshot.val() || {}; if (state.open) render().catch(error => showLootError(error)); };
+    const onRequests = snapshot => { state.requests = snapshot.val() || {}; refreshAvailability(); if (state.open) render().catch(error => showLootError(error)); };
     requestsRef.on("value", onRequests);
     state.listeners.push(() => requestsRef.off("value", onRequests));
     const corpseStateRef = state.db.ref(live().ROOTS.postCombat);
-    const onCorpse = () => {if(state.open) render().catch(()=>{});};
+    const onCorpse = () => {refreshAvailability();if(state.open) render().catch(()=>{});};
     corpseStateRef.on("value",onCorpse);
     state.listeners.push(()=>corpseStateRef.off("value",onCorpse));
     for(const [path,key] of [[live().ROOTS.combatState,'combatState'],['campaña/estado_mundo/instancia_activa','instance']]){
@@ -947,4 +977,5 @@
   if (global.document?.readyState === "loading") global.document.addEventListener("DOMContentLoaded", boot, { once: true });
   else boot();
 })(window);
+
 

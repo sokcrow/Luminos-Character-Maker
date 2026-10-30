@@ -9,7 +9,7 @@
     viewerRecoveryTimer:null, viewerRecoveryAttempts:0, viewerFinishTimer:null };
   const adapter = () => global.LuminousCombatLiveAdapter073?.state;
   const surface = () => global.LuminousCombatStepRuntime;
-  const status = text => { const node = global.document?.getElementById?.('status'); if (node) node.textContent = text; };
+  const status = text => { const node = global.document?.getElementById?.('status'); if (node && node.textContent !== text) node.textContent = text; };
   const protocol = () => global.LuminousCombatPlayback;
   function createPresentationGate(now = () => Date.now() + state.serverOffset) {
     const decisions = new WeakMap();
@@ -34,11 +34,11 @@
     state.presentationClock?.stop();
     state.presentationClock = data?.playback?.timelineVersion === 1 ? protocol().createPresentationClock({ now: serverNow }) : null;
   }
-  function schedulePresentation() {
+  function schedulePresentation(cue, args) {
     const current = state.authority?.state.current;
     if (current?.playback?.timelineVersion !== 1) return null;
     assertOwner(current);
-    return state.presentationClock?.stamp() || null;
+    return state.presentationClock?.stamp(cue, args) || null;
   }
   function presentScheduled(event, render) {
     if (!event?.timing || !state.presentationClock) return render();
@@ -117,6 +117,7 @@
     if (state.viewerFinishTimer != null) global.clearTimeout?.(state.viewerFinishTimer);
     state.viewerRecoveryTimer = state.viewerFinishTimer = null;
     state.viewerClock?.stop(); state.viewerClock = null;
+    surface()?.cancelPlaybackRefresh?.();
     global.LuminousCombatAudiovisual073?.clear();
     state.consumer?.stop(); state.consumer = null;
     if (state.ref && state.handler) state.ref.off('child_added', state.handler);
@@ -279,7 +280,8 @@
       surface().beginPlayback(data.round);
       if(data.initialStateJson&&!checkpoint)a.applySnapshot(JSON.parse(data.initialStateJson));
       if (checkpoint?.combatants) { a.applySnapshot(checkpoint.stateJson?JSON.parse(checkpoint.stateJson):checkpoint.combatants); a.state.cursor = Number(checkpoint.rngCursor) || 0; }
-      state.consumer = protocol().createConsumer({ generation: data.id, checkpoint,
+      const consumer = protocol().createConsumer({ generation: data.id, checkpoint,
+        waitForPresentation: !scheduled,
         beforeEvents: async (group, row, following) => {
           if (!scheduled || !shouldPresent(row)) return;
           const event = [...group, ...following].find(event => event.type === 'Presentation');
@@ -289,9 +291,15 @@
           }
         },
         apply: snapshot => {
-          a.applySnapshot(snapshot);
-          try { surface().refreshPlayback(); }
-          catch (error) { global.console?.warn?.('[Combat playback visual refresh]', error); }
+          const view=surface();
+          if(typeof view.queuePlaybackRefresh==='function'){
+            const changes=[];
+            a.applySnapshot(snapshot,{deferRender:true,changes});
+            try{view.queuePlaybackRefresh(changes)}catch(error){global.console?.warn?.('[Combat playback visual refresh]',error)}
+          }else{
+            a.applySnapshot(snapshot);
+            try{view.refreshPlayback()}catch(error){global.console?.warn?.('[Combat playback visual refresh]',error)}
+          }
         },
         onEvent: event => {
           surface().acceptEvent(event); a.state.cursor = Number(event.rngCursor) || 0;
@@ -299,21 +307,29 @@
           else if(event.type==='ClashStarted')status('Choque de habilidades…');
           else if(event.type==='RoundFinished')status('Preparando el próximo turno…');
         },
-        present: async (cue, args, row, event) => {
+        present: (cue, args, row, event) => {
           // Slow/reconnected viewers catch up by applying states, without waiting
           // through old animation holds. Visual mode never changes the result.
           // Every state/event is still consumed, even when its animation is skipped.
           if (!shouldPresent(row)) return;
           if (scheduled) {
-            if (!(await viewerClock.wait(event.timing.playAt))) return;
+            // beforeEvents already waited for this deadline. Register the
+            // visual synchronously so a final batch cannot drain an empty clock
+            // just before its last animation is added.
             // A suspended/slow device rejoins the current phase instead of
             // carrying its accumulated animation delay through the Clash.
             if (serverNow() - event.timing.playAt > 800 &&
                 ['powerCoin','hitCoin','hitMotion','clashContact','clashOutcome','wait'].includes(cue)) return;
           }
-          await surface().present(cue, args);
+          if (scheduled) return viewerClock.run(cue, event.timing, visual => surface().present(cue, args, visual, event));
+          return surface().present(cue, args);
         },
-        finish: row => {
+        finish: async row => {
+          // The queue follows deadlines without waiting for visual holds. Keep
+          // cleanup behind the final scheduled visuals, with the clock's bounded
+          // timeout, and never let an abandoned generation finish a new round.
+          await viewerClock?.drain();
+          if (state.generation !== data.id || state.consumer !== consumer) return;
           a.state.cursor = Number(row.rngCursor) || 0;
           try { surface().finishPlayback(row.nextRound); }
           catch (error) { global.console?.warn?.('[Combat playback visual finish]', error); }
@@ -328,6 +344,7 @@
           scheduleViewerRecovery(data.id, error);
         },
       });
+      state.consumer = consumer;
       state.ref = s.db.ref(`${ROOT}/batches`).orderByKey().startAt(String((Number(checkpoint?.seq) || 0) + 1).padStart(6, '0'));
       state.handler = snapshot => {
         const consumer = state.consumer;

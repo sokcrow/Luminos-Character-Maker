@@ -51,3 +51,4 @@ assert.equal(players['campaña/base_datos_npcs/agatha'].xp,135);
 assert.deepEqual(session.tally({candidates:{pierre:{},agatha:{},lucien:{}},votes:{pierre:'agatha',agatha:'lucien',lucien:'agatha'}}).leaders,['agatha']);
 assert.deepEqual(session.tally({candidates:{pierre:{},agatha:{}},votes:{pierre:'pierre',agatha:'pierre'}}).counts,{pierre:1,agatha:0});
 console.log('Combat MVP / NPC receipts / defeat zero XP / session XP / voting: OK');
+

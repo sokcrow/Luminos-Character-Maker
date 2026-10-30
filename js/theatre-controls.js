@@ -20,6 +20,24 @@
         let playerDatabase = {};
         let maxVisibleActors = 5;
         let languageSources = {};
+        const pendingActors = new Set();
+        const actorErrors = new Map();
+        function castFeedback(message, pending = false) {
+            document.dispatchEvent(new CustomEvent("luminous:theatre-cast-result", { detail: { message, pending } }));
+        }
+        async function actorAction(actorId, action) {
+            if (pendingActors.has(actorId)) return;
+            pendingActors.add(actorId); actorErrors.delete(actorId); renderLiveActors();
+            try {
+                const result = await action();
+                if (result === false) throw new Error("El personaje ya no está disponible o no tiene un sprite válido.");
+                return true;
+            } catch (error) {
+                actorErrors.set(actorId, "No se pudo guardar el cambio. Revisa tu conexión y permisos.");
+                console.error("No se pudo actualizar el actor:", error);
+                return false;
+            } finally { pendingActors.delete(actorId); renderLiveActors(); }
+        }
 
         const selectNpcRoster = document.getElementById("select-npc-roster");
         const liveActorsList = document.getElementById("live-actors-list");
@@ -66,40 +84,24 @@
 
             const playerGroup = document.createElement("optgroup");
             playerGroup.label = "PERSONAJES JUGADORES";
-            for (const [playerId, player] of Object.entries(playerDatabase)) {
-                let actorId = null;
-                let actorData = null;
-                if (player.actorId && npcDatabase[player.actorId]) {
-                    actorId = player.actorId;
-                    actorData = npcDatabase[actorId];
-                } else {
-                    actorId = Object.keys(npcDatabase).find((id) =>
-                        npcDatabase[id]?.vinculo_jugador === playerId && npcDatabase[id]?.tipo === "Jugador"
-                    );
-                    if (actorId) actorData = npcDatabase[actorId];
-                }
-                if (!actorData) continue;
-                const option = document.createElement("option");
-                option.value = actorId;
-                option.textContent = actorData.nombre || getPlayerLabel(playerId, player);
-                option.dataset.sourceType = "player-profile";
-                option.dataset.sourceId = playerId;
-                playerGroup.appendChild(option);
-            }
-            selectNpcRoster.appendChild(playerGroup);
-
             const npcGroup = document.createElement("optgroup");
             npcGroup.label = "NPCs / PERSONAJES DEL DM";
             for (const [actorId, actorData] of Object.entries(npcDatabase)) {
-                if (actorData?.tipo === "Jugador") continue;
+                const matches = Object.entries(playerDatabase).filter(([playerId, player]) =>
+                    actorData?.vinculo_jugador === playerId ||
+                    normalizeIdList([player?.actorIds, player?.actores, player?.actorId]).includes(actorId));
+                const explicitPlayer = actorData?.vinculo_jugador;
+                const linked = playerDatabase[explicitPlayer] ? [explicitPlayer, playerDatabase[explicitPlayer]] : matches.length === 1 ? matches[0] : null;
+                const isPlayer = matches.length > 0 || actorData?.tipo === "Jugador" || Boolean(actorData?.vinculo_jugador);
                 const option = document.createElement("option");
                 option.value = actorId;
-                option.textContent = actorData?.nombre || "Sin Nombre";
-                option.dataset.sourceType = "npc";
-                option.dataset.sourceId = actorId;
-                npcGroup.appendChild(option);
+                option.textContent = actorData?.nombre || actorData?.name || (linked ? getPlayerLabel(...linked) : "Personaje sin nombre");
+                option.dataset.sourceType = linked ? "player-profile" : "npc";
+                option.dataset.sourceId = linked ? linked[0] : actorId;
+                option.dataset.actorType = isPlayer ? "player" : "npc";
+                (isPlayer ? playerGroup : npcGroup).appendChild(option);
             }
-            selectNpcRoster.appendChild(npcGroup);
+            selectNpcRoster.append(playerGroup, npcGroup);
         }
 
         function loadRoster() {
@@ -133,7 +135,7 @@
                     </select>
                 </label>
                 <label style="display:flex;gap:6px;align-items:center;">
-                    <input id="theatre-no-actors" type="checkbox"> No Actors
+                    <input id="theatre-no-actors" type="checkbox"> Ocultar sprites
                 </label>
                 <button id="btn-clear-theatre-scene" type="button">LIMPIAR ESCENA</button>
             `;
@@ -199,7 +201,8 @@
             });
         }
 
-        function spawnSelectedActor() {
+        async function spawnSelectedActor() {
+            if (btnSpawnNpc?.disabled) return;
             if (!selectNpcRoster) return;
             const selectedId = selectNpcRoster.value;
             if (!selectedId) return;
@@ -214,7 +217,8 @@
 
             const expressions = npcData.expresiones || {};
             const actorPayload = {
-                nombre: npcData.nombre || selectedId,
+                nombre: npcData.nombre || npcData.name || option.textContent || "Personaje sin nombre",
+                tipo: option.dataset.actorType === "player" ? "Jugador" : "NPC",
                 titulo: npcData.titulo || "",
                 color_nombre: npcData.color_nombre || "",
                 color_titulo: npcData.color_titulo || "",
@@ -231,15 +235,25 @@
                 spawnedAt: now
             };
             // Pool and HUD are separate. Cataloging never reveals a sprite or selects an expression.
-            db.ref(`${paths().scene}/actores/${actorInstanceId}`).set(actorPayload)
-                .catch((error) => console.error("No se pudo añadir el actor al Teatro:", error));
+            if (btnSpawnNpc) btnSpawnNpc.disabled = true;
+            castFeedback("Añadiendo personaje…", true);
+            try {
+                await db.ref(`${paths().scene}/actores/${actorInstanceId}`).set(actorPayload);
+                castFeedback("Personaje añadido al elenco. Usa Mostrar para hacerlo visible.");
+            } catch (error) {
+                castFeedback("No se pudo añadir el personaje. Revisa tu conexión y permisos.");
+                console.error("No se pudo añadir el actor al Teatro:", error);
+            } finally {
+                if (btnSpawnNpc) btnSpawnNpc.disabled = false;
+                document.dispatchEvent(new CustomEvent("luminous:theatre-cast-ready"));
+            }
         }
 
         function renderLiveActors() {
             if (!liveActorsList) return;
             liveActorsList.innerHTML = "";
             const panelTitle = directorPanel?.querySelector(".panel-title");
-            if (panelTitle) {
+            if (panelTitle && directorPanel?.dataset.workspace !== "true") {
                 panelTitle.textContent = `CONTROL DE CASTING (${Object.keys(liveActors).length} disponibles · ${visibleActors.length}/${maxVisibleActors} visibles)`;
             }
 
@@ -247,6 +261,7 @@
             for (const [actorId, actorData] of Object.entries(liveActors)) {
                 const card = document.createElement("div");
                 card.className = "actor-control-card";
+                card.dataset.actorId = actorId;
                 card.dataset.visible = visibleActors.includes(actorId) ? "true" : "false";
 
                 let expressionsHtml = "";
@@ -270,16 +285,16 @@
                         <button class="btn-move" data-dir="left" type="button">&lt;</button>
                         <button class="btn-move" data-dir="right" type="button">&gt;</button>
                         <button class="btn-flip" type="button">ESPEJO</button>
-                        <button class="btn-remove" type="button">RETIRAR DEL CAST</button>
+                        <button class="btn-remove" type="button">RETIRAR DEL ELENCO</button>
                     </div>
                     <div class="actor-identity-controls" style="margin-top:8px;padding-top:8px;border-top:1px dashed #444;display:grid;grid-template-columns:1fr 1fr;gap:5px;">
                         <select class="actor-viewer-select" style="grid-column:1/-1;background:#151515;color:#fff;border:1px solid #444;padding:4px;">
-                            <option value="">Jugador para identidad/nameplate...</option>${viewerOptions}
+                            <option value="">Jugador para presentación...</option>${viewerOptions}
                         </select>
                         <input class="actor-override-name" type="text" placeholder="Nombre temporal" style="min-width:0;background:#151515;color:#fff;border:1px solid #444;padding:4px;">
                         <input class="actor-override-title" type="text" placeholder="Título temporal" style="min-width:0;background:#151515;color:#fff;border:1px solid #444;padding:4px;">
-                        <button class="btn-reveal-identity" type="button">REVELAR ID</button>
-                        <button class="btn-forget-identity" type="button">OCULTAR ID</button>
+                        <button class="btn-reveal-identity" type="button">REVELAR IDENTIDAD</button>
+                        <button class="btn-forget-identity" type="button">OCULTAR IDENTIDAD</button>
                         <button class="btn-override-nameplate" type="button">PRESENTACIÓN TEMPORAL</button>
                         <button class="btn-clear-override" type="button">LIMPIAR PRESENTACIÓN</button>
                     </div>
@@ -291,8 +306,19 @@
                     global.LuminousTheatreState.prepareExpression(actorId, event.target.value);
                 });
 
-                card.querySelector(".btn-show")?.addEventListener("click", () => global.LuminousTheatreState.updateVisibleActors(actorId, actorData));
-                card.querySelector(".btn-hide")?.addEventListener("click", () => global.LuminousTheatreState.removeVisibleActor(actorId));
+                const show = card.querySelector(".btn-show");
+                const sprite = actorData.sprite || actorData.url || "";
+                const validSprite = global.LuminousTheatreState.isValidSprite?.(sprite) ?? Boolean(sprite);
+                show.disabled = !validSprite || visibleActors.includes(actorId);
+                show.title = !validSprite ? "Este personaje necesita un sprite válido para mostrarse." :
+                    visibleActors.length >= maxVisibleActors ? "Al mostrarlo se ocultará el visible más antiguo; permanecerá en el elenco." : "Mostrar en Teatro";
+                const help = document.createElement("p");
+                help.className = "dm-director-hint";
+                help.textContent = !validSprite ? "Sin sprite válido. Puedes escribir sin mostrarlo." :
+                    visibleActors.length >= maxVisibleActors && !visibleActors.includes(actorId) ? "Límite alcanzado: Mostrar ocultará al visible más antiguo, sin retirarlo del elenco." : "";
+                card.appendChild(help);
+                show.addEventListener("click", () => actorAction(actorId, () => global.LuminousTheatreState.updateVisibleActors(actorId, actorData)));
+                card.querySelector(".btn-hide")?.addEventListener("click", () => actorAction(actorId, () => global.LuminousTheatreState.removeVisibleActor(actorId)));
                 card.querySelector('.btn-move[data-dir="left"]')?.addEventListener("click", () => {
                     db.ref(`${paths().scene}/actores/${actorId}/x`).set((Number.parseInt(actorData.x, 10) || 0) - 50);
                 });
@@ -302,9 +328,25 @@
                 card.querySelector(".btn-flip")?.addEventListener("click", () => {
                     db.ref(`${paths().scene}/actores/${actorId}/orientacion`).set(actorData.orientacion === "flip" ? "normal" : "flip");
                 });
+                card.querySelector(".btn-hide").disabled = !visibleActors.includes(actorId);
                 card.querySelector(".btn-remove")?.addEventListener("click", async () => {
-                    await global.LuminousTheatreState.removeVisibleActor(actorId);
-                    await db.ref(`${paths().scene}/actores/${actorId}`).remove();
+                    if (pendingActors.has(actorId)) return;
+                    const name = global.LuminousDmTheatreWorkspace?.resolveActorName(actorId, actorData) || actorData.nombre || "este personaje";
+                    if (!global.confirm(`¿Retirar a ${name} del elenco de esta escena? Se conservará en tu biblioteca y podrás volver a añadirlo.`)) {
+                        document.dispatchEvent(new CustomEvent("luminous:theatre-retire-result", {detail:{actorId, cancelled:true}}));
+                        return;
+                    }
+                    const success = await actorAction(actorId, async () => {
+                        const result = await db.ref(paths().scene).transaction(current => {
+                            if (!current) return;
+                            if (current.actores) delete current.actores[actorId];
+                            current.actores_visibles = normalizeIdList(current.actores_visibles).filter(id => id !== actorId);
+                            if (current.active_actor === actorId) current.active_actor = null;
+                            return current;
+                        });
+                        if (!result.committed) return false;
+                    });
+                    document.dispatchEvent(new CustomEvent("luminous:theatre-retire-result", {detail:{actorId, success:Boolean(success)}}));
                 });
 
                 const viewerSelect = card.querySelector(".actor-viewer-select");
@@ -330,6 +372,11 @@
                     if (viewerId) global.LuminousTheatreState.clearNameplateOverride(viewerId, actorId);
                 });
 
+                if (pendingActors.has(actorId)) card.querySelectorAll("button, select, input").forEach(control => { control.disabled = true; });
+                if (actorErrors.has(actorId)) {
+                    const error = document.createElement("p"); error.setAttribute("role", "status");
+                    error.textContent = actorErrors.get(actorId); card.appendChild(error);
+                }
                 liveActorsList.appendChild(card);
             }
         }

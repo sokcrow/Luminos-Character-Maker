@@ -1,0 +1,34 @@
+/* Shared game behavior; scrolling, zoom, pointer gestures and text editing stay native. */
+html.limbus-game-interactions,
+html.limbus-game-interactions body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+html.limbus-game-interactions * { -webkit-tap-highlight-color: transparent; }
+
+html.limbus-game-interactions :is(input, textarea, select, [contenteditable=""], [contenteditable="true" i], [contenteditable="plaintext-only" i], [data-native-contextmenu="true"]),
+html.limbus-game-interactions [data-native-contextmenu="true"] * {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+html.limbus-game-interactions [contenteditable="false" i] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+html.limbus-game-interactions img { -webkit-user-drag: none; }
+html.limbus-game-interactions [draggable="true" i],
+html.limbus-game-interactions [draggable="true" i] img,
+html.limbus-game-interactions [contenteditable]:not([contenteditable="false" i]) img,
+html.limbus-game-interactions [data-native-contextmenu="true"] img { -webkit-user-drag: auto; }
+
+html.limbus-game-interactions :focus:not(:focus-visible) { outline: none; }
+html.limbus-game-interactions :focus-visible {
+  outline: 2px solid #d7b77c !important;
+  outline-offset: 3px;
+}
+@media (forced-colors: active) {
+  html.limbus-game-interactions :focus-visible { outline-color: Highlight !important; }
+}

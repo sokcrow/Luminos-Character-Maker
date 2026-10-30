@@ -68,7 +68,66 @@
   }
   const ADULT_SCORES={str:13,dex:18,con:12,int:3,wis:12,cha:5};
   const JUVENILE_SCORES={str:10,dex:16,con:10,int:2,wis:10,cha:4};
-  const DEFINITIONS=Object.freeze({
+  const freezeCompendiumContent = value => {
+    if (value && typeof value === 'object') { Object.values(value).forEach(freezeCompendiumContent); Object.freeze(value); }
+    return value;
+  };
+  const COMPENDIUM_CONTENT = freezeCompendiumContent({
+  "sapphire_spider": {
+    "basicDescription": "Criatura arácnida grande cuyo cuerpo combina superficies pétreas y formaciones cristalinas azules. Sus extremidades presentan un aspecto mineral.",
+    "lore": {
+      "context": "Las arañas de zafiro forman parte de los peligros minerales registrados en cavidades y espacios de roca de Limbus. Su parecido con una araña no demuestra parentesco biológico con los arácnidos de carne.",
+      "behavior": "Combina desplazamientos rápidos con técnicas vinculadas a su estructura cristalina. Sus ataques y los efectos que producen deben registrarse por separado; su aspecto mineral no revela todas sus resistencias."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "arcana",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "arcana",
+        "text": "Su cuerpo está formado por piedra y cristal animados. El estudio arcano y material corresponde a esta estructura; no se presuponen carne, sangre, glándulas de veneno ni órganos médicos."
+      }
+    }
+  },
+  "sapphire_spiderling": {
+    "basicDescription": "Criatura arácnida mineral de menor tamaño que la araña de zafiro adulta. Presenta un cuerpo pétreo con formaciones de cristal azul.",
+    "lore": {
+      "context": "La denominación Spiderling diferencia esta forma del ejemplar adulto del registro. Sus relaciones de grupo deben comprobarse y no equivalen a un sistema de castas conocido.",
+      "behavior": "Se mueve alrededor de otros ejemplares y utiliza técnicas propias de su forma menor. Haber estudiado un adulto no demuestra que la cría posea exactamente los mismos movimientos o condiciones."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "arcana",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "arcana",
+        "text": "Posee una estructura mineral animada de piedra y cristal. Las técnicas de estudio corporal deben atender a ese material y no buscar órganos biológicos inexistentes."
+      }
+    }
+  }
+});
+
+  const DEFINITIONS=Object.freeze(Object.fromEntries(Object.entries({
     sapphire_spider:define({
       id:'sapphire_spider',name:'Sapphire Spider',size:'large',classification:'hard',challengeRating:3,scores:ADULT_SCORES,
       hpBase:48,hpCoefficient:1.5,offensiveLevelModifier:2,defensiveLevelModifier:-2,
@@ -85,7 +144,7 @@
         description:'[On Turn Start] Gain 1 Haste per 4 Poise Potency (Max 2). Deal +5% Damage per point of positive Speed difference (Max +10%).'}],
       skills:skillCatalog.loadout('sapphire_spiderling')
     })
-  });
+  }).map(([id, unit]) => [id, Object.freeze({ ...unit, ...COMPENDIUM_CONTENT[id] })])));
   const get = id => DEFINITIONS[id] ? clone(DEFINITIONS[id]) : null;
   const list = () => Object.keys(DEFINITIONS).map(get);
   function resolve(id, options = {}) {
@@ -111,3 +170,4 @@
   global.LuminousCaveSapphireSpiderUnitCatalog=api;
   if (typeof module !== 'undefined' && module.exports)module.exports=api;
 })(typeof window !== 'undefined' ? window : globalThis);
+

@@ -3550,7 +3550,8 @@ function focusCombatCameraOnPlayer(){
   setCombatCameraPoint({x:point.x,y:point.y-76},1.58)
 }
 function focusCombatCameraOnClash(entryA,entryB){
-  if(entryA?.ownerId!==PLAYER_ID&&entryB?.ownerId!==PLAYER_ID)return;
+  const sharedTimeline=window.LuminousCombatLiveMode===true&&timelineResolutionActive;
+  if(!sharedTimeline&&entryA?.ownerId!==PLAYER_ID&&entryB?.ownerId!==PLAYER_ID)return;
   const a=unitCombatAnchor(combatData[entryA.ownerId]),
         b=unitCombatAnchor(combatData[entryB.ownerId]);
   setCombatCameraPoint({x:(a.x+b.x)/2,y:((a.y+b.y)/2)-74},1.66)
@@ -3642,7 +3643,7 @@ function ensureUnknownAISlots(){
     .forEach(unit=>unitSlots(unit.id).forEach(setSlotUnknown))
 }
 function observationKnown(unit,fact){
-  return window.LuminousCombatLiveAdapter073?.state?.role==='dm'||Boolean(unit?.observationKnown?.includes(fact))
+  return window.LuminousCombatLiveAdapter073?.state?.role==='dm'||(window.LuminousCompendiumProgressLive?window.LuminousCompendiumProgressLive.knows(combatData[PLAYER_ID],unit,fact):Boolean(unit?.observationKnown?.includes(fact)))
 }
 function observationLinkedUnits(unit){
   if(!unit)return[];
@@ -3659,10 +3660,8 @@ function revealObservationFact(unit,fact){
   return linked
 }
 function observationLevel(unit){
-  const knownCount=new Set(unit?.observationKnown||[]).size,
-        total=OBSERVATION_FACTS.length;
-  if(knownCount>=total)return 5;
-  return Math.min(4,1+Math.floor(knownCount*4/total))
+  return window.LuminousCompendiumProgressLive?.effectiveLevel(combatData[PLAYER_ID],unit) ??
+    window.LuminousCompendiumProgression?.levelFromFacts(Object.values(unit?.observationKnown||{})) ?? 0
 }
 function observationDifficulty(unit,fact){
   const value=Number(unit?.observationDifficulty?.[fact]);
@@ -3843,7 +3842,7 @@ function renderObservationRing(enemyId){
   const p=PLAYER_SCORES.perception,
         i=PLAYER_SCORES.insight,
         linked=observationLinkedUnits(unit),
-        copyHint=linked.length>1?`<div class="obs-copy-hint">COPY GROUP · REVEALS SHARED WITH ${linked.filter(target=>target.id!==unit.id).map(target=>target.name).join(' · ')}</div>`:'',
+        copyHint='<div class="obs-copy-hint">PROGRESO PERSONAL · SE CONSERVA EN TU COMPENDIO</div>',
         last=unit.observationLastCheck?.turn===round?unit.observationLastCheck:null;
   header.innerHTML=`<div class="obs-kicker">ANALYSE // OBSERVATION</div><div class="obs-title-row"><span class="obs-enemy-name">${unit.name}</span><span class="obs-lv">LV ${lv}</span></div>${observationLevelMarkup(lv)}${copyHint}<div class="obs-stat-line"><span class="obs-stat-chip perception">PERCEPTION ${p.score} / ${formatModifier(observationModifier('perception'))}</span><span class="obs-stat-chip insight">INSIGHT ${i.score} / ${formatModifier(observationModifier('insight'))}</span><span class="obs-stat-chip">HEADS ${coinHeadsChanceForUnit(PLAYER_ID)}%</span><span class="obs-stat-chip">FREE · 1/TURN</span></div>${observationRollMarkup(last)}`;
   ring.classList.add('open');
@@ -3854,16 +3853,16 @@ function renderObservationRing(enemyId){
 }
 async function performObservation(enemyId,fact){
   if(roundRunning||planReady||observationRolling)return;
-  observationRolling=true;try{const result=await requestUniversalInstant('analyse',{targetId:enemyId,choice:fact});if(result?.used){observationUsedTurn=round;setStatus(result.success?'ANALYSE · Información revelada para el grupo.':'ANALYSE · La observación falló.')}else setStatus('No puedes analizar ese objetivo ahora.');renderObservationRing(enemyId);return result}finally{observationRolling=false}
+  observationRolling=true;try{const result=await requestUniversalInstant('analyse',{targetId:enemyId,choice:fact});if(result?.used){observationUsedTurn=round;setStatus(result.success?'ANALYSE · Información guardada en tu Compendio.':'ANALYSE · La observación falló.')}else setStatus('No puedes analizar ese objetivo ahora.');renderObservationRing(enemyId);return result}finally{observationRolling=false}
 }
 function resolveUniversalFreeDraft(actor,key,options={}){
   const live=combatData;combatData=options.units;
   try{const target=options.target;
     if(key==='analyse'){
-      const fact=String(options.choice||'');if(!target||target.faction===actor.faction||!OBSERVATION_META[fact]||!observationFactAvailable(target,fact)||(target.observationKnown||[]).includes(fact))return{attempted:false,reason:'invalid_observation'};
-      const stat=observationStat(fact),threshold=8+observationDifficulty(target,fact)+(Number(window.LuminousEquipmentEffects?.checkThresholdAdjustment?.(actor,'analyze'))||0),blinded=unitHasStatus(actor,'blinded'),result=blinded?{success:false,total:0,heads:0,coins:[],forcedFail:true,threshold}:rollAbilitySkillCheck(actor.id,{ability:stat,skill:stat,threshold,random:options.random});
+      const fact=String(options.choice||'');if(!target||target.faction===actor.faction||!OBSERVATION_META[fact]||!observationFactAvailable(target,fact)||(window.LuminousCompendiumProgressLive?window.LuminousCompendiumProgressLive.knows(actor,target,fact):(target.observationKnown||[]).includes(fact)))return{attempted:false,reason:'invalid_observation'};
+      const stat=observationStat(fact),threshold=8+observationDifficulty(target,fact)+(Number(window.LuminousEquipmentEffects?.checkThresholdAdjustment?.(actor,'analyze'))||0),blinded=unitHasStatus(actor,'blinded'),automatic=window.LuminousCompendiumProgression?.favored(actor,target)===true,result=blinded?{success:false,total:0,heads:0,coins:[],forcedFail:true,threshold}:automatic?{success:true,total:threshold,threshold,heads:0,coins:[],automatic:true}:rollAbilitySkillCheck(actor.id,{ability:stat,skill:stat,threshold,random:options.random});
       actor.analyseUsedRound=round;target.observationLastCheck={...result,turn:round,fact,statKey:stat,phase:'resolved'};
-      if(result.success)observationLinkedUnits(target).forEach(unit=>{unit.observationKnown=[...new Set([...(unit.observationKnown||[]),fact])]});return{attempted:true,...result,fact,targetId:target.id};
+      if(result.success){observationLinkedUnits(target).forEach(unit=>{unit.observationKnown=[...new Set([...(unit.observationKnown||[]),fact])]});window.LuminousCompendiumProgressLive?.localObservation(actor,target,fact);}return{attempted:true,...result,fact,targetId:target.id};
     }
     if(key==='find'){
       if(Number(actor.invisibleAwarenessRound)!==round)return{attempted:false,reason:'invisible_presence_required'};
@@ -5508,7 +5507,9 @@ function damageCombatant(id,amount,{damageType='NORMAL',ignoreResistance=false,i
         poiseAutoCrit=!fixed&&attacker&&unitHasStatus(d,'paralyzed')&&statusPotency(attacker,'poise')>0&&statusModifier(attacker,'poise')>0,
         critical=!fixed&&(poiseAutoCrit||(critChance>0&&Math.random()*100<critChance)),
         critMultiplier=critical?(1.2+(window.LuminousCaveSapphireSpiderRuntime?.criticalDamageBonus?.(attacker,d,skillData)||0)):1,
-        calculated=raw*effective.multiplier*dealtMultiplier*levelMultiplier*critMultiplier,
+        observationMultiplier=sourceStatus?1:(window.LuminousCompendiumProgressLive?.damageMultiplier(attacker,d)||1),
+        observationDamagePercent=Math.round((observationMultiplier-1)*100),
+        calculated=raw*effective.multiplier*dealtMultiplier*levelMultiplier*critMultiplier*(100+observationDamagePercent)/100,
         finalDamage=calculated>0?Math.max(1,Math.floor(calculated)):0,
         hpBefore=Math.max(0,Number(d.hp)||0),
         radianceShield=unitHasStatus(d,'radiance'),
@@ -5548,7 +5549,7 @@ function damageCombatant(id,amount,{damageType='NORMAL',ignoreResistance=false,i
     raw,damageType:normalizeDamageType(damageType),resistanceState:effective.state,resistanceMultiplier:effective.multiplier,
     baseResistanceState:effective.baseState,baseResistanceMultiplier:effective.baseMultiplier,staggerStage:Number(d.staggerStage)||0,
     staggerMultiplier:effective.state==='FATAL'?effective.multiplier:1,damagePercent,damageDealtMultiplier:dealtMultiplier,levelMultiplier,
-    critical,poiseAutoCrit,critChance,critMultiplier,totalMultiplier:effective.multiplier*dealtMultiplier*levelMultiplier*critMultiplier,
+    critical,poiseAutoCrit,critChance,critMultiplier,observationMultiplier,totalMultiplier:effective.multiplier*dealtMultiplier*levelMultiplier*critMultiplier*observationMultiplier,
     finalDamage,absorbed:shieldResult.absorbed,hpDamage,hpBefore,hpAfter
   }
 }
@@ -6215,7 +6216,7 @@ const CLASH_MOTION=Object.freeze({
   rangeHitRecoil:38,
   hitMinGap:76
 });
-function wait(ms){const delay=roundRunning?(window.LuminousCombatAudiovisual073?.duration(ms)??ms):ms;return new Promise(resolve=>setTimeout(resolve,delay))}
+function wait(ms,visual){const delay=roundRunning?(window.LuminousCombatAudiovisual073?.duration(ms)??ms):ms;return visual?.wait?visual.wait(delay):new Promise(resolve=>setTimeout(resolve,delay))}
 async function playTurnTransition(turnNumber,{initial=false}={}){
   const game=$('game-container'),
         overlay=$('turn-transition'),
@@ -6962,11 +6963,11 @@ function combatStepRuntime(){
   if(combatStepsInstance)return combatStepsInstance;
   const powerHosts=new Map(),hitHosts=new Map(),
         hostKey=entry=>`${entry.ownerId}:${entry.localIndex??0}`,
-        rollCoin=async(container,coin,onResolved)=>{
+        rollCoin=async(container,coin,onResolved,visual)=>{
           if(!container)return;
           await window.LuminousCoinEngine.runAnimatedRoll({document,container,coinCount:1,base:0,
             headsChance:50,intervalMs:window.LuminousCombatAudiovisual073?.duration(COMBAT_PACE.coinInterval)??COMBAT_PACE.coinInterval,auto:true,silent:true,
-            resolvedCoins:[coin],onCoinResolved:onResolved})
+            resolvedCoins:[coin],onCoinResolved:event=>{if(visual?.isActive()!==false)onResolved?.(event)}})
         };
   const names=['coinHeadsChanceForUnit','clashLevelPowerBonus','clashableDefenseLevelPowerBonus','statusAttackPowerModifier','statusClashPowerModifier',
     'targetFinalPowerVulnerabilityBonus','statusDefensePowerModifier','conditionCounterPowerModifier',
@@ -6983,7 +6984,7 @@ function combatStepRuntime(){
   rules.caveEvadePower=(unit,plan)=>window.LuminousCaveSapphireSpiderRuntime?.evadePower?.(unit,plan)||null;
   combatStepsInstance=window.LuminousCombatSteps.create({rules,
     publish:()=>window.LuminousCombatAuthority073?.publishPresentation?.(),
-    schedulePresentation:()=>window.LuminousCombatPlaybackSync?.schedulePresentation?.(),
+    schedulePresentation:(cue,args)=>window.LuminousCombatPlaybackSync?.schedulePresentation?.(cue,args),
     presentScheduled:(event,render)=>window.LuminousCombatPlaybackSync?.presentScheduled?.(event,render)??render(),
     onEvent:event=>{try{window.LuminousCombatHudMotion073?.event(event)}finally{window.LuminousCombatAudiovisual073?.event(event)}},
     onPresentation:(cue,args)=>{try{window.LuminousCombatHudMotion073?.cue(cue,args)}finally{window.LuminousCombatAudiovisual073?.cue(cue,args)}},
@@ -6999,19 +7000,32 @@ function combatStepRuntime(){
       statusEffects:u.statusEffects||{},pendingStatusEffects:u.pendingStatusEffects||[],
       shieldPools:u.shieldPools||{},staggerStage:u.staggerStage||0}])),
     presentation:{
-      wait:key=>wait(COMBAT_PACE[key]),
+      actionStart(entry){
+        if(window.LuminousCombatLiveMode!==true)return;
+        setTimelineVisualFocus(timelineParticipantsForEntries([entry]));
+        if(entry.plan?.targetId)focusCombatCameraOnClash(entry,{ownerId:entry.plan.targetId})
+      },
+      async actionApproach(entry,mode,visual){
+        moveEntryForAction(entry);
+        if(!timelineResolutionActive&&entry.ownerId===PLAYER_ID)focusCombatCameraOnPlayer();
+        await wait(mode==='counter'?220:COMBAT_PACE.cameraSettle,visual);
+        visual?.check();
+        setFloatingClashHud(entry,Math.max(1,Number(entry.plan?.data?.coinAmount)||1))
+      },
+      wait:(key,visual)=>wait(COMBAT_PACE[key],visual),
       powerStart(entry,count,power){
         const hud=setFloatingClashHud(entry,count,power),strip=prepareFloatingClashRoll(entry,count),hosts=[];
         if(strip){strip.replaceChildren();for(let i=0;i<count;i++){const node=document.createElement('span');strip.appendChild(node);hosts.push(node)}}
         powerHosts.set(hostKey(entry),{hud,hosts});
         const node=hud?.querySelector('.clash-float-power');if(node)node.textContent=power
       },
-      async powerCoin(entry,coin,power){
+      async powerCoin(entry,coin,power,...context){
+        const visual=context.at(-1);
         const state=powerHosts.get(hostKey(entry));
         // Reactive Evade carries the incoming attack index, but rolls one Coin.
         const host=state?.hosts[coin.index]||state?.hosts[0];
         await rollCoin(host,coin,()=>{const node=state?.hud?.querySelector('.clash-float-power');
-          if(node)node.textContent=power;setFloatingPowerCoinState(entry,coin.side)})
+          if(node)node.textContent=power;setFloatingPowerCoinState(entry,coin.side)},visual)
       },
       powerEnd(entry,count,power,coins){setFloatingClashHud(entry,count,power,coins);powerHosts.delete(hostKey(entry))},
       hitsStart(entry,remaining){setFloatingClashHud(entry,remaining)},
@@ -7022,24 +7036,25 @@ function combatStepRuntime(){
         if(strip)strip.innerHTML=`${coins.map(coinResultMarkup).join('')}<span class="clash-current-roll-host"></span>${Array.from({length:Math.max(0,remaining-coins.length-1)},()=>`<span class="clash-float-coin unresolved-tail"><img src="${window.LuminousCoinEngine.TAIL_SRC}" alt="Tail"></span>`).join('')}`;
         hitHosts.set(hostKey(entry),{hud,container:hud?.querySelector('.clash-current-roll-host')})
       },
-      async hitCoin(entry,remaining,coinIndex,coins,power){
+      async hitCoin(entry,remaining,coinIndex,coins,power,visual){
         const state=hitHosts.get(hostKey(entry)),coin=coins[coins.length-1],data=clashData(entry.plan);
-        await rollCoin(state?.container,coin,()=>{setFloatingPowerCoinState(entry,coin.side);setFloatingCoinDetail(state?.hud,data,remaining,coinIndex,coin.side)});
+        await rollCoin(state?.container,coin,()=>{setFloatingPowerCoinState(entry,coin.side);setFloatingCoinDetail(state?.hud,data,remaining,coinIndex,coin.side)},visual);
+        visual?.check();
         const node=state?.hud?.querySelector('.clash-float-power');if(node)node.textContent=power;
         renderFloatingClashCoins(state?.hud,data.coinAmount,remaining,coins.concat(Array.from({length:remaining-coins.length},()=>null)));
         hitHosts.delete(hostKey(entry))
       },
-      hitMotion:(entry,targetId)=>animateHitMotion(entry,targetId),
-      async clashStart(a,b,ra,rb){moveClashUnitsToMidpoint(a,b);setFloatingClashHud(a,ra);setFloatingClashHud(b,rb);await wait(COMBAT_PACE.clashApproach)},
-      async clashContact(a,b,count){showClashCount(a,b,count);await animateClashContact(a,b)},
-      async clashOutcome(a,b,winner,ra,rb,rollA,rollB){
+      hitMotion:(entry,targetId,...context)=>animateHitMotion(entry,targetId,context.at(-1)),
+      async clashStart(a,b,ra,rb,visual){if(window.LuminousCombatLiveMode===true)setTimelineVisualFocus([a.ownerId,b.ownerId]);moveClashUnitsToMidpoint(a,b);setFloatingClashHud(a,ra);setFloatingClashHud(b,rb);await wait(COMBAT_PACE.clashApproach,visual)},
+      async clashContact(a,b,count,visual){showClashCount(a,b,count);await animateClashContact(a,b,visual)},
+      async clashOutcome(a,b,winner,ra,rb,rollA,rollB,visual){
         setFloatingClashHud(a,ra,rollA.power,rollA.coins);setFloatingClashHud(b,rb,rollB.power,rollB.coins);
-        await animateClashOutcome(a,b,winner);await wait(winner==='tie'?COMBAT_PACE.tieResult:COMBAT_PACE.clashResult)
+        await animateClashOutcome(a,b,winner,visual);await wait(winner==='tie'?COMBAT_PACE.tieResult:COMBAT_PACE.clashResult,visual)
       },
-      async clashDefeat(winner,loser){await wait(COMBAT_PACE.spAward);await animateClashDefeat(winner,loser);closeFloatingClashHud(loser)},
-      async clashEnd(a,b,winner){await wait(250);closeFloatingClashHud(a);closeFloatingClashHud(b);hideClashCount(a,b);settleClashUnits(a,b);await wait(COMBAT_PACE.returnFromClash)},
-      async guardEnd(entry){await wait(COMBAT_PACE.totalHold);closeFloatingClashHud(entry)},
-      async evadeEnd(entry){await wait(280);closeFloatingClashHud(entry)}
+      async clashDefeat(winner,loser,visual){await wait(COMBAT_PACE.spAward,visual);visual?.check();await animateClashDefeat(winner,loser,visual);visual?.check();closeFloatingClashHud(loser)},
+      async clashEnd(a,b,winner,visual){await wait(250,visual);visual?.check();closeFloatingClashHud(a);closeFloatingClashHud(b);hideClashCount(a,b);settleClashUnits(a,b);await wait(COMBAT_PACE.returnFromClash,visual)},
+      async guardEnd(entry,visual){await wait(COMBAT_PACE.totalHold,visual);visual?.check();closeFloatingClashHud(entry)},
+      async evadeEnd(entry,...context){const visual=context.at(-1);await wait(280,visual);visual?.check();closeFloatingClashHud(entry)}
     }});
   return combatStepsInstance
 }
@@ -7232,7 +7247,7 @@ function spawnClashContactFx(entryA,entryB,{kind='clash',hitTargetId=null}={}){
   host.appendChild(fx);
   setTimeout(()=>fx.remove(),360)
 }
-async function animateClashContact(entryA,entryB){
+async function animateClashContact(entryA,entryB,visual){
   const mode=clashPairMode(entryA,entryB);
   if(mode==='melee-melee'){
     // Do not spawn the impact in empty space. Each Clash visibly lunges both
@@ -7252,18 +7267,19 @@ async function animateClashContact(entryA,entryB){
     markUnitCombatActive(combatData[entryA.ownerId],true);
     markUnitCombatActive(combatData[entryB.ownerId],true)
   }
-  await wait(COMBAT_PACE.clashContact);
+  await wait(COMBAT_PACE.clashContact,visual);
+  visual?.check();
   spawnClashContactFx(entryA,entryB);
-  await wait(COMBAT_PACE.clashSpark)
+  await wait(COMBAT_PACE.clashSpark,visual)
 }
-async function animateClashOutcome(entryA,entryB,outcome){
+async function animateClashOutcome(entryA,entryB,outcome,visual){
   const mode=clashPairMode(entryA,entryB);
   if(outcome==='tie'){
     if(mode==='melee-melee'){
       moveUnitAlongCombatLine(entryA.ownerId,entryB.ownerId,-CLASH_MOTION.tieRetreat,{duration:COMBAT_PACE.clashMotion});
       moveUnitAlongCombatLine(entryB.ownerId,entryA.ownerId,-CLASH_MOTION.tieRetreat,{duration:COMBAT_PACE.clashMotion})
     }
-    await wait(COMBAT_PACE.clashMotion);
+    await wait(COMBAT_PACE.clashMotion,visual);
     return
   }
   const winner=outcome==='a'?entryA:entryB,loser=winner===entryA?entryB:entryA,
@@ -7278,9 +7294,10 @@ async function animateClashOutcome(entryA,entryB,outcome){
       moveUnitAlongCombatLine(winner.ownerId,loser.ownerId,CLASH_MOTION.meleeClashAdvance,{minGap:CLASH_MOTION.meleeReadyGap,duration:COMBAT_PACE.clashMotion})
     }
   }
-  await wait(COMBAT_PACE.clashMotion)
+  await wait(COMBAT_PACE.clashMotion,visual)
 }
-async function animateClashDefeat(winner,loser){
+async function animateClashDefeat(winner,loser,visual){
+  visual?.check();
   const winnerRange=isRangeAction(winner.plan),loserRange=isRangeAction(loser.plan);
   if(winnerRange&&!loserRange){
     moveUnitAlongCombatLine(loser.ownerId,winner.ownerId,-CLASH_MOTION.finalLosePush,{duration:COMBAT_PACE.clashMotion})
@@ -7289,9 +7306,9 @@ async function animateClashDefeat(winner,loser){
     moveUnitAlongCombatLine(winner.ownerId,loser.ownerId,999,{minGap:CLASH_MOTION.hitMinGap,duration:COMBAT_PACE.clashMotion});
     if(!loserRange)moveUnitAlongCombatLine(loser.ownerId,winner.ownerId,-Math.round(CLASH_MOTION.finalLosePush*.55),{duration:COMBAT_PACE.clashMotion})
   }
-  await wait(COMBAT_PACE.clashMotion)
+  await wait(COMBAT_PACE.clashMotion,visual)
 }
-async function animateHitMotion(entry,targetId){
+async function animateHitMotion(entry,targetId,visual){
   if(!entry||!targetId)return;
   const attacker=combatData[entry.ownerId],target=combatData[targetId];
   if(!attacker||!target)return;
@@ -7303,9 +7320,10 @@ async function animateHitMotion(entry,targetId){
     moveUnitAlongCombatLine(entry.ownerId,targetId,CLASH_MOTION.hitAdvance,{minGap:CLASH_MOTION.hitMinGap,duration});
     moveUnitAlongCombatLine(targetId,entry.ownerId,-CLASH_MOTION.hitRecoil,{duration})
   }
-  await wait(Math.max(90,duration-45));
+  await wait(Math.max(90,duration-45),visual);
+  visual?.check();
   spawnClashContactFx(entry,{ownerId:targetId,plan:{data:{}}},{kind:'hit',hitTargetId:targetId});
-  await wait(90)
+  await wait(90,visual)
 }
 function moveClashUnitsToMidpoint(entryA,entryB){
   const unitA=combatData[entryA.ownerId],
@@ -7526,11 +7544,7 @@ async function resolveUnopposedCoinAction(entry){
   markEntryStarted(entry);
   if(!targetId)return;
 
-  moveEntryForAction(entry);
-  if(!timelineResolutionActive&&entry.ownerId===PLAYER_ID)focusCombatCameraOnPlayer();
-  await wait(COMBAT_PACE.cameraSettle);
-
-  setFloatingClashHud(entry,data.coinAmount);
+  await combatStepRuntime().show('actionApproach',entry,'attack');
   await resolveRemainingCoinHits(
     entry,
     targetId,
@@ -7631,9 +7645,7 @@ async function triggerCounterAfterHit(defenderId,attackerId,incomingEntry){
   // Counter can visually execute at the same time as the incoming attacker;
   // don't clear the attacker's executing Slot just to highlight the reaction.
   entry.slot?.classList.add('executing');
-  moveEntryForAction(reactionEntry);
-  await wait(220);
-  setFloatingClashHud(reactionEntry,Math.max(1,Number(reactionPlan.data?.coinAmount)||1));
+  await combatStepRuntime().show('actionApproach',reactionEntry,'counter');
   await resolveRemainingCoinHits(reactionEntry,attackerId,Math.max(1,Number(reactionPlan.data?.coinAmount)||1),{heal:false,clashWinner:false});
   closeFloatingClashHud(reactionEntry);
   entry.slot?.classList.remove('executing');
@@ -7969,12 +7981,14 @@ function renderDefenseSkills(){
   const equipped=(UNIT_KITS[PLAYER_ID]?.actions||[]).filter(d=>d?.kind==='defense'||d?.isDefense===true||
     String(d?.type||'').toLowerCase()==='defense'||Boolean(d?.defenseType||d?.defenseSubtype));
   const seen=new Set();
-  [...equipped,...permanent.defense].forEach(raw=>{
-    const key=String(raw.id||raw.name||'').toLowerCase();
+  // Basic defenses are always available; DM deployment authorizes their IDs.
+  const defenses=[...equipped,...permanent.defense];
+  defenses.forEach(raw=>{
+    const key=String(raw.skillId||raw.id||raw.name||'');
     if(seen.has(key))return;
     seen.add(key);
-    const defenseType=window.LuminousClashableDefenses073?.defenseTypeOf(raw)||'guard';
-    const d={...raw,kind:'defense',defenseType,
+    const defenseType=window.LuminousClashableDefenses073?.defenseTypeOf(raw)||raw.defenseType||'guard';
+    const d={...raw,id:key,skillId:key,kind:'defense',defenseType,
       iconUrl:raw.iconUrl||(defenseType.includes('counter')?COMBAT_ICONS.counter:defenseType.includes('guard')?COMBAT_ICONS.guard:COMBAT_ICONS.evade)};
     const b=document.createElement('button'),sin=sinInfo(d);
     b.className='skill-option';b.style.setProperty('--sin',sin.color);
@@ -8362,6 +8376,12 @@ function hydrateLiveCombat(payload={}){
   initializeBattleSP();rollTurnSpeeds(round);ensureUnknownAISlots();
   return initializeCombatSurface({playIntro:payload.playIntro!==false})
 }
+const playbackVisualChanges=new Map();
+let playbackVisualFrame=null;
+function clearPlaybackVisualChanges(){
+  if(playbackVisualFrame!==null)cancelAnimationFrame(playbackVisualFrame);
+  playbackVisualFrame=null;playbackVisualChanges.clear()
+}
 window.LuminousCombatStepRuntime=Object.freeze({
   version:window.LuminousCombatSteps.version,
   events:afterSequence=>combatStepRuntime().events(afterSequence),
@@ -8408,13 +8428,14 @@ window.LuminousCombatStepRuntime=Object.freeze({
     for(const key of saved.resolvedKeys||[])resolvedKeys.add(key);
     activeGrapples=attach(saved.activeGrapples||[]);grappleSerial=Number(saved.grappleSerial)||0
   },
-  async present(cue,args){
+  async present(cue,args,visual){
+    this.flushPlaybackRefresh();
     const entry=value=>{
       if(Array.isArray(value))return value.map(entry);
       if(value?.ownerId&&value?.plan)return {...value,slot:unitSlots(value.ownerId)[value.localIndex??0]||null};
       return value
     };
-    await combatStepRuntime().present(cue,args.map(entry))
+    await combatStepRuntime().present(cue,args.map(entry),visual)
   },
   lockPlanning(locked){
     roundRunning=Boolean(locked);
@@ -8429,6 +8450,7 @@ window.LuminousCombatStepRuntime=Object.freeze({
     syncReadyControl();window.LuminousCombatHudMotion073?.refresh()
   },
   beginPlayback(turn){
+    clearPlaybackVisualChanges();
     round=Math.max(1,Number(turn)||1);
     $('round').textContent=round;
     this.lockPlanning(true);
@@ -8436,17 +8458,50 @@ window.LuminousCombatStepRuntime=Object.freeze({
     combatStepRuntime().resetJournal();
     setCameraFocus('full',false)
   },
-  refreshPlayback(){
-    window.LuminousCombatStage073?.refresh();window.LuminousCombatHudMotion073?.refresh();
-    Object.entries(combatData).forEach(([id,unit])=>{
-      syncCombatantVitalNumber(id);
-      const token=$(`token-${id}`),pct=combatantHpPct(unit,unit.hp);
-      for(const line of token?.querySelectorAll('.hp-fill-line,.hp-transition-line')||[])setHpLinePct(line,pct,0);
-      const orb=token?.querySelector('.floating-sp-group');if(orb)orb.textContent=Math.round(unit.sp);
-      renderStatusEffects(id)
-    })
+  cancelPlaybackRefresh:clearPlaybackVisualChanges,
+  queuePlaybackRefresh(changes){
+    for(const {unitId,fields}of changes){
+      let dirty=playbackVisualChanges.get(unitId);
+      if(!dirty)playbackVisualChanges.set(unitId,dirty=new Set());
+      for(const field of fields)dirty.add(field)
+    }
+    if(playbackVisualChanges.size&&playbackVisualFrame===null)playbackVisualFrame=requestAnimationFrame(()=>this.flushPlaybackRefresh())
+  },
+  flushPlaybackRefresh(){
+    if(playbackVisualFrame!==null)cancelAnimationFrame(playbackVisualFrame);
+    playbackVisualFrame=null;
+    if(!playbackVisualChanges.size)return;
+    const changes=[...playbackVisualChanges].map(([unitId,fields])=>({unitId,fields:[...fields]}));
+    playbackVisualChanges.clear();
+    try{this.refreshPlayback(changes)}catch(error){console.warn('[Combat playback visual refresh]',error)}
+  },
+  refreshPlayback(changes){
+    const full=!Array.isArray(changes);
+    if(full){window.LuminousCombatStage073?.refresh();window.LuminousCombatHudMotion073?.refresh()}
+    const rows=full?Object.keys(combatData).map(unitId=>({unitId,fields:null})):changes;
+    let conditions=false,layout=false,fieldHeight=null;
+    for(const {unitId:id,fields}of rows){
+      const unit=combatData[id];if(!unit)continue;
+      const has=(...keys)=>full||keys.some(key=>fields.includes(key));
+      if(has('hp','maxHp','sp','shieldPools','observationKnown','lifeState','dead','defeated')){
+        syncCombatantVitalNumber(id);
+        const token=$(`token-${id}`),pct=combatantHpPct(unit,unit.hp);
+        for(const line of token?.querySelectorAll('.hp-fill-line,.hp-transition-line')||[])setHpLinePct(line,pct,0);
+        const orb=token?.querySelector('.floating-sp-group');if(orb)orb.textContent=Math.round(unit.sp);
+        if(!full&&has('shieldPools'))renderCombatantShield(id,0)
+      }
+      if(has('statusEffects','pendingStatusEffects')){renderStatusEffects(id);conditions=true;layout=true}
+      if(!full&&has('staggerStage','staggerActivatedRound','staggerUntilRound','incapacitated','lifeState','isDowned','isDead','dead','defeated','statusEffects')){syncUnitActionState(id);conditions=true}
+      if(!full&&has('x','y','scale','spriteY','deploymentState','battleActive','isBackup')){
+        if(fieldHeight===null)fieldHeight=$('battlefield')?.offsetHeight;
+        window.LuminousCombatStage073?.refreshUnit(unit,fieldHeight);layout=true
+      }
+    }
+    if(!full&&conditions)syncConditionVisuals();
+    if(!full&&layout)window.LuminousCombatHudMotion073?.scheduleStatusLayout?.()
   },
   finishPlayback(next){
+    this.flushPlaybackRefresh();
     closeAllFloatingClashHuds();clearTimelineVisualFocus();
     round=Math.max(1,Number(next)||1);$('round').textContent=round;
     plannedActions=[];planReady=false;timelineResolutionActive=false;
@@ -8467,6 +8522,7 @@ window.LuminousCombat073=Object.freeze({
   initialize:initializeCombatSurface,
   playerId:()=>PLAYER_ID,
   combatants:()=>combatData,
+  refreshObservation(){if(!combatData[PLAYER_ID])return;syncAllUnitVisibility();if(selectedObservationEnemy&&combatData[selectedObservationEnemy])renderObservationRing(selectedObservationEnemy);},
   speedForBaseRoll,
   kit:id=>UNIT_KITS[id],
   plans:()=>plannedActions,
@@ -8846,3 +8902,4 @@ if(!window.LuminousCombatLiveMode)initializeCombatSurface();
 
 </body>
 </html>
+

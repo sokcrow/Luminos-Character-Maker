@@ -40,6 +40,13 @@ for (const size of screens) {
     expect(rect.x + rect.width).toBeLessThanOrEqual(size.width + 1);
     expect(rect.y).toBeGreaterThanOrEqual(0);
     expect(rect.y + rect.height).toBeLessThanOrEqual(size.height);
+    // The confirmation belongs in the lower-left, not centered over Combat.
+    const expectedLeft = size.width <= 520 ? 12 : 16;
+    const expectedBottom = size.height <= 460 && size.width > size.height ? 8 : (size.width <= 520 ? 12 : 16);
+    expect(rect.x).toBeGreaterThanOrEqual(expectedLeft - 1);
+    expect(rect.x).toBeLessThanOrEqual(expectedLeft + 2);
+    expect(size.height - (rect.y + rect.height)).toBeGreaterThanOrEqual(expectedBottom - 1);
+    expect(size.height - (rect.y + rect.height)).toBeLessThanOrEqual(expectedBottom + 2);
     const styles = await banner.evaluate(el => ({
       pointerEvents:getComputedStyle(el).pointerEvents,
       overflowX:document.documentElement.scrollWidth - document.documentElement.clientWidth
