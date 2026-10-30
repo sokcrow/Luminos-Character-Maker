@@ -12,8 +12,8 @@
     if(token!==generation||(user.uid!==dm&&user.uid!=='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))return;
     await script('js/creature-type-catalog.js',()=>Boolean(global.LuminousCreatureTypeCatalog));
     await script('js/ranger-class-runtime.js',()=>Boolean(global.LuminousRangerClassRuntime));
-    await script('js/compendium-progression-core.js?v=20261030-progression-1',()=>Boolean(global.LuminousCompendiumProgression));
-    await script('js/compendium-progression-live.js?v=20261030-progression-1',()=>Boolean(global.LuminousCompendiumProgressLive));
+    await script('js/compendium-progression-core.js?v=20261030-progression-2',()=>Boolean(global.LuminousCompendiumProgression));
+    await script('js/compendium-progression-live.js?v=20261030-progression-2',()=>Boolean(global.LuminousCompendiumProgressLive));
     if(token!==generation)return;activeDb=db;await global.LuminousCompendiumProgressLive.startAuthority(db);
    }catch(error){global.console?.error('No se pudo actualizar el conocimiento de Enemigo Predilecto.',error);}
   });

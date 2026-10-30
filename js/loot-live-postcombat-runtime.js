@@ -22,7 +22,7 @@
 
   const BROWSER_DEPENDENCIES = Object.freeze([
     "js/compendium-progression-core.js?v=20261030-1",
-    "js/compendium-progression-live.js?v=20261030-1",
+    "js/compendium-progression-live.js?v=20261030-progression-2",
     "js/content-registry.js",
     "js/item-icon-registry.js",
     "js/item-runtime-engine.js",
@@ -40,7 +40,7 @@
     "js/coin-engine-core.js",
     "js/creature-type-catalog.js",
     "js/ranger-class-runtime.js",
-    "js/unit-loot-profile-contract.js?v=20261030-progression-1",
+    "js/unit-loot-profile-contract.js?v=20261030-progression-2",
     "js/loot-social-profile-contract.js",
     "js/loot-encounter-context.js",
     "js/corpse-harvest-runtime.js?v=20261024-anatomy-1",

@@ -82,7 +82,10 @@
    for(const [key,item]of Object.entries(unit.inventario_activo||{})){
     if(item.provenance?.sourceMethod!=='npc_encounter_belongings')continue;
     const definition=resolve(item.definitionId||item.id),upgrade=core().replacement(definition,unit.lootProfile,qualityChance,rng(),resolve);
-    if(upgrade)unit.inventario_activo[key]=inventory.createItemInstance(upgrade,{instanceId:item.instanceId||key,quantity:item.quantity||1,currentOwnerId:unit.id,provenance:{...item.provenance,observationUpgradeFrom:definition.id}});
+    if(upgrade){
+     const created=inventory.createItemInstance(upgrade,{instanceId:item.instanceId||key,quantity:item.quantity||1,currentOwnerId:unit.id,provenance:{...item.provenance,observationUpgradeFrom:definition.id}});
+     unit.inventario_activo[key]={...clone(upgrade),...created};
+    }
    }
    return unit;
   });
