@@ -295,7 +295,638 @@
     return unit;
   }
 
-  const DEFINITIONS = Object.freeze({
+  const freezeCompendiumContent = value => {
+    if (value && typeof value === 'object') { Object.values(value).forEach(freezeCompendiumContent); Object.freeze(value); }
+    return value;
+  };
+  const COMPENDIUM_CONTENT = freezeCompendiumContent({
+  "baboon": {
+    "basicDescription": "Primate de hocico alargado, extremidades robustas y manos capaces de sujetar objetos. Su postura cambia entre la marcha a cuatro patas y breves incorporaciones.",
+    "lore": {
+      "context": "Los grupos de babuinos pueden asentarse cerca de ruinas y zonas habitadas donde encuentran alimento; su presencia no indica por sí sola adiestramiento ni pertenencia a una facción.",
+      "behavior": "Busca alimento en grupo y utiliza manos y mandíbula al disputar recursos. Ante una amenaza, los movimientos y vocalizaciones de unos individuos pueden arrastrar la respuesta de los demás."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su cuerpo es biológico. El estudio de mandíbula, musculatura y extremidades requiere examinar el ejemplar; verlo combatir no revela el estado de sus órganos."
+      }
+    }
+  },
+  "badger": {
+    "basicDescription": "Mamífero de cuerpo bajo y compacto, patas cortas y garras visibles. Presenta un hocico alargado y pelaje denso.",
+    "lore": {
+      "context": "Puede ocupar taludes, terrenos removidos y refugios bajo construcciones abandonadas. Los daños en el suelo no demuestran que exista una criatura mayor detrás de ellos.",
+      "behavior": "Excava y utiliza refugios bajo el suelo. Puede defender con insistencia la entrada de su madriguera, especialmente cuando una amenaza le corta la retirada."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Es un animal de carne, hueso y órganos. La conservación de sus tejidos y cualquier aprovechamiento sólo se determinan tras el examen corporal."
+      }
+    }
+  },
+  "bat": {
+    "basicDescription": "Pequeño mamífero de cuerpo cubierto de pelo, orejas prominentes y alas formadas por membranas extendidas entre dedos largos.",
+    "lore": {
+      "context": "Los espacios oscuros y poco transitados de edificios y ruinas pueden albergar colonias. Su presencia no demuestra una maldición ni un origen sobrenatural.",
+      "behavior": "Sale de refugios oscuros para alimentarse y vuelve a lugares protegidos para descansar. Sus desplazamientos entre obstáculos no deben confundirse con un vuelo torpe por su pequeño tamaño."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Sus alas son tejido vivo sostenido por huesos finos. Un examen puede distinguir lesiones de membrana y daños óseos; ninguna sustancia especial se presupone por su aspecto."
+      }
+    }
+  },
+  "cat": {
+    "basicDescription": "Felino pequeño de orejas móviles, bigotes largos y cola flexible. El pelaje y la silueta varían entre ejemplares.",
+    "lore": {
+      "context": "Los gatos conviven con habitantes de distintas regiones y también forman poblaciones sin dueño. Encontrarlo junto a un grupo no acredita que sea su mascota o familiar mágico.",
+      "behavior": "Acecha desde posiciones resguardadas, explora pasos estrechos y alterna la inmovilidad con carreras breves. Su respuesta a las personas cambia según su experiencia y el trato recibido."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Tiene anatomía felina biológica. Garras, dientes y tejidos deben examinarse directamente para conocer su estado, sin atribuirles propiedades mágicas por asociación."
+      }
+    }
+  },
+  "crab": {
+    "basicDescription": "Animal de caparazón rígido, varias patas articuladas y dos pinzas delanteras. Su desplazamiento presenta un marcado movimiento lateral.",
+    "lore": {
+      "context": "Puede encontrarse en orillas húmedas y entornos acuáticos de las regiones. Restos de caparazón aislados no permiten determinar cuántos ejemplares hay presentes.",
+      "behavior": "Busca alimento cerca de superficies y refugios. Utiliza las pinzas tanto para manipular como para defenderse, y puede sujetar un objeto mientras intenta retirarse."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su cubierta externa y sus tejidos blandos son partes diferentes del cuerpo. Es necesario estudiar el ejemplar para distinguir estructuras útiles, daños y condiciones de conservación."
+      }
+    }
+  },
+  "deer": {
+    "basicDescription": "Mamífero de patas largas, cuello esbelto y orejas grandes. Algunos ejemplares presentan cornamenta; su presencia y forma deben describirse según el individuo.",
+    "lore": {
+      "context": "Puede habitar zonas de vegetación y márgenes poco ocupados de las regiones. Un ciervo visto cerca de construcciones no implica domesticación.",
+      "behavior": "Se alimenta de vegetación y mantiene atención sobre ruidos y movimientos. Suele buscar distancia ante una amenaza, pero puede golpear con las patas si queda encerrado."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Posee anatomía biológica de ungulado. La cornamenta, cuando existe, debe distinguirse de los huesos del cráneo durante el estudio corporal."
+      }
+    }
+  },
+  "eagle": {
+    "basicDescription": "Ave de pico curvado, garras marcadas y alas amplias. Su postura y cabeza le dan una silueta compacta cuando está posada.",
+    "lore": {
+      "context": "Puede utilizar puntos elevados de las regiones como descanso y vigilancia. Su aparición sobre un lugar no demuestra que esté obedeciendo a un observador.",
+      "behavior": "Observa desde posiciones altas y utiliza el vuelo para acercarse a una presa. Pico y garras intervienen en la captura; la dirección de aproximación importa más que su mera presencia sobre la escena."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Las plumas y las estructuras de vuelo pertenecen a un cuerpo biológico. El estado de alas, garras y tejidos se determina con examen, no a partir de una maniobra aislada."
+      }
+    }
+  },
+  "frog": {
+    "basicDescription": "Anfibio de cuerpo corto, piel sin pelaje y patas posteriores plegadas. Los ojos sobresalen de la parte superior de la cabeza.",
+    "lore": {
+      "context": "Puede aparecer junto a depósitos de agua y zonas húmedas. Su presencia no permite afirmar que el agua sea potable ni que el entorno sea seguro.",
+      "behavior": "Pasa largos periodos junto a superficies húmedas y puede permanecer inmóvil hasta que una presa o amenaza se aproxima. Sus patas posteriores permiten cambios bruscos de posición."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su piel y órganos son tejidos delicados. Cualquier propiedad medicinal o tóxica requiere evidencia específica y un análisis apropiado."
+      }
+    }
+  },
+  "giant_fire_beetle": {
+    "basicDescription": "Escarabajo de cuerpo abombado, cubierta dura y puntos luminosos visibles. La luz destaca especialmente cuando el entorno está oscuro.",
+    "lore": {
+      "context": "Su luminosidad puede llamar la atención en espacios cerrados y ruinas. Hallar uno no prueba la existencia de fuego, instalaciones activas ni actividad arcana.",
+      "behavior": "Explora el suelo y las superficies próximas mientras sus puntos luminosos hacen visible su posición. La luz permite reconocer su presencia, aunque no explica por sí sola cómo funcionan esas estructuras."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "La cubierta externa protege tejidos y estructuras luminosas. Su separación, conservación y utilidad deben confirmarse mediante las acciones de estudio y recuperación del cuerpo."
+      }
+    }
+  },
+  "goat": {
+    "basicDescription": "Mamífero de pezuñas hendidas, cuerpo recio y hocico estrecho. Cuernos, barba y pelaje dependen del ejemplar observado.",
+    "lore": {
+      "context": "Puede formar parte de grupos cuidados por habitantes de las regiones o vivir sin manejo humano. La presencia de marcas o arreos debe comprobarse antes de atribuirle un dueño.",
+      "behavior": "Busca alimento y apoyos firmes, utilizando con soltura superficies irregulares. Puede empujar con la cabeza al disputar espacio o defenderse de una aproximación."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Tiene anatomía biológica de ungulado. Cuernos, pezuñas, piel y tejidos internos requieren inspección para determinar su estado y posible aprovechamiento."
+      }
+    }
+  },
+  "hawk": {
+    "basicDescription": "Ave de presa de pico curvado, patas con garras y alas que se pliegan junto al cuerpo cuando está posada.",
+    "lore": {
+      "context": "Utiliza lugares elevados y espacios abiertos para observar. Su presencia en una escena no acredita entrenamiento ni vínculo con una facción.",
+      "behavior": "Vigila desde altura y aprovecha movimientos de presas pequeñas para iniciar una aproximación. Al posarse busca apoyos que permitan observar y volver al vuelo."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Sus alas, plumas y garras son estructuras biológicas. Las lesiones y materiales recuperables sólo se determinan tras un examen del cuerpo."
+      }
+    }
+  },
+  "hyena": {
+    "basicDescription": "Mamífero de mandíbula marcada, cuello robusto y silueta inclinada hacia los cuartos traseros. Sus vocalizaciones pueden ser llamativas.",
+    "lore": {
+      "context": "Puede buscar alimento en las periferias y en lugares donde se acumulan restos. No toda presencia de hienas implica que ellas causaron las muertes encontradas.",
+      "behavior": "Combina la búsqueda de restos con oportunidades de caza. Los individuos se comunican mediante postura y vocalizaciones, y pueden concentrarse en torno a una fuente de alimento."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su cuerpo es biológico, con una mandíbula y musculatura que pueden estudiarse directamente. El estado de los tejidos y posibles contaminantes requiere examen específico."
+      }
+    }
+  },
+  "jackal": {
+    "basicDescription": "Cánido de hocico fino, orejas erguidas y cuerpo ligero. La cola y el pelaje completan una silueta más estrecha que la de un lobo robusto.",
+    "lore": {
+      "context": "Puede recorrer márgenes de asentamientos y zonas con restos de alimento. Verlo cerca de otros depredadores no demuestra cooperación entre ellos.",
+      "behavior": "Recorre bordes y refugios en busca de pequeños animales y restos. Puede regresar a una fuente de alimento conocida, manteniendo distancia de competidores mayores."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Posee anatomía biológica de cánido. Dientes, piel y órganos deben examinarse para conocer su estado; no se asignan propiedades especiales por parentesco con otras especies."
+      }
+    }
+  },
+  "lizard": {
+    "basicDescription": "Reptil pequeño de cuerpo alargado, escamas visibles y cola larga. La posición de las patas y el relieve de la piel dependen del ejemplar.",
+    "lore": {
+      "context": "Puede refugiarse en grietas y superficies resguardadas de las regiones. Su presencia no indica necesariamente un ambiente intacto o libre de sustancias nocivas.",
+      "behavior": "Busca refugios estrechos y alterna exposición y reposo según las condiciones del entorno. Tiende a huir hacia una grieta próxima cuando un movimiento grande interrumpe su actividad."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su cuerpo es biológico y escamoso. Cualquier glándula o sustancia aprovechable debe identificarse en el ejemplar y no suponerse por tratarse de un reptil."
+      }
+    }
+  },
+  "octopus": {
+    "basicDescription": "Animal acuático de cuerpo blando y varios brazos con ventosas. Carece de una cubierta rígida visible que marque la forma del torso.",
+    "lore": {
+      "context": "Puede ocupar refugios sumergidos y espacios estrechos de entornos acuáticos. Su presencia no permite establecer el origen o la seguridad del agua.",
+      "behavior": "Explora con los brazos, se sujeta a superficies y utiliza refugios sumergidos. Su cuerpo flexible puede acomodarse a aberturas que otros animales de tamaño parecido no atraviesan."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Sus brazos y órganos forman un cuerpo blando. El estudio de tejidos, sustancias y estructuras internas requiere disponer del ejemplar y conservarlo adecuadamente."
+      }
+    }
+  },
+  "owl": {
+    "basicDescription": "Ave de cabeza ancha, ojos orientados hacia el frente y plumaje denso. La forma de las plumas de la cabeza puede variar entre ejemplares.",
+    "lore": {
+      "context": "Puede refugiarse en estructuras elevadas y lugares poco transitados. Su aparición nocturna no demuestra un presagio ni un vínculo sobrenatural.",
+      "behavior": "Utiliza lugares elevados para observar y puede aproximarse con poco ruido de alas. Sus periodos de actividad y los refugios elegidos dependen del entorno y del ejemplar."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Sus plumas, alas y garras son partes biológicas. El examen del cuerpo permite valorar daños y materiales sin atribuirles propiedades rituales automáticamente."
+      }
+    }
+  },
+  "piranha": {
+    "basicDescription": "Pez de cuerpo comprimido, aletas visibles y mandíbula dentada. La coloración del agua puede dificultar apreciar sus rasgos.",
+    "lore": {
+      "context": "Puede formar parte de poblaciones acuáticas de las regiones. Su presencia no demuestra que todos los ejemplares actúen de forma idéntica ni que un cuerpo sumergido sea accesible.",
+      "behavior": "Responde a movimientos y recursos disponibles dentro del agua. Su alimentación y la conducta de los ejemplares próximos influyen en la forma en que se aproxima a un posible objetivo."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Tiene anatomía biológica de pez. Dientes, branquias y tejidos deben estudiarse en un ejemplar para determinar estado y posibles usos."
+      }
+    }
+  },
+  "rat": {
+    "basicDescription": "Roedor pequeño de hocico estrecho, incisivos visibles y cola larga. Se desplaza cerca de bordes, huecos y objetos que le dan cobertura.",
+    "lore": {
+      "context": "Puede vivir junto a asentamientos, almacenes y estructuras abandonadas. Su presencia señala acceso a refugio y recursos, pero no confirma por sí sola una enfermedad.",
+      "behavior": "Busca alimento siguiendo bordes y rutas con acceso a huecos de refugio. Aprende recorridos habituales y puede habituarse a la presencia humana cuando no recibe amenazas directas."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su cuerpo es biológico. El estado sanitario y cualquier posible contaminación requieren un examen específico; no se establecen por el nombre de la especie."
+      }
+    }
+  },
+  "raven": {
+    "basicDescription": "Ave de plumaje oscuro, pico robusto y patas prensiles. Las plumas producen una silueta reconocible al desplegar las alas.",
+    "lore": {
+      "context": "Puede aparecer cerca de lugares habitados y restos abandonados. Su asociación con malos augurios pertenece a las creencias locales y no prueba una propiedad sobrenatural.",
+      "behavior": "Explora objetos, restos y fuentes de alimento con el pico. Recuerda lugares útiles y observa la actividad de otros animales antes de aproximarse."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Sus plumas y tejidos son biológicos. Cualquier uso ritual o arcano exige evidencia adicional y no se deduce de su color."
+      }
+    }
+  },
+  "scorpion": {
+    "basicDescription": "Animal de cubierta segmentada, pinzas delanteras y cola curvada que termina en un aguijón visible.",
+    "lore": {
+      "context": "Puede refugiarse en huecos, escombros y lugares resguardados. Un aguijón encontrado no permite identificar por sí solo la variedad ni sus propiedades.",
+      "behavior": "Permanece resguardado y utiliza las pinzas para sujetar mientras orienta el aguijón. La naturaleza de una sustancia y los efectos de una picadura se estudian por separado."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "La cola y sus estructuras internas deben examinarse para determinar qué sustancias existen y en qué estado. Recuperar un componente no demuestra conocer su uso."
+      }
+    }
+  },
+  "seahorse": {
+    "basicDescription": "Pez de cuerpo erguido, hocico tubular y cola que puede enrollarse. Su contorno presenta relieves visibles en lugar de una silueta lisa.",
+    "lore": {
+      "context": "Puede permanecer entre estructuras sumergidas que le sirven de apoyo. La presencia de un ejemplar no certifica la salud de todo el entorno acuático.",
+      "behavior": "Se mantiene cerca de apoyos sumergidos y utiliza la cola para sujetarse. Se alimenta mediante el hocico tubular mientras conserva una posición relativamente estable."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Tiene anatomía biológica de pez con estructuras corporales especializadas. Su estudio no autoriza atribuirle propiedades medicinales o mágicas sin evidencia."
+      }
+    }
+  },
+  "spider": {
+    "basicDescription": "Arácnido de ocho patas y cuerpo dividido en dos regiones principales. Los detalles de ojos y quelíceros requieren una observación cercana.",
+    "lore": {
+      "context": "Puede ocupar rincones, grietas y estructuras abandonadas. Una tela aislada no identifica de forma segura a su autora ni la peligrosidad de sus sustancias.",
+      "behavior": "Utiliza patas y quelíceros para desplazarse y capturar alimento. La función de una tela, la presencia de sustancias y la respuesta ante vibraciones deben comprobarse en el ejemplar."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su cuerpo es biológico y debe distinguirse del de las arañas minerales de zafiro. Glándulas, sustancias y tejidos requieren un examen del ejemplar."
+      }
+    }
+  },
+  "vulture": {
+    "basicDescription": "Ave de alas amplias, pico curvado y cabeza cuyo plumaje puede ser escaso. En reposo mantiene una postura encorvada característica.",
+    "lore": {
+      "context": "Puede acudir a lugares donde hay restos animales. Su presencia puede señalar alimento disponible, pero no identifica la causa de una muerte.",
+      "behavior": "Busca restos desde puntos elevados y puede reunirse con otras aves en una misma fuente de alimento. La actividad del grupo aporta señales sobre un cadáver cercano."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Sus alas y tejidos son biológicos. El contacto con restos hace necesario examinar las condiciones del cuerpo antes de determinar cualquier aprovechamiento."
+      }
+    }
+  },
+  "weasel": {
+    "basicDescription": "Mamífero de cuerpo muy alargado, patas cortas y hocico fino. Su silueta permite distinguirlo de roedores pequeños.",
+    "lore": {
+      "context": "Puede utilizar huecos y pasos estrechos en entornos naturales o construidos. Verla junto a pertenencias no prueba que las haya sustraído.",
+      "behavior": "Persigue presas pequeñas a través de huecos y pasos estrechos. Su cuerpo alargado le permite continuar una aproximación entre obstáculos que detienen a depredadores más voluminosos."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "nature",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Tiene anatomía biológica de pequeño carnívoro. El estado de dientes, piel y tejidos internos requiere inspección directa."
+      }
+    }
+  }
+});
+
+  const DEFINITIONS = Object.freeze(Object.fromEntries(Object.entries({
     baboon: Object.freeze(makeUnit({
       id: "baboon", name: "Baboon", size: "small", sprite: "https://imgur.com/AMRt4K4",
       hpBase: 5, hpCoefficient: 0.06,
@@ -501,7 +1132,7 @@
       movement: { ground: 30, climb: 30 }, senses: { darkvision: 60, passivePerception: 13 },
       traits: [], skills: ["weasel_bite"],
     })),
-  });
+  }).map(([id, unit]) => [id, Object.freeze({ ...unit, ...COMPENDIUM_CONTENT[id] })])));
 
   function list() { return Object.values(DEFINITIONS).map(clone); }
   function get(id) {
@@ -583,3 +1214,4 @@
   global.LuminousBeastCr0UnitCatalog = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
+

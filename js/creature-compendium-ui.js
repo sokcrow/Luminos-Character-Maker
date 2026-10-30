@@ -1,17 +1,25 @@
 (function (global) {
   "use strict";
   if (global.LuminousCreatureCompendium) return;
-  const state = {open: false, busy: false, loading: false, sources: [], selected: "", player: {}, db: null, playerId: ""};
+  const state = {open: false, busy: false, loading: false, sources: [], selected: "", player: {}, db: null, playerId: "", progress: {units:{}}, progressRef:null, progressHandler:null};
   const clean = value => String(value ?? "").trim();
   const esc = value => clean(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const live = () => global.LuminousLootLivePostCombatRuntime;
   const knowledge = () => global.LuminousLootKnowledgeRuntime;
   const unitId = unit => live().canonicalUnitId(unit);
   const factsFor = id => Object.values(state.player.compendium?.units?.[id]?.facts || {});
-  const descriptionFor = id => factsFor(id).find(fact => fact.id === "lore.basic_description")?.value;
+  const descriptionFor = id => {
+    const learned=factsFor(id).find(fact=>fact.id==='lore.basic_description')?.value;
+    if(learned)return learned;
+    const unit=state.sources.find(row=>unitId(row)===id),record=state.progress.units?.[id];
+    return unit?.basicDescription&&(record?.encountered||record?.rangerFloor===3)?{name:unit.name,description:unit.basicDescription}:null;
+  };
+  const contextFor=id=>factsFor(id).find(fact=>fact.id==='lore.context')?.value;
+  function canonicalDefinition(id){for(const catalog of [global.LuminousBeastCr0UnitCatalog,global.LuminousKoboldUnitCatalog,global.LuminousGoblinUnitCatalog,global.LuminousWolfUnitCatalog,global.LuminousCaveSapphireSpiderUnitCatalog]){const unit=catalog?.get?.(id);if(unit)return unit;}return {};}
+
   function combatWindow() {
     if (global.LuminousCombat073) return global;
-    for (const id of ["mirror-view", "combat-entry-view"]) {
+    for (const id of ["mirror-view", "combat-entry-view", "player-instance-combat"]) {
       try {
         const viewer = global.document?.getElementById(id)?.contentWindow;
         if (viewer?.LuminousCombat073 || viewer?.LuminousCombatLiveAdapter073?.state) return viewer;
@@ -63,6 +71,7 @@
       @media(max-width:600px){#creature-compendium{padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom))}#creature-compendium .creature-book{max-height:calc(100dvh - 16px)}#creature-compendium header,#creature-compendium .creature-content{padding:12px}#creature-compendium h2{font-size:21px}#creature-compendium .creature-controls button{width:100%}}
       @media(prefers-reduced-motion:reduce){#creature-compendium *{animation:none!important;transition:none!important}}
     `;
+    style.textContent += '#creature-compendium .creature-progression{border-top:1px solid #655439;padding-top:12px;overflow-wrap:anywhere}#creature-compendium .creature-progression fieldset{display:flex;flex-wrap:wrap;gap:8px;min-width:0}#creature-compendium .creature-progression button{min-width:44px;min-height:44px;flex:1 1 150px}#creature-compendium .creature-progression legend{max-width:100%}';
     global.document.head.appendChild(style);
     modal = global.document.createElement("div");
     modal.id = "creature-compendium";
@@ -96,13 +105,37 @@
     return lines.length ? `<section class="creature-known"><h3>Anatomía conocida</h3>${lines.join("")}</section>` : "";
   }
 
+  function progressionMarkup() {
+    const core=global.LuminousCompendiumProgression;if(!core)return '';
+    const record=state.progress.units?.[state.selected]||{},bonus=core.bonuses(record);
+    const labels={materials:'Materiales corporales',money:'Dinero recuperable',quality:'Objetos más valiosos'};
+    const unit=state.sources.find(row=>unitId(row)===state.selected)||{},qualityEnabled=Array.isArray(unit.lootProfile?.observationUpgrades)&&unit.lootProfile.observationUpgrades.length>0&&global.LuminousCompendiumProgression.tier(unit.lootProfile.maxRewardTier)>=2;
+    const branchAvailable=branch=>branch==='quality'?qualityEnabled:branch==='money'?Boolean(unit.wealthProfile?.bandId||unit.lootProfile?.currency):Boolean(unit.bodyProfile?.resources?.length);
+    const choices=Object.entries(record.choices||{}).filter(([slot])=>Number(slot)<=bonus.level).map(([slot,branch])=>`<li>Nivel ${esc(slot)}: ${esc(labels[branch]||'Mejora')}</li>`).join('');
+    return `<section class="creature-progression" aria-label="Progresión de observación"><h3>Observación ${bonus.level} / 5</h3><p>Daño directo +${bonus.damagePercent}% · Materiales +${bonus.materialsPercent}% · Dinero +${bonus.moneyPercent}% · Mejora de objeto ${Math.round(bonus.qualityChance*100)}%</p><ul>${choices}</ul>${bonus.unspent?`<fieldset><legend>Tienes ${bonus.unspent} mejora${bonus.unspent===1?'':'s'} por elegir</legend><p>Cada elección añade 10% a su rama. Una vez elegida queda guardada para esta criatura.</p>${core.BRANCHES.map(branch=>`<button type="button" data-compendium-branch="${branch}" ${state.busy||isRunning()||!branchAvailable(branch)?'disabled':''}>Elegir ${labels[branch]} +10%${!branchAvailable(branch)?branch==='quality'?' · Sin tabla válida':' · No aplicable':''}</button>`).join('')}</fieldset>`:bonus.level===5?'<p>Has completado las cinco mejoras de esta criatura.</p>':'<p>Descubre más información mediante Analyse para ganar nuevas mejoras.</p>'}<small>La calidad respeta la tabla y el tier máximo de la criatura. Dinero y calidad se fijan al desplegar nuevos enemigos; materiales se aplican al recuperar sus restos.</small></section>`;
+  }
+  async function chooseBranch(branch){
+    if(state.busy||isRunning())return;state.busy=true;
+    try{
+      const context=resolveContext({db:state.db,playerId:state.playerId});
+      if(!context.user?.uid||state.player.uid!==context.user.uid)throw Error('Entra con el personaje propietario del Compendio.');
+      const core=global.LuminousCompendiumProgression,record=state.progress.units?.[state.selected]||{};
+      const slot=Array.from({length:core.level(record)},(_,i)=>i+1).find(i=>!record.choices?.[i]);
+      if(!slot)throw Error('No tienes mejoras pendientes para esta criatura.');
+      render();let timer;
+      try{await Promise.race([global.LuminousCompendiumProgressLive.choose(state.db,state.playerId,state.selected,slot,branch),new Promise((_,reject)=>{timer=global.setTimeout(()=>reject(new Error('La confirmación sigue pendiente. Puedes cerrar y volver a abrir al recuperar la conexión.')),10000);})]);}finally{global.clearTimeout(timer);}
+      state.progress=(await state.db.ref(`campaña/compendium_progress/${live().safeKey(state.playerId)}`).once('value')).val()||{units:{}};
+      message('Mejora guardada para esta criatura.');
+    }catch(error){message(error.message||'No se pudo guardar la mejora.');}finally{state.busy=false;render();}
+  }
   function render() {
     const body = ensureModal().querySelector("[data-creature-body]");
     if (!state.sources.length) {body.innerHTML = '<p>Aún no has registrado criaturas. Podrás consultar las que encuentres en combate o al explorar sus restos.</p>'; return;}
     if (!state.sources.some(unit => unitId(unit) === state.selected)) state.selected = unitId(state.sources[0]);
     const unit = state.sources.find(row => unitId(row) === state.selected), description = descriptionFor(state.selected);
-    const attempt = state.player.compendium?.historyAttempts?.[attemptKey(state.selected)];
-    body.innerHTML = `<label for="creature-book-select">Criatura</label><select id="creature-book-select" ${state.busy ? "disabled" : ""}>${state.sources.map(row => `<option value="${esc(unitId(row))}" ${unitId(row) === state.selected ? "selected" : ""}>${esc(row.name || "Criatura registrada")}</option>`).join("")}</select><h3>${esc(description?.name || unit.name || "Criatura")}</h3><p class="creature-description">${esc(description?.description || "Descripción básica aún no descubierta.")}</p><div class="creature-controls"><button type="button" data-creature-history ${description || attempt || state.busy || isRunning() ? "disabled" : ""}>${description ? "Descripción conocida" : attempt ? "Historia ya intentada" : "Recordar · Historia"}</button><span>Historia (INT) · 5 Coins</span></div>${knownBodyMarkup(state.selected)}`;
+    const attempt = state.player.compendium?.historyAttempts?.[attemptKey(state.selected)], context=contextFor(state.selected);
+    body.innerHTML = `<label for="creature-book-select">Criatura</label><select id="creature-book-select" ${state.busy ? "disabled" : ""}>${state.sources.map(row => `<option value="${esc(unitId(row))}" ${unitId(row) === state.selected ? "selected" : ""}>${esc(row.name || "Criatura registrada")}</option>`).join("")}</select><h3>${esc(description?.name || unit.name || "Criatura")}</h3><p class="creature-description">${esc(description?.description || "Descripción básica aún no descubierta.")}</p><div class="creature-controls"><button type="button" data-creature-history ${context || attempt || state.busy || isRunning() ? "disabled" : ""}>${context ? "Contexto conocido" : attempt ? "Historia ya intentada" : "Recordar · Historia"}</button><span>Historia (INT) · 5 Coins</span></div>${context?`<h3>Contexto</h3><p class="creature-description">${esc(context.text||context)}</p>`:""}${knownBodyMarkup(state.selected)}${progressionMarkup()}`;
+    body.querySelectorAll("[data-compendium-branch]").forEach(button=>button.onclick=()=>chooseBranch(button.dataset.compendiumBranch));
     body.querySelector("select").onchange = event => {state.selected = event.target.value;message("");render();};
     body.querySelector("[data-creature-history]").onclick = () => recall().catch(error => message(error.message || "No se pudo consultar la criatura."));
   }
@@ -126,7 +159,8 @@
       const check = global.LuminousCoinEngine?.runAnimatedRoll
         ? await global.LuminousLootCheckRuntime.rollCheckWithCoinEngine(definition, {container:ensureModal().querySelector("[data-creature-coins]"),auto:true,intervalMs:180})
         : global.LuminousLootCheckRuntime.rollCheck(definition);
-      const facts = knowledge().basicDescriptionFacts(unit, check, {discoveredBy:state.playerId,discoveredAt:Date.now(),provenance:{encounterId:state.encounterId || null}});
+      const facts = [...knowledge().basicDescriptionFacts(unit, check, {discoveredBy:state.playerId,discoveredAt:Date.now(),provenance:{encounterId:state.encounterId || null}})];
+      if(check.success&&unit.lore?.context)facts.push(knowledge().makeFact('lore','context',{text:unit.lore.context},{source:'history',discoveredBy:state.playerId,discoveredAt:Date.now(),provenance:{sourceUnitId:id,encounterId:state.encounterId||null}}));
       const tx = await live().transactionValue(state.db.ref(`campaña/jugadores/${state.playerId}/compendium`), raw => {
         if (raw?.historyAttempts?.[key]) return undefined;
         const base = raw || knowledge().createCompendium(state.playerId);
@@ -162,30 +196,38 @@
         state.db.ref("campaña/loot_encounters").once("value"),
       ]);
       state.player = player.val() || {};
+      state.progress=(await state.db.ref(`campaña/compendium_progress/${live().safeKey(state.playerId)}`).once('value')).val()||{units:{}};
       const combatState = combat.val() || {};
       state.encounterId = combatState.encounterId || null;
       const sources = new Map();
       const add = unit => {const id = unitId(unit);if(id) sources.set(id,unit);};
+      for(const [id,entry]of Object.entries(state.progress.units||{}))if(entry.encountered||entry.rangerFloor===3||Object.keys(entry.known||{}).length)add({libraryUnitId:id,name:entry.name});
       for (const id of Object.keys(state.player.compendium?.units || {})) add({libraryUnitId:id});
       for (const row of Object.values(encounters.val() || {})) {
         if (row.meta?.participants?.[state.playerId] !== true) continue;
         for (const corpse of Object.values(row.corpses || {})) add({libraryUnitId:corpse.sourceUnitId,name:corpse.name});
       }
       const combatants = context.runtime?.combatants?.() || {};
+      const own=combatants[context.runtime?.playerId?.()]||{};
+      const hiddenFromPlayer=unit=>Boolean(unit.statusEffects?.invisible||Object.values(unit.statusEffects||{}).some(row=>row?.id==='invisible'))&&!(own.detectedInvisibleIds||[]).includes(unit.id);
       for (const unit of Object.values(combatants)) {
-        if (unit.faction === "enemy" && unit.battleActive !== false && !unit.isBackup && !unit.escaped) add(unit);
+        if (unit.faction === "enemy" && unit.battleActive !== false && !unit.isBackup && !unit.escaped && !hiddenFromPlayer(unit)) add(unit);
       }
-      if (options.unit && Object.values(combatants).includes(options.unit)) add(options.unit);
+      if (options.unit && Object.values(combatants).includes(options.unit) && !hiddenFromPlayer(options.unit)) add(options.unit);
       state.sources = await Promise.all([...sources.values()].map(async unit => {
         const snapshot = await state.db.ref(`campaña/base_datos_unidades/${live().safeKey(unitId(unit))}`).once("value");
-        return {...unit,...(snapshot.val() || {}),libraryUnitId:unitId(unit)};
+        return {...canonicalDefinition(unitId(unit)),...unit,...(snapshot.val() || {}),libraryUnitId:unitId(unit)};
       }));
       state.selected = options.unit ? unitId(options.unit) : state.selected;
+      state.progressRef?.off('value',state.progressHandler);
+      state.progressRef=state.db.ref(`campaña/compendium_progress/${live().safeKey(state.playerId)}`);
+      state.progressHandler=snapshot=>{state.progress=snapshot.val()||{units:{}};if(state.open&&!state.busy)render();};
+      state.progressRef.on('value',state.progressHandler,error=>message('No se pudo sincronizar tu progreso. Vuelve a abrir el Compendio.'));
       render();message(isRunning() ? "Puedes leer el Compendio. Espera a Planning para usar Historia." : "Consulta lo aprendido o usa Historia para recordar su descripción básica.");
     } catch (error) {message(error.message || "No se pudo abrir el Compendio.");}
     finally {state.loading = false;}
   }
-  function close() {if(state.busy)return;state.open=false;ensureModal().hidden=true;returnFocus?.focus?.();}
+  function close() {if(state.busy)return;state.progressRef?.off('value',state.progressHandler);state.progressRef=null;state.open=false;ensureModal().hidden=true;returnFocus?.focus?.();}
   function install() {
     if (!global.document || !live() || global.document.getElementById("btn-creature-compendium")) return false;
     const anchor = global.document.getElementById("btn-global-inventory");

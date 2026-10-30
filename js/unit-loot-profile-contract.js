@@ -264,6 +264,19 @@
       errors.push(`UNKNOWN_HARVEST_SOURCE:${harvestSource}`);
     }
 
+    if (profile.maxRewardTier != null && (!Number.isInteger(Number(profile.maxRewardTier)) || Number(profile.maxRewardTier) < 1 || Number(profile.maxRewardTier) > 5)) errors.push('OBSERVATION_REWARD_TIER_INVALID');
+    if (profile.observationUpgrades != null) {
+      if (!Array.isArray(profile.observationUpgrades)) errors.push('OBSERVATION_UPGRADES_ARRAY_REQUIRED');
+      else {
+        if (profile.observationUpgrades.length && profile.maxRewardTier == null) errors.push('OBSERVATION_REWARD_TIER_REQUIRED');
+        const seen=new Set();
+        for(const pair of profile.observationUpgrades){
+          const from=normalizeId(pair?.fromItemId),to=normalizeId(pair?.toItemId);
+          if(!from||!to||from===to)errors.push('OBSERVATION_UPGRADE_PAIR_INVALID');
+          if(seen.has(from))errors.push('OBSERVATION_UPGRADE_PAIR_DUPLICATE');seen.add(from);
+        }
+      }
+    }
     return Object.freeze({ valid: errors.length === 0, errors: Object.freeze(errors) });
   }
 
@@ -299,6 +312,8 @@
         source: normalizeId(profile.harvest?.source ?? "body_profile"),
       }),
       impossibleCategories: Object.freeze(uniqueIds(profile.impossibleCategories)),
+      ...(profile.maxRewardTier != null ? {maxRewardTier:Math.max(1,Math.min(5,Math.trunc(Number(profile.maxRewardTier)||1)))} : {}),
+      ...(Array.isArray(profile.observationUpgrades) ? {observationUpgrades:Object.freeze(profile.observationUpgrades.map(pair=>Object.freeze({fromItemId:normalizeId(pair?.fromItemId),toItemId:normalizeId(pair?.toItemId)})))} : {}),
       ...(profile.notes ? { notes: String(profile.notes) } : {}),
     });
   }
@@ -351,3 +366,4 @@
   global.LuminousUnitLootProfileContract = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof globalThis !== "undefined" ? globalThis : window);
+
