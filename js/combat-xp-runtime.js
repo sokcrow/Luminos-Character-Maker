@@ -240,6 +240,14 @@
     }
     return [...participantIds].filter(validFirebaseKey).sort();
   }
+  function eligibleVictoryNpcs(encounter = {}) {
+    const mvp = global.LuminousCombatMvpRuntime;
+    if (!mvp) return [];
+    return mvp.eligibleActors(encounter)
+      .filter(actor => actor.kind === 'npc' && actor.persistent && !actor.hostile)
+      .map(actor => actor.recordId).filter(validFirebaseKey).sort();
+  }
+  function npcRecordPath(id) { return 'campaña/base_datos_npcs/' + id; }
   function explicitRewardConfigured(unit = {}) {
     return [unit?.threat?.rating, unit?.experience?.threatRating,
       unit?.threatRating, unit?.challengeRating, unit?.cr,
@@ -298,6 +306,23 @@
     }
     return { enemies, missingCr: [...new Set(missingCr)] };
   }
+  // Keep the complete value cached until the guarded transaction finishes.
+  // once() detaches immediately; the SDK may otherwise call the updater with
+  // an uncached null and abort before it reaches the server.
+  async function cachedTransaction(ref, update) {
+    let listener;
+    try {
+      if (typeof ref.on === 'function') {
+        await new Promise((resolve, reject) => {
+          listener = () => resolve();
+          ref.on('value', listener, reject);
+        });
+      } else await ref.once('value');
+      return await ref.transaction(update, undefined, false);
+    } finally {
+      if (listener) ref.off('value', listener);
+    }
+  }
   async function awardVictoryXp({ db, encounter } = {}) {
     if (!db?.ref || !encounter || typeof encounter !== 'object') throw Error('ENCOUNTER_XP_CONTEXT_REQUIRED');
     const estado = encounter.estado || {};
@@ -306,49 +331,64 @@
       throw Error('ENCOUNTER_XP_VICTORY_REQUIRED');
     const encounterId = cleanId(estado.encounterId);
     if (!validFirebaseKey(encounterId)) throw Error('ENCOUNTER_XP_ID_REQUIRED');
-    const participantIds = eligibleVictoryPlayers(encounter);
-    // Validate every recipient BEFORE giving anyone XP: an absent player must
-    // never quietly reduce the divisor, grant to a phantom, or receive no share.
-    const records = await Promise.all(participantIds.map(id =>
-      db.ref(`${PLAYER_ROOT}/${id}`).once('value').then(s => s.val())));
-    if (records.some(record => !record || typeof record !== 'object'))
-      throw Error('ENCOUNTER_XP_PARTICIPANT_NOT_FOUND');
-    const { enemies, missingCr } = await enemyDefinitionsForVictory(db, encounter);
-    const result = resolveEncounterXp({
-      enemies, participants: participantIds.map(id => ({ id })),
-      encounterResolved: true,
-      fixedEncounterXp: estado.fixedEncounterXp ?? estado.experience?.fixedEncounterXp ?? 0,
-      bonusXp: estado.bonusXp ?? estado.experience?.bonusXp ?? 0
-    });
+    // Freeze the complete payout before the first actor transaction. A resumed
+    // DM must use the same winner, recipients and amounts after a partial payout.
+    const planRef = db.ref('campaña/combate/xpPlans/' + encounterId);
+    let plan = (await planRef.once('value')).val();
+    if (!plan) {
+      const participantIds = eligibleVictoryPlayers(encounter);
+      const npcIds = eligibleVictoryNpcs(encounter);
+      const mvp = global.LuminousCombatMvpRuntime?.selectMvp(encounter) || null;
+      const recipients = [
+        ...participantIds.map(id => ({ kind: 'player', id, path: PLAYER_ROOT + '/' + id })),
+        ...npcIds.map(id => ({ kind: 'npc', id, path: npcRecordPath(id) }))
+      ];
+      const records = await Promise.all(recipients.map(row => db.ref(row.path).once('value').then(s => s.val())));
+      if (records.some(record => !record || typeof record !== 'object'))
+        throw Error('ENCOUNTER_XP_PARTICIPANT_NOT_FOUND');
+      const { enemies, missingCr } = await enemyDefinitionsForVictory(db, encounter);
+      const result = resolveEncounterXp({
+        enemies, participants: recipients.map(row => ({ id: row.kind + ':' + row.id })),
+        encounterResolved: true,
+        fixedEncounterXp: estado.fixedEncounterXp ?? estado.experience?.fixedEncounterXp ?? 0,
+        bonusXp: estado.bonusXp ?? estado.experience?.bonusXp ?? 0
+      });
+      const proposal = {encounterId,participantIds,npcIds,mvp,recipients,result,missingCr};
+      const tx = await cachedTransaction(planRef, old => old || proposal);
+      plan = tx.snapshot.val();
+      if (!plan) throw Error('ENCOUNTER_XP_PLAN_REQUIRED');
+    }
+    const {participantIds = [], npcIds = [], mvp = null, recipients = [], result, missingCr = []} = plan;
     const awards = [];
-    for (const playerId of participantIds) {
-      const ref = db.ref(`${PLAYER_ROOT}/${playerId}`);
-      // Atomic per-player XP + encounter receipt. Retrying a partly completed
-      // Victory or repeating a DM click cannot pay the same fight twice.
-      const tx = await ref.transaction(current => {
+    for (const recipient of recipients) {
+      const { id, kind, path } = recipient;
+      const ref = db.ref(path);
+      const isMvp = Boolean(mvp?.persistent && mvp.kind === kind && mvp.recordId === id);
+      const xp = global.LuminousCombatMvpRuntime?.bonus(result.xpPerParticipant, isMvp) ?? result.xpPerParticipant;
+      const bonusXp = xp - result.xpPerParticipant;
+      // XP + receipt in one transaction. The amount is frozen per encounter.
+      const tx = await cachedTransaction(ref, current => {
         if (!current || typeof current !== 'object') return;
         if (current.encounterXpAwards?.[encounterId] != null) return;
-        const previousXp = Math.max(0, Number(current.xp) || 0);
-        return { ...current, xp: previousXp + result.xpPerParticipant,
+        return { ...current, xp: Math.max(0, Number(current.xp) || 0) + xp,
           encounterXpAwards: { ...(current.encounterXpAwards || {}),
-            [encounterId]: { xp: result.xpPerParticipant,
+            [encounterId]: { xp, baseXp: result.xpPerParticipant, mvpBonusXp: bonusXp,
               totalXp: result.totalXp, participantCount: result.participantCount,
               awardedAt: Date.now() } } };
-      }, undefined, false);
+      });
       const receipt = tx?.snapshot?.val()?.encounterXpAwards?.[encounterId];
-      if (receipt == null) throw Error('ENCOUNTER_XP_AWARD_NOT_COMMITTED:' + playerId);
-      // If a retry sees a different computed payout, do not silently seal a
-      // Victory whose participants received inconsistent reward amounts.
-      if (receipt.xp !== result.xpPerParticipant
-        || receipt.totalXp !== result.totalXp
+      if (receipt == null) throw Error('ENCOUNTER_XP_AWARD_NOT_COMMITTED:' + id);
+      if (receipt.xp !== xp || receipt.baseXp !== result.xpPerParticipant
+        || receipt.mvpBonusXp !== bonusXp || receipt.totalXp !== result.totalXp
         || receipt.participantCount !== result.participantCount)
-        throw Error('ENCOUNTER_XP_RECEIPT_MISMATCH:' + playerId);
-      awards.push({ playerId, awarded: Boolean(tx?.committed), xp: result.xpPerParticipant });
+        throw Error('ENCOUNTER_XP_RECEIPT_MISMATCH:' + id);
+      awards.push({ playerId: kind === 'player' ? id : null, npcId: kind === 'npc' ? id : null,
+        kind, id, awarded: Boolean(tx?.committed), xp, baseXp: result.xpPerParticipant, bonusXp });
     }
     return { encounterId, totalXp: result.totalXp, enemyXp: result.enemyXp,
       fixedEncounterXp: result.fixedEncounterXp, bonusXp: result.bonusXp,
       participantCount: result.participantCount, xpPerParticipant: result.xpPerParticipant,
-      remainderXp: result.remainderXp, participantIds, missingCr, awards };
+      remainderXp: result.remainderXp, participantIds, npcIds, mvp, missingCr, awards };
   }
 
   function applyXpMetadata(unit = {}, input = {}) {
@@ -412,6 +452,7 @@
     normalizeParticipants,
     resolveEncounterXp,
     eligibleVictoryPlayers,
+    eligibleVictoryNpcs,
     enemyDefinitionsForVictory,
     awardVictoryXp,
     applyXpMetadata,
@@ -420,3 +461,4 @@
 
   global.LuminousCombatXpRuntime = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+

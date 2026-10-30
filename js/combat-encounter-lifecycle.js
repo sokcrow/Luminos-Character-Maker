@@ -87,13 +87,9 @@
           ? "DEFEAT"
           : "ENCOUNTER CANCELADO";
     }
+    // The seal is purely cinematic: XP is shown in the individual results screen.
     const xpLabel = overlay.querySelector(".combat-result-xp");
-    if (xpLabel) {
-      const award = state?.xpAward;
-      xpLabel.textContent = normalized === "victory" && award && Number.isFinite(Number(award.totalXp))
-        ? `XP TOTAL ${Number(award.totalXp).toLocaleString()} · ${Number(award.participantCount) || 0} PARTICIPANTES · +${Number(award.xpPerParticipant) || 0} XP C/U`
-        : "";
-    }
+    if (xpLabel) xpLabel.textContent = "";
     overlay.dataset.result = normalized;
     overlay.dataset.endedAt = String(state?.endedAt || "");
     overlay.classList.remove("blackout");
@@ -187,3 +183,4 @@
     else boot();
   }
 })(typeof window !== "undefined" ? window : globalThis);
+

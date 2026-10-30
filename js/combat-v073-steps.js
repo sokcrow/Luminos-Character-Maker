@@ -19,6 +19,7 @@
         sequence: ++sequence, type, ...(entry ? action(entry) : {}), ...detail }));
       journal.push(event);
       notify(onEvent, event);
+      global.LuminousCombatMvpRuntime?.recordEvent?.(event);
       return event;
     }
     // Acting and targetability are distinct: Downed can be targeted but never acts.
@@ -327,3 +328,4 @@
   }
   global.LuminousCombatSteps = Object.freeze({ version: VERSION, schemaVersion: SCHEMA, create });
 })(typeof window === 'undefined' ? globalThis : window);
+

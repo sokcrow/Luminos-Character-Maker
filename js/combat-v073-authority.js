@@ -306,10 +306,10 @@
   }
   function receiveCheckpoint(row){const seq=Math.max(0,Number(row?.seq)||0);if(!seq||Number(row.round)!==Number(adapterState()?.round)||isDm())return;state.pendingRemoteCheckpoints.set(seq,clone(row));reconcileCheckpoint(seq);}
   function publishActionCheckpoint(type='action'){
-    if(!isDm()||norm(state.current?.phase)!=='running')return false;flushPresentation();const s=adapterState();if(!s?.db?.ref)return false;const seq=state.localActionSeq,snapshot=snapshotRuntime(),row={round:Number(state.current.round)||Number(s.round)||1,seq,actionSeq:state.localActionSeq,type,rngCursor:state.cursor,digest:checkpointDigest(snapshot,state.current.round),combatants:snapshot,updatedAt:serverTime()};state.lastCheckpointSeq=Math.max(state.lastCheckpointSeq,seq);state.current.checkpoint=row;
+    if(!isDm()||norm(state.current?.phase)!=='running')return false;flushPresentation();const s=adapterState();if(!s?.db?.ref)return false;const seq=state.localActionSeq,snapshot=snapshotRuntime(),row={round:Number(state.current.round)||Number(s.round)||1,seq,actionSeq:state.localActionSeq,type,rngCursor:state.cursor,digest:checkpointDigest(snapshot,state.current.round),combatants:snapshot,mvpCheckpoint:global.LuminousCombatMvpRuntime?.checkpoint?.()||null,updatedAt:serverTime()};state.lastCheckpointSeq=Math.max(state.lastCheckpointSeq,seq);state.current.checkpoint=row;
     if(batchMode()&&state.lastExecutionJson)row.executionJson=state.lastExecutionJson;
     const batches=batchMode()?playback().batchUpdates(row):{};
-    const updates={[`${ROOT.current}/checkpoint`]:row,...playerVitalFirebaseUpdates(snapshot),...batches,...resourceFirebaseUpdates(snapshot)};
+    const updates={'campaña/combate/mvpCheckpoint':row.mvpCheckpoint,[`${ROOT.current}/checkpoint`]:row,...playerVitalFirebaseUpdates(snapshot),...batches,...resourceFirebaseUpdates(snapshot)};
     state.writeChain=state.writeChain.then(()=>s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates));return row;
   }
   function queueCheckpoint(type='state'){return publishActionCheckpoint(type);}
@@ -488,7 +488,7 @@
   function playerVitalFirebaseUpdates(snapshot){try{return global.LuminousPlayerVitalsRealtimeBridge?.firebaseUpdatesForSnapshot?.(playerVitalSnapshot(snapshot))||{};}catch(error){console.error('[Combat073 Authority vitals]',error);return{};}}
   async function afterRound({completedRound,nextRound}={}){
     if(state.executingGeneration)playback().assertOwner(state.current);
-    if(!isDm())return false;flushPresentation();await state.writeChain;const s=adapterState();if(!s?.db?.ref)return false;const done=Math.max(1,Number(completedRound)||Number(state.current.round)||1),next=Math.max(done+1,Number(nextRound)||done+1),snapshot=snapshotRuntime(),row={round:done,seq:state.lastCheckpointSeq+1,type:'round_complete',actionSeq:state.localActionSeq,rngCursor:state.cursor,digest:checkpointDigest(snapshot,done),combatants:snapshot,updatedAt:serverTime()};const updates={...combatantFirebaseUpdates(snapshot),...playerVitalFirebaseUpdates(snapshot),...resourceFirebaseUpdates(snapshot),...(batchMode()?playback().batchUpdates(row):{})};updates[`${ROOT.current}/phase`]='complete';updates[`${ROOT.current}/resultDigest`]=row.digest;updates[`${ROOT.current}/checkpoint`]=row;Object.assign(updates,stateUpdates({phase:'PRE_COMBAT_PLANNING',active:true,round:next,authorityUid:s.uid,updatedAt:serverTime()}));updates[ROOT.ready]=null;updates[ROOT.plans]=null;await s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates);state.current={...state.current,phase:'complete',resultDigest:row.digest,checkpoint:row};state.lastCheckpointSeq=row.seq;return row;
+    if(!isDm())return false;flushPresentation();await state.writeChain;const s=adapterState();if(!s?.db?.ref)return false;const done=Math.max(1,Number(completedRound)||Number(state.current.round)||1),next=Math.max(done+1,Number(nextRound)||done+1),snapshot=snapshotRuntime(),row={round:done,seq:state.lastCheckpointSeq+1,type:'round_complete',actionSeq:state.localActionSeq,rngCursor:state.cursor,digest:checkpointDigest(snapshot,done),combatants:snapshot,mvpCheckpoint:global.LuminousCombatMvpRuntime?.checkpoint?.()||null,updatedAt:serverTime()};const updates={'campaña/combate/mvpCheckpoint':row.mvpCheckpoint,...combatantFirebaseUpdates(snapshot),...playerVitalFirebaseUpdates(snapshot),...resourceFirebaseUpdates(snapshot),...(batchMode()?playback().batchUpdates(row):{})};updates[`${ROOT.current}/phase`]='complete';updates[`${ROOT.current}/resultDigest`]=row.digest;updates[`${ROOT.current}/checkpoint`]=row;Object.assign(updates,stateUpdates({phase:'PRE_COMBAT_PLANNING',active:true,round:next,authorityUid:s.uid,updatedAt:serverTime()}));updates[ROOT.ready]=null;updates[ROOT.plans]=null;await s.db.ref().update(batchMode()?playback().commitUpdates(updates):updates);state.current={...state.current,phase:'complete',resultDigest:row.digest,checkpoint:row};state.lastCheckpointSeq=row.seq;return row;
   }
   async function requestStartRound(){
     state.lastStartError='';
@@ -520,6 +520,7 @@
         if(norm(current.phase)!=='running')current=await setRunning(current);
       }else{state.remoteStart=false;if(batchMode())return false;if(Number(current?.round)!==Number(s.round)||norm(current?.phase)!=='running')return false;state.autoStartedRound=Number(current.round);state.inFlightActions=0;state.executionChain=Promise.resolve();resetRandom(current.seed,Number(current.encounterStart?.rngCursor)||0);}
       state.executingGeneration=current.playback?current.id:null;
+      if(isDm()){const saved=await read('campaña/combate/mvpCheckpoint');global.LuminousCombatMvpRuntime?.restore?.(saved);}
       await global.LuminousCombatEventRuntime?.prepare(Object.values(runtime()?.combatants?.()||{}));
       applyAuthority(current);const completedRound=Number(current.round)||Number(s.round)||1;await original();await state.executionChain;
       const nextRound=domRound(completedRound);
@@ -604,4 +605,5 @@
   global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.9-step-rng',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,compactUnit,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,publishPresentation,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,preparePlanningState,readyComplete,allReadySnapshot,maybeAutoStart});
   start();
 })(window);
+
 

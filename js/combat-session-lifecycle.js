@@ -13,7 +13,7 @@
     if(raw?.estado?.encounterId&&live(raw))return;
     if(raw?.estado&&live(raw)&&Object.keys(raw.combatants||{}).length)
       return {...raw,estado:{...(typeof raw.estado==='object'?raw.estado:{}),encounterId:id,encounterCreatedAt:time,active:true}};
-    return {...(raw||{}),combatants:null,reserves:null,defeated:null,departed:null,participants:null,plannedActions:null,readyPlayers:null,independentIntents:null,independentReceipts:null,authority:null,playback:null,
+    return {...(raw||{}),combatants:null,reserves:null,defeated:null,departed:null,participants:null,mvpCheckpoint:null,combatMetrics:null,xpPlans:null,plannedActions:null,readyPlayers:null,independentIntents:null,independentReceipts:null,authority:null,playback:null,
       estado:{encounterId:id,encounterCreatedAt:time,phase:'PRE_COMBAT_PLANNING',active:true,round:1,presentation:'full',createdBy:uid,updatedAt:time},
       planningStartedAt:time,planningDuration:60};
   }
@@ -149,14 +149,17 @@
       return {...raw,estado:{...raw.estado,ending:{...raw.estado.ending,failed:true}}};
     });
   }
-  async function commitEnd({db,uid,result,token,xpAward=null}){
+  async function commitEnd({db,uid,result,token,xpAward=null,combatMetrics=null}){
     if(result==='victory'){
       const recipients=xpAward?.participantIds;
       const validId=id=>typeof id==='string'&&id.length>0&&!['.','#','$','/','[',']'].some(char=>id.includes(char));
       if(!global.LuminousCombatXpRuntime?.eligibleVictoryPlayers
         || !validId(xpAward?.encounterId)
         || !Array.isArray(recipients)
-        || recipients.length!==xpAward.participantCount
+        || recipients.length+(xpAward.npcIds||[]).length!==xpAward.participantCount
+        || !Array.isArray(xpAward.npcIds||[])
+        || (xpAward.npcIds||[]).some(id=>!validId(id))
+        || new Set(xpAward.npcIds||[]).size!==(xpAward.npcIds||[]).length
         || recipients.some(id=>!validId(id))
         || new Set(recipients).size!==recipients.length
         || !Number.isSafeInteger(xpAward.xpPerParticipant)
@@ -166,11 +169,15 @@
       const receipts=await Promise.all(recipients.map(id=>
         db.ref(`campaña/jugadores/${id}/encounterXpAwards/${xpAward.encounterId}`)
           .once('value').then(snapshot=>snapshot.val())));
-      if(receipts.some(receipt=>!receipt
-        || receipt.xp!==xpAward.xpPerParticipant
+      if(receipts.some((receipt,index)=>!receipt
+        || receipt.xp !== ((xpAward.awards||[]).find(row=>row.kind==='player'&&row.id===recipients[index])?.xp ?? xpAward.xpPerParticipant)
         || receipt.totalXp!==xpAward.totalXp
         || receipt.participantCount!==xpAward.participantCount))
         throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
+      const npcIds=xpAward.npcIds||[];
+      const npcReceipts=await Promise.all(npcIds.map(id=>db.ref('campaña/base_datos_npcs/'+id+'/encounterXpAwards/'+xpAward.encounterId).once('value').then(s=>s.val())));
+      if(npcReceipts.some((receipt,index)=>!receipt||receipt.xp!==(xpAward.awards||[]).find(row=>row.kind==='npc'&&row.id===npcIds[index])?.xp
+        ||receipt.totalXp!==xpAward.totalXp||receipt.participantCount!==xpAward.participantCount))throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
     }
     const response=await updateRoot(db,raw=>{
       if(raw?.estado?.phase!=='ENDING'||raw.estado.ending?.token!==token||raw.estado.ending?.uid!==uid||raw.estado.ending?.result!==result)return;
@@ -180,8 +187,16 @@
         if(xpAward.encounterId!==raw.estado.encounterId
           || expected.length!==actual.length
           || expected.some((id,index)=>id!==actual[index]))return;
+        const expectedNpcs=global.LuminousCombatXpRuntime.eligibleVictoryNpcs(raw);
+        const actualNpcs=[...(xpAward.npcIds||[])].sort();
+        if(expectedNpcs.length!==actualNpcs.length||expectedNpcs.some((id,index)=>id!==actualNpcs[index]))return;
       }
-      return {...raw,estado:{...raw.estado,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now(),...(result==='victory'?{xpAward:{encounterId:xpAward.encounterId,totalXp:xpAward.totalXp,participantCount:xpAward.participantCount,xpPerParticipant:xpAward.xpPerParticipant,remainderXp:xpAward.remainderXp,missingCr:xpAward.missingCr||[]}}:{})}};
+      const finalEncounter={...raw,combatMetrics:combatMetrics||raw.combatMetrics||{}};
+      const mvp=(result==='victory'?xpAward?.mvp:null)||global.LuminousCombatMvpRuntime?.selectMvp(finalEncounter)||null;
+      const roster=global.LuminousCombatMvpRuntime?.eligibleActors(raw)||[];
+      const resultRoster=roster.map(a=>({id:a.id,kind:a.kind,name:a.name,portrait:a.portrait,level:a.level,unitId:a.unitId}));
+      const rewardRows=result==='victory'?(xpAward?.awards||[]).map(a=>({id:a.kind+':'+a.id,xp:a.xp,baseXp:a.baseXp,bonusXp:a.bonusXp})):resultRoster.map(a=>({id:a.id,xp:0,baseXp:0,bonusXp:0}));
+      return {...raw,combatMetrics:finalEncounter.combatMetrics,estado:{...raw.estado,mvp, resultRoster, rewardRows,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now(),...(result==='victory'?{xpAward:{encounterId:xpAward.encounterId,totalXp:xpAward.totalXp,participantCount:xpAward.participantCount,xpPerParticipant:xpAward.xpPerParticipant,remainderXp:xpAward.remainderXp,missingCr:xpAward.missingCr||[],npcIds:xpAward.npcIds||[]}}:{})}};
     });
     if(!response.committed)throw Error('El encuentro cambió antes de confirmar el resultado.');
     return response.snapshot.val().estado;
@@ -193,4 +208,5 @@
   }
   global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,deploy,participantIndex,claimEnd,commitEnd,failEnd,endErrorMessage,updatePath,updateRoot,canSeal,presentation});
 })(typeof window!=='undefined'?window:globalThis);
+
 
