@@ -25,30 +25,19 @@ El contenido se incorpora a `DEFINITIONS`, `get`, `list` y `firebasePayload` de 
 
 Skills, Spells y Traits conservan sus definiciones canónicas, incluidos poderes, condiciones y efectos. Este pase no escribe otra descripción mecánica que pueda desfasarse de ellas.
 
-## Observation Level existente
+## Observation Level y progreso individual
 
-La implementación actual está en `combat/source/combat-v073-live.html`:
+La integración actual se describe en [Progresión y activación](compendium-progression.md). Los siete hechos siguen siendo `hp`, `sp`, `speed`, `action`, `targeting`, `resistances`, `equipment`. Cero hechos corresponde a nivel 0; uno a 1; dos–tres a 2; cuatro–cinco a 3; seis a 4; siete a 5. No se añade XP.
 
-- Hechos: `hp`, `sp`, `speed`, `action`, `targeting`, `resistances`, `equipment`.
-- `observationKnown` conserva los hechos revelados en la unidad del encuentro. La lógica existente puede compartirlos entre unidades de la misma facción y `observationGroup`; no es por sí misma un registro persistente individual del personaje.
-- El nivel se deriva del número de hechos: 0–1 hechos → nivel 1; 2–3 → nivel 2; 4–5 → nivel 3; 6 → nivel 4; los 7 → nivel 5.
-- HP, SP, velocidad, resistencias y equipo se analizan con Percepción; acción y objetivo con Insight. Se conservan los modificadores y dificultades existentes, la resolución de 5 Coins y el límite actual de Analyse como acción gratuita una vez por turno.
+El DM registra cada Analyse exitoso en `campaña/compendium_progress/{playerId}/units/{unitId}` con identidad canónica y deduplicación. Los flags compartidos antiguos no conceden conocimiento individual. Cada nivel da +3% de daño directo y una elección persistente de rama: materiales, dinero u objetos más valiosos. Cada elección suma 10%, con cinco elecciones totales. Enemigo predilecto garantiza nivel efectivo mínimo 3 mediante el matcher real de Ranger.
 
-No se añade XP de observación, un segundo contador, otra fórmula ni un desbloqueo global por nivel. Los nuevos textos no modifican `observationKnown`, `observationGroup`, `observationDifficulty` ni el motor de combate.
-
-### Contrato para la futura integración de la ficha
-
-La ficha debe consultar el **hecho concreto** autorizado; un nivel numérico por sí solo no permite decidir qué dato conoce el jugador. Por ejemplo, nivel 3 puede haberse obtenido sin descubrir resistencias. No revelar esas resistencias basándose únicamente en el nivel.
-
-Observation Level 5 cubre los siete hechos del sistema actual. No equivale a saber todos los Traits, conjuros, técnicas, historia ni anatomía. Los lanzamientos/técnicas observados y los Traits activados mantienen evidencia específica; la identificación y los descubrimientos corporales siguen procesos propios. Historia no concede una observación de combate. Consultar información aprendida no ejecuta una tirada.
-
-Esta integración de autorizaciones y persistencia aún no se activa en el prototipo; tampoco se presentan los nuevos textos de lore/anatomía como conocimiento ya adquirido por un jugador.
+La ficha consulta hechos concretos; nivel 3 no implica conocer resistencias. Nivel 5 no descubre automáticamente Skills, Spells, Traits, historia ni anatomía. Esos desbloqueos requieren evidencia propia; el puente específico de habilidades y hechizos sigue pendiente.
 
 ## Publicación y límites
 
 Los nuevos exports contienen el texto para la biblioteca y para las futuras publicaciones de Units. Los registros ya guardados exclusivamente en Firebase no reciben una migración automática en este PR: deben actualizarse por el flujo autorizado de biblioteca conservando las modificaciones del DM. No se ejecuta una escritura sobre la campaña ni se sobrescriben sus datos.
 
-Se mantiene el comportamiento productivo actual de Historia, que usa `basicDescription` cuando una tirada resulta exitosa. Separar la descripción visible sin tirada del contexto obtenido por Historia sigue siendo trabajo de integración del menú; no se afirma que ese cambio esté desplegado.
+La UI productiva muestra aspecto físico tras un encuentro válido o Enemigo predilecto. Historia conserva una consulta separada para el contexto narrativo. La referencia visual del Bestiario sigue aislada; todavía no sustituye el menú productivo.
 
 ## Verificación local
 

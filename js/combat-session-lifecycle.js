@@ -46,7 +46,7 @@
   const updateRoot=(db,update)=>updatePath(db,ROOT,update);
   function canSeal(raw,payload){
     if(!raw||!['PRE_COMBAT_PLANNING','PLANNING'].includes(String(raw.estado?.phase||raw.estado).toUpperCase())||Number(raw.estado?.round||1)!==payload.round)return false;
-    if(Object.entries(raw.independentIntents||{}).some(([owner,rows])=>Object.entries(rows||{}).some(([id,row])=>Number(row.round)===Number(payload.round)&&(!raw.independentReceipts?.[owner]?.[id]||raw.independentReceipts[owner][id].pendingInventory))))return false;
+    if(Object.entries(raw.independentIntents||{}).some(([owner,rows])=>Object.entries(rows||{}).some(([id,row])=>Number(row.round)===Number(payload.round)&&(!raw.independentReceipts?.[owner]?.[id]||(raw.independentReceipts[owner][id].pendingInventory||raw.independentReceipts[owner][id].pendingObservation)))))return false;
     const members=global.LuminousCombatParticipants?.players(raw.combatants)||[];
     if(members.length!==Object.keys(payload.plans||{}).length)return false;
     const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>k!=='updatedAt').map(k=>[k,stable(v[k])])):v;
@@ -93,6 +93,7 @@
     const deployment=global.LuminousCombatDeploymentRuntime;
     if(!deployment)throw Error('Espera a que cargue el encuentro.');
     units=units.map(unit=>global.LuminousNpcBelongings?.initialize(unit)||unit);
+    if(global.LuminousCompendiumProgressLive){const current=(await db.ref(ROOT).once('value')).val()||{};units=await global.LuminousCompendiumProgressLive.prepareLoot(db,units,[...Object.values(current.combatants||{}),...units]);}
     const response=await updateRoot(db,raw=>{
       if(!raw||blocked(raw)||!['PRE_COMBAT_PLANNING','PLANNING','SETUP'].includes(String(raw.estado?.phase||raw.estado).toUpperCase()))return;
       const combatants={...(raw.combatants||{})},reserves={...(raw.reserves||{})};
@@ -192,3 +193,4 @@
   }
   global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,deploy,participantIndex,claimEnd,commitEnd,failEnd,endErrorMessage,updatePath,updateRoot,canSeal,presentation});
 })(typeof window!=='undefined'?window:globalThis);
+

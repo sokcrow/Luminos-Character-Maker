@@ -463,6 +463,9 @@
     const selectedSkill = lootSkillForAction(actionId, {...options, state});
     const recovered = [];
     let units = recoveryCountFromMargin(result);
+    next.observationRewardSnapshots ||= {};
+    const snapshot=next.observationRewardSnapshots[actorId] ||= clone(options.observationRewards || {materialsPercent:0});
+    if(global.LuminousCompendiumProgression)units=global.LuminousCompendiumProgression.recoveryCount(units,snapshot.materialsPercent,`${state.lootInstanceId}:${actorId}:${actionId}:${options.targetResourceId||''}`);
 
     if (result.success === true && units > 0) {
       for (const candidate of candidates) {
@@ -711,3 +714,4 @@
   global.LuminousLootPostCombatRuntime = API;
   if (typeof module !== "undefined" && module.exports) module.exports = API;
 })(typeof window !== "undefined" ? window : globalThis);
+

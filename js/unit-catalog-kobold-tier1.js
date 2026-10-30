@@ -330,7 +330,7 @@
       tier1: ['kobold_dagger_jab', 'spell:fire_bolt', 'spell:poison_spray', 'spell:charm_person', 'spell:chromatic_orb', 'spell:expeditious_retreat', 'spell:scorching_ray'],
       mechanics: { spellcasting: { ability: 'charisma', saveThresholdFormula: '10 + CHA_MOD', spellSlots: { 1: 4, 2: 2 } }, sorceryPoints: { encounterStart: 3, runtime: 'sorcerer_class_runtime', metamagic: ['subtle_spell', 'heightened_spell'] }, spellReferencesPendingCanonicalCatalog: true },
     })),
-  }).map(([id, unit]) => [id, Object.freeze({ ...unit, ...COMPENDIUM_CONTENT[id] })])));
+  }).map(([id, unit]) => [id, Object.freeze({ ...unit, ...COMPENDIUM_CONTENT[id], lootProfile: Object.freeze({ ...unit.lootProfile, maxRewardTier: 2, observationUpgrades: Object.freeze([Object.freeze({fromItemId: 'hp_generic_pocket_recovery_patch', toItemId: 'hp_generic_rapid_recovery_gel'})]) }) })])));
 
   function get(id) { return DEFINITIONS[String(id || '')] ? clone(DEFINITIONS[String(id || '')]) : null; }
   function list() { return Object.values(DEFINITIONS).map(clone); }
@@ -393,4 +393,5 @@
   global.LuminousKoboldUnitCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+
 

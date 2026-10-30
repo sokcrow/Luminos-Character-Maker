@@ -282,7 +282,7 @@
       const receipts=(await s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}`).once('value')).val()||{};
       // Keep the unacknowledged identity even if its server receipt arrived
       // after timeout. A matching receipt is recovery, not a new activation.
-      const previous=Object.entries(intents).find(([key,row])=>(!receipts[key]||receipts[key].pendingInventory)&&['encounterId','unitId','round','sourceId','sourceType','targetId','cost','targetSlotIndex','choice','variant'].every(key=>(row[key]??null)===(payload[key]??null)));
+      const previous=Object.entries(intents).find(([key,row])=>(!receipts[key]||(receipts[key].pendingInventory||receipts[key].pendingObservation))&&['encounterId','unitId','round','sourceId','sourceType','targetId','cost','targetSlotIndex','choice','variant'].every(key=>(row[key]??null)===(payload[key]??null)));
       const remembered=independentPending(s)[fingerprint];
       const requestId=remembered?.id||previous?.[0]||(global.crypto?.randomUUID?.()||`${Date.now()}-${++independentIntentCounter}`).replace(/[.#$\[\]\/]/g,'_');
       rememberIndependent(s,fingerprint,{id:requestId,round:payload.round});
@@ -299,7 +299,7 @@
       const receiptRef=s.db.ref(`${ROOT}/independentReceipts/${safe(s.playerId)}/${safe(requestId)}`);
       const receipt=await new Promise((resolve,reject)=>{
         let timer;
-        const done=snapshot=>{const row=snapshot.val();if(!row||row.pendingInventory)return;receiptRef.off('value',done);global.clearTimeout(timer);resolve(row);};
+        const done=snapshot=>{const row=snapshot.val();if(!row||row.pendingInventory||row.pendingObservation)return;receiptRef.off('value',done);global.clearTimeout(timer);resolve(row);};
         timer=global.setTimeout(()=>{receiptRef.off('value',done);reject(new Error('independent_confirmation_pending'));},12000);
         receiptRef.on('value',done,error=>{receiptRef.off('value',done);global.clearTimeout(timer);reject(error);});
       });
@@ -316,7 +316,7 @@
   }
   async function confirmIndependentChoices(s){
     const [requests,receipts]=await Promise.all(['independentIntents','independentReceipts'].map(path=>s.db.ref(`${ROOT}/${path}/${safe(s.playerId)}`).once('value').then(snapshot=>snapshot.val()||{})));
-    if(Object.entries(requests).some(([id,row])=>row.encounterId===s.encounterId&&Number(row.round)===Number(s.round)&&(!receipts[id]||receipts[id].pendingInventory)))throw new Error('Espera a que el DM confirme la habilidad pendiente antes de READY.');
+    if(Object.entries(requests).some(([id,row])=>row.encounterId===s.encounterId&&Number(row.round)===Number(s.round)&&(!receipts[id]||(receipts[id].pendingInventory||receipts[id].pendingObservation))))throw new Error('Espera a que el DM confirme la habilidad pendiente antes de READY.');
     independentDeliveryFailed=false;
   }
   global.addEventListener('luminous:combat073-reaction-prepared',onReactionPrepared);
@@ -328,3 +328,4 @@
   global.LuminousCombatPlanSync073=Object.freeze({version:'0.7.3-plan-sync.14-bounded-confirmation',ROOT,delivery,READY_TIMEOUT_MS,sync:syncReady,syncReady,requestIndependentAction,syncLivePlans:syncLiveTargets,syncLiveTargets,queue,kindOf,payloadFor,targetPayloadFor,targetIndex,ownCombatant,ensureEconomyMenu,ensureEconomyReviewFixes,ensureCoreBridges});
   ensureEconomyMenu();global.setTimeout(()=>ensureCoreBridges().catch(error=>console.error('[Combat073 core bridges]',error)),0);
 })(window);
+

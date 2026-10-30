@@ -466,6 +466,27 @@
                 "library_revision": {
                   ".validate": "newData.isNumber()"
                 }
+              },
+              "compendium_progress": {
+                ".write": "auth != null && (auth.uid === root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+                "$playerId": {
+                  "units": {
+                    "$unitId": {
+                      "level": {
+                        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+                      },
+                      "rangerFloor": {
+                        ".validate": "newData.isNumber() && (newData.val() === 0 || newData.val() === 3)"
+                      },
+                      "choices": {
+                        "$slot": {
+                          ".write": "auth != null && root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('jugadores').child($playerId).child('uid').val() === auth.uid && !data.exists() && newData.exists() && (($slot === '1' && data.parent().parent().child('level').val() >= 1) || ($slot === '2' && data.parent().parent().child('level').val() >= 2) || ($slot === '3' && data.parent().parent().child('level').val() >= 3) || ($slot === '4' && data.parent().parent().child('level').val() >= 4) || ($slot === '5' && data.parent().parent().child('level').val() >= 5)) && (newData.val() !== 'quality' || (root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('base_datos_unidades').child($unitId).child('lootProfile/observationUpgrades').hasChildren() && root.child('campaña/encuentros').child($encounterId).child('state/campaña').child('base_datos_unidades').child($unitId).child('lootProfile/maxRewardTier').val() >= 2))",
+                          ".validate": "newData.isString() && (newData.val() === 'materials' || newData.val() === 'money' || newData.val() === 'quality')"
+                        }
+                      }
+                    }
+                  }
+                }
               }
             },
             "dm_private": {
@@ -569,6 +590,27 @@
         },
         "library_revision": {
           ".validate": "newData.isNumber()"
+        }
+      },
+      "compendium_progress": {
+        ".write": "auth != null && (auth.uid === root.child('campaña').child('config').child('dm_uid').val() || auth.uid === 'e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1')",
+        "$playerId": {
+          "units": {
+            "$unitId": {
+              "level": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+              },
+              "rangerFloor": {
+                ".validate": "newData.isNumber() && (newData.val() === 0 || newData.val() === 3)"
+              },
+              "choices": {
+                "$slot": {
+                  ".write": "auth != null && root.child('campaña').child('jugadores').child($playerId).child('uid').val() === auth.uid && !data.exists() && newData.exists() && (($slot === '1' && data.parent().parent().child('level').val() >= 1) || ($slot === '2' && data.parent().parent().child('level').val() >= 2) || ($slot === '3' && data.parent().parent().child('level').val() >= 3) || ($slot === '4' && data.parent().parent().child('level').val() >= 4) || ($slot === '5' && data.parent().parent().child('level').val() >= 5)) && (newData.val() !== 'quality' || (root.child('campaña').child('base_datos_unidades').child($unitId).child('lootProfile/observationUpgrades').hasChildren() && root.child('campaña').child('base_datos_unidades').child($unitId).child('lootProfile/maxRewardTier').val() >= 2))",
+                  ".validate": "newData.isString() && (newData.val() === 'materials' || newData.val() === 'money' || newData.val() === 'quality')"
+                }
+              }
+            }
+          }
         }
       }
     },

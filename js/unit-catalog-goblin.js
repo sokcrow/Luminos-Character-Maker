@@ -235,7 +235,7 @@
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: false, speedPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Goblin Boss', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 5,
     }),
-  }).map(([id, unit]) => [id, Object.freeze({ ...unit, ...COMPENDIUM_CONTENT[id] })])));
+  }).map(([id, unit]) => [id, Object.freeze({ ...unit, ...COMPENDIUM_CONTENT[id], lootProfile: Object.freeze({ ...unit.lootProfile, maxRewardTier: 2, observationUpgrades: Object.freeze([Object.freeze({fromItemId: 'hp_generic_pocket_recovery_patch', toItemId: 'hp_generic_rapid_recovery_gel'})]) }) })])));
 
   function get(id) { return DEFINITIONS[String(id || '')] ? clone(DEFINITIONS[String(id || '')]) : null; }
   function list() { return Object.values(DEFINITIONS).map(clone); }
@@ -312,3 +312,4 @@
   global.LuminousGoblinUnitCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+

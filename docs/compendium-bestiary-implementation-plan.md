@@ -1,7 +1,7 @@
 # Bestiario / Compendio de criaturas — base de implementación
 
 **Estado:** especificación de continuidad. **PR:** #1074. **Fecha:** 2026-10-29.
-**Decisión:** conservar `prototipo-bestiario.html` como referencia visual y de interacción. No sustituir aún el Compendio de producción ni cambiar los catálogos canónicos.
+**Decisión:** conservar `prototipo-bestiario.html` como referencia visual y de interacción. Mantener el prototipo como referencia; integrar la progresión en el Compendio productivo y usar los catálogos canónicos.
 
 ## Propósito
 
@@ -45,10 +45,10 @@ La fuente de verdad de un evento deberá contener identificador único, encuentr
 - Para identificar **magia**, estudiar el uso de Arcana y otras competencias apropiadas a la naturaleza de la criatura o el fenómeno. Definir habilidades, umbrales y oportunidades de intento en una fase específica; **no sustituir automáticamente Historia por Arcana** para todo.
 - **Consultar Compendio** y **Recordar/Identificar** son operaciones diferentes. Consultar no consume una acción/tirada solo por leer algo ya aprendido; la integración final con Planning/Combat Master debe determinar cuándo se puede intentar una nueva tirada.
 
-## Integración pendiente — fuera de este PR de prototipo
+## Integración pendiente del menú definitivo
 
 1. **Contrato de eventos autorizado:** enlazar los eventos reales de Combat Master / Theatre (lanzamiento, objetivo, impacto, observadores) con la identidad del personaje. Filtrar visibilidad real, no suponer que todos vieron todo. No confiar en un `CustomEvent` disparado por un cliente como prueba de verdad.
-2. **Persistencia por personaje:** almacenar conocimiento bajo la estructura canónica del Compendio en Firebase (actualmente `campaña/jugadores/{playerId}/compendium`) y apoyarse en `js/loot-knowledge-runtime.js`; estudiar migración de esquema, versiones, deduplicación y privacidad por jugador antes de escribir. Recuperar conocimiento entre dispositivos y encuentros.
+2. **Persistencia por personaje:** la progresión de Analyse ya usa `campaña/compendium_progress/{playerId}/units/{unitId}`, con escritura autoritativa del DM y elecciones de rama inmutables del propietario. El conocimiento narrativo anterior permanece separado. Falta migración basada en evidencia para datos históricos; no inferir conocimiento personal desde flags compartidos.
 3. **Fuentes canónicas:** cargar Units/Skills/Spells sin crear tres listas paralelas. Integrar nuevas fichas del DM y validar referencias en la creación de actores/Units.
 4. **Desbloqueos y reglas:** Historia, identificación de magia, acciones de análisis y conocimiento postcombate; sincronizar el cambio con la UI y con permisos.
 5. **Arte y presentación:** auditar sprites locales y URLs externas, estados `missing/remote/local/invalid`, migrar recursos reales; reemplazar placeholders geométricos/figuras parecidas a **piezas de ajedrez** por siluetas neutrales o sprites de criatura. No inventar monstruos ni usar iconos ajenos como si fueran el enemigo.
@@ -72,5 +72,6 @@ La fuente de verdad de un evento deberá contener identificador único, encuentr
 
 El PR conserva el prototipo aislado y ahora incorpora contenido editorial en las 35 definiciones de los cinco catálogos canónicos. Cada criatura tiene aspecto físico, contexto, comportamiento y texto para estudio corporal. El prototipo obtiene su descripción del catálogo; ya no mantiene un texto privado para el kobold.
 
-La estructura de contenido y el contrato con Observation Level están documentados en [Contenido y observación](compendium-content-observation.md). No se implementan todavía nuevas consultas, desbloqueos de lore, puente autorizado de combate, migración de registros Firebase existentes ni cambios de tiradas. El prototipo continúa separado del Compendio productivo.
+La estructura editorial está en [Contenido y observación](compendium-content-observation.md). La integración de Analyse individual, Observation 0–5, daño directo, ramas de recuperación y Enemigo predilecto está implementada en el Compendio productivo. [Progresión y activación](compendium-progression.md) detalla permisos, límites y puesta en marcha.
 
+Siguen pendientes el menú visual definitivo, evidencia individual de Skills/Spells/Traits, migración autorizada de datos existentes y validación visual/multiusuario. No se han desplegado reglas ni migrado registros de campaña.
