@@ -3,6 +3,10 @@ import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const firebase=require('firebase/app');require('firebase/auth');require('firebase/database');
 await import('../js/session-mvp-runtime.js');
+await import('../js/combat-mvp-runtime.js');
+await import('../js/combat-xp-runtime.js');
+await import('../js/combat-participants.js');
+await import('../js/combat-session-lifecycle.js');
 const api=globalThis.LuminousSessionMvpRuntime,project='demo-combat-results',ns=project+'-default-rtdb';
 const clients=[];
 async function client(name){
@@ -43,5 +47,18 @@ try{
  await api.close({db:dm.db,uid:dm.uid});
  await api.award({db:dm.db,uid:dm.uid});await api.award({db:dm.db,uid:dm.uid});
  assert.equal((await dm.db.ref('campaña/jugadores/b/xp').once('value')).val(),100);
- console.log('Firebase MVP: private reads, one immutable ballot per UID, no self vote, outsider denial, phase guards, coins and idempotent award passed.');
+ // Exercise actual RTDB removal of empty arrays, not only the memory adapter.
+ await dm.db.ref('campaña/base_datos_npcs/n').set({xp:0});
+ for(const kind of ['npc','player','none']){
+  const fight={estado:{phase:'ENDING',encounterId:'emulator-'+kind,fixedEncounterXp:100,ending:{result:'victory',uid:dm.uid,token:'seal'}},combatants:kind==='none'?{}:{unit:kind==='npc'?{npcId:'n',faction:'ally'}:{isPlayer:true,playerId:'a',faction:'ally'}}};
+  await dm.db.ref('campaña/combate').set(fight);
+  const award=await globalThis.LuminousCombatXpRuntime.awardVictoryXp({db:dm.db,encounter:fight});
+  assert.ok(Array.isArray(award.participantIds));assert.ok(Array.isArray(award.npcIds));
+  const ended=await globalThis.LuminousCombatSession.commitEnd({db:dm.db,uid:dm.uid,result:'victory',token:'seal',xpAward:award});
+  assert.equal(ended.phase,'ENDED',kind+'-only encounter');
+  const raw=(await dm.db.ref('campaña/combate').once('value')).val();
+  const again=await globalThis.LuminousCombatXpRuntime.awardVictoryXp({db:dm.db,encounter:raw});
+  assert.ok(again.awards.every(row=>!row.awarded));
+ }
+ console.log('Firebase MVP: private ballots, cache-safe session closure, coins, idempotent session rewards, NPC/player/empty encounter payouts passed.');
 }finally{await Promise.all(clients.map(c=>c.app.delete()));}

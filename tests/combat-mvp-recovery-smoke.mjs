@@ -7,16 +7,25 @@ await import('../js/combat-participants.js');
 await import('../js/combat-session-lifecycle.js');
 const mvp=globalThis.LuminousCombatMvpRuntime,xp=globalThis.LuminousCombatXpRuntime,lifecycle=globalThis.LuminousCombatSession;
 const copy=v=>v==null?v:JSON.parse(JSON.stringify(v));
-function memory(initial){
- const data=copy(initial);let failPath='';
+// Emulate RTDB wire semantics and its uncached first transaction callback.
+function memory(initial,{firebase=false}={}){
+ const data=copy(initial),retained=new Map();let failPath='';
+ function wire(v){
+   if(v==null)return null;
+   if(typeof v!=='object')return v;
+   const entries=Object.entries(v).map(([k,x])=>[k,wire(x)]).filter(([,x])=>x!==null);
+   if(!entries.length)return null;
+   return Array.isArray(v)?entries.reduce((a,[k,x])=>{a[k]=x;return a;},[]):Object.fromEntries(entries);
+ }
  const read=path=>path.split('/').filter(Boolean).reduce((v,k)=>v?.[k],data)??null;
- const write=(path,value)=>{const parts=path.split('/'),last=parts.pop();let node=data;for(const key of parts)node=node[key]||={};if(value===null)delete node[last];else node[last]=copy(value);};
- const ref=path=>({once:async()=>({val:()=>copy(read(path))}),on:(_event,fn)=>fn({val:()=>copy(read(path))}),off(){},set:async value=>write(path,value),transaction:async fn=>{
+ const write=(path,value)=>{const parts=path.split('/'),last=parts.pop();let node=data;for(const key of parts)node=node[key]||={};const stored=firebase?wire(value):copy(value);if(stored===null)delete node[last];else node[last]=stored;};
+ const ref=path=>({once:async()=>({val:()=>copy(read(path))}),on:(_event,fn)=>{retained.set(path,(retained.get(path)||0)+1);fn({val:()=>copy(read(path))});},off(){retained.set(path,Math.max(0,(retained.get(path)||0)-1));},set:async value=>write(path,value),transaction:async fn=>{
    if(path===failPath){failPath='';throw Error('DISCONNECTED');}
+   if(firebase&&!retained.get(path)&&fn(null)===undefined)return {committed:false,snapshot:{val:()=>copy(read(path))}};
    const next=fn(copy(read(path))),committed=next!==undefined;if(committed)write(path,next);
    return {committed,snapshot:{val:()=>copy(read(path))}};
  }});
- return {ref,read,write,failAt:path=>failPath=path};
+ return {ref,read,write,retained,failAt:path=>failPath=path};
 }
 globalThis.LuminousCombatAuthority073={isDm:()=>true};
 mvp.resetMetrics();
@@ -53,7 +62,7 @@ let uuid=0,random=[0,0,0,1];
 const sandbox={crypto:{randomUUID:()=>String(++uuid),getRandomValues:a=>{a[0]=random.shift()??0;}},console};
 vm.runInNewContext(fs.readFileSync(new URL('../js/session-mvp-runtime.js',import.meta.url),'utf8'),sandbox);
 const session=sandbox.LuminousSessionMvpRuntime;
-const sdb=memory({'campaña':{config:{dm_uid:'dm'},jugadores:{a:{uid:'u1',level:10,xp:0},a2:{uid:'u1',level:4,xp:0},b:{uid:'u2',level:5,xp:0}}}});
+const sdb=memory({'campaña':{config:{dm_uid:'dm'},jugadores:{a:{uid:'u1',level:10,xp:0},a2:{uid:'u1',level:4,xp:0},b:{uid:'u2',level:5,xp:0}}}},{firebase:true});
 let current=await session.start({db:sdb,uid:'dm'});
 assert.deepEqual(Object.keys(current.candidates),['a','b']);
 await assert.rejects(()=>session.vote({db:sdb,uid:'u1',voterId:'a',candidateId:'a'}),/INVALID_VOTE/);
@@ -71,3 +80,21 @@ await session.start({db:sdb,uid:'dm'});current=await session.close({db:sdb,uid:'
 await session.start({db:sdb,uid:'dm'});await session.cancel({db:sdb,uid:'dm'});assert.equal(sdb.read(session.PATH+'/phase'),'cancelled');
 await assert.rejects(()=>session.start({db:sdb,uid:'u1'}),/DM_ONLY/);
 console.log('MVP recovery: mixed NPC closure, frozen partial payouts, metrics replay, private ballots, unique accounts, cancellation and coin rounds passed.');
+
+// Firebase omits empty player/NPC/recipient arrays and null MVPs in durable plans.
+for(const kind of ['npc','player','none']){
+ const id='wire-'+kind;
+ const unit=kind==='npc'?{npcId:'n',faction:'ally'}:{isPlayer:true,playerId:'p',faction:'ally'};
+ const fight={estado:{phase:'ENDING',encounterId:id,fixedEncounterXp:100,ending:{result:'victory',uid:'dm',token:'seal'}},combatants:kind==='none'?{}:{unit}};
+ const wireDb=memory({'campaña':{combate:fight,jugadores:{p:{uid:'u1',xp:0}},base_datos_npcs:{n:{xp:0}}}},{firebase:true});
+ const first=await xp.awardVictoryXp({db:wireDb,encounter:fight});
+ assert.ok(Array.isArray(first.participantIds));assert.ok(Array.isArray(first.npcIds));assert.ok(Array.isArray(first.missingCr));
+ assert.equal(first.participantCount,kind==='none'?0:1);
+ const ended=await lifecycle.commitEnd({db:wireDb,uid:'dm',result:'victory',token:'seal',xpAward:first});
+ assert.equal(ended.phase,'ENDED',kind+' only encounter closes with Firebase-serialized plan');
+ const again=await xp.awardVictoryXp({db:wireDb,encounter:wireDb.read('campaña/combate')});
+ assert.ok(again.awards.every(row=>!row.awarded));
+ assert.ok([...wireDb.retained.values()].every(n=>n===0),'payout listeners are released');
+}
+assert.ok([...sdb.retained.values()].every(n=>n===0),'session listeners are released');
+console.log('Firebase regressions: uncached session transactions and NPC/player/empty payouts passed.');

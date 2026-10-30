@@ -10,6 +10,23 @@
    const dm=(await db.ref('campaña/config/dm_uid').once('value')).val();
    if(!uid||(uid!==dm&&uid!=='e9JwFZrtk6g8UMqq2Hf9EHVY7Ay1'))throw Error('MVP_DM_ONLY');
  }
+  // Keep the complete value cached until the guarded transaction finishes.
+  // once() detaches immediately; the SDK may otherwise call the updater with
+  // an uncached null and abort before it reaches the server.
+  async function cachedTransaction(ref, update) {
+    let listener;
+    try {
+      if (typeof ref.on === 'function') {
+        await new Promise((resolve, reject) => {
+          listener = () => resolve();
+          ref.on('value', listener, reject);
+        });
+      } else await ref.once('value');
+      return await ref.transaction(update, undefined, false);
+    } finally {
+      if (listener) ref.off('value', listener);
+    }
+  }
  function tally(current={}){
    const counts={},accounts=new Set();Object.keys(current.candidates||{}).forEach(id=>counts[id]=0);
    for(const [voterId,id] of Object.entries(current.votes||{})){
@@ -34,7 +51,7 @@
    const id='session-'+(global.crypto?.randomUUID?.()||Date.now().toString(36));
    const next={schemaVersion:2,id,phase:'voting',createdAt:Date.now(),createdBy:uid,
      candidates:Object.fromEntries(roster.map(x=>[x.id,x])),voters:Object.fromEntries(roster.map(x=>[x.uid,x.id]))};
-   const tx=await db.ref(PATH).transaction(prev=>prev&&activePhases.includes(prev.phase)?undefined:next,undefined,false);
+   const tx=await cachedTransaction(db.ref(PATH), prev=>prev&&activePhases.includes(prev.phase)?undefined:next);
    if(!tx.committed)throw Error('MVP_ALREADY_ACTIVE');
    return tx.snapshot.val();
  }
@@ -42,7 +59,7 @@
    const current=(await db.ref(PATH).once('value')).val();
    if(current?.schemaVersion!==2||current.phase!=='voting'||sessionId&&sessionId!==current.id||
      current.voters?.[uid]!==voterId||!current.candidates?.[candidateId]||current.candidates[candidateId].uid===uid)throw Error('MVP_INVALID_VOTE');
-   const tx=await db.ref(BALLOTS+'/'+current.id+'/'+uid).transaction(old=>old==null?candidateId:undefined,undefined,false);
+   const tx=await cachedTransaction(db.ref(BALLOTS+'/'+current.id+'/'+uid), old=>old==null?candidateId:undefined);
    if(!tx.committed)throw Error('MVP_ALREADY_VOTED');
    return candidateId;
  }
@@ -50,17 +67,17 @@
    await requireDm(db,uid);
    // Freeze submissions before reading the private ballots. A retry can resume
    // closing after a disconnect without reopening or discarding votes.
-   const frozen=await db.ref(PATH).transaction(old=>{
+   const frozen=await cachedTransaction(db.ref(PATH), old=>{
      if(!old||!['voting','closing'].includes(old.phase))return;
      return {...old,phase:'closing'};
-   },undefined,false);
+   });
    if(!frozen.committed)throw Error('MVP_VOTING_NOT_CLOSED');
    const current=frozen.snapshot.val();
    const ballots=(await db.ref(BALLOTS+'/'+current.id).once('value')).val()||{};
    const votes=current.schemaVersion===2?Object.fromEntries(Object.entries(ballots).filter(([account])=>current.voters?.[account]).map(([account,id])=>[current.voters[account],id])):current.votes||{};
    const {counts,leaders}=tally({...current,votes});
    const validVotes=Object.values(counts).reduce((a,b)=>a+b,0);
-   const tx=await db.ref(PATH).transaction(old=>{
+   const tx=await cachedTransaction(db.ref(PATH), old=>{
      if(old?.id!==current.id||old.phase!=='closing')return;
      const {votes:discarded,...publicState}=old;
      return {...publicState,counts,phase:!validVotes?'cancelled':leaders.length===1?'awarding':'coins',
@@ -68,24 +85,24 @@
        tiedIds:validVotes&&leaders.length>1?leaders:null,
        tiedCandidates:validVotes&&leaders.length>1?Object.fromEntries(leaders.map(id=>[id,true])):null,
        coinRound:validVotes&&leaders.length>1?1:0,coinClicks:null,coinFaces:null};
-   },undefined,false);
+   });
    if(!tx.committed)throw Error('MVP_VOTING_NOT_CLOSED');
    return tx.snapshot.val();
  }
  async function cancel({db,uid}){
    await requireDm(db,uid);
-   const tx=await db.ref(PATH).transaction(old=>{
+   const tx=await cachedTransaction(db.ref(PATH), old=>{
      if(!old||!['voting','closing','coins'].includes(old.phase))return;
      const {votes:discarded,...publicState}=old;
      return {...publicState,phase:'cancelled',cancelledAt:Date.now()};
-   },undefined,false);
+   });
    if(!tx.committed)throw Error('MVP_NOT_CANCELLABLE');
    return tx.snapshot.val();
  }
  async function clickCoin({db,uid,voterId,sessionId}){
    const state=(await db.ref(PATH).once('value')).val();
    if(state?.phase!=='coins'||sessionId&&sessionId!==state.id||!state.tiedIds?.includes(voterId)||state.candidates?.[voterId]?.uid!==uid)throw Error('MVP_COIN_NOT_ELIGIBLE');
-   const tx=await db.ref(PATH+'/coinClicks/'+voterId).transaction(old=>old==null?state.coinRound:undefined,undefined,false);
+   const tx=await cachedTransaction(db.ref(PATH+'/coinClicks/'+voterId), old=>old==null?state.coinRound:undefined);
    if(!tx.committed)throw Error('MVP_COIN_ALREADY_CLICKED');
    return true;
  }
@@ -101,7 +118,7 @@
    const absent=expected.tiedIds.filter(id=>expected.coinClicks?.[id]!==expected.coinRound);
    if(absent.length&&!includeAbsent)throw Error('MVP_COINS_PENDING');
    const faces=Object.fromEntries(expected.tiedIds.map(id=>[id,secureHeads()?'Heads':'Tails']));
-   const tx=await db.ref(PATH).transaction(old=>{
+   const tx=await cachedTransaction(db.ref(PATH), old=>{
      if(old?.id!==expected.id||old.phase!=='coins'||old.coinRound!==expected.coinRound||JSON.stringify(old.tiedIds)!==JSON.stringify(expected.tiedIds))return;
      if(!includeAbsent&&!old.tiedIds.every(id=>old.coinClicks?.[id]===old.coinRound))return;
      const heads=old.tiedIds.filter(id=>faces[id]==='Heads'),next=heads.length?heads:old.tiedIds;
@@ -111,7 +128,7 @@
        absentCoinHistory:{...(old.absentCoinHistory||{}),['round_'+old.coinRound]:Object.fromEntries(absent.map(id=>[id,true]))},
        phase:winnerId?'awarding':'coins',winnerId,tiedIds:winnerId?null:next,
        tiedCandidates:winnerId?null:Object.fromEntries(next.map(id=>[id,true])),coinRound:winnerId?old.coinRound:old.coinRound+1,coinClicks:null};
-   },undefined,false);
+   });
    if(!tx.committed)throw Error('MVP_COINS_PENDING');
    return tx.snapshot.val();
  }
@@ -121,18 +138,18 @@
    if(old?.phase==='completed')return old;
    if(old?.phase!=='awarding'||!validKey(old.winnerId)||!validKey(old.id)||!old.candidates?.[old.winnerId])throw Error('MVP_NOT_READY');
    const reward=xpForLevel(old.candidates[old.winnerId].level);
-   const paid=await db.ref(PLAYERS+'/'+old.winnerId).transaction(current=>{
+   const paid=await cachedTransaction(db.ref(PLAYERS+'/'+old.winnerId), current=>{
      if(!current||current.uid!==old.candidates[old.winnerId].uid)return;
      if(current.sessionMvpAwards?.[old.id])return;
      return {...current,xp:Math.max(0,Number(current.xp)||0)+reward,
        sessionMvpAwards:{...(current.sessionMvpAwards||{}),[old.id]:{xp:reward,level:old.candidates[old.winnerId].level,awardedAt:Date.now()}}};
-   },undefined,false);
+   });
    const receipt=paid.snapshot?.val()?.sessionMvpAwards?.[old.id];
    if(!receipt||receipt.xp!==reward)throw Error('MVP_REWARD_RECEIPT_MISMATCH');
-   const tx=await db.ref(PATH).transaction(current=>{
+   const tx=await cachedTransaction(db.ref(PATH), current=>{
      if(current?.id!==old.id||current.winnerId!==old.winnerId||!['awarding','completed'].includes(current.phase))return;
      return {...current,phase:'completed',rewardXp:reward,completedAt:current.completedAt||Date.now()};
-   },undefined,false);
+   });
    if(!tx.committed)throw Error('MVP_FINALIZE_RETRY');
    return tx.snapshot.val();
  }

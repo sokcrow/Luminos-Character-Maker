@@ -306,6 +306,23 @@
     }
     return { enemies, missingCr: [...new Set(missingCr)] };
   }
+  // Keep the complete value cached until the guarded transaction finishes.
+  // once() detaches immediately; the SDK may otherwise call the updater with
+  // an uncached null and abort before it reaches the server.
+  async function cachedTransaction(ref, update) {
+    let listener;
+    try {
+      if (typeof ref.on === 'function') {
+        await new Promise((resolve, reject) => {
+          listener = () => resolve();
+          ref.on('value', listener, reject);
+        });
+      } else await ref.once('value');
+      return await ref.transaction(update, undefined, false);
+    } finally {
+      if (listener) ref.off('value', listener);
+    }
+  }
   async function awardVictoryXp({ db, encounter } = {}) {
     if (!db?.ref || !encounter || typeof encounter !== 'object') throw Error('ENCOUNTER_XP_CONTEXT_REQUIRED');
     const estado = encounter.estado || {};
@@ -337,11 +354,11 @@
         bonusXp: estado.bonusXp ?? estado.experience?.bonusXp ?? 0
       });
       const proposal = {encounterId,participantIds,npcIds,mvp,recipients,result,missingCr};
-      const tx = await planRef.transaction(old => old || proposal, undefined, false);
+      const tx = await cachedTransaction(planRef, old => old || proposal);
       plan = tx.snapshot.val();
       if (!plan) throw Error('ENCOUNTER_XP_PLAN_REQUIRED');
     }
-    const {participantIds,npcIds,mvp,recipients,result,missingCr} = plan;
+    const {participantIds = [], npcIds = [], mvp = null, recipients = [], result, missingCr = []} = plan;
     const awards = [];
     for (const recipient of recipients) {
       const { id, kind, path } = recipient;
@@ -350,7 +367,7 @@
       const xp = global.LuminousCombatMvpRuntime?.bonus(result.xpPerParticipant, isMvp) ?? result.xpPerParticipant;
       const bonusXp = xp - result.xpPerParticipant;
       // XP + receipt in one transaction. The amount is frozen per encounter.
-      const tx = await ref.transaction(current => {
+      const tx = await cachedTransaction(ref, current => {
         if (!current || typeof current !== 'object') return;
         if (current.encounterXpAwards?.[encounterId] != null) return;
         return { ...current, xp: Math.max(0, Number(current.xp) || 0) + xp,
@@ -358,7 +375,7 @@
             [encounterId]: { xp, baseXp: result.xpPerParticipant, mvpBonusXp: bonusXp,
               totalXp: result.totalXp, participantCount: result.participantCount,
               awardedAt: Date.now() } } };
-      }, undefined, false);
+      });
       const receipt = tx?.snapshot?.val()?.encounterXpAwards?.[encounterId];
       if (receipt == null) throw Error('ENCOUNTER_XP_AWARD_NOT_COMMITTED:' + id);
       if (receipt.xp !== xp || receipt.baseXp !== result.xpPerParticipant
