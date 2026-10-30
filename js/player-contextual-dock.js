@@ -18,8 +18,8 @@
 @media(max-width:600px),(max-height:480px){#player-contextual-dock button{padding:6px 10px}}
 `;
   doc.head.appendChild(style); doc.body.appendChild(dock);
-  const blockers = '#system-loading-overlay,.hud-sidebar-right.is-open,.hud-modal,.inventory-modal,[role="dialog"],#modal-escritura-teatro,#postcombat-loot-modal,#creature-compendium,#shop-modal,#tienda-overlay,.sheet-phone-wrapper:not(.phone-hidden),[aria-modal="true"]';
-  const obstacles = '.hud-sidebar-right,#player-combat-hud,#theatre-log-container,#theatre-dialogue-box,#theatre-dialogue-container,#btn-shop-notifier,#player-mobile-entry-gate,#player-mobile-standby,[data-player-dock-obstacle]';
+  const blockers = 'dialog[open],#combat-entry-menu[open],#system-loading-overlay,.hud-sidebar-right.is-open,.hud-modal,.inventory-modal,[role="dialog"],#modal-escritura-teatro,#postcombat-loot-modal,#creature-compendium,#shop-modal,#tienda-overlay,.sheet-phone-wrapper:not(.phone-hidden),[aria-modal="true"]';
+  const obstacles = '#combat-entry-bar,#mirror-bar,.hud-sidebar-right,#player-combat-hud,#theatre-log-container,#theatre-dialogue-box,#theatre-dialogue-container,#btn-shop-notifier,#player-mobile-entry-gate,#player-mobile-standby,[data-player-dock-obstacle]';
   let frame = null;
   const visible = node => { const css = global.getComputedStyle(node); return !node.hidden && css.display !== 'none' && css.visibility !== 'hidden' && Number(css.opacity) !== 0 && node.getClientRects().length > 0; };
   const overlaps = (a,b) => a.left < b.right+10 && a.right+10 > b.left && a.top < b.bottom+10 && a.bottom+10 > b.top;
@@ -51,7 +51,7 @@
   doc.body.appendChild(probe);
   function schedule() { if (frame === null) frame = global.requestAnimationFrame(layout); }
   new MutationObserver(records => {
-    const relevant = node => node?.nodeType === 1 && (node.matches(`${blockers},${obstacles}`) || node === doc.body);
+    const relevant = node => node?.nodeType === 1 && (node.matches(`dialog,#combat-entry-menu,${blockers},${obstacles}`) || node === doc.body);
     if(records.some(r => !dock.contains(r.target) && r.target !== dock &&
       (relevant(r.target) || [...r.addedNodes].some(relevant) || [...r.removedNodes].some(relevant)))) schedule();
   }).observe(doc.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style','hidden','aria-hidden','open']});

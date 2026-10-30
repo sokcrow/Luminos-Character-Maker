@@ -29,3 +29,9 @@ Pasaron localmente:
 Las pruebas son temporales y se conservan sólo en el espacio de trabajo, conforme a la política del README.
 
 Pendiente antes de considerar completa TX-01: ejecución del escenario de navegador player-notebook-contextual-dock.spec.mjs en Chromium y comprobación visual del flujo real con Firebase y recursos canónicos. El intento local de Playwright quedó bloqueado porque no existe el ejecutable de Chromium. Las pruebas simuladas no sustituyen esta validación. El PR se entrega en borrador.
+
+## Corrección de acceso desde combate (#1073)
+
+Se carga player-contextual-dock.js antes de player-postcombat-loot.js también en combate.html. Las tres entradas que consumen Botín (hoja_personaje.html, combate.html y mirror.html) comparten la misma dependencia y versión. El aviso reconoce el menú Encuentro abierto y los diálogos nativos de finalización; reserva separación respecto a las barras de Combate y Mirror. Al cerrar esos controles vuelve a comprobar la disponibilidad sin recargar la página.
+
+La comprobación temporal de dependencias y orden en las tres entradas, autenticación de Botín y simulación geométrica en los seis tamaños TX-01 pasan. Sigue pendiente la validación visual real descrita arriba; no se declara completada por estas pruebas.
