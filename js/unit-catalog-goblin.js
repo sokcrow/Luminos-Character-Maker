@@ -100,7 +100,66 @@
     };
   }
 
-  const DEFINITIONS = Object.freeze({
+  const freezeCompendiumContent = value => {
+    if (value && typeof value === 'object') { Object.values(value).forEach(freezeCompendiumContent); Object.freeze(value); }
+    return value;
+  };
+  const COMPENDIUM_CONTENT = freezeCompendiumContent({
+  "goblin": {
+    "basicDescription": "Humanoide pequeño de orejas prominentes y rasgos faciales marcados. La vestimenta y el armamento dependen de las pertenencias visibles del individuo.",
+    "lore": {
+      "context": "Los goblins pueden formar comunidades y grupos con intereses distintos en las regiones y periferias. Su especie no determina una facción ni convierte a todos sus miembros en enemigos.",
+      "behavior": "Puede cambiar de posición para aprovechar la presión del grupo y oportunidades cercanas. El equipo del individuo determina sus medios de ataque; conocer la especie no sustituye observar sus técnicas."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "history",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Posee anatomía biológica humanoide. Sus pertenencias deben distinguirse de los recursos corporales y no se conocen por el simple hecho de derrotarlo."
+      }
+    }
+  },
+  "goblin_boss": {
+    "basicDescription": "Goblin cuya actitud y relación con otros miembros del grupo pueden señalar una posición de mando. Su equipo se describe únicamente por lo que está a la vista.",
+    "lore": {
+      "context": "La autoridad de un jefe puede depender de acuerdos, fuerza, recursos o reconocimiento local. El nombre Goblin Boss no identifica una organización universal.",
+      "behavior": "Dirige la presión del grupo y puede utilizar la posición de sus aliados en beneficio propio. Las órdenes y la intervención de acompañantes son evidencias distintas de sus ataques personales."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "history",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su rango no implica una anatomía diferente de la de otros goblins. El estudio del cuerpo y la revisión de pertenencias siguen siendo procesos independientes."
+      }
+    }
+  }
+});
+
+  const DEFINITIONS = Object.freeze(Object.fromEntries(Object.entries({
     goblin: Object.freeze({
       id: 'goblin', name: 'Goblin', species: 'goblin', variant: 'standard', unitType: 'enemy', actorCategory: 'enemy', faction: 'enemy', isPlayer: false,
       challengeRating: 0.25, // Goblin Warrior (Monster Manual 2025): CR 1/4, 50 XP
@@ -176,7 +235,7 @@
       metadata: Object.freeze({ canonicalUnit: true, catalog: 'goblin-batch', alwaysCaptain: true, spritePending: true, weaponSkillsPendingCanonicalCatalog: false, physicalProfilePending: false, speedPending: false, speedModel: 'movement_feet_plus_size', canonicalSourceName: 'Goblin Boss', canonicalSourceBook: 'Monster Manual (2025)', canonicalScores: true, canonicalProficiencies: true }),
       schemaVersion: 5,
     }),
-  });
+  }).map(([id, unit]) => [id, Object.freeze({ ...unit, ...COMPENDIUM_CONTENT[id] })])));
 
   function get(id) { return DEFINITIONS[String(id || '')] ? clone(DEFINITIONS[String(id || '')]) : null; }
   function list() { return Object.values(DEFINITIONS).map(clone); }

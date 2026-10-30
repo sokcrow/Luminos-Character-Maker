@@ -68,6 +68,9 @@ La fuente de verdad de un evento deberá contener identificador único, encuentr
 - [ ] Sprites auditados; las URL externas no equivalen a archivos locales.
 - [ ] Pruebas de seguridad/sincronización multiusuario antes de habilitarlo en producción.
 
-## Estado real al cerrar este pase
+## Estado actual
 
-**Implementado en PR #1074:** únicamente el prototipo HTML aislado con pestañas, tarjetas, render básico y prueba de estados mediante eventos de demostración; almacenamiento de demostración en `localStorage`. **No implementado:** bridge autorizado de combate, tiradas de identificación reales, persistencia Firebase ni reemplazo de placeholders. Este documento conserva el alcance para retomarlo posteriormente sin confundir UX de muestra con mecánicas terminadas.
+El PR conserva el prototipo aislado y ahora incorpora contenido editorial en las 35 definiciones de los cinco catálogos canónicos. Cada criatura tiene aspecto físico, contexto, comportamiento y texto para estudio corporal. El prototipo obtiene su descripción del catálogo; ya no mantiene un texto privado para el kobold.
+
+La estructura de contenido y el contrato con Observation Level están documentados en [Contenido y observación](compendium-content-observation.md). No se implementan todavía nuevas consultas, desbloqueos de lore, puente autorizado de combate, migración de registros Firebase existentes ni cambios de tiradas. El prototipo continúa separado del Compendio productivo.
+

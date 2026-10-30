@@ -151,7 +151,144 @@
     return unit;
   }
 
-  const DEFINITIONS = Object.freeze({
+  const freezeCompendiumContent = value => {
+    if (value && typeof value === 'object') { Object.values(value).forEach(freezeCompendiumContent); Object.freeze(value); }
+    return value;
+  };
+  const COMPENDIUM_CONTENT = freezeCompendiumContent({
+  "kobold_dagger": {
+    "basicDescription": "Pequeño humanoide reptiliano de hocico alargado y cola visible. Este ejemplar lleva una daga y prendas adaptadas a su talla.",
+    "lore": {
+      "context": "En algunas periferias de Limbus existen grupos de kobolds que sobreviven mediante trabajos, intercambios, saqueos o emboscadas. La pertenencia y las lealtades de este individuo deben establecerse en la escena.",
+      "behavior": "Su daga favorece las aproximaciones cercanas y los ataques desde espacios reducidos. Puede aprovechar la presión de compañeros próximos, pero su coordinación efectiva debe observarse."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "history",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su anatomía es biológica y reptiliana. El equipo que porta se estudia como pertenencias; los materiales del cuerpo requieren las acciones anatómicas correspondientes."
+      }
+    }
+  },
+  "kobold_sling": {
+    "basicDescription": "Pequeño humanoide reptiliano que porta una honda. Puede llevar bolsas o recipientes para objetos pequeños; su contenido no se distingue sin revisarlos.",
+    "lore": {
+      "context": "Las hondas permiten a grupos con recursos limitados convertir objetos disponibles en proyectiles. Eso no determina una profesión, una facción ni el origen de las pertenencias de este kobold.",
+      "behavior": "Busca lanzar desde una distancia que le permita preparar otro proyectil o retroceder. Una bolsa visible no revela cuántas piedras quedan ni qué otras pertenencias contiene."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "history",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Tiene un cuerpo biológico y pertenencias separadas de su anatomía. Revisar su equipo y estudiar sus órganos son acciones distintas."
+      }
+    }
+  },
+  "winged_kobold": {
+    "basicDescription": "Humanoide reptiliano pequeño con un par de alas membranosas. Las armas y cualquier objeto que sostenga deben describirse según su estado visible.",
+    "lore": {
+      "context": "Los kobolds alados pueden ocupar funciones diferentes dentro de un grupo. Su capacidad de volar no demuestra jerarquía, favor divino ni pertenencia a una comunidad concreta.",
+      "behavior": "Puede utilizar la altura para acercarse, transportar objetos o retirarse de una posición comprometida. Un objeto que lleve entre las manos forma parte de la situación observable y no de un repertorio supuesto."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "history",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Las alas forman parte de un cuerpo biológico. Examinar sus membranas y articulaciones permite estudiar su estructura, sin revelar automáticamente las reglas de vuelo del individuo."
+      }
+    }
+  },
+  "dragonheart_kobold": {
+    "basicDescription": "Kobold de presencia firme y equipo de combate visible. Su postura y los gestos que dirige a sus acompañantes pueden distinguirlo dentro del grupo.",
+    "lore": {
+      "context": "Algunos grupos reconocen figuras capaces de sostener la moral colectiva. El título Dragonheart no establece por sí solo una relación real con un dragón ni una autoridad compartida por todos los kobolds.",
+      "behavior": "Su presencia puede sostener la respuesta de otros kobolds ante amenazas. Las reacciones de sus compañeros ayudan a distinguir una influencia de mando de una simple coincidencia."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "history",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su cuerpo sigue siendo biológico. Sus cualidades de mando no constituyen un órgano o componente recuperable ni se transfieren con sus pertenencias."
+      }
+    }
+  },
+  "scale_sorcerer_kobold": {
+    "basicDescription": "Humanoide reptiliano pequeño. Sus gestos, palabras y manifestaciones visibles durante un lanzamiento permiten distinguir el uso de magia del uso de un arma.",
+    "lore": {
+      "context": "La presencia de un hechicero puede influir en la posición de un individuo dentro de una comunidad. No todos los kobolds comparten sus conocimientos ni su vínculo con la magia.",
+      "behavior": "Combina recursos de lanzamiento con las necesidades de un cuerpo pequeño y vulnerable al entorno. Presenciar un conjuro no revela los demás, ni permite atribuir magia a todos sus ataques con arma."
+    },
+    "compendium": {
+      "schemaVersion": 1,
+      "knowledge": [
+        {
+          "id": "context",
+          "skill": "history",
+          "contentPath": "lore.context"
+        },
+        {
+          "id": "behavior",
+          "skill": "arcana",
+          "contentPath": "lore.behavior"
+        }
+      ],
+      "bodyStudy": {
+        "skill": "medicine",
+        "text": "Su cuerpo es biológico. El poder de lanzamiento y los recursos mágicos no deben tratarse como sustancias extraíbles sin una regla específica que lo permita."
+      }
+    }
+  }
+});
+
+  const DEFINITIONS = Object.freeze(Object.fromEntries(Object.entries({
     kobold_dagger: Object.freeze(makeUnit({ id: 'kobold_dagger', name: 'Kobold · Dagger', variant: 'dagger', challengeRating: 0.125, weaponLoadout: [{ weaponId: 'dagger', skillId: 'kobold_dagger_jab', range: 'melee' }], lootRoles: ['soldier'], sprite: 'https://imgur.com/2BBvM2s.png', canonicalSourceName: 'Kobold Warrior',
       naturalWorldLevel: { min: 1, max: 3 }, hpBase: 5, hpCoefficient: 0.19,
       scores: KOBOLD_WARRIOR_SCORES, proficiencies: NO_PROFICIENCIES, movement: { ground: 30 }, senses: { darkvision: 60, darkvisionFt: 60, passivePerception: 8 },
@@ -193,7 +330,7 @@
       tier1: ['kobold_dagger_jab', 'spell:fire_bolt', 'spell:poison_spray', 'spell:charm_person', 'spell:chromatic_orb', 'spell:expeditious_retreat', 'spell:scorching_ray'],
       mechanics: { spellcasting: { ability: 'charisma', saveThresholdFormula: '10 + CHA_MOD', spellSlots: { 1: 4, 2: 2 } }, sorceryPoints: { encounterStart: 3, runtime: 'sorcerer_class_runtime', metamagic: ['subtle_spell', 'heightened_spell'] }, spellReferencesPendingCanonicalCatalog: true },
     })),
-  });
+  }).map(([id, unit]) => [id, Object.freeze({ ...unit, ...COMPENDIUM_CONTENT[id] })])));
 
   function get(id) { return DEFINITIONS[String(id || '')] ? clone(DEFINITIONS[String(id || '')]) : null; }
   function list() { return Object.values(DEFINITIONS).map(clone); }
@@ -256,3 +393,4 @@
   global.LuminousKoboldUnitCatalog = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+
