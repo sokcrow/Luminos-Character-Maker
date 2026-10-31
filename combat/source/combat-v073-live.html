@@ -3,6 +3,7 @@
 <head>
 <script src="js/unit-universal-action-policy.js?v=20261025-2"></script>
 <script src="js/unit-universal-action-runtime.js?v=20261025-2"></script>
+<script src="js/combat-source-execution.js?v=20261031-complete-actions-1"></script>
 <script id="combat-action-schema-script" src="js/combat-action-schema.js"></script>
 <script id="combat-action-adapters-script" src="js/combat-action-adapters.js"></script>
 <script id="individual-goap-combat-ai-script" src="js/individual-goap-combat-ai.js"></script>
@@ -2693,6 +2694,7 @@ function loseConcentration(unitId,reason='BROKEN'){
     })
   });
   unit.concentration=null;
+  window.LuminousSpellcastingRuntime?.endConcentration?.(unit,reason);
   setStatus(`CONCENTRATION · ${unit.name} · ${reason}`);
   return true
 }
@@ -3308,7 +3310,8 @@ function applySkillStatusEffects(entry,targetId,trigger,context={}){
     }
     if(effect?.type!=='status'||!effect.status)return;
     const durationType=String(effect.durationType||'').toLowerCase(),conc=durationType==='concentration'?ensureEntryConcentration(entry):null,
-          input={potency:Number(effect.potency)||0,count:Number(effect.count)||0,sourceUnitId:entry.ownerId,
+          statusMultiplier=effect.doubleIfTargetHasStatus&&unitHasStatus(combatData[resolvedTarget],effect.doubleIfTargetHasStatus)?2:1,
+          input={potency:(Number(effect.potency)||0)*statusMultiplier,count:(Number(effect.count)||0)*statusMultiplier,sourceUnitId:entry.ownerId,
             sourceType:effect.sourceType||sourceType,sourceElement:effect.sourceElement||sourceElement,durationType,
             saveAbility:effect.saveAbility||data.save?.ability||null,saveThreshold:effect.saveThreshold??data.save?.threshold??null,
             exitMode:effect.exitMode||null,detectThreshold:effect.detectThreshold??data.detectThreshold??data.save?.threshold??null,
@@ -4824,7 +4827,12 @@ function smartAutoPlanFor(unitId,defenseLock=null,slotIndex=0){
   if(!unit)return null;
 
   const library=getAutoActionLibrary(),
-        sourcePool=getUnitAutoActionPool(unitId,library,slotIndex),
+        sourcePool=getUnitAutoActionPool(unitId,library,slotIndex).map(row=>{
+          if(row.kind!=='spell')return row;
+          if(['quick_action','reaction','free_action'].includes(String(row.castingTime||row.actionCost||'action').toLowerCase()))return null;
+          const prepared=window.LuminousCombatSourceExecution?.nativeDefinition(unit,row,{isAi:true});
+          return prepared?.ok&&window.LuminousCombatSourceExecution.resourceGate(unit,prepared.definition).available?prepared.definition:null;
+        }).filter(Boolean),
         ranked=sourcePool
           .map(entry=>({entry,score:autoActionScore(unitId,entry)}))
           .filter(row=>Number.isFinite(row.score))
@@ -6980,7 +6988,7 @@ function combatStepRuntime(){
     'damageCombatant','healCombatant','triggerGettingHitStatuses','applySkillStatusEffects','triggerTremorBurst','raiseRemainingStaggerThresholdByDamage',
     'triggerCounterAfterHit','resolveEvadeAgainstCoin','processConditionRemovalTrigger','markEntryStarted',
     'healCombatantSP','addEphemeralShield','unitReactionBlocked','disarmEvade'];
-  const rules={data:clashData,unit:id=>combatData[id],
+  const rules={data:clashData,unit:id=>combatData[id],combatants:()=>combatData,
     canUnitAct:unit=>!unitActionBlocked(unit,round)&&(window.LuminousDeathSaveRuntime?.canAct(unit)??((Number(unit?.hp)||0)>0)),
     unopposedTargetId:entry=>validTargetUnits(combatData[entry.ownerId],planTargetRule(entry.plan,combatData[entry.ownerId]),entry.plan)[0]?.id,
     rollSide:chance=>window.LuminousCoinEngine.rollSide(chance),coinSrc:side=>window.LuminousCoinEngine.coinSrc(side)};
@@ -7384,13 +7392,24 @@ function settleClashUnits(...entries){
   if(!timelineResolutionActive&&entries.some(entry=>entry.ownerId===PLAYER_ID))focusCombatCameraOnPlayer()
 }
 function markEntryStarted(entry){
+  let spellUse=null;
+  if(entry?.plan?.data?.kind==='spell'&&entry.plan.spellSpentRound!==round){
+    spellUse=window.LuminousCombatSourceExecution.useEffects(combatData[entry.ownerId],entry.plan,combatData);
+    if(!spellUse.ok){combatStepRuntime().emit('ActionCancelled',entry,{reason:spellUse.reason});return false}
+    const charged=window.LuminousCombatSourceExecution.spend(combatData[entry.ownerId],entry.plan,round);
+    if(!charged.consumed)return false;
+  }
   if(entry?.plan)entry.plan._universalStartedRound=round;
+  const source=entry?.plan?.data;
+  if(source?.concentration)ensureEntryConcentration(entry);
+  spellUse?.apply?.();
   if(window.LuminousCombatLiveMode&&window.LuminousCombatSlotDeck073)window.LuminousCombatSlotDeck073.mark(entry);
   else if(entry.controller==='player'&&entry.plan.type==='deck')markUsed(entry.localIndex,entry.plan.drawId);
   if(!entry._onUseStatusApplied){
     entry._onUseStatusApplied=true;
     applySkillStatusEffects(entry,entry.plan?.targetId,'[On Use]')
   }
+  return true;
 }
 async function resolveRemainingCoinHits(entry,targetId,remaining,options={}){
   return combatStepRuntime().hits(entry,targetId,remaining,options)
@@ -7525,7 +7544,7 @@ async function resolveSkillClash(entryA,entryB){
 async function resolveSaveOnlySpell(entry){
   const plan=entry?.plan,data=plan?.data||{};
   if(!entry||!plan||!data.save)return null;
-  markEntryStarted(entry);
+  if(combatStepRuntime().mutate('ActionStarted',entry,{},()=>markEntryStarted(entry))===false)return null;
   const targets=planTargetUnitIds(plan,entry.ownerId),needsConcentration=Boolean(data.concentration||(data.failedSaveEffects||[]).some(effect=>String(effect?.durationType||'').toLowerCase()==='concentration')),
         conc=needsConcentration?ensureEntryConcentration(entry):null,results=[];
   setStatus(`SPELL · ${data.name||'Magic'} · ${saveAbilityLabel(data.save.ability)} SAVE ${Math.max(0,Number(data.save.threshold)||0)}${needsConcentration?' · CONCENTRATION':''}`);
@@ -7546,8 +7565,8 @@ async function resolveUnopposedCoinAction(entry){
   const data=clashData(entry.plan),
         targetId=entry.plan.targetId;
 
-  markEntryStarted(entry);
-  if(!targetId)return;
+  if(combatStepRuntime().mutate('ActionStarted',entry,{},()=>markEntryStarted(entry))===false)return;
+  if(!targetId||Number(entry.plan?.data?.coinAmount)===0)return;
 
   await combatStepRuntime().show('actionApproach',entry,'attack');
   await resolveRemainingCoinHits(
@@ -7685,6 +7704,12 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
   if(!entry?.plan||!entry.slot)return;
   const key=entryKey(entry);
   if(resolvedKeys.has(key))return;
+  if(entry.plan.data?.kind==='spell'||entry.plan.type==='spells'){
+    const prepared=window.LuminousCombatSourceExecution?.nativeDefinition(combatData[entry.ownerId],entry.plan.data,{...entry.plan,isAi:entry.controller!=='player'});
+    if(!prepared?.ok){resolvedKeys.add(key);combatStepRuntime().emit('ActionCancelled',entry,{reason:prepared?.reason||'spell_runtime_unavailable'});return}
+    entry.plan.data=prepared.definition;
+    if(!window.LuminousCombatSourceExecution.resourceGate(combatData[entry.ownerId],prepared.definition).available){resolvedKeys.add(key);combatStepRuntime().emit('ActionCancelled',entry,{reason:'spell_slot_unavailable'});return}
+  }
   const ownerUnit=combatData[entry.ownerId],universal=window.LuminousUnitUniversalActionRuntime,definition=window.LuminousUnitUniversalActionPolicy.definitionFor(entry.plan.data?.actionKey);
   if(definition?.phase==='on_turn_end'&&!entry._turnEnd)return;
   if(!universal.active(ownerUnit)){if(ownerUnit)universal.cancelPending(ownerUnit,round);resolvedKeys.add(key);return}
@@ -7764,7 +7789,12 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
     resolvedKeys.add(key);markEscapeAction(entry);await wait(220);setExecutingSlot(slot,false);await wait(COMBAT_PACE.actionGap);return
   }
 
-  const clashPartner=findClashPartner(entry,queue,resolvedKeys);
+  let clashPartner=findClashPartner(entry,queue,resolvedKeys);
+  if(clashPartner&&(clashPartner.plan.data?.kind==='spell'||clashPartner.plan.type==='spells')){
+    const prepared=window.LuminousCombatSourceExecution?.nativeDefinition(combatData[clashPartner.ownerId],clashPartner.plan.data,{...clashPartner.plan,isAi:clashPartner.controller!=='player'});
+    if(prepared?.ok&&window.LuminousCombatSourceExecution.resourceGate(combatData[clashPartner.ownerId],prepared.definition).available)clashPartner.plan.data=prepared.definition;
+    else{resolvedKeys.add(entryKey(clashPartner));combatStepRuntime().emit('ActionCancelled',clashPartner,{reason:prepared?.reason||'spell_runtime_unavailable'});clashPartner=null}
+  }
   if(clashPartner){
     resolvedKeys.add(key);
     resolvedKeys.add(entryKey(clashPartner));
@@ -7797,6 +7827,10 @@ async function executeQueueEntryRules(entry,queue,resolvedKeys){
     await wait(160)
   }else if(isSkillOrSpellPlan(plan)){
     await resolveUnopposedCoinAction(entry)
+  }else if(['trait','traits'].includes(plan.type)||plan.data?.kind==='trait'){
+    const result=combatStepRuntime().mutate('TraitResolved',entry,{},()=>window.LuminousUnitIndependentActions?.execute(ownerUnit,{sourceType:'trait',definition:plan.data,cost:'action'},
+      {slotAction:true,round,phase:'combat',units:Object.values(combatData),target:combatData[plan.targetId]||ownerUnit,choice:plan.data.choice,ai:controller==='ai',silent:true}));
+    if(!result?.used)combatStepRuntime().emit('ActionCancelled',entry,{reason:result?.reason||'trait_runtime_unavailable'});
   }else if(plan.type==='items'&&(controller==='player'||plan.data?.npcItem===true)){
     if(window.LuminousCombatLiveMode){
       const itemRuntime=window.LuminousItemRuntime,ref=String(plan.data?.instanceId||plan.data?.itemId||plan.data?.id||''),
@@ -8907,4 +8941,5 @@ if(!window.LuminousCombatLiveMode)initializeCombatSurface();
 
 </body>
 </html>
+
 

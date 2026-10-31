@@ -100,3 +100,14 @@ assert.ok(authority.includes("combatIndependentActionState"),
 assert.ok(menu.includes('data-economy="free_action"') && menu.includes("LuminousUnitIndependentActions"),
   "Player mobile/desktop menu must expose the same resolver and Free Actions");
 console.log("Universal Unit Quick/Free actions contract: ok");
+
+
+// Slot Traits must activate through the same transaction as Quick/Free Traits.
+const slotTrait = { ...free, id: "slot_signal", activation: { type: "manual", actionCost: "action" } };
+const quickBeforeSlotTrait = enemy.quickActionRemaining;
+assert.equal(controller.execute(enemy, { sourceType: "trait", definition: slotTrait, cost: "action" },
+  { slotAction: true, round: 1, phase: "combat", units, target: enemy, silent: true }).used, true);
+assert.equal(enemy.statusEffects.signal.count, 1);
+assert.equal(enemy.quickActionRemaining, quickBeforeSlotTrait);
+assert.equal(controller.execute(enemy, { sourceType: "trait", definition: slotTrait, cost: "action" },
+  { round: 1, phase: "combat", units }).used, false, "ordinary independent requests cannot bypass Action Slots");

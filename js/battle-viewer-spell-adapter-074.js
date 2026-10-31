@@ -132,7 +132,7 @@
     const baseLevel = Math.max(0, Math.trunc(Number(definition.level ?? definition.spellLevel ?? 0) || 0));
     const extraLevels = Math.max(0, slotLevel - baseLevel);
     const casting = spellcastingValues(actor, classId, definition) || {};
-    const spellMod = Number(casting.spellMod) || 0;
+    const spellMod = Number(casting.spellMod ?? actor.spellMod ?? actor.spellcastingModifier) || 0;
     const level = actorLevel(actor);
 
     if (mechanics.levelCoinPower?.every) {
@@ -155,10 +155,10 @@
     const effects = [];
     const modStatus = mechanics.onHitStatusFromSpellMod;
     if (modStatus?.status) {
-      const divisor = Math.max(1, Number(modStatus.potencyDivisor) || 1);
+      const divisor = Math.max(1, Number(modStatus.countDivisor ?? modStatus.potencyDivisor) || 1);
       const minimum = Math.max(0, Number(modStatus.minimum) || 0);
       const potency = Math.max(minimum, Math.floor(spellMod / divisor));
-      effects.push(resolvedStatusEffect(modStatus.status, potency, 0, "on_hit", "target", {
+      effects.push(resolvedStatusEffect(modStatus.status, modStatus.countDivisor ? 0 : potency, modStatus.countDivisor ? potency : 0, "on_hit", "target", {
         doubleIfTargetHasStatus: modStatus.doubleIfTargetHasStatus ? normalizeId(modStatus.doubleIfTargetHasStatus) : undefined
       }));
     }
@@ -192,7 +192,7 @@
     }
 
     if (mechanics.requiresChoice?.key === "element") {
-      const element = normalizeId(plan.element || plan.elementId || plan.choice?.element);
+      const element = normalizeId(plan.element || plan.elementId || plan.choice?.element || definition.selectedElement);
       const allowed = mechanics.requiresChoice.values || [];
       if (!element || !allowed.includes(element)) {
         return { ok: false, reason: "spell_choice_required", choiceKey: "element", choices: clone(allowed) };
@@ -200,8 +200,13 @@
       const elementEffect = mechanics.elementalStatus?.[element];
       if (elementEffect?.status) effects.push(resolvedStatusEffect(elementEffect.status, elementEffect.potency, elementEffect.count, "on_hit", "target", { element }));
       definition.selectedElement = element;
+      definition.element = element;
     }
 
+    // Element comes from the spell's authored status contract, never its Sin.
+    const statusElements = { burn: "fire", chill: "cold", shock: "lightning", corrosion: "acid", poison: "poison", decay: "necrotic", radiance: "radiant", sinking: "psychic", tremor: "thunder" };
+    const elementalStatus = mechanics.onHitStatusFromSpellMod || mechanics.onHitLevelStatus || mechanics.onHitStatusFromSlot || mechanics.onHitStatus;
+    definition.element = definition.element || elementalStatus?.element || statusElements[elementalStatus?.status] || null;
     definition.effects = [...(Array.isArray(definition.effects) ? definition.effects : []), ...effects];
     definition.spellMod = spellMod;
     definition.spellDC = Number(casting.spellDC) || 0;
@@ -319,3 +324,4 @@
   install();
   return api;
 });
+

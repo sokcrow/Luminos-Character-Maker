@@ -185,7 +185,7 @@ async function bootstrapFixture(installOk=true,missingSource=null){
     "LuminousRoleSpellCatalog","LuminousSpellLoadout","LuminousCombatSpellLoadout074",
     "LuminousCombatAction","LuminousCombatActionAdapters","LuminousBattleViewerActionAdapter073",
     "LuminousBattleViewerSpellAdapter074","LuminousPierreSpellBatchRuntime",
-    "LuminousWeaponCantripBatchRuntime","LuminousCantripBatchRuntime","LuminousBattleViewerSpellRuntime074"];
+    "LuminousWeaponCantripBatchRuntime","LuminousCantripBatchRuntime","LuminousBattleViewerSpellRuntime074","LuminousCombatSourceExecution"];
   const scripts=[],appended=[];
   const publish=index=>{
     win[globals[index]]={...win[globals[index]]};
@@ -224,3 +224,4 @@ console.log("Combat SP-01: trusted execution payload, empty assignment, delayed/
   unit.spellLoadout={schemaVersion:1};
   assert.equal(win.LuminousCombatEconomyMenu073.spellRowsForPlayer().length,0);
 }
+

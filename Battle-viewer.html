@@ -480,6 +480,12 @@ function smartTargetForPlan(owner,plan){
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
     // Install in the final document: document.open() replaces bootstrap listeners.
     html=html.replace('</head>','<link rel="stylesheet" href="css/game-input-policy.css?v=20261028-interactions-1"><script defer src="js/game-input-policy.js?v=20261028-interactions-1"><\/script></head>');
+    // Refresh the complete-action consumers after all older release rewrites.
+    for(const asset of ['js/combat-action-adapters.js','js/combat-v073-steps.js',
+      'js/combat-v073-authority.js','js/combat-v073-live-adapter.js','js/unit-independent-actions.js']){
+      const escaped=asset.replace(/[.]/g,'\\.');
+      html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),asset+'?v=20261031-complete-actions-1');
+    }
     stage('runtime-write','Installing patched Combat document');
     document.open();document.write(html);document.close();
   }catch(error){
@@ -493,6 +499,7 @@ function smartTargetForPlan(owner,plan){
 </script>
 </body>
 </html>
+
 
 
 
