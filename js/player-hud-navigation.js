@@ -22,6 +22,7 @@
   }
 
   function openHudModal(modalName) {
+    if (["apego", "rules", "codex"].includes(modalName)) return false;
     const target =
       doc.getElementById(`${modalName}-modal`) ||
       doc.getElementById(`modal-${modalName}`) ||
