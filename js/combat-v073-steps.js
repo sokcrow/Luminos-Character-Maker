@@ -179,12 +179,18 @@
           if (entry.plan?.data?.tremorBurst && canOwnerAct(entry.ownerId)) r.triggerTremorBurst(targetId, entry.ownerId);
           if (canOwnerAct(entry.ownerId)) r.applySkillStatusEffects(entry, targetId, '[On Hit]', { coinIndex, side: coin.side });
           if (canOwnerAct(entry.ownerId)) r.applySkillStatusEffects(entry, targetId, coin.side === 'head' ? '[Heads Hit]' : '[Tails Hit]', { coinIndex, side: coin.side });
-          return result;
+          const jumpTargetId = global.LuminousCombatSourceExecution?.nextOrbTarget(entry, targetId, result?.critical, r.combatants?.() || {}, r.isUnitTargetable);
+          return jumpTargetId ? { ...result, chromaticOrbJumpTargetId: jumpTargetId } : result;
         });
         if (!heal) await show('hitMotion', entry, targetId, outcome);
         else await show('healingMotion', entry, targetId, outcome);
-        if (!heal && canOwnerAct(entry.ownerId)) await r.triggerCounterAfterHit(targetId, entry.ownerId, entry);
+        if (!heal && !entry.plan?.data?.mechanics?.suppressCounter && canOwnerAct(entry.ownerId)) await r.triggerCounterAfterHit(targetId, entry.ownerId, entry);
         if (!canOwnerAct(entry.ownerId)) { cancelOwner(entry, coinIndex); break; }
+        if (outcome?.chromaticOrbJumpTargetId) {
+          const next = outcome.chromaticOrbJumpTargetId;
+          emit('SpellJump', entry, { fromTargetId: targetId, unitId: next });
+          total += await hits({ ...entry, plan: { ...entry.plan, targetId: next } }, next, 1);
+        }
         await show('wait', 'hitGap');
       }
       await show('wait', 'totalHold');
@@ -220,8 +226,15 @@
         return finishInterruptedClash(a, b, r.data(a.plan).coinAmount, r.data(b.plan).coinAmount);
       }
       const da = r.data(a.plan), db = r.data(b.plan);
-      mutate('ActionStarted', a, {}, () => { r.processConditionRemovalTrigger(a.ownerId, 'attack'); r.processConditionRemovalTrigger(b.ownerId, 'attack'); r.markEntryStarted(a); });
-      mutate('ActionStarted', b, {}, () => { r.markEntryStarted(b); });
+      const startedA = mutate('ActionStarted', a, {}, () => { r.processConditionRemovalTrigger(a.ownerId, 'attack'); r.processConditionRemovalTrigger(b.ownerId, 'attack'); return r.markEntryStarted(a); });
+      const startedB = mutate('ActionStarted', b, {}, () => r.markEntryStarted(b));
+      if (startedA === false || startedB === false) {
+        const survivor = startedA === false ? b : a;
+        const cancelled = startedA === false ? a : b;
+        emit('ActionCancelled', cancelled, { reason: 'source_resource_unavailable' });
+        if (!(startedA === false && startedB === false)) await hits(survivor, cancelled.ownerId, r.data(survivor.plan).coinAmount);
+        return { winner: survivor, interrupted: true, reason: 'source_resource_unavailable' };
+      }
       emit('ClashStarted', a, { opponentActionId: action(b).actionId });
       let remainingA = da.coinAmount, remainingB = db.coinAmount, clashCount = 0, ties = 0, lastExchange = null;
       await show('clashStart', a, b, remainingA, remainingB);
@@ -328,4 +341,5 @@
   }
   global.LuminousCombatSteps = Object.freeze({ version: VERSION, schemaVersion: SCHEMA, create });
 })(typeof window === 'undefined' ? globalThis : window);
+
 

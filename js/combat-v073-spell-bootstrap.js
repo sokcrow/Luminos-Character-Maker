@@ -20,6 +20,7 @@
   ["spell073-weapon-effects","js/spell-batch-weapon-cantrips-runtime.js",()=>!!global.LuminousWeaponCantripBatchRuntime],
   ["spell073-cantrip-effects","js/spell-batch-cantrips-runtime.js",()=>!!global.LuminousCantripBatchRuntime],
   ["spell073-runtime","js/battle-viewer-spell-runtime-074.js",()=>!!global.LuminousBattleViewerSpellRuntime074],
+  ["spell073-execution","js/combat-source-execution.js",()=>!!global.LuminousCombatSourceExecution],
  ]);
  const state={phase:"idle",ready:false,error:null,modules:[]};
  let pending=null;
@@ -41,7 +42,7 @@
        Array.from(global.document.scripts||[]).find(node=>
          (node.getAttribute?.("src")||node.src||"").split("?")[0].endsWith(src));
      const original=Boolean(script);
-     if(!script){script=global.document.createElement("script");script.id=id;script.src=src+"?v=20261026-sp01-repair-1";script.async=false}
+     if(!script){script=global.document.createElement("script");script.id=id;script.src=src+"?v=20261031-complete-actions-1";script.async=false}
      script.addEventListener("error",failed,{once:true});
      if(!original)global.document.head.appendChild(script);
      // Poll the contract, including when load fired before this subscription.
@@ -95,3 +96,4 @@
  global.addEventListener?.("luminous:combat073-runtime-ready",()=>{boot()});
  global.setTimeout?.(()=>{boot()},0);
 })(typeof window==="undefined"?globalThis:window);
+

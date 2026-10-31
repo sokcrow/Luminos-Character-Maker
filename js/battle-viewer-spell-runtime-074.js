@@ -38,6 +38,10 @@
 
   async function ensureSupplementalSpellFiles() {
     if (typeof require === "function") {
+      try { require("./combat-source-execution.js"); } catch (_) {}
+    }
+    if (global.document) await loadScript("spell-source-execution-script", "js/combat-source-execution.js", "LuminousCombatSourceExecution");
+    if (typeof require === "function") {
       try { if (!global.LuminousSpellCatalog) global.LuminousSpellCatalog = require("./spell-catalog-core.js"); } catch (_) {}
       try { if (!global.LuminousRoleSpellCatalog) global.LuminousRoleSpellCatalog = require("./role-spell-catalog-core.js"); } catch (_) {}
       try { if (!global.LuminousPierreSpellBatchRuntime) global.LuminousPierreSpellBatchRuntime = require("./spell-batch-pierre-runtime.js"); } catch (_) {}
@@ -202,3 +206,4 @@
   });
   return api;
 });
+

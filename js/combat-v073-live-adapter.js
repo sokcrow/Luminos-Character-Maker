@@ -414,6 +414,13 @@
         combined.push({ ...skill, inDeck: false, availability: { type: "granted" }, deck: { enabled: false } });
         seen.add(skillId);
       }
+      const spellLoadout = global.LuminousCombatSpellLoadout074;
+      for (const spellId of spellLoadout?.rawSpellIdsFor?.(unit) || []) {
+        const resolved = spellLoadout.resolveSpellForCombatant(unit, spellId);
+        if (!resolved.ok || seen.has(spellId)) continue;
+        combined.push({ ...clone(resolved.spell), id: spellId, spellId, classId: resolved.classId, kind: "spell" });
+        seen.add(spellId);
+      }
       kits[unit.id] = {
         role: clean(source.buildRole || source.combatRole || source.role || ""),
         actions: combined,
@@ -680,3 +687,4 @@
 
   start();
 })(window);
+

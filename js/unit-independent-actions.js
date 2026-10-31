@@ -175,7 +175,7 @@
     if (!active(unit) || unit.incapacitated) return { used: false, reason: "unit_not_active" };
     const definition = definitionOf(candidate), type = norm(options.sourceType || typeOf(candidate));
     const cost = candidate.cost || costOf(candidate);
-    if (![QUICK, FREE].includes(cost)) return { used: false, reason: "not_independent_action" };
+    if (![QUICK, FREE].includes(cost) && !(options.slotAction === true && cost === "action" && type === "trait")) return { used: false, reason: "not_independent_action" };
     const roundState = prepareRound(unit, options.round), sourceId = clean(definition.instanceId || definition.id || definition.traitId || definition.skillId || definition.spellId);
     const key = type + ":" + sourceId;
     if (!sourceId) return { used: false, reason: "missing_source_id" };
@@ -225,7 +225,7 @@
       if (compiler && resolver?.resolveCombatAction && schema) {
         const action = compiler(unit, definition, { actorId: actorId(unit), targetId: actorId(target), mainTargetId: actorId(target), targetIds: [actorId(target)],
           cost: cost === FREE ? "action" : QUICK, selectedAt: options.ai ? schema.PHASES.PLANNING_PHASE_AI : schema.PHASES.PLANNING_PHASE_PLAYER,
-          executesAt: schema.PHASES.COMBAT_PHASE, metadata: { independentActionCost: cost, sourceDefinition: clone(definition) } });
+          executesAt: schema.PHASES.COMBAT_PHASE, isAi: options.ai === true, choice: options.choice || definition.choice, metadata: { independentActionCost: cost, sourceDefinition: clone(definition) } });
         result = resolver.resolveCombatAction(action, { phase: schema.PHASES.COMBAT_PHASE, units,
           combatData: Object.fromEntries(units.map(u => [actorId(u), u])), engine: options.engine || global.CombatEngine,
           consumeQuickAction: () => ({ consumed: true }) });
@@ -236,7 +236,7 @@
     if (cost === QUICK) {
       if (!budget.consume(unit, QUICK, { phase })) return { used: false, reason: "quick_spend_failed" };
       unit.quickActionRemaining = Number(budget.snapshot(unit, { phase }).quick_action) || 0;
-    } else roundState.freeUses[key] = (roundState.freeUses[key] || 0) + 1;
+    } else if (cost === FREE) roundState.freeUses[key] = (roundState.freeUses[key] || 0) + 1;
     // Materialize a granted Action once. It is a real temporary normal slot,
     // never a slot consumed by the Free Action itself.
     const extra = Number(budget?.ensureState?.(unit)?.bonusActionSlots) || 0;
@@ -298,7 +298,7 @@
       const definition = clone(action.metadata?.sourceDefinition || rows.find(row => clean(row.id) === clean(action.source?.id)) || {});
       const kind = action.source?.type === "spell" ? "spell" : definition.kind === "defense" ? "defense" : "skill";
       return global.LuminousCombatRemoteIntents073?.runtimePlan({ kind, sourceSlotIndex: index, actionData: definition,
-        ...(kind === "spell" ? {spellId: action.source.id, slotLevel: definition.slotLevel} : {skillId: action.source.id}),
+        ...(kind === "spell" ? {spellId: action.source.id, classId: action.metadata?.sourceClassId || definition.classId, slotLevel: action.metadata?.slotLevel ?? definition.slotLevel} : {skillId: action.source.id}),
         targetId: action.targeting?.mainTargetId, targetSlotIndex: 0, planType: "auto" }, index, unit);
     }).filter(Boolean);
   }
@@ -348,3 +348,4 @@
   global.LuminousUnitIndependentActions = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
+
