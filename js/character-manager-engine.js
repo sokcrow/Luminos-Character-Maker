@@ -12,6 +12,7 @@
     db: null,
     actorsByRoot: {},
     players: {},
+    playersLoaded: false,
     languagesByRoot: {},
     actorSources: {},
     listeners: [],
@@ -184,6 +185,7 @@
 
     bindValue(PATHS.players, (value) => {
       state.players = value;
+      state.playersLoaded = true;
     }, "players");
 
     PATHS.languages.forEach((root) => {
@@ -200,11 +202,22 @@
     state.listeners.splice(0).forEach((unsubscribe) => unsubscribe());
     Object.values(state.subscribers).forEach((bucket) => bucket.clear());
     state.initialized = false;
+    state.playersLoaded = false;
     state.db = null;
   }
 
   function ensureInit() {
     if (!state.initialized) init();
+  }
+
+  async function ensurePlayersLoaded() {
+    if (state.playersLoaded) return;
+    // An empty cache before the first snapshot is not an empty directory.
+    // Read readiness from RTDB itself before any recipient/link mutation.
+    const snapshot = await state.db.ref(PATHS.players).once("value");
+    state.players = snapshot.val() || {};
+    state.playersLoaded = true;
+    emit("players");
   }
 
   function getActor(actorId) {
@@ -347,6 +360,7 @@
 
   async function saveActor(options = {}) {
     ensureInit();
+    await ensurePlayersLoaded();
     const actorChanges = options.actor || {};
     let actorId = cleanString(options.actorId);
     const existing = actorId ? getActor(actorId) : null;
@@ -419,6 +433,7 @@
 
   async function linkPlayer(actorId, playerId) {
     ensureInit();
+    await ensurePlayersLoaded();
     const record = getActor(actorId);
     if (!record) throw new Error(`Actor no encontrado: ${actorId}`);
     if (playerId && record.actor.socialLink?.enabled) throw new Error("Desactiva Social Link antes de asignar este NPC como personaje de jugador.");
@@ -454,6 +469,7 @@
 
   async function deleteActor(actorId) {
     ensureInit();
+    await ensurePlayersLoaded();
     const record = getActor(actorId);
     if (!record) return false;
     const updates = { [`${record.root}/${actorId}`]: null };
