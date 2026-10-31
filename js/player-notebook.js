@@ -81,7 +81,7 @@
     if(fallback)fallback.hidden=Boolean(src);
   }
   const logout=doc.getElementById('btn-player-logout');if(logout)doc.getElementById('player-profile-session')?.appendChild(logout);
-  const codex=doc.querySelector('.sheet-tab-codex');if(codex){codex.classList.remove('sheet-tab-content');codex.classList.add('player-rules-document');doc.getElementById('player-rules-content')?.appendChild(codex);}
+  const codex=doc.querySelector('.sheet-tab-codex');if(codex){codex.hidden=true;codex.setAttribute('inert','');codex.setAttribute('aria-hidden','true');}
   const rules=doc.getElementById('rules-modal');
   if(rules){
     let wasOpen=false,returnFocus=null;
