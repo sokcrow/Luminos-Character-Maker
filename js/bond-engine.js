@@ -86,16 +86,22 @@
         updatedAt: timestamp,
       },
     };
+    const publicPath = `${global.LuminousSocialLinkCore.PUBLIC_ROOT}/${playerId}/${actorId}`;
+    const published = (await db.ref(publicPath).once("value")).val();
+    if (published?.enabled === true) updates[`${publicPath}/progress`] = global.LuminousSocialLinkCore.publicProgress(bond);
     await db.ref().update(updates);
     return bond;
   }
 
   async function clearBond(playerId, actorId) {
+    global.LuminousSocialLinkCore.safeKey(playerId);
+    global.LuminousSocialLinkCore.safeKey(actorId);
     init();
     if (!db) throw new Error("Firebase no está disponible para Vínculos.");
     await db.ref().update({
       [`${ROOT}/${playerId}/${actorId}`]: null,
       [`${IDENTITY_ROOT}/${playerId}/${actorId}`]: null,
+      [`${global.LuminousSocialLinkCore.PUBLIC_ROOT}/${playerId}/${actorId}`]: null,
     });
   }
 

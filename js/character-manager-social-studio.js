@@ -105,10 +105,9 @@
     state.groupTimer = global.setTimeout(() => applyGrouping(force), 0);
   }
 
-  function populateTags() {
+  function populateTags(record = currentRecord()) {
     const input = $("character-manager-tags");
     if (!input) return;
-    const record = currentRecord();
     input.value = normalizeTags(record?.actor?.etiquetas || record?.actor?.tags).join(", ");
     input.disabled = false;
   }
@@ -129,7 +128,8 @@
     loadedActorId = record?.actorId || null;
     loadedRecord = record;
     draft = social.normalizeLink(record?.actor?.socialLink);
-    populateTags();
+    populateTags(record);
+    scheduleGrouping(true);
     if (!$("character-manager-social-enabled")) return;
     $("character-manager-social-enabled").checked = draft.enabled;
     $("character-manager-social-kind").value = draft.combatant ? "combatant" : "civilian";
@@ -226,6 +226,14 @@
   function ensureUi() {
     const panel = $("character-manager-studio");
     if (!panel) return false;
+    const heading = panel.querySelector(".cm-roster-heading");
+    if (heading && !$("character-manager-group-mode")) {
+      const select = doc.createElement("select"); select.id="character-manager-group-mode"; select.className="cm-group-mode";
+      select.setAttribute("aria-label","Agrupar roster");
+      select.innerHTML='<option value="type">TIPO</option><option value="faction">FACCIÓN</option><option value="tag">ETIQUETA</option>';
+      select.addEventListener("change",()=>{state.groupMode=select.value;scheduleGrouping(true);});
+      heading.insertBefore(select,heading.lastElementChild);
+    }
     if (!$("character-manager-tags")) {
       const row = doc.createElement("label"); row.className = "cm-field cm-wide";
       row.innerHTML = '<span>ETIQUETAS</span><input id="character-manager-tags" type="text" placeholder="aliado, contacto" autocomplete="off">';

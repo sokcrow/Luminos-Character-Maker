@@ -29,6 +29,7 @@ await bonds.setBond('alice','hopkins',{nivel:10,puntos:12,historia:'Publicada',r
 assert.equal(get(core.ROOT+'/alice/hopkins/nivel'),10);
 assert.equal(get(core.ROOT+'/alice/hopkins/notas'),'Solo DM','Progress edits retain private notes');
 const view=core.playerView(get(core.PUBLIC_ROOT+'/alice/hopkins'),get(core.ROOT+'/alice/hopkins'));
+assert.equal(core.playerView(get(core.PUBLIC_ROOT+'/alice/hopkins')).rank,10);assert.ok(!JSON.stringify(get(core.PUBLIC_ROOT+'/alice/hopkins')).includes('Solo DM'));
 assert.equal(view.rank,10);assert.equal(view.threshold,null);assert.equal(view.story,'Publicada');assert.ok(!('notas'in view));assert.ok(!JSON.stringify(view).includes('Solo DM'));
 await manager.saveActor({actorId:'hopkins',actor:{socialLink:{...actor.socialLink,players:{bob:true}}}});
 assert.equal(get(core.PUBLIC_ROOT+'/alice/hopkins'),undefined);assert.ok(get(core.PUBLIC_ROOT+'/bob/hopkins'));
@@ -38,6 +39,7 @@ assert.equal(get(core.PUBLIC_ROOT+'/bob/hopkins'),undefined);
 await manager.saveActor({actorId:'hopkins',actor:{socialLink:actor.socialLink}});
 assert.equal(get(core.ROOT+'/alice/hopkins/nivel'),10,'Re-enabling preserves progress');
 await manager.saveActor({actorId:'hopkins',actor:{nombre:'Hopkins actualizado'}});
+assert.equal(get(core.PUBLIC_ROOT+'/alice/hopkins/progress/nivel'),10,'Metadata edits preserve published progress');
 assert.equal(get(core.PUBLIC_ROOT+'/alice/hopkins').name,'Hopkins actualizado','Metadata updates reach the published profile');
 const before=JSON.stringify(data),beforeWrites=writes;
 await assert.rejects(manager.saveActor({actorId:'hopkins',actor:{socialLink:{enabled:true,players:{missing:true}}}}),/jugadores seleccionados/);
@@ -50,10 +52,11 @@ await assert.rejects(manager.saveActor({actorId:'hopkins',playerId:'alice',actor
 assert.equal(core.playerView({enabled:false,name:'Secreto'},{}),null);
 assert.equal(core.normalizeProgress({nivel:40,puntos:-6}).nivel,10);assert.equal(core.normalizeProgress({puntos:-6}).puntos,-6);
 assert.throws(()=>core.safeKey('alice/hopkins'),/no válido/);
+await assert.rejects(manager.linkPlayer('hopkins','alice'),/Desactiva Social Link/);
 await manager.deleteActor('hopkins');
 assert.equal(get(core.PUBLIC_ROOT+'/alice/hopkins'),undefined,'Deleting an NPC withdraws its HUD publication');
 assert.equal(get(core.ROOT+'/alice/hopkins/nivel'),10);
 const html=read('hoja_personaje.html');assert.ok(html.indexOf('js/social-link-core.js')<html.indexOf('js/social-link-hud.js'));assert.equal((html.match(/name="act_hud_vinculos"/g)||[]).length,1);
-const hud=read('js/social-link-hud.js');assert.ok(!/\.update\(|\.set\(|\.transaction\(/.test(hud),'Player HUD has no game-state writes');
+const hud=read('js/social-link-hud.js');assert.ok(!hud.includes('[core.ROOT,'),'HUD never subscribes to DM bond records');assert.ok(!/\.update\(|\.set\(|\.transaction\(/.test(hud),'Player HUD has no game-state writes');
 console.log('Social Link: atomic NPC publication, recipient isolation, rank 10, archived progress, failure handling and read-only HUD OK.');
 manager.destroy();

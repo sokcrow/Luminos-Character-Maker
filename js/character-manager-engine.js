@@ -372,6 +372,11 @@
       nextActor.socialLink = social.normalizeLink(nextActor.socialLink);
       updates[`${actorPath}/socialLink`] = nextActor.socialLink;
       Object.assign(updates, social.publicationUpdates(actorId, existing?.actor || {}, nextActor, state.players));
+      for (const playerId of Object.keys(nextActor.socialLink.players)) {
+        if (!updates[`${social.ROOT}/${playerId}/${actorId}/conocido`]) continue;
+        const progress = (await state.db.ref(`${social.ROOT}/${playerId}/${actorId}`).once("value")).val() || {};
+        updates[`${social.PUBLIC_ROOT}/${playerId}/${actorId}/progress`] = social.publicProgress(progress);
+      }
     }
     await state.db.ref().update(updates);
     return { actorId, root, actor:nextActor };

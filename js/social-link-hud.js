@@ -11,7 +11,7 @@
   const node = (tag, className, text) => { const el=doc.createElement(tag);if(className)el.className=className;if(text!=null)el.textContent=text;return el; };
   const roman = ["0","I","II","III","IV","V","VI","VII","VIII","IX","X"];
   function rows() {
-    return Object.entries(state.profiles).map(([id,profile]) => ({id,view:core.playerView(profile,state.progress[id])}))
+    return Object.entries(state.profiles).map(([id,profile]) => ({id,view:core.playerView(profile)}))
       .filter(row=>row.view).sort((a,b)=>a.view.name.localeCompare(b.view.name));
   }
   function portrait(view, className) {
@@ -65,9 +65,9 @@
     if(!force&&state.playerId===playerId&&state.uid===uid)return;
     stop();state.playerId=playerId;state.uid=uid;render();
     const generation=state.generation,seen=new Set();
-    [[core.PUBLIC_ROOT,"profiles"],[core.ROOT,"progress"]].forEach(([root,key])=>{
+    [[core.PUBLIC_ROOT,"profiles"]].forEach(([root,key])=>{
       const ref=global.firebase.database().ref(`${root}/${playerId}`);
-      const handler=snapshot=>{if(generation!==state.generation)return;state[key]=snapshot.val()||{};seen.add(key);state.loading=seen.size<2;render();};
+      const handler=snapshot=>{if(generation!==state.generation)return;state[key]=snapshot.val()||{};seen.add(key);state.loading=seen.size<1;render();};
       ref.on("value",handler,()=>{if(generation!==state.generation)return;state.loading=false;state.error="No se pudieron cargar tus vínculos. Vuelve a intentarlo cuando haya conexión.";render();});
       state.off.push(()=>ref.off("value",handler));
     });
@@ -76,7 +76,7 @@
   new MutationObserver(()=>{const open=modal.classList.contains("active");if(open&&!wasOpen){returnFocus=doc.activeElement;modal.querySelector(".sl-close").focus();}else if(!open&&wasOpen)returnFocus?.focus?.();wasOpen=open;}).observe(modal,{attributes:true,attributeFilter:["class"]});
   modal.addEventListener("click",e=>{if(e.target===modal)global.LuminousPlayerHudNavigation?.closeAll();});
   modal.addEventListener("keydown",e=>{if(e.key==="Escape"){e.preventDefault();global.LuminousPlayerHudNavigation?.closeAll();return;}if(e.key!=="Tab")return;
-    const nodes=[...modal.querySelectorAll('button:not([disabled]),summary,[tabindex="0"]')].filter(el=>el.getClientRects().length),first=nodes[0],last=nodes.at(-1);
+    const nodes=[...modal.querySelectorAll('button:not([disabled]),summary,[tabindex="0"]')].filter(el=>el.getClientRects().length&&el.tabIndex>=0),first=nodes[0],last=nodes.at(-1);
     if(e.shiftKey&&doc.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&doc.activeElement===last){e.preventDefault();first?.focus();}
   });
   global.addEventListener("luminous:player-data",event=>sync(event.detail?.data||{},event.detail?.playerId));

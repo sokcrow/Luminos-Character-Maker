@@ -28,6 +28,10 @@
       notas: text(value.notas ?? value.notes), historia: text(value.historia).slice(0,8000),
       recuerdos: lines(value.recuerdos), beneficios: lines(value.beneficios) };
   }
+  function publicProgress(value = {}) {
+    const bond = normalizeProgress(value);
+    return {nivel:bond.nivel,puntos:bond.puntos,historia:bond.historia,recuerdos:bond.recuerdos,beneficios:bond.beneficios};
+  }
   function portrait(value) {
     const url = text(value);
     if (!url || /^(https?:\/\/|data:image\/(png|jpeg|webp);base64,)/i.test(url)) return url;
@@ -49,7 +53,9 @@
     const recipients = new Set([...Object.keys(before.players), ...Object.keys(after.players)]);
     for (const playerId of recipients) {
       if (after.enabled && after.players[playerId] && Object.prototype.hasOwnProperty.call(players,playerId)) {
-        updates[`${PUBLIC_ROOT}/${playerId}/${id}`] = publicProfile(id, nextActor, after);
+        for (const [key,value] of Object.entries(publicProfile(id,nextActor,after))) {
+          updates[`${PUBLIC_ROOT}/${playerId}/${id}/${key}`] = value;
+        }
         if (!before.enabled || !before.players[playerId]) {
           updates[`${ROOT}/${playerId}/${id}/conocido`] = true;
           updates[`campaña/teatro/conocimiento_identidad/${playerId}/${id}/known`] = true;
@@ -62,7 +68,7 @@
     }
     return updates;
   }
-  function playerView(profile, progress) {
+  function playerView(profile, progress = profile?.progress || {}) {
     if (profile?.enabled !== true || !text(profile.name)) return null;
     const bond = normalizeProgress(progress);
     // DM notes are deliberately absent from the player view model.
@@ -71,7 +77,7 @@
       rank:bond.nivel, affinity:bond.puntos, threshold:THRESHOLDS[bond.nivel] ?? null,
       story:bond.historia, memories:bond.recuerdos, benefits:bond.beneficios };
   }
-  const api = Object.freeze({ROOT,PUBLIC_ROOT,THRESHOLDS,safeKey,lines,normalizeLink,normalizeProgress,publicationUpdates,playerView});
+  const api = Object.freeze({ROOT,PUBLIC_ROOT,THRESHOLDS,safeKey,lines,normalizeLink,normalizeProgress,publicProgress,publicationUpdates,playerView});
   global.LuminousSocialLinkCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
