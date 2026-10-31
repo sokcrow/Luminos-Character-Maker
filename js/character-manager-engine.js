@@ -329,7 +329,7 @@
     const allowed = [
       "nombre", "titulo", "tipo", "faccion", "alineamiento", "escala",
       "color_nombre", "color_titulo", "icono", "sprite", "tags", "etiquetas",
-      "combate", "identityId", "vinculo_jugador",
+      "combate", "identityId", "vinculo_jugador", "socialLink",
     ];
     allowed.forEach((key) => {
       if (Object.prototype.hasOwnProperty.call(actorChanges, key)) {
@@ -363,8 +363,18 @@
       }
     }
 
+    const nextActor = { ...(existing?.actor || {}), ...actorChanges };
+    if (options.playerId) { nextActor.tipo = "Jugador"; nextActor.vinculo_jugador = options.playerId; }
+    if (options.playerId === null) nextActor.vinculo_jugador = null;
+    if (actorChanges.socialLink !== undefined || existing?.actor?.socialLink) {
+      const social = global.LuminousSocialLinkCore;
+      if (!social) throw new Error("No se pudo cargar Social Link. Recarga el editor.");
+      nextActor.socialLink = social.normalizeLink(nextActor.socialLink);
+      updates[`${actorPath}/socialLink`] = nextActor.socialLink;
+      Object.assign(updates, social.publicationUpdates(actorId, existing?.actor || {}, nextActor, state.players));
+    }
     await state.db.ref().update(updates);
-    return { actorId, root };
+    return { actorId, root, actor:nextActor };
   }
 
   function buildPlayerLinkUpdates(actorId, playerId, actorRootOverride) {
@@ -399,7 +409,9 @@
 
   async function linkPlayer(actorId, playerId) {
     ensureInit();
-    if (!getActor(actorId)) throw new Error(`Actor no encontrado: ${actorId}`);
+    const record = getActor(actorId);
+    if (!record) throw new Error(`Actor no encontrado: ${actorId}`);
+    if (playerId && record.actor.socialLink?.enabled) throw new Error("Desactiva Social Link antes de asignar este NPC como personaje de jugador.");
     await state.db.ref().update(buildPlayerLinkUpdates(actorId, playerId || null));
     return { actorId, playerId: playerId || null };
   }
@@ -435,6 +447,12 @@
     const record = getActor(actorId);
     if (!record) return false;
     const updates = { [`${record.root}/${actorId}`]: null };
+    if (record.actor.socialLink) {
+      const social = global.LuminousSocialLinkCore;
+      if (!social) throw new Error("No se pudo cargar Social Link. Recarga el editor.");
+      Object.assign(updates, social.publicationUpdates(actorId, record.actor,
+        { ...record.actor, socialLink: { ...record.actor.socialLink, enabled:false } }, state.players));
+    }
     const playerId = record.playerId || actorLinkedPlayerId(actorId, record.actor);
     if (playerId) updates[`${PATHS.players}/${playerId}/actorId`] = null;
     await state.db.ref().update(updates);
@@ -489,3 +507,4 @@
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {};
 }
+

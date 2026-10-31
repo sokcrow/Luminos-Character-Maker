@@ -25,13 +25,7 @@
   }
 
   function normalizeBond(value = {}) {
-    const nivelRaw = Number(value.nivel ?? value.level ?? 0);
-    return {
-      conocido: Boolean(value.conocido ?? value.known ?? false),
-      nivel: Number.isFinite(nivelRaw) ? Math.max(0, Math.min(5, Math.round(nivelRaw))) : 0,
-      estado: String(value.estado || value.state || "neutral").trim().toLowerCase() || "neutral",
-      notas: String(value.notas || value.notes || "").trim(),
-    };
+    return global.LuminousSocialLinkCore.normalizeProgress(value);
   }
 
   function emit() {
@@ -77,8 +71,10 @@
   async function setBond(playerId, actorId, next) {
     init();
     if (!db) throw new Error("Firebase no está disponible para Vínculos.");
-    if (!playerId || !actorId) throw new Error("playerId y actorId son obligatorios.");
-    const bond = normalizeBond(next);
+    global.LuminousSocialLinkCore.safeKey(playerId);
+    global.LuminousSocialLinkCore.safeKey(actorId);
+    const current = (await db.ref(`${ROOT}/${playerId}/${actorId}`).once("value")).val() || {};
+    const bond = normalizeBond({ ...current, ...next });
     const timestamp = global.firebase.database.ServerValue.TIMESTAMP;
     const updates = {
       [`${ROOT}/${playerId}/${actorId}`]: { ...bond, updatedAt: timestamp },
@@ -115,3 +111,4 @@
   global.LuminousBondManager = api;
   init();
 })(window);
+
