@@ -116,6 +116,7 @@
   let draft = social.normalizeLink();
   let loadedActorId = null;
   let loadedRecord = null;
+  let waitingForBonds = false;
 
   function collect() {
     const npc = $("character-manager-type")?.value !== "Jugador" && !$("character-manager-player")?.value;
@@ -184,10 +185,16 @@
     const host = $("character-manager-relations-list");
     if (!host) return;
     host.replaceChildren();
+    waitingForBonds = false;
     const record = loadedRecord;
     const saved = social.normalizeLink(record?.actor?.socialLink);
     if (!loadedActorId || !saved.enabled) {
       host.textContent = "Guarda el NPC con Social Link para administrar el progreso de cada jugador.";
+      return;
+    }
+    if (!bonds.isLoaded()) {
+      waitingForBonds = true;
+      host.textContent = "Cargando el progreso guardado de los vínculos…";
       return;
     }
     const existing = bonds.listForActor(loadedActorId);
@@ -266,6 +273,11 @@
     renderPlayers();
     if (!$("character-manager-relations-list")?.querySelector("details")) renderRelations();
   });
+  bonds.subscribe(() => {
+    // Only replace the loading placeholder. Editable forms never exist before
+    // this first snapshot, and later snapshots must not discard local drafts.
+    if (waitingForBonds && bonds.isLoaded()) renderRelations();
+  }, { immediate:false });
   // Existing editor drafts are not rebuilt by unrelated realtime bond updates.
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded",ensureUi,{once:true});
   else ensureUi();

@@ -8,6 +8,7 @@
   const subscribers = new Set();
   let db = null;
   let cache = {};
+  let loaded = false;
   let listener = null;
   let retryTimer = null;
 
@@ -50,6 +51,7 @@
 
     listener = (snapshot) => {
       cache = snapshot.val() || {};
+      loaded = true;
       emit();
     };
     db.ref(ROOT).on("value", listener);
@@ -113,7 +115,7 @@
     return () => subscribers.delete(callback);
   }
 
-  const api = Object.freeze({ ROOT, IDENTITY_ROOT, init, getBond, listForActor, setBond, clearBond, subscribe, normalizeBond });
+  const api = Object.freeze({ isLoaded: () => loaded, ROOT, IDENTITY_ROOT, init, getBond, listForActor, setBond, clearBond, subscribe, normalizeBond });
   global.LuminousBondManager = api;
   init();
 })(window);
