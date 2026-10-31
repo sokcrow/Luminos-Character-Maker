@@ -8,6 +8,7 @@
   const subscribers = new Set();
   let db = null;
   let cache = {};
+  let loaded = false;
   let listener = null;
   let retryTimer = null;
 
@@ -25,13 +26,7 @@
   }
 
   function normalizeBond(value = {}) {
-    const nivelRaw = Number(value.nivel ?? value.level ?? 0);
-    return {
-      conocido: Boolean(value.conocido ?? value.known ?? false),
-      nivel: Number.isFinite(nivelRaw) ? Math.max(0, Math.min(5, Math.round(nivelRaw))) : 0,
-      estado: String(value.estado || value.state || "neutral").trim().toLowerCase() || "neutral",
-      notas: String(value.notas || value.notes || "").trim(),
-    };
+    return global.LuminousSocialLinkCore.normalizeProgress(value);
   }
 
   function emit() {
@@ -56,6 +51,7 @@
 
     listener = (snapshot) => {
       cache = snapshot.val() || {};
+      loaded = true;
       emit();
     };
     db.ref(ROOT).on("value", listener);
@@ -77,8 +73,10 @@
   async function setBond(playerId, actorId, next) {
     init();
     if (!db) throw new Error("Firebase no está disponible para Vínculos.");
-    if (!playerId || !actorId) throw new Error("playerId y actorId son obligatorios.");
-    const bond = normalizeBond(next);
+    global.LuminousSocialLinkCore.safeKey(playerId);
+    global.LuminousSocialLinkCore.safeKey(actorId);
+    const current = (await db.ref(`${ROOT}/${playerId}/${actorId}`).once("value")).val() || {};
+    const bond = normalizeBond({ ...current, ...next });
     const timestamp = global.firebase.database.ServerValue.TIMESTAMP;
     const updates = {
       [`${ROOT}/${playerId}/${actorId}`]: { ...bond, updatedAt: timestamp },
@@ -90,16 +88,22 @@
         updatedAt: timestamp,
       },
     };
+    const publicPath = `${global.LuminousSocialLinkCore.PUBLIC_ROOT}/${playerId}/${actorId}`;
+    const published = (await db.ref(publicPath).once("value")).val();
+    if (published?.enabled === true) updates[`${publicPath}/progress`] = global.LuminousSocialLinkCore.publicProgress(bond);
     await db.ref().update(updates);
     return bond;
   }
 
   async function clearBond(playerId, actorId) {
+    global.LuminousSocialLinkCore.safeKey(playerId);
+    global.LuminousSocialLinkCore.safeKey(actorId);
     init();
     if (!db) throw new Error("Firebase no está disponible para Vínculos.");
     await db.ref().update({
       [`${ROOT}/${playerId}/${actorId}`]: null,
       [`${IDENTITY_ROOT}/${playerId}/${actorId}`]: null,
+      [`${global.LuminousSocialLinkCore.PUBLIC_ROOT}/${playerId}/${actorId}`]: null,
     });
   }
 
@@ -111,7 +115,8 @@
     return () => subscribers.delete(callback);
   }
 
-  const api = Object.freeze({ ROOT, IDENTITY_ROOT, init, getBond, listForActor, setBond, clearBond, subscribe, normalizeBond });
+  const api = Object.freeze({ isLoaded: () => loaded, ROOT, IDENTITY_ROOT, init, getBond, listForActor, setBond, clearBond, subscribe, normalizeBond });
   global.LuminousBondManager = api;
   init();
 })(window);
+

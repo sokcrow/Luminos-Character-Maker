@@ -105,244 +105,180 @@
     state.groupTimer = global.setTimeout(() => applyGrouping(force), 0);
   }
 
-  function populateTags() {
+  function populateTags(record = currentRecord()) {
     const input = $("character-manager-tags");
     if (!input) return;
-    const record = currentRecord();
     input.value = normalizeTags(record?.actor?.etiquetas || record?.actor?.tags).join(", ");
     input.disabled = false;
   }
 
-  async function persistTags() {
-    const input = $("character-manager-tags");
-    const name = $("character-manager-name")?.value?.trim();
-    if (!input || !name) return;
-    const tags = normalizeTags(input.value);
-    const existingId = currentActorId();
-    const actorId = existingId || slug(name);
-    const record = manager.getActor(actorId);
-    await manager.saveActor({
-      actorId,
-      root: record?.root || manager.PATHS.actors[0],
-      actor: { etiquetas: tags, tags },
+  const social = global.LuminousSocialLinkCore;
+  let draft = social.normalizeLink();
+  let loadedActorId = null;
+  let loadedRecord = null;
+  let waitingForBonds = false;
+
+  function collect() {
+    const npc = $("character-manager-type")?.value !== "Jugador" && !$("character-manager-player")?.value;
+    return social.normalizeLink({ ...draft, enabled:npc && $("character-manager-social-enabled")?.checked === true,
+      combatant:$("character-manager-social-kind")?.value === "combatant",
+      description:$("character-manager-social-description")?.value || "" });
+  }
+
+  function load(record) {
+    loadedActorId = record?.actorId || null;
+    loadedRecord = record;
+    draft = social.normalizeLink(record?.actor?.socialLink);
+    populateTags(record);
+    scheduleGrouping(true);
+    if (!$("character-manager-social-enabled")) return;
+    $("character-manager-social-enabled").checked = draft.enabled;
+    $("character-manager-social-kind").value = draft.combatant ? "combatant" : "civilian";
+    $("character-manager-social-description").value = draft.description;
+    renderPlayers();
+    updateEnabled();
+    renderRelations();
+  }
+
+  function updateEnabled() {
+    const npc = $("character-manager-type")?.value !== "Jugador" && !$("character-manager-player")?.value;
+    const checkbox = $("character-manager-social-enabled");
+    if (!checkbox) return;
+    checkbox.disabled = !npc;
+    $("character-manager-social-fields").hidden = !npc || !checkbox.checked;
+    $("character-manager-social-help").textContent = npc
+      ? "Desbloquea este vínculo únicamente para los jugadores que selecciones. Guarda el NPC para publicar los cambios."
+      : "Social Link corresponde a un NPC, no a la asignación de un personaje de jugador.";
+  }
+
+  function renderPlayers() {
+    const host = $("character-manager-social-players");
+    if (!host) return;
+    host.replaceChildren();
+    const players = manager.listPlayers().sort((a,b) => a.label.localeCompare(b.label));
+    if (!players.length) { host.textContent = "Todavía no hay jugadores disponibles."; return; }
+    players.forEach(({playerId,label}) => {
+      const row = doc.createElement("label");
+      row.className = "cm-social-recipient";
+      const checkbox = doc.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = draft.players[playerId] === true;
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) draft.players[playerId] = true;
+        else delete draft.players[playerId];
+      });
+      const name = doc.createElement("span"); name.textContent = label;
+      row.append(checkbox,name); host.append(row);
     });
   }
 
-  function icon(name) {
-    const icons = {
-      relation: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="17" cy="8" r="2.5"/><path d="M2.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6M13.5 19c.3-3 1.5-4.5 3.8-4.5 2.2 0 3.6 1.5 4.2 4.5"/></svg>',
-      plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
-      trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>',
-    };
-    return icons[name] || icons.relation;
-  }
-
-  function activeBonds(actorId) {
-    return actorId ? bonds.listForActor(actorId) : {};
-  }
-
-  function populateBondPlayerOptions() {
-    const select = $("character-manager-bond-player");
-    if (!select) return;
-    const actorId = currentActorId();
-    const existing = activeBonds(actorId);
-    const previous = select.value;
-    select.innerHTML = '<option value="">SELECCIONAR JUGADOR</option>';
-    manager.listPlayers()
-      .filter(({ playerId }) => !Object.prototype.hasOwnProperty.call(existing, playerId))
-      .sort((a, b) => a.label.localeCompare(b.label))
-      .forEach(({ playerId, label }) => {
-        const option = doc.createElement("option");
-        option.value = playerId;
-        option.textContent = label;
-        select.appendChild(option);
-      });
-    if (previous && Array.from(select.options).some((option) => option.value === previous)) select.value = previous;
-  }
-
-  async function addRelation() {
-    const actorId = currentActorId();
-    const playerId = $("character-manager-bond-player")?.value || "";
-    if (!actorId || !playerId) return;
-    try {
-      await bonds.setBond(playerId, actorId, { conocido: false, nivel: 0, estado: "neutral" });
-      renderRelations();
-    } catch (error) {
-      console.error("No se pudo crear el vínculo social:", error);
-    }
-  }
-
-  async function removeRelation(row) {
-    const actorId = currentActorId();
-    const playerId = row?.dataset?.playerId;
-    if (!actorId || !playerId) return;
-    row.dataset.saving = "true";
-    try {
-      await bonds.clearBond(playerId, actorId);
-      renderRelations();
-    } catch (error) {
-      console.error("No se pudo eliminar el vínculo social:", error);
-      row.dataset.saving = "false";
-    }
-  }
-
-  async function saveRelation(row) {
-    const actorId = currentActorId();
-    const playerId = row.dataset.playerId;
-    if (!actorId || !playerId) return;
-    const known = Boolean(row.querySelector(".cm-bond-known")?.checked);
-    const level = Number(row.querySelector(".cm-bond-level")?.value) || 0;
-    const status = row.querySelector(".cm-bond-state")?.value || "neutral";
-    row.dataset.saving = "true";
-    try {
-      await bonds.setBond(playerId, actorId, { conocido: known, nivel: level, estado: status });
-    } catch (error) {
-      console.error("No se pudo guardar el vínculo social:", error);
-    } finally {
-      row.dataset.saving = "false";
-    }
+  function field(parent, label, value, multiline = false) {
+    const row = doc.createElement("label"); row.className = "cm-social-field";
+    const caption = doc.createElement("span"); caption.textContent = label;
+    const input = doc.createElement(multiline ? "textarea" : "input");
+    if (multiline) input.rows = 3;
+    input.value = value; row.append(caption,input); parent.append(row);
+    return input;
   }
 
   function renderRelations() {
     const host = $("character-manager-relations-list");
     if (!host) return;
-    host.innerHTML = "";
-    const actorId = currentActorId();
-    populateBondPlayerOptions();
-    if (!actorId) {
-      const empty = doc.createElement("div");
-      empty.className = "cm-social-empty";
-      empty.textContent = "GUARDA EL ACTOR PARA CREAR VÍNCULOS";
-      host.appendChild(empty);
+    host.replaceChildren();
+    waitingForBonds = false;
+    const record = loadedRecord;
+    const saved = social.normalizeLink(record?.actor?.socialLink);
+    if (!loadedActorId || !saved.enabled) {
+      host.textContent = "Guarda el NPC con Social Link para administrar el progreso de cada jugador.";
       return;
     }
-
-    const existing = activeBonds(actorId);
-    const rows = Object.entries(existing)
-      .map(([playerId, bond]) => ({ playerId, bond, player: manager.getPlayer(playerId) }))
-      .filter((entry) => entry.player)
-      .sort((a, b) => a.player.label.localeCompare(b.player.label));
-
-    if (!rows.length) {
-      const empty = doc.createElement("div");
-      empty.className = "cm-social-empty";
-      empty.textContent = "SIN VÍNCULOS REGISTRADOS";
-      host.appendChild(empty);
+    if (!bonds.isLoaded()) {
+      waitingForBonds = true;
+      host.textContent = "Cargando el progreso guardado de los vínculos…";
       return;
     }
-
-    rows.forEach(({ playerId, player, bond }) => {
-      const row = doc.createElement("div");
-      row.className = "cm-bond-row";
-      row.dataset.playerId = playerId;
-      row.innerHTML = `
-        <div class="cm-bond-player"><strong></strong><code></code></div>
-        <label class="cm-bond-known-wrap"><input class="cm-bond-known" type="checkbox"><span>CONOCE</span></label>
-        <div class="cm-bond-meter"><input class="cm-bond-level" type="range" min="0" max="5" step="1" aria-label="Nivel del vínculo"><output></output></div>
-        <select class="cm-bond-state" aria-label="Estado del vínculo"><option value="neutral">NEUTRAL</option><option value="confianza">CONFIANZA</option><option value="aliado">ALIADO</option><option value="rival">RIVAL</option><option value="hostil">HOSTIL</option></select>
-        <button class="cm-bond-remove" type="button" aria-label="Eliminar vínculo" title="Eliminar vínculo">${icon("trash")}</button>
-      `;
-      row.querySelector("strong").textContent = player.label;
-      row.querySelector("code").textContent = playerId;
-      const known = row.querySelector(".cm-bond-known");
-      const level = row.querySelector(".cm-bond-level");
-      const output = row.querySelector("output");
-      const status = row.querySelector(".cm-bond-state");
-      known.checked = bond.conocido;
-      level.value = bond.nivel;
-      output.value = bond.nivel;
-      output.textContent = `LV ${bond.nivel}`;
-      status.value = bond.estado;
-      level.addEventListener("input", () => { output.textContent = `LV ${level.value}`; });
-      [known, status].forEach((control) => control.addEventListener("change", () => saveRelation(row)));
-      level.addEventListener("change", () => saveRelation(row));
-      row.querySelector(".cm-bond-remove")?.addEventListener("click", () => removeRelation(row));
-      host.appendChild(row);
+    const existing = bonds.listForActor(loadedActorId);
+    Object.keys(saved.players).forEach(playerId => {
+      const player = manager.getPlayer(playerId);
+      if (!player) return;
+      const bond = social.normalizeProgress(existing[playerId]);
+      const card = doc.createElement("details"); card.className = "cm-social-progress";
+      const summary = doc.createElement("summary");
+      summary.textContent = `${player.label} · Rango ${bond.nivel}`;
+      const body = doc.createElement("div"); body.className = "cm-social-progress-body";
+      const level = field(body,"Rango (0–10)",bond.nivel); level.type = "number"; level.min = 0; level.max = 10; level.step = 1;
+      const affinity = field(body,"Afinidad hacia el siguiente rango",bond.puntos); affinity.type = "number"; affinity.step = 1;
+      const story = field(body,"Historia compartida · visible para este jugador",bond.historia,true);
+      const memories = field(body,"Recuerdos publicados · uno por línea",bond.recuerdos.join("\n"),true);
+      const benefits = field(body,"Beneficios publicados · uno por línea",bond.beneficios.join("\n"),true);
+      const status = doc.createElement("p"); status.setAttribute("role","status");
+      const save = doc.createElement("button"); save.type = "button"; save.textContent = "Guardar progreso";
+      save.addEventListener("click",async () => {
+        if (!level.reportValidity() || !affinity.reportValidity()) return;
+        const actorId = loadedActorId;
+        save.disabled = true; status.textContent = "Guardando…";
+        try {
+          await bonds.setBond(playerId,actorId,{ nivel:Number(level.value),puntos:Number(affinity.value),
+            historia:story.value,recuerdos:social.lines(memories.value),beneficios:social.lines(benefits.value) });
+          status.textContent = "Progreso publicado para este jugador.";
+          summary.textContent = `${player.label} · Rango ${Number(level.value)}`;
+        } catch (_) { status.textContent = "No se pudo guardar. Conservamos los cambios para que puedas volver a intentarlo."; }
+        finally { save.disabled = false; }
+      });
+      body.append(save,status); card.append(summary,body); host.append(card);
     });
+    if (!host.children.length) host.textContent = "Selecciona al menos un jugador y guarda el NPC.";
   }
 
   function ensureUi() {
     const panel = $("character-manager-studio");
     if (!panel) return false;
-
-    const rosterHeading = panel.querySelector(".cm-roster-heading");
-    if (rosterHeading && !$("character-manager-group-mode")) {
-      const select = doc.createElement("select");
-      select.id = "character-manager-group-mode";
-      select.className = "cm-group-mode";
-      select.setAttribute("aria-label", "Agrupar roster");
-      select.innerHTML = '<option value="type">TIPO</option><option value="faction">FACCIÓN</option><option value="tag">ETIQUETA</option>';
-      select.addEventListener("change", () => {
-        state.groupMode = select.value;
-        applyGrouping(true);
-      });
-      rosterHeading.insertBefore(select, rosterHeading.lastElementChild);
+    const heading = panel.querySelector(".cm-roster-heading");
+    if (heading && !$("character-manager-group-mode")) {
+      const select = doc.createElement("select"); select.id="character-manager-group-mode"; select.className="cm-group-mode";
+      select.setAttribute("aria-label","Agrupar roster");
+      select.innerHTML='<option value="type">TIPO</option><option value="faction">FACCIÓN</option><option value="tag">ETIQUETA</option>';
+      select.addEventListener("change",()=>{state.groupMode=select.value;scheduleGrouping(true);});
+      heading.insertBefore(select,heading.lastElementChild);
     }
-
-    const assignment = panel.querySelector('[data-module="assignment"]');
-    const grid = assignment?.querySelector(".cm-field-grid");
-    if (grid && !$("character-manager-tags")) {
-      const tagField = doc.createElement("label");
-      tagField.className = "cm-field cm-wide";
-      tagField.innerHTML = '<span>ETIQUETAS</span><input id="character-manager-tags" type="text" placeholder="aliado, corporación, contacto" autocomplete="off">';
-      grid.appendChild(tagField);
+    if (!$("character-manager-tags")) {
+      const row = doc.createElement("label"); row.className = "cm-field cm-wide";
+      row.innerHTML = '<span>ETIQUETAS</span><input id="character-manager-tags" type="text" placeholder="aliado, contacto" autocomplete="off">';
+      panel.querySelector('[data-module="assignment"] .cm-field-grid')?.append(row);
     }
-
-    if (assignment && !$("character-manager-relations")) {
-      const relations = doc.createElement("section");
-      relations.id = "character-manager-relations";
-      relations.className = "cm-social-relations";
-      relations.innerHTML = `
-        <header><span class="cm-social-title">${icon("relation")}<b>VÍNCULOS</b></span><small>SOLO DM</small></header>
-        <div class="cm-bond-admin-bar">
-          <select id="character-manager-bond-player" aria-label="Jugador para nuevo vínculo"><option value="">SELECCIONAR JUGADOR</option></select>
-          <button id="character-manager-add-bond" type="button" aria-label="Agregar vínculo" title="Agregar vínculo">${icon("plus")}<span>AGREGAR</span></button>
-        </div>
-        <div id="character-manager-relations-list" class="cm-relations-list"></div>
-      `;
-      assignment.appendChild(relations);
-      $("character-manager-add-bond")?.addEventListener("click", addRelation);
+    if (!$("character-manager-relations")) {
+      const section = doc.createElement("section"); section.id = "character-manager-relations";
+      section.className = "cm-social-relations";
+      section.innerHTML = `
+        <label class="cm-social-toggle"><input id="character-manager-social-enabled" type="checkbox"><span>Social Link</span></label>
+        <p id="character-manager-social-help" class="cm-social-help"></p>
+        <div id="character-manager-social-fields" hidden>
+          <label class="cm-social-field"><span>Tipo de vínculo</span><select id="character-manager-social-kind"><option value="civilian">No combatiente</option><option value="combatant">Combatiente</option></select></label>
+          <label class="cm-social-field"><span>Presentación del vínculo · visible para los jugadores seleccionados</span><textarea id="character-manager-social-description" rows="3" maxlength="4000"></textarea></label>
+          <fieldset class="cm-social-recipients"><legend>Desbloquear para</legend><div id="character-manager-social-players"></div></fieldset>
+          <h4>Progreso individual</h4><div id="character-manager-relations-list"></div>
+        </div>`;
+      panel.querySelector('[data-module="assignment"]')?.append(section);
+      $("character-manager-social-enabled").addEventListener("change",updateEnabled);
+      ["character-manager-type","character-manager-player"].forEach(id => $(id)?.addEventListener("change",updateEnabled));
+      load(currentRecord());
     }
-
-    const roster = $("character-manager-roster");
-    if (roster && !roster.dataset.socialObserver) {
-      const observer = new MutationObserver(() => {
-        if (!state.grouping) scheduleGrouping(false);
-      });
-      observer.observe(roster, { childList: true });
-      roster.dataset.socialObserver = "true";
-      roster.addEventListener("click", (event) => {
-        if (!event.target.closest(".cm-roster-entry")) return;
-        global.setTimeout(() => {
-          populateTags();
-          renderRelations();
-          scheduleGrouping(true);
-        }, 0);
-      });
-    }
-
-    $("character-manager-new")?.addEventListener("click", () => {
-      global.setTimeout(() => {
-        if ($("character-manager-tags")) $("character-manager-tags").value = "";
-        renderRelations();
-      }, 0);
-    });
-    $("character-manager-save")?.addEventListener("click", () => {
-      persistTags().then(() => scheduleGrouping(true)).catch((error) => console.error("No se pudieron guardar etiquetas:", error));
-    });
-
-    populateTags();
-    renderRelations();
-    scheduleGrouping(true);
     return true;
   }
 
-  manager.subscribeActors(() => {
-    if (ensureUi()) scheduleGrouping(true);
+  global.LuminousSocialLinkStudio = Object.freeze({load,collect});
+  manager.subscribeActors(() => { if (ensureUi()) scheduleGrouping(true); });
+  manager.subscribePlayers(() => {
+    if (!ensureUi()) return;
+    renderPlayers();
+    if (!$("character-manager-relations-list")?.querySelector("details")) renderRelations();
   });
-  manager.subscribePlayers(() => renderRelations());
-  bonds.subscribe(() => renderRelations());
-
-  if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", ensureUi, { once: true });
+  bonds.subscribe(() => {
+    // Only replace the loading placeholder. Editable forms never exist before
+    // this first snapshot, and later snapshots must not discard local drafts.
+    if (waitingForBonds && bonds.isLoaded()) renderRelations();
+  }, { immediate:false });
+  // Existing editor drafts are not rebuilt by unrelated realtime bond updates.
+  if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded",ensureUi,{once:true});
   else ensureUi();
 })(window);

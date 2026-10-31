@@ -12,6 +12,7 @@
     db: null,
     actorsByRoot: {},
     players: {},
+    playersLoaded: false,
     languagesByRoot: {},
     actorSources: {},
     listeners: [],
@@ -184,6 +185,7 @@
 
     bindValue(PATHS.players, (value) => {
       state.players = value;
+      state.playersLoaded = true;
     }, "players");
 
     PATHS.languages.forEach((root) => {
@@ -200,11 +202,22 @@
     state.listeners.splice(0).forEach((unsubscribe) => unsubscribe());
     Object.values(state.subscribers).forEach((bucket) => bucket.clear());
     state.initialized = false;
+    state.playersLoaded = false;
     state.db = null;
   }
 
   function ensureInit() {
     if (!state.initialized) init();
+  }
+
+  async function ensurePlayersLoaded() {
+    if (state.playersLoaded) return;
+    // An empty cache before the first snapshot is not an empty directory.
+    // Read readiness from RTDB itself before any recipient/link mutation.
+    const snapshot = await state.db.ref(PATHS.players).once("value");
+    state.players = snapshot.val() || {};
+    state.playersLoaded = true;
+    emit("players");
   }
 
   function getActor(actorId) {
@@ -329,7 +342,7 @@
     const allowed = [
       "nombre", "titulo", "tipo", "faccion", "alineamiento", "escala",
       "color_nombre", "color_titulo", "icono", "sprite", "tags", "etiquetas",
-      "combate", "identityId", "vinculo_jugador",
+      "combate", "identityId", "vinculo_jugador", "socialLink",
     ];
     allowed.forEach((key) => {
       if (Object.prototype.hasOwnProperty.call(actorChanges, key)) {
@@ -347,6 +360,7 @@
 
   async function saveActor(options = {}) {
     ensureInit();
+    await ensurePlayersLoaded();
     const actorChanges = options.actor || {};
     let actorId = cleanString(options.actorId);
     const existing = actorId ? getActor(actorId) : null;
@@ -363,8 +377,28 @@
       }
     }
 
+    const nextActor = { ...(existing?.actor || {}), ...actorChanges };
+    if (options.playerId) { nextActor.tipo = "Jugador"; nextActor.vinculo_jugador = options.playerId; }
+    if (options.playerId === null) nextActor.vinculo_jugador = null;
+    if (actorChanges.socialLink !== undefined || existing?.actor?.socialLink) {
+      const social = global.LuminousSocialLinkCore;
+      if (!social) throw new Error("No se pudo cargar Social Link. Recarga el editor.");
+      nextActor.socialLink = social.normalizeLink(nextActor.socialLink);
+      Object.assign(updates, social.publicationUpdates(actorId, existing?.actor || {}, nextActor, state.players));
+      // Validate against the saved recipients first, then remove deleted players
+      // from the persisted configuration while publicationUpdates withdraws them.
+      for (const playerId of Object.keys(nextActor.socialLink.players)) {
+        if (!Object.prototype.hasOwnProperty.call(state.players,playerId)) delete nextActor.socialLink.players[playerId];
+      }
+      updates[`${actorPath}/socialLink`] = nextActor.socialLink;
+      for (const playerId of Object.keys(nextActor.socialLink.players)) {
+        if (!updates[`${social.ROOT}/${playerId}/${actorId}/conocido`]) continue;
+        const progress = (await state.db.ref(`${social.ROOT}/${playerId}/${actorId}`).once("value")).val() || {};
+        updates[`${social.PUBLIC_ROOT}/${playerId}/${actorId}/progress`] = social.publicProgress(progress);
+      }
+    }
     await state.db.ref().update(updates);
-    return { actorId, root };
+    return { actorId, root, actor:nextActor };
   }
 
   function buildPlayerLinkUpdates(actorId, playerId, actorRootOverride) {
@@ -399,7 +433,10 @@
 
   async function linkPlayer(actorId, playerId) {
     ensureInit();
-    if (!getActor(actorId)) throw new Error(`Actor no encontrado: ${actorId}`);
+    await ensurePlayersLoaded();
+    const record = getActor(actorId);
+    if (!record) throw new Error(`Actor no encontrado: ${actorId}`);
+    if (playerId && record.actor.socialLink?.enabled) throw new Error("Desactiva Social Link antes de asignar este NPC como personaje de jugador.");
     await state.db.ref().update(buildPlayerLinkUpdates(actorId, playerId || null));
     return { actorId, playerId: playerId || null };
   }
@@ -432,9 +469,16 @@
 
   async function deleteActor(actorId) {
     ensureInit();
+    await ensurePlayersLoaded();
     const record = getActor(actorId);
     if (!record) return false;
     const updates = { [`${record.root}/${actorId}`]: null };
+    if (record.actor.socialLink) {
+      const social = global.LuminousSocialLinkCore;
+      if (!social) throw new Error("No se pudo cargar Social Link. Recarga el editor.");
+      Object.assign(updates, social.publicationUpdates(actorId, record.actor,
+        { ...record.actor, socialLink: { ...record.actor.socialLink, enabled:false } }, state.players));
+    }
     const playerId = record.playerId || actorLinkedPlayerId(actorId, record.actor);
     if (playerId) updates[`${PATHS.players}/${playerId}/actorId`] = null;
     await state.db.ref().update(updates);
@@ -489,3 +533,4 @@
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {};
 }
+

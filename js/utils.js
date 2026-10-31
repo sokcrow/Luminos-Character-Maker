@@ -259,6 +259,7 @@ function ensureDmCharacterManagerAssets(doc) {
     const documentRef = doc || (typeof document !== 'undefined' ? document : null);
     if (!documentRef?.querySelector?.('#dashboard-actores')) return null;
 
+    ensureScriptAsset(documentRef, 'social-link-core-script', 'js/social-link-core.js?v=20261031-social-link-1', { engine:'social-link' });
     const link = ensureStyleAsset(documentRef, 'character-manager-studio-stylesheet', 'css/character-manager-studio.css', { ui: 'character-manager-studio' });
     ensureStyleAsset(documentRef, 'character-manager-social-stylesheet', 'css/character-manager-social.css', { ui: 'character-manager-social' });
     ensureStyleAsset(documentRef, 'character-manager-domain-ux-stylesheet', 'css/character-manager-domain-ux.css', { ui: 'character-manager-domain-ux' });
@@ -396,3 +397,4 @@ if (typeof module !== 'undefined' && module.exports) {
         ensureDmAuthenticatedAssets
     };
 }
+

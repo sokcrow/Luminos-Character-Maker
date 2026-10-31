@@ -485,6 +485,7 @@
     setStatus(actorId, "ok");
     updatePreview();
     renderActorList();
+    global.LuminousSocialLinkStudio?.load(record);
     feedback("ACTOR CARGADO", "ok");
   }
 
@@ -508,6 +509,7 @@
     updatePreview();
     renderActorList();
     setSection("identity");
+    global.LuminousSocialLinkStudio?.load(null);
     feedback("NUEVO ACTOR", "");
   }
 
@@ -544,6 +546,8 @@
       sprite: value("character-manager-sprite").trim(),
       expresiones: collectExpressions(),
       idiomas: collectLanguages(),
+      etiquetas: (value("character-manager-tags") || "").split(",").map(tag => tag.trim()).filter(Boolean),
+      ...(global.LuminousSocialLinkStudio ? { socialLink: global.LuminousSocialLinkStudio.collect() } : {}),
     };
 
     const button = $("character-manager-save");
@@ -558,6 +562,8 @@
       });
       state.actorId = saved.actorId;
       state.root = saved.root;
+      renderActorList();
+      global.LuminousSocialLinkStudio?.load({ actorId:saved.actorId, actor:saved.actor });
       $("character-manager-source").textContent = saved.root === manager.PATHS.actors[0] ? "BASE" : "LEGACY";
       feedback("SINCRONIZADO", "ok");
       setStatus(saved.actorId, "ok");
