@@ -64,7 +64,11 @@
       } else updates[`${PUBLIC_ROOT}/${playerId}/${id}`] = null;
     }
     for (const playerId of Object.keys(after.players)) {
-      if (!Object.prototype.hasOwnProperty.call(players,playerId)) throw new Error("Uno de los jugadores seleccionados ya no está disponible.");
+      // Stale saved recipients must not prevent withdrawal or NPC cleanup.
+      // A newly selected unknown player still indicates an invalid assignment.
+      if (after.enabled && !before.players[playerId] && !Object.prototype.hasOwnProperty.call(players,playerId)) {
+        throw new Error("Uno de los jugadores seleccionados ya no está disponible.");
+      }
     }
     return updates;
   }

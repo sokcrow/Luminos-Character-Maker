@@ -370,8 +370,13 @@
       const social = global.LuminousSocialLinkCore;
       if (!social) throw new Error("No se pudo cargar Social Link. Recarga el editor.");
       nextActor.socialLink = social.normalizeLink(nextActor.socialLink);
-      updates[`${actorPath}/socialLink`] = nextActor.socialLink;
       Object.assign(updates, social.publicationUpdates(actorId, existing?.actor || {}, nextActor, state.players));
+      // Validate against the saved recipients first, then remove deleted players
+      // from the persisted configuration while publicationUpdates withdraws them.
+      for (const playerId of Object.keys(nextActor.socialLink.players)) {
+        if (!Object.prototype.hasOwnProperty.call(state.players,playerId)) delete nextActor.socialLink.players[playerId];
+      }
+      updates[`${actorPath}/socialLink`] = nextActor.socialLink;
       for (const playerId of Object.keys(nextActor.socialLink.players)) {
         if (!updates[`${social.ROOT}/${playerId}/${actorId}/conocido`]) continue;
         const progress = (await state.db.ref(`${social.ROOT}/${playerId}/${actorId}`).once("value")).val() || {};

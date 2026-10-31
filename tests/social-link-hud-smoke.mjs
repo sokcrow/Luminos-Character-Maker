@@ -56,6 +56,23 @@ await assert.rejects(manager.linkPlayer('hopkins','alice'),/Desactiva Social Lin
 await manager.deleteActor('hopkins');
 assert.equal(get(core.PUBLIC_ROOT+'/alice/hopkins'),undefined,'Deleting an NPC withdraws its HUD publication');
 assert.equal(get(core.ROOT+'/alice/hopkins/nivel'),10);
+// Existing player-management deletion must not strand NPC configurations.
+for(const actorId of ['stale-save','stale-disable','stale-delete']) {
+  await manager.saveActor({actorId,actor:{nombre:actorId,tipo:'NPC',socialLink:{enabled:true,players:{bob:true}}}});
+}
+set(core.ROOT+'/bob/stale-save/nivel',7);
+delete data.campaña.jugadores.bob;
+for(const row of [...listeners])row.callback(snapshot(row.path));
+await manager.saveActor({actorId:'stale-save',actor:{titulo:'Editable después de borrar al jugador'}});
+assert.deepEqual(Object.keys(get('campaña/base_datos_npcs/stale-save/socialLink/players')),[],'Save prunes deleted recipients');
+assert.equal(get(core.PUBLIC_ROOT+'/bob/stale-save'),undefined,'Stale publication is withdrawn');
+assert.equal(get(core.ROOT+'/bob/stale-save/nivel'),7,'Cleanup preserves archived progress');
+await manager.saveActor({actorId:'stale-disable',actor:{socialLink:{enabled:false,players:{bob:true}}}});
+assert.equal(get(core.PUBLIC_ROOT+'/bob/stale-disable'),undefined);
+assert.deepEqual(Object.keys(get('campaña/base_datos_npcs/stale-disable/socialLink/players')),[]);
+await manager.deleteActor('stale-delete');
+assert.equal(get('campaña/base_datos_npcs/stale-delete'),undefined);
+assert.equal(get(core.PUBLIC_ROOT+'/bob/stale-delete'),undefined);
 const html=read('hoja_personaje.html');assert.ok(html.indexOf('js/social-link-core.js')<html.indexOf('js/social-link-hud.js'));assert.equal((html.match(/name="act_hud_vinculos"/g)||[]).length,1);
 const hud=read('js/social-link-hud.js');assert.ok(!hud.includes('[core.ROOT,'),'HUD never subscribes to DM bond records');assert.ok(!/\.update\(|\.set\(|\.transaction\(/.test(hud),'Player HUD has no game-state writes');
 console.log('Social Link: atomic NPC publication, recipient isolation, rank 10, archived progress, failure handling and read-only HUD OK.');
