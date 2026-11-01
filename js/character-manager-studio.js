@@ -127,7 +127,7 @@
 
           <nav class="cm-module-nav" aria-label="Módulos del actor">
             <button type="button" class="cm-module-tab is-active" data-section="identity" aria-label="Identidad" title="Identidad">${icon("identity")}<span>IDENTIDAD</span></button>
-            <button type="button" class="cm-module-tab" data-section="assignment" aria-label="Social Link" title="Social Link">${icon("link")}<span>SOCIAL LINK</span></button>
+            <button type="button" class="cm-module-tab" data-section="assignment" aria-label="Configurar Social Links" title="Social Link">${icon("link")}<span>SOCIAL LINK</span></button>
             <button type="button" class="cm-module-tab" data-section="expressions" aria-label="Expresiones" title="Expresiones">${icon("expression")}<span>EXPRESIONES</span></button>
             <button type="button" class="cm-module-tab" data-section="languages" aria-label="Idiomas" title="Idiomas">${icon("language")}<span>IDIOMAS</span></button>
             <button type="button" class="cm-module-tab" data-section="advanced" aria-label="Configuración avanzada" title="Configuración avanzada">${icon("advanced")}<span>AJUSTES</span></button>
