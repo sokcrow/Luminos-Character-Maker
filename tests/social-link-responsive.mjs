@@ -21,7 +21,7 @@ try {
     for(const path of ['css/character-manager-studio.css','css/character-manager-social.css','css/social-link-hud.css'])await page.addStyleTag({content:source(path)});
     for(const path of ['js/social-link-core.js','js/character-manager-engine.js','js/bond-engine.js','js/character-manager-studio.js','js/character-manager-social-studio.js'])await page.addScriptTag({content:source(path)});
     await page.locator('#character-manager-name').fill('Hopkins');
-    await page.getByRole('button',{name:'Social Link',exact:true}).click();
+    await page.getByRole('button',{name:'Configurar Social Links',exact:true}).click();
     await page.getByLabel('Social Link',{exact:true}).check();
     await page.getByLabel('Alice',{exact:true}).check();
     await page.getByLabel('Arcano',{exact:true}).selectOption('strength');
