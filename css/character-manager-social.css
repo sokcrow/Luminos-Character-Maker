@@ -95,3 +95,11 @@
 
 .cm-social-toggle,.cm-social-recipient{display:flex;align-items:center;gap:12px;min-height:48px;cursor:pointer}.cm-social-toggle{font-size:18px;color:#e8d9c4}.cm-social-toggle input,.cm-social-recipient input{width:22px;height:22px;flex:0 0 22px;accent-color:#c0283e}.cm-social-help{font-size:12px;line-height:1.6;color:#c6b9a6}.cm-social-field{display:grid;gap:8px;margin:14px 0;min-width:0}.cm-social-field>span{font-size:12px;color:#cbbb9f}.cm-social-field input,.cm-social-field select,.cm-social-field textarea{box-sizing:border-box;width:100%;min-width:0;min-height:44px;background:#100f12;color:#f2e6d4;border:1px solid #685344;border-radius:3px;padding:10px;font:14px system-ui}.cm-social-field textarea{resize:vertical;min-height:90px}.cm-social-recipients{border:1px solid #594c40;margin:18px 0;padding:12px}.cm-social-recipients legend{padding:0 8px}.cm-social-progress{border-top:1px solid #594c40}.cm-social-progress summary{padding:15px 6px;min-height:48px;cursor:pointer;overflow-wrap:anywhere}.cm-social-progress-body{padding:0 6px 16px}.cm-social-progress-body button{min-height:44px;padding:12px;border:1px solid #b42a3c;background:#4f1520;color:#fff;cursor:pointer}.cm-social-progress-body p{font-size:12px;line-height:1.6}.cm-social-relations [hidden]{display:none!important}
 @media(max-width:600px){.cm-social-relations{padding:12px!important}.cm-social-field>span{line-height:1.5}.cm-social-recipient{padding:6px 0}.cm-social-progress-body button{width:100%}}
+
+/* Social Link usa el selector de Arcano, sin numeración; los iconos aún no existen. */
+.character-manager-studio .cm-social-combatant{display:flex;align-items:center;gap:12px;min-height:48px;margin:12px 0;color:#d5c8b5;font:14px system-ui;cursor:pointer}
+.character-manager-studio .cm-social-combatant input{width:22px;height:22px;accent-color:#c0283e;flex:0 0 22px}
+.character-manager-studio .cm-actor-assignment{display:grid;gap:8px;margin:14px 0;min-width:0}
+.character-manager-studio .cm-actor-assignment select{width:100%;min-height:44px}
+.character-manager-studio .cm-assignment-help{color:#9f9384;font:12px/1.5 system-ui;margin:0 0 14px;overflow-wrap:anywhere}
+@media(max-width:680px){.character-manager-studio .cm-actor-assignment{margin:12px 0}.character-manager-studio .cm-social-combatant{min-height:48px}}
