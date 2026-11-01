@@ -4,6 +4,41 @@
   const PUBLIC_ROOT = "campaña/estado_mundo/vinculos_publicados";
   const THRESHOLDS = Object.freeze([10,15,20,30,40,50,65,80,100,125]);
   const text = value => String(value ?? "").trim();
+  // Identidades estables: el nombre visible y el futuro icono no dependen de los números del Tarot.
+  const ARCANA = Object.freeze([
+    Object.freeze({id:"fool",name:"El Loco"}),
+    Object.freeze({id:"magician",name:"El Mago"}),
+    Object.freeze({id:"priestess",name:"La Sacerdotisa"}),
+    Object.freeze({id:"empress",name:"La Emperatriz"}),
+    Object.freeze({id:"emperor",name:"El Emperador"}),
+    Object.freeze({id:"hierophant",name:"El Hierofante"}),
+    Object.freeze({id:"lovers",name:"Los Enamorados"}),
+    Object.freeze({id:"chariot",name:"El Carro"}),
+    Object.freeze({id:"justice",name:"La Justicia"}),
+    Object.freeze({id:"hermit",name:"El Ermitaño"}),
+    Object.freeze({id:"fortune",name:"La Rueda de la Fortuna"}),
+    Object.freeze({id:"strength",name:"La Fuerza"}),
+    Object.freeze({id:"hanged",name:"El Colgado"}),
+    Object.freeze({id:"death",name:"La Muerte"}),
+    Object.freeze({id:"temperance",name:"La Templanza"}),
+    Object.freeze({id:"devil",name:"El Diablo"}),
+    Object.freeze({id:"tower",name:"La Torre"}),
+    Object.freeze({id:"star",name:"La Estrella"}),
+    Object.freeze({id:"moon",name:"La Luna"}),
+    Object.freeze({id:"sun",name:"El Sol"}),
+    Object.freeze({id:"judgement",name:"El Juicio"}),
+    Object.freeze({id:"world",name:"El Mundo"}),
+    Object.freeze({id:"jester",name:"El Bufón"}),
+    Object.freeze({id:"councillor",name:"El Consejero"}),
+    Object.freeze({id:"apostle",name:"El Apóstol"}),
+    Object.freeze({id:"hunger",name:"El Hambre"}),
+    Object.freeze({id:"aeon",name:"El Eón"}),
+    Object.freeze({id:"universe",name:"El Universo"}),
+    Object.freeze({id:"faith",name:"La Fe"}),
+    Object.freeze({id:"hope",name:"La Esperanza"}),
+  ]);
+  const getArcana = id => ARCANA.find(entry => entry.id === text(id)) || null;
+
   function safeKey(value) {
     const id = text(value);
     if (!id || /[.#$\[\]\/\u0000-\u001f\u007f]/.test(id)) throw new Error("Identificador de personaje no válido.");
@@ -17,6 +52,7 @@
     const players = {};
     Object.entries(value.players || {}).forEach(([id, enabled]) => { if (enabled === true) players[safeKey(id)] = true; });
     return { enabled: value.enabled === true, combatant: value.combatant === true,
+      arcana: getArcana(value.arcana ?? value.arcanaId)?.id || "",
       description: text(value.description).slice(0,4000), players };
   }
   function normalizeProgress(value = {}) {
@@ -41,7 +77,7 @@
   function publicProfile(actorId, actor, link) {
     return { actorId: safeKey(actorId), name: text(actor.nombre || actor.name), title: text(actor.titulo),
       portrait: portrait(actor.sprite || actor.icono), description: link.description,
-      combatant: link.combatant, enabled: true };
+      combatant: link.combatant, arcana: link.arcana, enabled: true };
   }
   // Called inside the actor save: actor + visibility + identity unlock commit in one RTDB update.
   function publicationUpdates(actorId, previousActor, nextActor, players = {}) {
@@ -78,10 +114,11 @@
     // DM notes are deliberately absent from the player view model.
     return { name:text(profile.name), title:text(profile.title), portrait:portrait(profile.portrait),
       description:text(profile.description), combatant:profile.combatant === true,
+      arcana:getArcana(profile.arcana)?.name || "",
       rank:bond.nivel, affinity:bond.puntos, threshold:THRESHOLDS[bond.nivel] ?? null,
       story:bond.historia, memories:bond.recuerdos, benefits:bond.beneficios };
   }
-  const api = Object.freeze({ROOT,PUBLIC_ROOT,THRESHOLDS,safeKey,lines,normalizeLink,normalizeProgress,publicProgress,publicationUpdates,playerView});
+  const api = Object.freeze({ROOT,PUBLIC_ROOT,THRESHOLDS,ARCANA,getArcana,safeKey,lines,normalizeLink,normalizeProgress,publicProgress,publicationUpdates,playerView});
   global.LuminousSocialLinkCore = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
