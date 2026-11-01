@@ -127,7 +127,7 @@
 
           <nav class="cm-module-nav" aria-label="Módulos del actor">
             <button type="button" class="cm-module-tab is-active" data-section="identity" aria-label="Identidad" title="Identidad">${icon("identity")}<span>IDENTIDAD</span></button>
-            <button type="button" class="cm-module-tab" data-section="assignment" aria-label="Asignación" title="Asignación">${icon("link")}<span>VÍNCULO</span></button>
+            <button type="button" class="cm-module-tab" data-section="assignment" aria-label="Social Link" title="Social Link">${icon("link")}<span>SOCIAL LINK</span></button>
             <button type="button" class="cm-module-tab" data-section="expressions" aria-label="Expresiones" title="Expresiones">${icon("expression")}<span>EXPRESIONES</span></button>
             <button type="button" class="cm-module-tab" data-section="languages" aria-label="Idiomas" title="Idiomas">${icon("language")}<span>IDIOMAS</span></button>
             <button type="button" class="cm-module-tab" data-section="advanced" aria-label="Configuración avanzada" title="Configuración avanzada">${icon("advanced")}<span>AJUSTES</span></button>
@@ -139,16 +139,13 @@
               <div class="cm-field-grid">
                 <label class="cm-field"><span>NOMBRE</span><input id="character-manager-name" type="text" autocomplete="off"></label>
                 <label class="cm-field"><span>TÍTULO</span><input id="character-manager-title" type="text" autocomplete="off"></label>
+                <label class="cm-field"><span>TIPO DE ACTOR</span><select id="character-manager-type"><option value="NPC">NPC</option><option value="Jugador">Jugador</option><option value="Aliado">Aliado</option><option value="Enemigo">Enemigo</option><option value="Neutral">Neutral</option></select></label>
+                <label class="cm-field"><span>FACCIÓN</span><input id="character-manager-faction" type="text" autocomplete="off"></label>
               </div>
             </section>
 
             <section class="cm-module" data-module="assignment">
-              <header><span>VÍNCULO</span><small>02</small></header>
-              <div class="cm-field-grid cm-field-grid--three">
-                <label class="cm-field"><span>TIPO</span><select id="character-manager-type"><option value="NPC">NPC</option><option value="Jugador">Jugador</option><option value="Aliado">Aliado</option><option value="Enemigo">Enemigo</option><option value="Neutral">Neutral</option></select></label>
-                <label class="cm-field"><span>JUGADOR</span><select id="character-manager-player"><option value="">SIN ASIGNAR</option></select></label>
-                <label class="cm-field"><span>FACCIÓN</span><input id="character-manager-faction" type="text" autocomplete="off"></label>
-              </div>
+              <header><span>SOCIAL LINK</span><small>02</small></header>
             </section>
 
             <section class="cm-module" data-module="expressions">
@@ -165,6 +162,8 @@
 
             <section class="cm-module" data-module="advanced">
               <header><span>AJUSTES</span><small>05</small></header>
+              <label class="cm-field cm-actor-assignment"><span>PERSONAJE DE JUGADOR (ASIGNACIÓN DE ACTOR)</span><select id="character-manager-player"><option value="">SIN ASIGNAR</option></select></label>
+              <p class="cm-assignment-help">Esta asignación vincula un actor con la ficha de un jugador; no desbloquea Social Links. Para relaciones usa la pestaña Social Link.</p>
               <div class="cm-field-grid cm-field-grid--three">
                 <label class="cm-field"><span>ESCALA</span><input id="character-manager-scale" type="number" min="0.25" max="3" step="0.05" value="1"></label>
                 <label class="cm-field cm-color-field"><span>COLOR NOMBRE</span><input id="character-manager-name-color" type="color" value="#ffffff"></label>
@@ -534,6 +533,12 @@
       return feedback("NOMBRE REQUERIDO", "error");
     }
     const playerId = value("character-manager-player") || null;
+    const socialLink = global.LuminousSocialLinkStudio?.collect();
+    if (socialLink?.enabled && !socialLink.arcana) {
+      setSection("assignment");
+      $("character-manager-social-arcana")?.focus();
+      return feedback("SELECCIONA UN ARCANO PARA EL SOCIAL LINK", "error");
+    }
     const actor = {
       nombre: name,
       titulo: value("character-manager-title").trim(),
@@ -547,7 +552,7 @@
       expresiones: collectExpressions(),
       idiomas: collectLanguages(),
       etiquetas: (value("character-manager-tags") || "").split(",").map(tag => tag.trim()).filter(Boolean),
-      ...(global.LuminousSocialLinkStudio ? { socialLink: global.LuminousSocialLinkStudio.collect() } : {}),
+      ...(socialLink ? { socialLink } : {}),
     };
 
     const button = $("character-manager-save");
