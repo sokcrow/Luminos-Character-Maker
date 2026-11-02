@@ -865,6 +865,7 @@ let createTriangulatedHeightField;
 let TERRAIN_SURFACE_STANDARD, terrainSurfaceTierForSlope, terrainSurfaceMaterialKinds, terrainElevationSurfaceWeights, terrainCoastMaterialKinds, terrainCoastSurfaceWeights;
 let createWaterBodySystem, extractFieldShorelines, waterCurrentImmersionFactor;
 let createWaterInteractionSystem;
+let createHorrorApartmentBuilder;
 
 try {
   THREE = await import('../../vendor/three.module.js');
@@ -883,6 +884,8 @@ try {
     await import('../../src/world/WaterBodySystem.js'));
   ({ createWaterInteractionSystem } =
     await import('../../src/world/WakeTrailSystem.js'));
+  ({ createHorrorApartmentBuilder } =
+    await import('../../src/world/HorrorApartmentScene.js'));
 } catch (error) {
   window.paperLoadFailed?.('No se pudo iniciar el motor: '+(error?.message || String(error)));
   const errorBox=document.getElementById('error');
@@ -6493,6 +6496,16 @@ const MAP_DATA=Object.freeze({
     storeyHeight:2
   },
   maps:{
+    // Isolated modern-horror apartment: Forest native camera, collision and grid.
+    horrorApartment:{
+      id:'horrorApartment',renderer:'horrorApartment',label:'Forest Horror · Apartamento',
+      background:0x121822,bounds:{x0:-6,x1:6,z0:-5,z1:5},
+      defaultLayer:'exterior',
+      layers:{exterior:{playerBaseY:0,worldLevelOffset:0,cameraPreset:'horror-fixed-interior'}},
+      spawn:{x:0,y:0,z:3.5,layer:'exterior'},
+      camera:{fov:51},
+      surfaces:[{id:'apartment-floor',layer:'exterior',x0:-6,x1:6,z0:-5,z1:5,elevation:0,terrain:'wood',walkable:true,combat:false,tags:['ground','interior','horror-apartment']}]
+    },
     // 0.3.2-15 · Ruta principal: cuadrícula 3×3 de sectores 40×40.
     owNW:makeOverworldMapDef('owNW'),
     owN:makeOverworldMapDef('owN'),
@@ -17768,7 +17781,11 @@ function buildOverworldSector(){
 // Aísla la selección de renderer SIN cambiar los builders existentes.
 // buildCanal/buildRoom/buildSewer siguen intactos y son la referencia visual.
 // ============================================================
+const buildHorrorApartment=createHorrorApartmentBuilder({
+  THREE,wt,scene,addCollider,interactions,wallOccluders
+});
 const MAP_RENDERER_REGISTRY=Object.freeze({
+  horrorApartment:buildHorrorApartment,
   overworldSector:buildOverworldSector,
   natureCave:buildNatureCave,
   forestIntro:buildForestIntro,
@@ -19036,6 +19053,23 @@ function updateCamera(dt,snap=false){
       camera.position.lerp(desiredCam,1-Math.exp(-dt*6.8));
       cameraLook.lerp(target,1-Math.exp(-dt*8.0));
     }
+    camera.lookAt(cameraLook);billboardPlayer();updateWallOcclusion();return;
+  }
+
+  if(mapId==='horrorApartment'){
+    // Same fixed cutaway convention as Forest interiors: NO free camera orbit.
+    // Camera distance adapts to viewport so all 12 furniture-grid columns fit.
+    const fov=cameraFixedVisibilityFov(51);
+    camera.fov=snap?fov:THREE.MathUtils.lerp(camera.fov,fov,1-Math.exp(-dt*8));
+    camera.updateProjectionMatrix();
+    const hFov=2*Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*Math.max(.40,camera.aspect));
+    const distance=Math.max(18,wt(13.2)/(2*Math.tan(hFov/2)));
+    const look=new THREE.Vector3(0,1.12,-.3);
+    const lift=Math.min(18,Math.max(8.5,distance*.44));
+    const planar=Math.sqrt(Math.max(16,distance*distance-lift*lift));
+    desiredCam.set(0,look.y+lift,look.z+planar);
+    if(snap){camera.position.copy(desiredCam);cameraLook.copy(look);}
+    else{camera.position.lerp(desiredCam,1-Math.exp(-dt*6.5));cameraLook.lerp(look,1-Math.exp(-dt*7.5));}
     camera.lookAt(cameraLook);billboardPlayer();updateWallOcclusion();return;
   }
 
