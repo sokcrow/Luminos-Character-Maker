@@ -262,6 +262,12 @@
     }else if(raw.startsWith('LOOT_')){
       reason='El botín no pudo guardarse completamente.';
       action='Reintenta: los cadáveres y objetos ya registrados se conservarán.';
+    }else if(raw==='ENCOUNTER_XP_TRANSACTION_INTERRUPTED'){
+      reason='Otro guardado de la ficha interrumpió repetidamente la entrega de experiencia.';
+      action='Detén las ediciones simultáneas de fichas y vuelve a finalizar. La XP entregada se conserva.';
+    }else if(raw==='ENCOUNTER_XP_PLAN_REQUIRED'){
+      reason='No se pudo guardar el reparto de experiencia del encuentro.';
+      action='Reintenta el cierre sin reiniciar el combate.';
     }else if(raw.startsWith('ENCOUNTER_XP_PARTICIPANT_NOT_FOUND')){
       reason='Falta una ficha de participante necesaria para entregar la experiencia.';
       action='Recupera la ficha faltante antes de intentar repartir XP otra vez.';
@@ -285,7 +291,15 @@
     }else if(stage==='loot'){
       reason='No se pudo completar la preparación del botín.';
     }else if(stage==='experience'){
-      reason='No se pudo confirmar la experiencia de los participantes.';
+      const details={
+        plan:'No se pudo consultar o guardar el plan de reparto de experiencia.',
+        participants:'No se pudieron consultar las fichas que deben recibir experiencia.',
+        enemies:'No se pudieron consultar las recompensas de los enemigos derrotados.',
+        recover:'No se pudo recuperar el reparto congelado de un cierre anterior.',
+        payout:'Una operación de pago o verificación de experiencia fue interrumpida.'
+      };
+      reason=details[error?.encounterXpStage]||'No se pudo completar el reparto de experiencia.';
+      action='Reintenta el cierre sin reiniciar el combate. Las recompensas confirmadas no se duplican.';
     }else if(stage==='result'){
       reason='El resultado final todavía no quedó confirmado.';
     }else if(stage==='claim'){
