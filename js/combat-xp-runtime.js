@@ -366,6 +366,26 @@
       plan = tx.snapshot.val();
       if (!plan) throw Error('ENCOUNTER_XP_PLAN_REQUIRED');
     }
+    // Recover old frozen plans created before orphan-NPC filtering was added.
+    // Keep the original divisor, amounts, MVP and any paid player receipts:
+    // an interrupted victory must never recompute or double-award XP.
+    const plannedNpcs = (plan.recipients || []).filter(row => row.kind === 'npc');
+    if (plannedNpcs.length) {
+      const storedNpcs = await Promise.all(plannedNpcs.map(row => db.ref(row.path).once('value').then(s => s.val())));
+      const orphaned = plannedNpcs.filter((row, index) => !storedNpcs[index] || typeof storedNpcs[index] !== 'object').map(row => row.id);
+      if (orphaned.length) {
+        const repaired = await cachedTransaction(planRef, current => {
+          if (!current) return;
+          const absent = (current.recipients || []).filter(row => row.kind === 'npc' && orphaned.includes(row.id)).map(row => row.id);
+          if (!absent.length) return;
+          return { ...current,
+            npcIds: (current.npcIds || []).filter(id => !absent.includes(id)),
+            missingNpcIds: [...new Set([...(current.missingNpcIds || []), ...absent])],
+            recipients: (current.recipients || []).filter(row => row.kind !== 'npc' || !absent.includes(row.id)) };
+        });
+        plan = repaired.snapshot.val() || (await planRef.once('value')).val();
+      }
+    }
     const {participantIds = [], npcIds = [], mvp = null, recipients = [], result, missingCr = []} = plan;
     const missingNpcIds = Array.isArray(plan.missingNpcIds) ? plan.missingNpcIds : [];
     const awards = [];
