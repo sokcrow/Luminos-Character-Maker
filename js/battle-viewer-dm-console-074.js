@@ -469,7 +469,14 @@
       if(!lootRuntime?.ensureEncounterId)throw Error('LOOT_LIVE_POSTCOMBAT_RUNTIME_REQUIRED');
       await lootRuntime.ensureEncounterId({db:state.db});
     }
-    const claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:(units)=>{runEncounterEndAll(units);if(normalized!=="cancelled")halvePlayerSanity(units);}});
+    let claimed;
+    try{
+      claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:(units)=>{runEncounterEndAll(units);if(normalized!=="cancelled")halvePlayerSanity(units);}});
+    }catch(error){
+      error.encounterEndStage='claim';
+      console.error('[Encounter end] Claim failed',error);
+      throw error;
+    }
     const alreadyEnded=claimed.estado.phase==='ENDED';
     if(!alreadyEnded)claimed.combatMetrics=claimed.mvpCheckpoint?.metrics||claimed.combatMetrics||{};
     let endStage='sanity',committed=alreadyEnded;
