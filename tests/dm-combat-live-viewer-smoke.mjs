@@ -11,11 +11,11 @@ const battleBootstrap=read('Battle-viewer.html');
 const combatEntry=read('combate.html');
 
 assert.ok(dmPanel.includes('id="tab-combate"'),'actual pantalla_dm Combat pane must exist');
-assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261102-dm-end-recovery-2"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
+assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261102-dm-end-feedback-1"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
 assert.ok(battleBootstrap.includes("asset+'?v=20261102-dm-end-recovery-2'"),'packed Battle must refresh DM console, XP, session and loot together');
 assert.ok(combatEntry.includes('js/combat-entry.js?v=20261102-dm-end-recovery-2'),'standalone Combat entry must refresh recovery UI');
 assert.ok(dmPanel.includes('js/combat-session-lifecycle.js?v=20261102-dm-end-recovery-2'),'DM page must not reuse previous session lifecycle');
-assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261102-dm-end-recovery-2'"),'real DM bootstrap must load the live Battle bridge');
+assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261102-dm-end-feedback-1'"),'real DM bootstrap must load the live Battle bridge');
 assert.ok(bridge.includes("getElementById?.('tab-combate')"),'bridge must mount into the exact Combat tab shown to the DM');
 assert.ok(bridge.includes('src="about:blank"'),'DM Battle iframe must not initialize its renderer while the Combat tab is hidden');
 assert.ok(bridge.includes("BATTLE_SRC='Battle-viewer.html?v=20261102-dm-end-recovery-2'"),'visible DM Combat tab must load the same canonical Battle Viewer as Players');
