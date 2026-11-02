@@ -2,8 +2,8 @@
   'use strict';
   if(global.LuminousDmCombatLiveViewer)return;
 
-  const state={mounted:false,host:null,panel:null,frame:null,status:null,observer:null,tabButton:null,retryTimers:[],loaded:false,loading:false,visualFallback:false,lastProbe:null,lastBootstrap:null,encounterModal:null,encounterBusy:false};
-  const BATTLE_SRC='Battle-viewer.html';
+  const state={mounted:false,host:null,panel:null,frame:null,status:null,observer:null,tabButton:null,retryTimers:[],loaded:false,loading:false,visualFallback:false,lastProbe:null,lastBootstrap:null,encounterModal:null,encounterBusy:false,returningToTheatre:false};
+  const BATTLE_SRC='Battle-viewer.html?v=20261102-dm-end-recovery-2';
 
   function combatTab(){return global.document?.getElementById?.('tab-combate')||null}
   function setStatus(text,bad=false){
@@ -225,6 +225,56 @@
     if(endButton)endButton.disabled=state.encounterBusy;
   }
 
+  function setReturnPending(pending){
+    state.returningToTheatre=Boolean(pending);
+    const button=global.document?.getElementById?.('dm-combat-end-encounter');
+    if(button)button.textContent=state.returningToTheatre?'VOLVER A TEATRO':'END ENCOUNTER';
+  }
+  async function completeTheatreReturn(){
+    try{
+      const db=global.firebase?.database?.();
+      if(!db?.ref)throw Error('DATABASE_NOT_READY');
+      // Never bypass award or result receipts: only an ENDED encounter
+      // can use the lightweight transition without running payouts.
+      const result=(await db.ref('campaña/combate/estado').once('value')).val();
+      if(result?.phase!=='ENDED'||result?.active!==false)throw Error('RESULT_NOT_CONFIRMED');
+      await db.ref('campaña/estado_mundo/instancia_activa').set('teatro');
+      setReturnPending(false);
+      setStatus('RESULTADO CONFIRMADO · REGRESANDO A TEATRO');
+      const modal=state.encounterModal;
+      if(modal){modal.hidden=true;modal.style.display='none'}
+      return true;
+    }catch(error){
+      console.error('[DM Combat Live Viewer] Theatre return failed',error);
+      setReturnPending(true);
+      setStatus('El resultado está guardado. No se pudo volver a Teatro; inténtalo de nuevo.',true);
+      return false;
+    }
+  }
+  async function returnToTheatre(){
+    if(state.encounterBusy)return false;
+    setEncounterBusy(true);
+    try{return await completeTheatreReturn()}finally{setEncounterBusy(false)}
+  }
+  async function openEncounterOrReturn(){
+    if(state.encounterBusy)return false;
+    if(state.returningToTheatre)return returnToTheatre();
+    try{
+      const db=global.firebase?.database?.();
+      if(db?.ref){
+        const result=(await db.ref('campaña/combate/estado').once('value')).val();
+        if(result?.phase==='ENDED'&&result?.active===false){
+          setReturnPending(true);
+          return returnToTheatre();
+        }
+      }
+    }catch(error){
+      console.error('[DM Combat Live Viewer] Encounter state read failed',error);
+      setStatus('No se pudo consultar el encuentro. Revisa la conexión e inténtalo de nuevo.',true);
+      return false;
+    }
+    return openEncounterModal();
+  }
   function ensureEncounterModal(){
     if(state.encounterModal&&global.document?.getElementById?.('dm-combat-end-modal'))return state.encounterModal;
     const doc=global.document;if(!doc?.body)return null;
@@ -297,6 +347,11 @@
       return true;
     }catch(error){
       console.error('[DM Combat Live Viewer] Encounter end failed',error);
+      if(error?.encounterEndCommitted){
+        setReturnPending(true);
+        setStatus('RESULTADO GUARDADO · VOLVIENDO A TEATRO…');
+        return await completeTheatreReturn();
+      }
       setStatus(error.userMessage||'No se pudo finalizar el encuentro. Vuelve a intentarlo.',true);
       openEncounterModal();
       return false;
@@ -312,14 +367,14 @@
     if(!panel){
       panel=global.document.createElement('section');panel.id='dm-combat-live-battle';panel.dataset.canonicalBattleViewer='true';
       panel.style.cssText='width:min(1600px,calc(100% - 24px));max-width:1600px;align-self:center;box-sizing:border-box;margin:20px auto 24px;border:1px solid #7c6338;background:#050507;box-shadow:0 12px 30px rgba(0,0,0,.55);overflow:hidden;';
-      panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#0d0b09;border-bottom:1px solid #4d4029;color:#ddb765;font:700 12px system-ui;letter-spacing:.08em"><span style="flex:1">BATTLE LIVE · DM</span><span id="dm-combat-live-status" style="color:#c7b98f;font-weight:600;letter-spacing:0">ABRE COMBATE PARA CARGAR BATTLE</span><button id="dm-combat-end-encounter" type="button" style="border:1px solid #a94c42;background:#24100e;color:#ffd0ca;padding:6px 11px;cursor:pointer;font-weight:800;letter-spacing:.06em">END ENCOUNTER</button><button id="dm-combat-live-reload" type="button" style="border:1px solid #77613b;background:#18130c;color:#e4c981;padding:5px 9px;cursor:pointer">RECARGAR</button></div><iframe id="dm-combat-live-frame" title="Battle Viewer DM" src="about:blank" data-battle-src="Battle-viewer.html" style="display:block;width:100%;height:clamp(560px,72vh,900px);min-height:560px;border:0;background:#050010;visibility:visible" allow="autoplay"></iframe>`;
+      panel.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#0d0b09;border-bottom:1px solid #4d4029;color:#ddb765;font:700 12px system-ui;letter-spacing:.08em"><span style="flex:1">BATTLE LIVE · DM</span><span id="dm-combat-live-status" style="color:#c7b98f;font-weight:600;letter-spacing:0">ABRE COMBATE PARA CARGAR BATTLE</span><button id="dm-combat-end-encounter" type="button" style="border:1px solid #a94c42;background:#24100e;color:#ffd0ca;padding:6px 11px;cursor:pointer;font-weight:800;letter-spacing:.06em">END ENCOUNTER</button><button id="dm-combat-live-reload" type="button" style="border:1px solid #77613b;background:#18130c;color:#e4c981;padding:5px 9px;cursor:pointer">RECARGAR</button></div><iframe id="dm-combat-live-frame" title="Battle Viewer DM" src="about:blank" data-battle-src="Battle-viewer.html?v=20261102-dm-end-recovery-2" style="display:block;width:100%;height:clamp(560px,72vh,900px);min-height:560px;border:0;background:#050010;visibility:visible" allow="autoplay"></iframe>`;
       host.insertBefore(panel,host.firstChild);
     }
     state.panel=panel;state.frame=global.document.getElementById('dm-combat-live-frame');state.status=global.document.getElementById('dm-combat-live-status');
     const reloadButton=global.document.getElementById('dm-combat-live-reload');
     if(reloadButton&&!reloadButton.dataset.bound){reloadButton.dataset.bound='true';reloadButton.addEventListener('click',reload)}
     const endEncounterButton=global.document.getElementById('dm-combat-end-encounter');
-    if(endEncounterButton&&!endEncounterButton.dataset.bound){endEncounterButton.dataset.bound='true';endEncounterButton.addEventListener('click',openEncounterModal)}
+    if(endEncounterButton&&!endEncounterButton.dataset.bound){endEncounterButton.dataset.bound='true';endEncounterButton.addEventListener('click',openEncounterOrReturn)}
     ensureEncounterModal();
     if(state.frame&&!state.frame.dataset.dmLiveBound){
       state.frame.dataset.dmLiveBound='true';
@@ -357,6 +412,6 @@
   function stop(){clearRetries();state.observer?.disconnect?.();state.observer=null}
 
   global.addEventListener('beforeunload',stop,{once:true});
-  global.LuminousDmCombatLiveViewer=Object.freeze({version:'1.5.0-encounter-controls',state,start,mount,ensureLoaded,bootstrapState,visibleNode,childSurface,forceDomFallback,nudgeBattle,scheduleNudges,reload,isVisible,encounterApi,ensureEncounterModal,openEncounterModal,closeEncounterModal,finishEncounterFromUi});
+  global.LuminousDmCombatLiveViewer=Object.freeze({version:'1.5.0-encounter-controls',state,start,mount,ensureLoaded,bootstrapState,visibleNode,childSurface,forceDomFallback,nudgeBattle,scheduleNudges,reload,isVisible,encounterApi,ensureEncounterModal,openEncounterModal,closeEncounterModal,finishEncounterFromUi,returnToTheatre,openEncounterOrReturn});
   start();
 })(window);
