@@ -1,3 +1,51 @@
+/* Shared dock: quick actions share a layout instead of overlapping fixed corners. */
+#luminous-quick-action-dock {
+  position: fixed;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 2145000;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  pointer-events: none;
+}
+#luminous-quick-action-dock > .luminous-audio-floating,
+#luminous-quick-action-dock > #limbus-session-mvp-action {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  min-height: 46px;
+  max-width: 100%;
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+}
+#luminous-quick-action-dock > [hidden] { display: none !important; }
+#luminous-quick-action-dock > #limbus-session-mvp-action:focus-visible {
+  outline: 2px solid #f5d995;
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  #luminous-quick-action-dock {
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    gap: 8px;
+  }
+  #luminous-quick-action-dock > #limbus-session-mvp-action { padding: 9px 12px; font-size: 12px; }
+}
+@media (max-height: 440px) and (orientation: landscape) {
+  #luminous-quick-action-dock { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+}
+
 /* Shared player/director audio controls, responsive for mobile and desktop (TX-01). */
 .luminous-audio-menu-entry .luminous-audio-symbol{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;flex:0 0 40px;font-size:29px;color:#d7b87c;line-height:1}
 .luminous-audio-floating{position:fixed;right:max(14px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:2100000000;display:flex;align-items:center;gap:8px;min-height:46px;min-width:46px;padding:8px 14px;border:1px solid #b49761;border-radius:4px;background:#171417;color:#f3e5c9;font:600 14px system-ui,sans-serif;box-shadow:0 6px 22px #000b;cursor:pointer}
