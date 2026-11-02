@@ -27,10 +27,15 @@
  let db,uid='',playerId='',dm=false,current=null,closedId='',dialog,shade,action,roster=[],selected=new Set(),error='',ownVote=null,offCurrent=null,offVote=null,authGeneration=0,setupMode=false,previousFocus=null;
  const renderPortrait=(c)=>c.portrait?'<img src="'+escape(c.portrait)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">':'';
  function bindButton(button,handler){button.addEventListener('click',()=>Promise.resolve().then(handler).catch(e=>{error=API().errorMessage(e);render(setupMode?'setup':undefined);}));}
- function ensure(){
+ function quickDock(){
+   let dock=document.getElementById('luminous-quick-action-dock');
+   if(!dock){dock=document.createElement('nav');dock.id='luminous-quick-action-dock';dock.setAttribute('aria-label','Acciones rápidas');document.body.appendChild(dock);}
+   return dock;
+  }
+  function ensure(){
   if(!global.document?.body)return false;
   if(!global.document.getElementById('limbus-session-mvp-style')){const s=document.createElement('style');s.id='limbus-session-mvp-style';s.textContent=style;document.head.appendChild(s);}
-  if(!action){action=document.createElement('button');action.id='limbus-session-mvp-action';action.type='button';action.textContent='MVP DE SESIÓN';action.hidden=true;document.body.appendChild(action);bindButton(action,()=>{if(current&&['voting','closing','coins','awarding'].includes(current.phase)){closedId='';setupMode=false;render();}else return openSetup();});}
+  if(!action){action=document.createElement('button');action.id='limbus-session-mvp-action';action.type='button';action.textContent='MVP DE SESIÓN';action.hidden=true;quickDock().appendChild(action);bindButton(action,()=>{if(current&&['voting','closing','coins','awarding'].includes(current.phase)){closedId='';setupMode=false;render();}else return openSetup();});}
   if(!shade){shade=document.createElement('div');shade.id='limbus-session-mvp-shade';shade.hidden=true;shade.setAttribute('role','presentation');dialog=document.createElement('section');dialog.id='limbus-session-mvp-dialog';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label','MVP de sesión');shade.appendChild(dialog);document.body.appendChild(shade);shade.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();close();return;}if(event.key!=='Tab')return;const items=[...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),summary')];if(!items.length){event.preventDefault();return;}const first=items[0],last=items.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}});}
   return true;
  }
