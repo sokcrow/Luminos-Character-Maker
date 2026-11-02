@@ -113,9 +113,13 @@
   }
   function endErrorMessage(error){
     const message=String(error?.message||''),code=String(error?.code||'').toLowerCase();
+    if(error?.encounterEndCommitted)return 'El resultado del combate ya se guardó, pero no se pudo volver a Teatro. Usa «Volver a Teatro» para continuar sin repetir recompensas.';
     if(message.startsWith('Espera a que termine la ronda')||message.startsWith('Ya se está finalizando'))return message;
     if(code.includes('permission'))return 'Firebase rechazó guardar los resultados del encuentro. Publica las reglas actualizadas de combate y botín y vuelve a finalizar.';
+    if(message.startsWith('LOOT_LIVE_DEPENDENCY_FAILED:')||message==='LOOT_LIVE_RUNTIME_DEPENDENCIES_INCOMPLETE')return 'El módulo de botín no terminó de cargar. Comprueba tu conexión y vuelve a intentar el cierre.';
     if(message.startsWith('LOOT_'))return 'No se pudo preparar el botín. Puedes volver a finalizar el encuentro sin repetir sus efectos.';
+    if(message.startsWith('ENCOUNTER_XP_PARTICIPANT_NOT_FOUND:'))return 'Falta la ficha guardada de un jugador que participó. Debe recuperarse para entregar su experiencia antes de cerrar el combate.';
+    if(message.startsWith('ENCOUNTER_XP_'))return 'No se pudo confirmar la experiencia. Vuelve a finalizar: el sistema no repartirá XP dos veces.';
     if(message==='DM_ONLY')return 'Entra con la cuenta del DM para finalizar este encuentro.';
     if(code.includes('network')||code.includes('unavailable'))return 'No se pudo conectar. Revisa tu conexión y vuelve a finalizar el encuentro.';
     return 'No se pudo finalizar el encuentro. Vuelve a intentarlo; los resultados confirmados se conservan.';
@@ -175,6 +179,11 @@
         || receipt.participantCount!==xpAward.participantCount))
         throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
       const npcIds=xpAward.npcIds||[];
+      const missingNpcIds=xpAward.missingNpcIds||[];
+      if(!Array.isArray(npcIds)||!Array.isArray(missingNpcIds)
+        || missingNpcIds.some(id=>!validId(id))
+        || new Set(missingNpcIds).size!==missingNpcIds.length
+        || missingNpcIds.some(id=>npcIds.includes(id)))throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
       const npcReceipts=await Promise.all(npcIds.map(id=>db.ref('campaña/base_datos_npcs/'+id+'/encounterXpAwards/'+xpAward.encounterId).once('value').then(s=>s.val())));
       if(npcReceipts.some((receipt,index)=>!receipt||receipt.xp!==(xpAward.awards||[]).find(row=>row.kind==='npc'&&row.id===npcIds[index])?.xp
         ||receipt.totalXp!==xpAward.totalXp||receipt.participantCount!==xpAward.participantCount))throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
@@ -188,7 +197,7 @@
           || expected.length!==actual.length
           || expected.some((id,index)=>id!==actual[index]))return;
         const expectedNpcs=global.LuminousCombatXpRuntime.eligibleVictoryNpcs(raw);
-        const actualNpcs=[...(xpAward.npcIds||[])].sort();
+        const actualNpcs=[...(xpAward.npcIds||[]),...(xpAward.missingNpcIds||[])].sort();
         if(expectedNpcs.length!==actualNpcs.length||expectedNpcs.some((id,index)=>id!==actualNpcs[index]))return;
       }
       const finalEncounter={...raw,combatMetrics:combatMetrics||raw.combatMetrics||{}};
@@ -196,7 +205,7 @@
       const roster=global.LuminousCombatMvpRuntime?.eligibleActors(raw)||[];
       const resultRoster=roster.map(a=>({id:a.id,kind:a.kind,name:a.name,portrait:a.portrait,level:a.level,unitId:a.unitId}));
       const rewardRows=result==='victory'?(xpAward?.awards||[]).map(a=>({id:a.kind+':'+a.id,xp:a.xp,baseXp:a.baseXp,bonusXp:a.bonusXp})):resultRoster.map(a=>({id:a.id,xp:0,baseXp:0,bonusXp:0}));
-      return {...raw,combatMetrics:finalEncounter.combatMetrics,estado:{...raw.estado,mvp, resultRoster, rewardRows,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now(),...(result==='victory'?{xpAward:{encounterId:xpAward.encounterId,totalXp:xpAward.totalXp,participantCount:xpAward.participantCount,xpPerParticipant:xpAward.xpPerParticipant,remainderXp:xpAward.remainderXp,missingCr:xpAward.missingCr||[],npcIds:xpAward.npcIds||[]}}:{})}};
+      return {...raw,combatMetrics:finalEncounter.combatMetrics,estado:{...raw.estado,mvp, resultRoster, rewardRows,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now(),...(result==='victory'?{xpAward:{encounterId:xpAward.encounterId,totalXp:xpAward.totalXp,participantCount:xpAward.participantCount,xpPerParticipant:xpAward.xpPerParticipant,remainderXp:xpAward.remainderXp,missingCr:xpAward.missingCr||[],npcIds:xpAward.npcIds||[],missingNpcIds:xpAward.missingNpcIds||[]}}:{})}};
     });
     if(!response.committed)throw Error('El encuentro cambió antes de confirmar el resultado.');
     return response.snapshot.val().estado;
