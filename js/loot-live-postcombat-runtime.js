@@ -126,7 +126,7 @@
       script.async = false;
       script.dataset.lootLiveDependency = "true";
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error(`LOOT_LIVE_DEPENDENCY_FAILED:${src}`));
+      script.onerror = () => { script.remove(); reject(new Error(`LOOT_LIVE_DEPENDENCY_FAILED:${src}`)); };
       global.document.head.appendChild(script);
     });
   }
@@ -143,7 +143,7 @@
         throw new Error("LOOT_LIVE_RUNTIME_DEPENDENCIES_INCOMPLETE");
       }
       return true;
-    })();
+    })().catch(error => { dependencyPromise = null; throw error; });
     return dependencyPromise;
   }
 

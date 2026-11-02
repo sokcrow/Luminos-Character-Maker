@@ -337,15 +337,23 @@
     let plan = (await planRef.once('value')).val();
     if (!plan) {
       const participantIds = eligibleVictoryPlayers(encounter);
-      const npcIds = eligibleVictoryNpcs(encounter);
+      const candidateNpcIds = eligibleVictoryNpcs(encounter);
       const mvp = global.LuminousCombatMvpRuntime?.selectMvp(encounter) || null;
-      const recipients = [
+      const candidates = [
         ...participantIds.map(id => ({ kind: 'player', id, path: PLAYER_ROOT + '/' + id })),
-        ...npcIds.map(id => ({ kind: 'npc', id, path: npcRecordPath(id) }))
+        ...candidateNpcIds.map(id => ({ kind: 'npc', id, path: npcRecordPath(id) }))
       ];
-      const records = await Promise.all(recipients.map(row => db.ref(row.path).once('value').then(s => s.val())));
-      if (records.some(record => !record || typeof record !== 'object'))
-        throw Error('ENCOUNTER_XP_PARTICIPANT_NOT_FOUND');
+      const records = await Promise.all(candidates.map(row => db.ref(row.path).once('value').then(s => s.val())));
+      // Deployed allied NPCs may carry a legacy npcId without an actual
+      // persistent record. They remain in the result roster, but cannot be
+      // paid into a nonexistent character. Freeze that exclusion in the plan.
+      // Never silently skip a real Player: their XP must remain recoverable.
+      const absent = candidates.filter((row, index) => !records[index] || typeof records[index] !== 'object');
+      const missingPlayerIds = absent.filter(row => row.kind === 'player').map(row => row.id);
+      if (missingPlayerIds.length) throw Error('ENCOUNTER_XP_PARTICIPANT_NOT_FOUND:' + missingPlayerIds.join(','));
+      const missingNpcIds = absent.filter(row => row.kind === 'npc').map(row => row.id);
+      const npcIds = candidateNpcIds.filter(id => !missingNpcIds.includes(id));
+      const recipients = candidates.filter(row => row.kind === 'player' || !missingNpcIds.includes(row.id));
       const { enemies, missingCr } = await enemyDefinitionsForVictory(db, encounter);
       const result = resolveEncounterXp({
         enemies, participants: recipients.map(row => ({ id: row.kind + ':' + row.id })),
@@ -353,12 +361,33 @@
         fixedEncounterXp: estado.fixedEncounterXp ?? estado.experience?.fixedEncounterXp ?? 0,
         bonusXp: estado.bonusXp ?? estado.experience?.bonusXp ?? 0
       });
-      const proposal = {encounterId,participantIds,npcIds,mvp,recipients,result,missingCr};
+      const proposal = {encounterId,participantIds,npcIds,missingNpcIds,mvp,recipients,result,missingCr};
       const tx = await cachedTransaction(planRef, old => old || proposal);
       plan = tx.snapshot.val();
       if (!plan) throw Error('ENCOUNTER_XP_PLAN_REQUIRED');
     }
+    // Recover old frozen plans created before orphan-NPC filtering was added.
+    // Keep the original divisor, amounts, MVP and any paid player receipts:
+    // an interrupted victory must never recompute or double-award XP.
+    const plannedNpcs = (plan.recipients || []).filter(row => row.kind === 'npc');
+    if (plannedNpcs.length) {
+      const storedNpcs = await Promise.all(plannedNpcs.map(row => db.ref(row.path).once('value').then(s => s.val())));
+      const orphaned = plannedNpcs.filter((row, index) => !storedNpcs[index] || typeof storedNpcs[index] !== 'object').map(row => row.id);
+      if (orphaned.length) {
+        const repaired = await cachedTransaction(planRef, current => {
+          if (!current) return;
+          const absent = (current.recipients || []).filter(row => row.kind === 'npc' && orphaned.includes(row.id)).map(row => row.id);
+          if (!absent.length) return;
+          return { ...current,
+            npcIds: (current.npcIds || []).filter(id => !absent.includes(id)),
+            missingNpcIds: [...new Set([...(current.missingNpcIds || []), ...absent])],
+            recipients: (current.recipients || []).filter(row => row.kind !== 'npc' || !absent.includes(row.id)) };
+        });
+        plan = repaired.snapshot.val() || (await planRef.once('value')).val();
+      }
+    }
     const {participantIds = [], npcIds = [], mvp = null, recipients = [], result, missingCr = []} = plan;
+    const missingNpcIds = Array.isArray(plan.missingNpcIds) ? plan.missingNpcIds : [];
     const awards = [];
     for (const recipient of recipients) {
       const { id, kind, path } = recipient;
@@ -388,7 +417,7 @@
     return { encounterId, totalXp: result.totalXp, enemyXp: result.enemyXp,
       fixedEncounterXp: result.fixedEncounterXp, bonusXp: result.bonusXp,
       participantCount: result.participantCount, xpPerParticipant: result.xpPerParticipant,
-      remainderXp: result.remainderXp, participantIds, npcIds, mvp, missingCr, awards };
+      remainderXp: result.remainderXp, participantIds, npcIds, missingNpcIds, mvp, missingCr, awards };
   }
 
   function applyXpMetadata(unit = {}, input = {}) {

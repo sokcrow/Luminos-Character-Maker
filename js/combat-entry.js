@@ -17,17 +17,19 @@
   function render(){
     const authorized=state.dm||state.player;
     const ended=state.encounter?.estado?.phase==='ENDED'||state.encounter?.estado?.active===false;
+    const canReturnToTheatre=state.dm&&ended&&state.instance==='combate';
     const showingResult=ended&&state.instance==='combate'&&['result','blackout'].includes(state.encounter?.estado?.transition);
     const participating=global.LuminousCombatParticipants?.includes(state.encounter.combatants,{uid:state.uid,playerId:state.playerId})===true||Boolean(state.playerId&&state.encounter.participants?.[state.playerId]===true);
     const active=authorized&&state.instance==='combate'&&(state.dm||participating)&&(!ended||showingResult)&&Boolean(state.encounter?.estado);
     $('combat-entry-bar').hidden=!state.uid;
     $('combat-entry-start').hidden=!state.dm;
-    $('combat-entry-end').hidden=!state.dm||!active||ended;
+    $('combat-entry-end').hidden=!canReturnToTheatre&&(!state.dm||!active||ended);
     $('combat-entry-open').hidden=!state.dm||active;
     $('combat-entry-presentation-label').hidden=!state.dm||!active||ended;
     const locked=api.blocked(state.encounter)||showingResult;
     $('combat-entry-start').disabled=state.busy||!state.connected||locked;
-    $('combat-entry-end').disabled=state.busy||!state.connected||(locked&&state.encounter?.estado?.phase!=='ENDING');
+    $('combat-entry-end').disabled=state.busy||!state.connected||(!canReturnToTheatre&&locked&&state.encounter?.estado?.phase!=='ENDING');
+    $('combat-entry-end').textContent=canReturnToTheatre?'Volver a Teatro':'Finalizar encuentro';
     $('combat-entry-open').disabled=state.busy||!state.connected;
     $('combat-entry-presentation').disabled=state.busy||!state.connected||locked;
     $('combat-entry-presentation').value=state.encounter?.estado?.presentation==='simple'?'simple':'full';
@@ -55,7 +57,12 @@
   catch(error){say('No se pudo conectar con Luminous. Recarga la página para volver a intentarlo.',true);console.error('[Combat entry]',error);return;}
   $('combat-entry-login').onsubmit=async event=>{event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;try{const result=await auth.signInWithEmailAndPassword($('combat-entry-email').value.trim(),$('combat-entry-password').value);await enterSession(result.user);$('combat-entry-password').value='';}catch(error){say(error.code==='auth/network-request-failed'?'No se pudo conectar. Revisa tu conexión.':'No se pudo iniciar sesión. Revisa tu correo y contraseña.',true);}finally{button.disabled=false;}};
   $('combat-entry-open').onclick=$('combat-entry-start').onclick=()=>action(()=>api.start({db,uid:state.uid}));
-  $('combat-entry-end').onclick=()=>{$('combat-entry-menu').open=false;$('combat-entry-end-dialog').showModal();};
+  $('combat-entry-end').onclick=()=>{
+    if(state.dm&&state.instance==='combate'&&(state.encounter?.estado?.phase==='ENDED'||state.encounter?.estado?.active===false)){
+      return action(()=>db.ref(api.INSTANCE).set('teatro'));
+    }
+    $('combat-entry-menu').open=false;$('combat-entry-end-dialog').showModal();
+  };
   $('combat-entry-confirm-end').onclick=()=>action(async()=>{
     const consoleApi=$('combat-entry-view')?.contentWindow?.LuminousBattleViewerDmConsole074;
     $('combat-entry-end-dialog').close();

@@ -462,9 +462,17 @@
 
     const session=global.LuminousCombatSession;
     if(!session?.claimEnd)throw new Error('Actualiza el visor antes de finalizar el encuentro.');
+    // A legacy Encounter may have no ID yet. Assign it before claiming the
+    // closure so the claimed snapshot and XP/loot receipts share one identity.
+    if(normalized==='victory'){
+      const lootRuntime=global.LuminousLootLivePostCombatRuntime;
+      if(!lootRuntime?.ensureEncounterId)throw Error('LOOT_LIVE_POSTCOMBAT_RUNTIME_REQUIRED');
+      await lootRuntime.ensureEncounterId({db:state.db});
+    }
     const claimed=await session.claimEnd({db:state.db,uid:currentUid(),result:normalized,applyEffects:(units)=>{runEncounterEndAll(units);if(normalized!=="cancelled")halvePlayerSanity(units);}});
     const alreadyEnded=claimed.estado.phase==='ENDED';
     if(!alreadyEnded)claimed.combatMetrics=claimed.mvpCheckpoint?.metrics||claimed.combatMetrics||{};
+    let endStage='sanity',committed=alreadyEnded;
     try{
     const resolved={combatants:claimed.combatants};
     if (!alreadyEnded && normalized !== "cancelled") {
@@ -472,6 +480,7 @@
     }
 
     let lootFinalization = null;
+    endStage='loot';
     if (!alreadyEnded && normalized === "victory") {
       const lootLive = global.LuminousLootLivePostCombatRuntime;
       if (!lootLive?.finalizeEncounterLoot) throw new Error("LOOT_LIVE_POSTCOMBAT_RUNTIME_REQUIRED");
@@ -494,6 +503,7 @@
     // XP is delivered only for Victory, and only after loot is safely finalized.
     // Each player receipt is an atomic Firebase transaction keyed by encounterId.
     let xpAward = null;
+    endStage='experience';
     if (!alreadyEnded && normalized === "victory") {
       const xpRuntime = global.LuminousCombatXpRuntime;
       if (!xpRuntime?.awardVictoryXp) throw Error("ENCOUNTER_XP_RUNTIME_REQUIRED");
@@ -506,7 +516,9 @@
       });
     }
 
+    endStage='result';
     if(!alreadyEnded)await session.commitEnd({db:state.db,uid:currentUid(),result:normalized,token:claimed.estado.ending.token,xpAward,combatMetrics:claimed.combatMetrics});
+    committed=true;
 
     global.LuminousCombatEncounterLifecycle?.showResult?.(normalized, { endedAt: Date.now(), xpAward });
     appendLog(`${label} · RESULT SEAL`, { result: normalized });
@@ -515,6 +527,7 @@
     // Preserve the finished battlefield behind the result seal. Do not
     // replace the scene with an opaque blackout before returning to Theatre.
     await waitForResultDisplay(displayMs);
+    endStage='theatre';
     await state.db.ref(ROOTS.instance).set("teatro");
 
     return {
@@ -527,7 +540,10 @@
       nextInstance: "teatro",
     };
     }catch(error){
-      await session.failEnd({db:state.db,uid:currentUid(),token:claimed.estado.ending?.token}).catch(failure=>console.error('[Encounter end recovery]',failure));
+      error.encounterEndStage=endStage;
+      error.encounterEndCommitted=committed;
+      console.error('[Encounter end]',{stage:endStage,committed,reason:error?.message,code:error?.code},error);
+      if(!committed)await session.failEnd({db:state.db,uid:currentUid(),token:claimed.estado.ending?.token}).catch(failure=>console.error('[Encounter end recovery]',failure));
       throw error;
     }
   }
