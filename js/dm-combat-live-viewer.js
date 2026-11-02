@@ -2,11 +2,13 @@
   'use strict';
   if(global.LuminousDmCombatLiveViewer)return;
 
-  const state={mounted:false,host:null,panel:null,frame:null,status:null,observer:null,tabButton:null,retryTimers:[],loaded:false,loading:false,visualFallback:false,lastProbe:null,lastBootstrap:null,encounterModal:null,encounterBusy:false,returningToTheatre:false};
+  const state={mounted:false,host:null,panel:null,frame:null,status:null,observer:null,tabButton:null,retryTimers:[],loaded:false,loading:false,visualFallback:false,lastProbe:null,lastBootstrap:null,encounterModal:null,encounterBusy:false,returningToTheatre:false,endFailure:null};
   const BATTLE_SRC='Battle-viewer.html?v=20261102-dm-end-recovery-2';
 
   function combatTab(){return global.document?.getElementById?.('tab-combate')||null}
   function setStatus(text,bad=false){
+    // A fresh observer update must not erase the last closing failure.
+    if(state.endFailure&&!bad)return;
     const node=state.status||global.document?.getElementById?.('dm-combat-live-status');
     if(!node)return;
     node.textContent=text;
@@ -223,6 +225,109 @@
     }
     const endButton=global.document?.getElementById?.('dm-combat-end-encounter');
     if(endButton)endButton.disabled=state.encounterBusy;
+  }
+
+  function endFailureDetails(error, stageOverride){
+    const raw=String(error?.message||'');
+    const code=String(error?.code||'').toLowerCase();
+    const stage=stageOverride||error?.encounterEndStage||'unknown';
+    const committed=error?.encounterEndCommitted===true||stage==='theatre';
+    const steps={
+      loading:'Cargar el combate',state:'Consultar el encuentro',claim:'Iniciar el cierre',
+      sanity:'Guardar el estado de los personajes',loot:'Preparar el botín',
+      experience:'Repartir experiencia',result:'Confirmar el resultado',theatre:'Regresar a Teatro',
+      unknown:'Finalizar el encuentro'
+    };
+    let reason='',action=committed?'Usa «VOLVER A TEATRO». No vuelvas a repartir recompensas.':'Intenta finalizar de nuevo: los efectos confirmados no se repiten.';
+    if(raw==='RESULT_NOT_CONFIRMED'){
+      reason='El encuentro todavía no tiene un resultado final confirmado.';
+      action='Finaliza el encuentro antes de regresar a Teatro.';
+    }else if(code.includes('permission')||raw==='DM_ONLY'){
+      reason='No tienes autorización para guardar este paso del combate.';
+      action='Usa la cuenta del DM y comprueba los permisos de la campaña.';
+    }else if(code.includes('network')||code.includes('unavailable')||code.includes('disconnected')||
+      /^(NETWORK_UNAVAILABLE|DISCONNECTED|DATABASE_NOT_READY)$/.test(raw)){
+      reason='Se perdió la conexión con la campaña al guardar este paso.';
+      action=committed?'Recupera la conexión y pulsa «VOLVER A TEATRO».':'Comprueba tu conexión y vuelve a intentar el cierre.';
+    }else if(raw.startsWith('Espera a que termine la ronda')){
+      reason='Todavía hay una ronda en ejecución o pendiente de confirmación.';
+      action='Termina la ronda antes de finalizar el combate.';
+    }else if(raw.startsWith('Ya se está finalizando')){
+      reason='Otro cierre de este mismo encuentro sigue en proceso.';
+      action='No cambies el resultado; reintenta cuando termine el cierre anterior.';
+    }else if(raw==='LOOT_LIVE_POSTCOMBAT_RUNTIME_REQUIRED'||raw.startsWith('LOOT_LIVE_DEPENDENCY_FAILED:')||
+      raw==='LOOT_LIVE_RUNTIME_DEPENDENCIES_INCOMPLETE'){
+      reason='El sistema de botín no terminó de cargar.';
+      action='Recarga el visor si es necesario y vuelve a intentar el cierre.';
+    }else if(raw.startsWith('LOOT_')){
+      reason='El botín no pudo guardarse completamente.';
+      action='Reintenta: los cadáveres y objetos ya registrados se conservarán.';
+    }else if(raw.startsWith('ENCOUNTER_XP_PARTICIPANT_NOT_FOUND')){
+      reason='Falta una ficha de participante necesaria para entregar la experiencia.';
+      action='Recupera la ficha faltante antes de intentar repartir XP otra vez.';
+    }else if(raw.startsWith('ENCOUNTER_XP_RECEIPT_MISMATCH')){
+      reason='Una recompensa guardada no coincide con el reparto de experiencia del encuentro.';
+      action='No modifiques la XP manualmente. Es necesario revisar las recompensas ya guardadas.';
+    }else if(raw.startsWith('ENCOUNTER_XP_RECEIPTS_REQUIRED')||raw.startsWith('ENCOUNTER_XP_AWARD_NOT_COMMITTED')){
+      reason='No se pudieron verificar todas las recompensas de experiencia.';
+      action='Reintenta el cierre: la XP ya confirmada no se vuelve a entregar.';
+    }else if(raw.startsWith('ENCOUNTER_XP_')){
+      reason='El reparto de experiencia no pudo completarse.';
+      action='Reintenta el cierre sin modificar la experiencia de los personajes.';
+    }else if(raw==='DM_ONLY'||raw.includes('no está listo')||raw==='DOCUMENT_HEAD_REQUIRED'){
+      reason='El visor de combate todavía no está listo para terminar el encuentro.';
+      action='Recarga el visor de combate y vuelve a intentarlo.';
+    }else if(raw==='El encuentro cambió antes de confirmar el resultado.'){
+      reason='El encuentro cambió mientras se intentaba guardar el resultado.';
+      action='Comprueba que nadie esté ejecutando otra ronda y reintenta.';
+    }else if(stage==='sanity'){
+      reason='No se pudo guardar la cordura final de todos los personajes.';
+    }else if(stage==='loot'){
+      reason='No se pudo completar la preparación del botín.';
+    }else if(stage==='experience'){
+      reason='No se pudo confirmar la experiencia de los participantes.';
+    }else if(stage==='result'){
+      reason='El resultado final todavía no quedó confirmado.';
+    }else if(stage==='claim'){
+      reason='No se pudo iniciar el cierre del encuentro.';
+    }else if(stage==='theatre'){
+      reason='El resultado ya se guardó, pero no se pudo cambiar a Teatro.';
+    }else if(stage==='loading'){
+      reason='El visor todavía no terminó de cargar.';
+      action='Usa «RECARGAR» en la barra de combate y vuelve a intentarlo.';
+    }else if(stage==='state'){
+      reason='No se pudo consultar el estado actual del encuentro.';
+      action='Comprueba la conexión y vuelve a pulsar «END ENCOUNTER».';
+    }else{
+      reason=String(error?.userMessage||'').trim();
+      if(!reason||reason.startsWith('No se pudo finalizar el encuentro.')||reason.startsWith('No se pudo completar la acción.'))
+        reason='La operación se interrumpió sin una causa identificable.';
+      action='Inténtalo otra vez. Si persiste, reporta la etapa indicada; no modifiques las recompensas.';
+    }
+    return {title:committed?'El resultado ya está guardado':'No se pudo finalizar el combate',
+      step:steps[stage]||steps.unknown,reason,action,committed};
+  }
+  function clearEndFailure(){
+    state.endFailure=null;
+    const panel=global.document?.getElementById?.('dm-combat-end-feedback');
+    if(panel){panel.hidden=true;panel.style.display='none'}
+  }
+  function showEndFailure(error,stageOverride){
+    const details=endFailureDetails(error,stageOverride);
+    state.endFailure=details;
+    const modal=ensureEncounterModal();
+    const panel=global.document?.getElementById?.('dm-combat-end-feedback');
+    const doc=global.document;
+    for(const [key,value] of Object.entries({title:details.title,step:'Etapa: '+details.step,
+      reason:'Motivo: '+details.reason,action:'Qué hacer: '+details.action})){
+      const node=doc?.getElementById?.('dm-combat-end-feedback-'+key);
+      if(node)node.textContent=value;
+    }
+    if(panel){panel.hidden=false;panel.style.display='block'}
+    if(modal){modal.hidden=false;modal.style.display='flex'}
+    const short=details.committed?'Resultado guardado · No se pudo regresar a Teatro':'Cierre fallido · '+details.step;
+    setStatus(short,true);
+    return details;
   }
 
   function setReturnPending(pending){
