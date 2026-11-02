@@ -17782,7 +17782,8 @@ function buildOverworldSector(){
 // buildCanal/buildRoom/buildSewer siguen intactos y son la referencia visual.
 // ============================================================
 const buildHorrorApartment=createHorrorApartmentBuilder({
-  THREE,wt,scene,addCollider,interactions,wallOccluders
+  THREE,wt,scene,addCollider,
+  getInteractions:()=>interactions,getWallOccluders:()=>wallOccluders
 });
 const MAP_RENDERER_REGISTRY=Object.freeze({
   horrorApartment:buildHorrorApartment,
