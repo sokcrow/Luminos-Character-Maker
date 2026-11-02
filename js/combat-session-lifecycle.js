@@ -158,7 +158,7 @@
       const recipients=xpAward?.participantIds;
       const npcIds=xpAward?.npcIds||[];
       const missingNpcIds=xpAward?.missingNpcIds||[];
-      const validId=id=>typeof id==='string'&&id.length>0&&!/[.#$/\[\]]/.test(id);
+      const validId=id=>typeof id==='string'&&id.length>0&&![...id].some(ch=>[35,36,46,47,91,93].includes(ch.charCodeAt(0)));
       if(!global.LuminousCombatXpRuntime?.eligibleVictoryPlayers
         || !validId(xpAward?.encounterId)
         || !Array.isArray(recipients)||!Array.isArray(npcIds)||!Array.isArray(missingNpcIds)
@@ -215,71 +215,3 @@
   }
   global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,deploy,participantIndex,claimEnd,commitEnd,failEnd,endErrorMessage,updatePath,updateRoot,canSeal,presentation});
 })(typeof window!=='undefined'?window:globalThis);
-
-
-,'/','[',']'].some(char=>id.includes(char));
-      if(!global.LuminousCombatXpRuntime?.eligibleVictoryPlayers
-        || !validId(xpAward?.encounterId)
-        || !Array.isArray(recipients)
-        || !Array.isArray(npcIds)||!Array.isArray(missingNpcIds)
-        // Newly created plans omit missing NPCs from the divisor. Older frozen
-        // plans retain their original divisor to preserve already-paid awards.
-        || ![recipients.length+npcIds.length,recipients.length+npcIds.length+missingNpcIds.length].includes(xpAward.participantCount)
-        || !Array.isArray(xpAward.npcIds||[])
-        || (xpAward.npcIds||[]).some(id=>!validId(id))
-        || new Set(xpAward.npcIds||[]).size!==(xpAward.npcIds||[]).length
-        || recipients.some(id=>!validId(id))
-        || new Set(recipients).size!==recipients.length
-        || !Number.isSafeInteger(xpAward.xpPerParticipant)
-        || !Number.isFinite(xpAward.totalXp))
-        throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
-      // Verify durable per-player receipts, not merely a client-provided summary.
-      const receipts=await Promise.all(recipients.map(id=>
-        db.ref(`campaña/jugadores/${id}/encounterXpAwards/${xpAward.encounterId}`)
-          .once('value').then(snapshot=>snapshot.val())));
-      if(receipts.some((receipt,index)=>!receipt
-        || receipt.xp !== ((xpAward.awards||[]).find(row=>row.kind==='player'&&row.id===recipients[index])?.xp ?? xpAward.xpPerParticipant)
-        || receipt.totalXp!==xpAward.totalXp
-        || receipt.participantCount!==xpAward.participantCount))
-        throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
-      const npcIds=xpAward.npcIds||[];
-      const missingNpcIds=xpAward.missingNpcIds||[];
-      if(!Array.isArray(npcIds)||!Array.isArray(missingNpcIds)
-        || missingNpcIds.some(id=>!validId(id))
-        || new Set(missingNpcIds).size!==missingNpcIds.length
-        || missingNpcIds.some(id=>npcIds.includes(id)))throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
-      const npcReceipts=await Promise.all(npcIds.map(id=>db.ref('campaña/base_datos_npcs/'+id+'/encounterXpAwards/'+xpAward.encounterId).once('value').then(s=>s.val())));
-      if(npcReceipts.some((receipt,index)=>!receipt||receipt.xp!==(xpAward.awards||[]).find(row=>row.kind==='npc'&&row.id===npcIds[index])?.xp
-        ||receipt.totalXp!==xpAward.totalXp||receipt.participantCount!==xpAward.participantCount))throw Error('ENCOUNTER_XP_RECEIPTS_REQUIRED');
-    }
-    const response=await updateRoot(db,raw=>{
-      if(raw?.estado?.phase!=='ENDING'||raw.estado.ending?.token!==token||raw.estado.ending?.uid!==uid||raw.estado.ending?.result!==result)return;
-      if(result==='victory'){
-        const expected=global.LuminousCombatXpRuntime.eligibleVictoryPlayers(raw);
-        const actual=[...xpAward.participantIds].sort();
-        if(xpAward.encounterId!==raw.estado.encounterId
-          || expected.length!==actual.length
-          || expected.some((id,index)=>id!==actual[index]))return;
-        const expectedNpcs=global.LuminousCombatXpRuntime.eligibleVictoryNpcs(raw);
-        const actualNpcs=[...(xpAward.npcIds||[]),...(xpAward.missingNpcIds||[])].sort();
-        if(expectedNpcs.length!==actualNpcs.length||expectedNpcs.some((id,index)=>id!==actualNpcs[index]))return;
-      }
-      const finalEncounter={...raw,combatMetrics:combatMetrics||raw.combatMetrics||{}};
-      const mvp=(result==='victory'?xpAward?.mvp:null)||global.LuminousCombatMvpRuntime?.selectMvp(finalEncounter)||null;
-      const roster=global.LuminousCombatMvpRuntime?.eligibleActors(raw)||[];
-      const resultRoster=roster.map(a=>({id:a.id,kind:a.kind,name:a.name,portrait:a.portrait,level:a.level,unitId:a.unitId}));
-      const rewardRows=result==='victory'?(xpAward?.awards||[]).map(a=>({id:a.kind+':'+a.id,xp:a.xp,baseXp:a.baseXp,bonusXp:a.bonusXp})):resultRoster.map(a=>({id:a.id,xp:0,baseXp:0,bonusXp:0}));
-      return {...raw,combatMetrics:finalEncounter.combatMetrics,estado:{...raw.estado,mvp, resultRoster, rewardRows,ending:null,completedRound:raw.estado.completedRound||raw.estado.round||1,round:1,phase:'ENDED',active:false,result,outcome:result,transition:'result',endedBy:uid,endedAt:Date.now(),updatedAt:Date.now(),...(result==='victory'?{xpAward:{encounterId:xpAward.encounterId,totalXp:xpAward.totalXp,participantCount:xpAward.participantCount,xpPerParticipant:xpAward.xpPerParticipant,remainderXp:xpAward.remainderXp,missingCr:xpAward.missingCr||[],npcIds:xpAward.npcIds||[],missingNpcIds:xpAward.missingNpcIds||[]}}:{})}};
-    });
-    if(!response.committed)throw Error('El encuentro cambió antes de confirmar el resultado.');
-    return response.snapshot.val().estado;
-  }
-  async function presentation({db,value}){
-    const response=await updateRoot(db,raw=>nextPresentation(raw,value));
-    if(!response.committed)throw Error('Cambia la presentación entre rondas, antes de elegir acciones.');
-    return value;
-  }
-  global.LuminousCombatSession=Object.freeze({ROOT,INSTANCE,blocked,live,nextEncounter,nextEnd,nextPresentation,start,end,deploy,participantIndex,claimEnd,commitEnd,failEnd,endErrorMessage,updatePath,updateRoot,canSeal,presentation});
-})(typeof window!=='undefined'?window:globalThis);
-
-
