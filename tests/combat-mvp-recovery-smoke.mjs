@@ -98,3 +98,33 @@ for(const kind of ['npc','player','none']){
 }
 assert.ok([...sdb.retained.values()].every(n=>n===0),'session listeners are released');
 console.log('Firebase regressions: uncached session transactions and NPC/player/empty payouts passed.');
+
+
+// Orphaned allied NPCs must never strand a real player's confirmed victory.
+const orphanFight={estado:{phase:'ENDING',encounterId:'orphan-reward',fixedEncounterXp:100,ending:{result:'victory',uid:'dm',token:'seal'}},
+ combatants:{hero:{isPlayer:true,playerId:'p',faction:'ally'},helper:{npcId:'ghost',faction:'ally'}}};
+const orphanDb=memory({campaña:{combate:orphanFight,jugadores:{p:{xp:0}}}},{firebase:true});
+const orphanAward=await xp.awardVictoryXp({db:orphanDb,encounter:orphanFight});
+assert.deepEqual(orphanAward.missingNpcIds,['ghost']);
+assert.deepEqual(orphanAward.npcIds,[]);
+assert.equal(orphanAward.xpPerParticipant,100,'new plans cannot divide XP among nonexistent NPC records');
+assert.equal(orphanDb.read('campaña/jugadores/p/xp'),100);
+assert.equal((await lifecycle.commitEnd({db:orphanDb,uid:'dm',result:'victory',token:'seal',xpAward:orphanAward})).phase,'ENDED');
+assert.equal((await xp.awardVictoryXp({db:orphanDb,encounter:orphanDb.read('campaña/combate')})).awards[0].awarded,false);
+
+// Existing partial payouts must retain the original XP divisor and receipt.
+const legacyFight=copy(orphanFight);legacyFight.estado.encounterId='legacy-orphan';
+const legacyResult=xp.resolveEncounterXp({fixedEncounterXp:100,encounterResolved:true,participants:[{id:'player:p'},{id:'npc:ghost'}]});
+const legacyPlan={encounterId:'legacy-orphan',participantIds:['p'],npcIds:['ghost'],mvp:null,
+ recipients:[{kind:'player',id:'p',path:'campaña/jugadores/p'},{kind:'npc',id:'ghost',path:'campaña/base_datos_npcs/ghost'}],
+ result:legacyResult,missingCr:[]};
+const legacyDb=memory({campaña:{combate:{...legacyFight,xpPlans:{'legacy-orphan':legacyPlan}},
+ jugadores:{p:{xp:50,encounterXpAwards:{'legacy-orphan':{xp:50,baseXp:50,mvpBonusXp:0,totalXp:100,participantCount:2}}}}}},{firebase:true});
+const legacyAward=await xp.awardVictoryXp({db:legacyDb,encounter:legacyFight});
+assert.equal(legacyAward.xpPerParticipant,50,'never recompute a frozen partial payout');
+assert.equal(legacyAward.participantCount,2);
+assert.deepEqual(legacyAward.missingNpcIds,['ghost']);
+assert.equal(legacyDb.read('campaña/jugadores/p/xp'),50,'retry must not double-award');
+assert.equal((await lifecycle.commitEnd({db:legacyDb,uid:'dm',result:'victory',token:'seal',xpAward:legacyAward})).phase,'ENDED');
+assert.ok([...legacyDb.retained.values()].every(n=>n===0));
+console.log('Encounter end recovery: orphan NPCs and frozen partial legacy payouts passed.');
