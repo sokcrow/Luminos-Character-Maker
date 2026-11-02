@@ -143,7 +143,7 @@
         throw new Error("LOOT_LIVE_RUNTIME_DEPENDENCIES_INCOMPLETE");
       }
       return true;
-    })();
+    })().catch(error => { dependencyPromise = null; throw error; });
     return dependencyPromise;
   }
 
