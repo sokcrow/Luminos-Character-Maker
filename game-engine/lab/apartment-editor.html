@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forest Horror · Editor de apartamento</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#ecedf0;background:#101319;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;padding:22px}main{max-width:1220px;margin:0 auto}
+h1{font-size:clamp(1.3rem,3vw,2.15rem);margin:0 0 4px}p{color:#abb2c0;line-height:1.45;margin:4px 0 18px}
+.layout{display:grid;grid-template-columns:minmax(320px,1fr) 285px;gap:20px;align-items:start}
+.board-wrapper{border:1px solid #37404e;padding:14px;background:#1b222b;border-radius:14px;overflow:auto}
+.board{position:relative;width:min(100%,840px);aspect-ratio:12/10;margin:auto;border:3px solid #8b95a5;border-bottom:3px dashed #d2a379;
+ background-color:#33353c;background-image:linear-gradient(#ffffff18 1px,transparent 1px),linear-gradient(90deg,#ffffff18 1px,transparent 1px);
+ background-size:calc(100% / 12) calc(100% / 10)}
+.cell{position:absolute;border:0;background:transparent;cursor:crosshair;padding:0}
+.cell:hover{background:#fff2}.piece{position:absolute;border:2px solid #c2c9d0a9;border-radius:5px;color:white;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;font-size:clamp(9px,1.2vw,13px);line-height:1.12;cursor:pointer;overflow:visible;text-shadow:0 1px 2px #000a}
+.piece.selected{outline:3px solid #ffda88;z-index:5}
+.piece .arrow{position:absolute;font-size:24px;line-height:1;font-weight:900;color:#ffd47b;text-shadow:0 2px 5px #000,0 0 3px #000}
+.piece .arrow.north{top:-17px;left:50%;transform:translateX(-50%)}.piece .arrow.south{bottom:-18px;left:50%;transform:translateX(-50%)}
+.piece .arrow.east{right:-17px;top:50%;transform:translateY(-50%)}.piece .arrow.west{left:-17px;top:50%;transform:translateY(-50%)}
+.sidebar{background:#1b222b;border:1px solid #37404e;border-radius:14px;padding:16px;display:grid;gap:12px}
+label{font-size:13px;color:#ccd2db;display:grid;gap:6px}select,button,textarea{font:inherit;border-radius:8px;border:1px solid #526073;background:#28333f;color:#fff;padding:10px}
+button{cursor:pointer}button:hover{background:#39495b}button.primary{background:#315b76;border-color:#4287ad}
+button:disabled{opacity:.4;cursor:default}.btns{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+textarea{width:100%;min-height:120px;resize:vertical;font-family:monospace;font-size:11px}
+.help{font-size:12px;color:#abb2c0;line-height:1.5}.status{border-top:1px solid #37404e;padding-top:12px;color:#d5e8d5;min-height:33px;font-size:13px}
+a{color:#a6d7ff}kbd{border:1px solid #526073;padding:2px 5px;border-radius:4px}
+footer{font-size:12px;color:#a9aebb;margin-top:12px}
+@media(max-width:840px){.layout{grid-template-columns:1fr}.sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}.sidebar>div,.sidebar>label,.sidebar>.status,.sidebar>.help{min-width:0}.board-wrapper{padding:8px}}
+@media(max-width:530px){body{padding:10px}.sidebar{grid-template-columns:1fr}.piece{font-size:9px}.piece .arrow{font-size:17px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Forest Horror · Editor de apartamento</h1>
+<p>Mapa interior 12 × 10 celdas. Cada mueble lleva una flecha que señala su frente. La pared inferior se oculta en la cámara fija para ver el interior.</p>
+<div class="layout">
+<div class="board-wrapper">
+<div id="board" class="board" aria-label="Plano editable del apartamento"></div>
+<footer>↑ Norte · → Este · ↓ Sur · ← Oeste · El frente de los muebles debe apuntar hacia el espacio de uso.</footer>
+</div>
+<div class="sidebar">
+<label>Elegir mueble
+<select id="type"><option value="">Mover / seleccionar</option></select></label>
+<label>Frente del mueble
+<select id="facing"><option value="north">↑ Norte</option><option value="east">→ Este</option><option value="south" selected>↓ Sur</option><option value="west">← Oeste</option></select></label>
+<div class="btns">
+<button id="rotate" type="button">↻ Girar 90°</button>
+<button id="remove" type="button">Eliminar</button>
+</div>
+<div class="btns">
+<button id="reset" type="button">Restaurar plano</button>
+<button id="save" class="primary" type="button">Guardar plano</button>
+</div>
+<button id="play" class="primary" type="button">Abrir en Forest con flechas</button>
+<div class="help">Selecciona un tipo y toca una celda para colocarlo. Toca un mueble para seleccionarlo y usa <kbd>R</kbd> para girar. Para moverlo, elige “Mover / seleccionar” y toca su celda de destino. El editor evita superposiciones y posiciones fuera del piso.</div>
+<label>Plano JSON
+<textarea id="json" spellcheck="false"></textarea></label>
+<div class="btns">
+<button id="export" type="button">Copiar JSON</button>
+<button id="import" type="button">Importar JSON</button>
+</div>
+<div id="status" class="status" role="status" aria-live="polite"></div>
+</div>
+</div>
+</main>
+<script type="module">
+import {
+ APARTMENT_GRID,FURNITURE_TYPES,FACING_ARROW,
+ furnitureFootprint,rotateFurnitureFacing,validateApartmentItems,
+ defaultApartmentLayout,readApartmentLayout,writeApartmentLayout
+} from '../src/world/HorrorApartmentLayout.js';
+const $=id=>document.getElementById(id);
+const board=$('board'),types=$('type');
+let items=readApartmentLayout(),selectedId=null,placingType='',facing='south',serial=0;
+for(const [id,def] of Object.entries(FURNITURE_TYPES)){
+ const o=document.createElement('option');o.value=id;o.textContent=def.label+' ('+def.w+'×'+def.d+')';types.append(o);
+}
+function notify(message,error=false){$('status').textContent=message;$('status').style.color=error?'#ffb3b3':'#c2e5cf';}
+function uniqueId(type){return type+'-'+Date.now().toString(36)+'-'+(++serial);}
+function tryUpdate(next,success){
+ const result=validateApartmentItems(next);
+ if(result.errors.length){notify(result.errors.join(' · '),true);return false;}
+ items=result.items;render();notify(success);return true;
+}
+function commit(){try{items=writeApartmentLayout(items);notify('Plano guardado. Forest leerá estos muebles.');}catch(e){notify(e.message,true);}}
+function drawPiece(item){
+ const fp=furnitureFootprint(item.type,item.facing),def=FURNITURE_TYPES[item.type];
+ const d=document.createElement('button');d.type='button';d.className='piece'+(item.id===selectedId?' selected':'');
+ d.title=def.label+' · frente '+item.facing;
+ d.style.left=(item.col/APARTMENT_GRID.cols*100)+'%';
+ d.style.top=(item.row/APARTMENT_GRID.rows*100)+'%';
+ d.style.width=(fp.w/APARTMENT_GRID.cols*100)+'%';
+ d.style.height=(fp.d/APARTMENT_GRID.rows*100)+'%';
+ d.style.background=def.color;
+ const name=document.createElement('span');name.textContent=def.label;d.append(name);
+ const arrow=document.createElement('span');arrow.className='arrow '+item.facing;arrow.textContent=FACING_ARROW[item.facing];d.append(arrow);
+ d.onclick=e=>{e.stopPropagation();selectedId=item.id;placingType='';types.value='';facing=item.facing;$('facing').value=facing;render();notify('Seleccionado: '+def.label+' · '+FACING_ARROW[facing]+' ('+facing+').');};
+ board.append(d);
+}
+function render(){
+ board.replaceChildren();
+ const cw=100/APARTMENT_GRID.cols,ch=100/APARTMENT_GRID.rows;
+ for(let row=0;row<APARTMENT_GRID.rows;row++)for(let col=0;col<APARTMENT_GRID.cols;col++){
+   const btn=document.createElement('button');btn.type='button';btn.className='cell';
+   btn.style.left=col*cw+'%';btn.style.top=row*ch+'%';btn.style.width=cw+'%';btn.style.height=ch+'%';
+   btn.title='Celda '+col+','+row;btn.setAttribute('aria-label','Colocar en celda '+col+','+row);
+   btn.onclick=()=>{
+     if(placingType){
+       if(tryUpdate([...items,{id:uniqueId(placingType),type:placingType,col,row,facing}], 'Mueble colocado. Pulsa Guardar plano para sincronizar con Forest.')){
+         selectedId=items[items.length-1].id;render();
+       }
+     } else if(selectedId){
+       tryUpdate(items.map(item=>item.id===selectedId?{...item,col,row}:item),'Mueble movido. Pulsa Guardar plano.');
+     } else notify('Selecciona primero un tipo de mueble.');
+   };
+   board.append(btn);
+ }
+ for(const item of items)drawPiece(item);
+ $('json').value=JSON.stringify(items,null,2);
+ $('remove').disabled=!selectedId;
+}
+types.onchange=()=>{placingType=types.value;selectedId=null;render();notify(placingType?'Toca una celda para colocar '+FURNITURE_TYPES[placingType].label+'.':'Selecciona un mueble para moverlo.');};
+$('facing').onchange=()=>{const next=$('facing').value;facing=next;if(selectedId)tryUpdate(items.map(i=>i.id===selectedId?{...i,facing:next}:i),'Frente actualizado.');};
+function rotate(){
+ facing=rotateFurnitureFacing(facing);$('facing').value=facing;
+ if(selectedId){if(!tryUpdate(items.map(i=>i.id===selectedId?{...i,facing}:i),'Mueble girado.')){const item=items.find(i=>i.id===selectedId);if(item){facing=item.facing;$('facing').value=facing;}}}
+ else notify('Orientación de colocación: '+FACING_ARROW[facing]+' '+facing);
+}
+$('rotate').onclick=rotate;
+$('remove').onclick=()=>{if(!selectedId)return;items=items.filter(i=>i.id!==selectedId);selectedId=null;render();notify('Mueble eliminado.');};
+$('save').onclick=commit;
+$('reset').onclick=()=>{items=defaultApartmentLayout();selectedId=null;render();commit();};
+$('export').onclick=async()=>{try{await navigator.clipboard.writeText(JSON.stringify(items,null,2));notify('JSON copiado.');}catch(e){$('json').select();notify('Selecciona el texto JSON para copiarlo.');}};
+$('import').onclick=()=>{try{const imported=JSON.parse($('json').value);selectedId=null;tryUpdate(imported,'Plano importado. Guarda para verlo en Forest.');}catch(e){notify('JSON inválido: '+e.message,true);}};
+$('play').onclick=()=>{commit();window.open('./game/forest-0.3.3.1.html?map=horrorApartment&furnitureArrows=1','_blank','noopener');};
+addEventListener('keydown',e=>{if(/input|textarea|select/i.test(document.activeElement?.tagName||''))return;if(e.key.toLowerCase()==='r')rotate();if(e.key==='Delete'&&selectedId)$('remove').click();});
+render();notify('Plano cargado. Haz clic en cualquier mueble para seleccionar su frente.');
+</script>
+</body>
+</html>
