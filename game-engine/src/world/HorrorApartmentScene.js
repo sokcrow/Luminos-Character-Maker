@@ -6,7 +6,7 @@ import {
 
 // Uses Forest's native renderer, collisions and interaction registry.
 // Furniture origin is its grid footprint CENTER; the model's unrotated FRONT is local +Z.
-export function createHorrorApartmentBuilder({THREE,wt,scene,addCollider,interactions,wallOccluders}){
+export function createHorrorApartmentBuilder({THREE,wt,scene,addCollider,getInteractions,getWallOccluders}){
   const showArrows=new URLSearchParams(location.search).get('furnitureArrows')==='1';
   const mat=(color,metalness=0)=>new THREE.MeshStandardMaterial({color,roughness:.83,metalness});
   const colors={
@@ -100,6 +100,8 @@ export function createHorrorApartmentBuilder({THREE,wt,scene,addCollider,interac
     }
   }
   return function buildHorrorApartment(){
+    // clearMap() replaces these arrays; resolve the live registries at build time.
+    const interactions=getInteractions(),wallOccluders=getWallOccluders();
     const root=new THREE.Group();
     root.name='Forest Horror · Apartamento (cuadrícula 12×10)';
     scene.background=new THREE.Color(0x121822);
