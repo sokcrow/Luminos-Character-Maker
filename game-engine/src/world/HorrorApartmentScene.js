@@ -135,6 +135,8 @@ export function createHorrorApartmentBuilder({THREE,wt,scene,addCollider,getInte
     light.position.set(0,3.6,wt(-.8));root.add(light);
     const lamp=new THREE.PointLight(0xffc28e,.58,wt(5),2);
     lamp.position.set(wt(-3.5),1.4,wt(2));root.add(lamp);
+    // Entry threshold on the south cutaway (not a wall or a blocking door).
+    tileCube(root,1.5,.08,.23,3,.04,z0+rows-.14,colors.trim);
 
     // The same saved grid drives visual furniture, collisions and interactions.
     const placed=readApartmentLayout();
@@ -162,7 +164,7 @@ export function createHorrorApartmentBuilder({THREE,wt,scene,addCollider,getInte
     interactions.push({
       kind:'message',label:'Mirar la puerta',
       title:'Puerta del apartamento',message:'El pasillo está silencioso. No recuerdas haber cerrado esta puerta.',
-      point:new THREE.Vector3(0,0,wt(4.1)),radius:wt(1.25)
+      point:new THREE.Vector3(wt(3),0,wt(4.1)),radius:wt(1.25)
     });
     return root;
   };
