@@ -435,7 +435,10 @@
       feedback.appendChild(part);
     }
     const section=modal.querySelector?.('section')||modal;
-    section.appendChild(feedback);
+    const choices=doc.getElementById?.('dm-combat-end-victory')?.parentElement;
+    // Place the explanation above the choices, so it is visible immediately.
+    if(choices&&section.contains?.(choices))section.insertBefore(feedback,choices);
+    else section.appendChild(feedback);
     state.encounterModal=modal;
     const victory=doc.getElementById?.('dm-combat-end-victory');
     const defeat=doc.getElementById?.('dm-combat-end-defeat');
