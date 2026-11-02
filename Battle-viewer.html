@@ -477,6 +477,14 @@ function smartTargetForPlan(owner,plan){
       html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
         asset+'?v=20261030-mvp-recovery-3');
     }
+    // The prior release kept the same asset URLs despite replacing the closing
+    // logic; force one coherent close/recovery release across packed viewers.
+    for(const asset of ['js/combat-session-lifecycle.js','js/combat-xp-runtime.js',
+      'js/loot-live-postcombat-runtime.js','js/battle-viewer-dm-console-074.js']){
+      const escaped=asset.replace(/[.]/g,'\\.');
+      html=html.replace(new RegExp(escaped+'(?:\\?v=[^"\\s<>]+)?','g'),
+        asset+'?v=20261102-dm-end-recovery-2');
+    }
     if(typeof URLSearchParams!=='undefined'&&new URLSearchParams(location.search).get('mode')==='local')html=html.replace(/<script src="https:[^"]*firebasejs[^"]*"><\/script>/g,'');
     // Install in the final document: document.open() replaces bootstrap listeners.
     html=html.replace('</head>','<link rel="stylesheet" href="css/game-input-policy.css?v=20261028-interactions-1"><script defer src="js/game-input-policy.js?v=20261028-interactions-1"><\/script></head>');
