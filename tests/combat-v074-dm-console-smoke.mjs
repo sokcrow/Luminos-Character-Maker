@@ -193,6 +193,7 @@ let encounterCombatants = {
   beta: { id: 'beta', hp: 20, maxHp: 20, statusEffects: {} },
 };
 let encounterRaw={estado:{encounterId:'smoke-encounter',phase:'PRE_COMBAT_PLANNING',round:1,active:true},combatants:encounterCombatants};
+let theatreUnavailable = false;
 const fakeDb = {
   ref(path) {
     if(path==='campaña/combate')return {on(_event,handler){handler({val:()=>encounterRaw});},off(){},async transaction(mutator){const next=mutator(encounterRaw);if(!next)return {committed:false,snapshot:{val:()=>encounterRaw}};encounterRaw=next;encounterCombatants=next.combatants;encounterWrites.push({op:'transaction',phase:next.estado.phase});return {committed:true,snapshot:{val:()=>encounterRaw}};}};
@@ -213,7 +214,10 @@ const fakeDb = {
     }
     return {
       async update(value) { encounterWrites.push({ op: 'update', path, value }); },
-      async set(value) { encounterWrites.push({ op: 'set', path, value }); },
+      async set(value) {
+        if (path === dmApi.ROOTS.instance && theatreUnavailable) throw Error('DISCONNECTED');
+        encounterWrites.push({ op: 'set', path, value });
+      },
     };
   },
 };
@@ -277,6 +281,20 @@ assert.equal(blackoutCalls, 0, 'the result seal stays above the finished battlef
 assert.ok(encounterWrites.some((entry) => entry.op === 'set' && entry.path === dmApi.ROOTS.instance && entry.value === 'teatro'));
 assert.equal(encounterCombatants.alpha.encounterEnded, true);
 assert.equal(encounterCombatants.beta.encounterEnded, true);
+
+// A failed Theatre navigation happens AFTER the sealed result. Do not mark
+// it as an uncommitted encounter or apply rewards a second time.
+theatreUnavailable = true;
+await assert.rejects(() => dmApi.finishEncounter('victory', {confirm:false, displayMs:0}),
+  error => error.encounterEndCommitted === true && error.encounterEndStage === 'theatre');
+assert.equal(encounterRaw.estado.phase,'ENDED');
+assert.equal(globalThis.LuminousCombatSession.endErrorMessage({encounterEndCommitted:true}).includes('ya se guardó'),true);
+assert.equal(lootFinalizationCalls.length,1,'confirmed victory never re-finalizes loot');
+theatreUnavailable = false;
+const resumed = await dmApi.finishEncounter('victory', {confirm:false,displayMs:0});
+assert.equal(resumed.nextInstance,'teatro');
+assert.equal(encounterRaw.estado.phase,'ENDED');
+assert.equal(lootFinalizationCalls.length,1,'retrying Theatre does not re-finalize loot');
 
 delete globalThis.document;
 delete globalThis.LuminousLootLivePostCombatRuntime;
