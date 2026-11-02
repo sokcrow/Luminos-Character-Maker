@@ -158,7 +158,11 @@
       const recipients=xpAward?.participantIds;
       const npcIds=xpAward?.npcIds||[];
       const missingNpcIds=xpAward?.missingNpcIds||[];
-      const validId=id=>typeof id==='string'&&id.length>0&&!['.','#','
+      const validId=id=>typeof id==='string'&&id.length>0&&!/[.#$/\[\]]/.test(id);
+      if(!global.LuminousCombatXpRuntime?.eligibleVictoryPlayers
+        || !validId(xpAward?.encounterId)
+        || !Array.isArray(recipients)||!Array.isArray(npcIds)||!Array.isArray(missingNpcIds)
+        || ![recipients.length+npcIds.length,recipients.length+npcIds.length+missingNpcIds.length].includes(xpAward.participantCount)
         || (xpAward.npcIds||[]).some(id=>!validId(id))
         || new Set(xpAward.npcIds||[]).size!==(xpAward.npcIds||[]).length
         || recipients.some(id=>!validId(id))
