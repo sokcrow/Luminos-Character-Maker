@@ -11,11 +11,11 @@ const battleBootstrap=read('Battle-viewer.html');
 const combatEntry=read('combate.html');
 
 assert.ok(dmPanel.includes('id="tab-combate"'),'actual pantalla_dm Combat pane must exist');
-assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261102-dm-end-recovery-2"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
+assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261102-dm-end-feedback-1"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
 assert.ok(battleBootstrap.includes("asset+'?v=20261102-dm-end-recovery-2'"),'packed Battle must refresh DM console, XP, session and loot together');
 assert.ok(combatEntry.includes('js/combat-entry.js?v=20261102-dm-end-recovery-2'),'standalone Combat entry must refresh recovery UI');
 assert.ok(dmPanel.includes('js/combat-session-lifecycle.js?v=20261102-dm-end-recovery-2'),'DM page must not reuse previous session lifecycle');
-assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261102-dm-end-recovery-2'"),'real DM bootstrap must load the live Battle bridge');
+assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261102-dm-end-feedback-1'"),'real DM bootstrap must load the live Battle bridge');
 assert.ok(bridge.includes("getElementById?.('tab-combate')"),'bridge must mount into the exact Combat tab shown to the DM');
 assert.ok(bridge.includes('src="about:blank"'),'DM Battle iframe must not initialize its renderer while the Combat tab is hidden');
 assert.ok(bridge.includes("BATTLE_SRC='Battle-viewer.html?v=20261102-dm-end-recovery-2'"),'visible DM Combat tab must load the same canonical Battle Viewer as Players');
@@ -26,6 +26,9 @@ assert.ok(bridge.includes("surface?.ready&&surface?.role==='dm'"),'DM bridge mus
 assert.ok(!bridge.includes('surfaceActive!==false)}'),'renderer activity alone must never be enough to declare the DM Battle visible');
 assert.ok(bridge.includes('dm-combat-end-encounter'),'normal DM Combat UI must expose a visible END ENCOUNTER control');
 assert.ok(bridge.includes('dm-combat-end-modal'),'END ENCOUNTER must open a production confirmation modal');
+assert.ok(bridge.includes('dm-combat-end-feedback'),'failed close must expose the cause and next action on the DM screen');
+assert.ok(bridge.includes('max-height:calc(100dvh - 24px)'),'closing modal must scroll inside the viewport on short mobile screens');
+assert.ok(bridge.includes('flex-wrap:wrap'),'DM status and buttons must wrap on narrow screens');
 assert.ok(bridge.includes('VICTORY')&&bridge.includes('DEFEAT'),'Encounter modal must expose explicit Victory and Defeat choices');
 assert.ok(bridge.includes("api.finishEncounter(normalized,{confirm:false})"),'production DM control must invoke the canonical Encounter lifecycle instead of duplicating it');
 assert.ok(dmConsole.includes('debugConsoleEnabled()'),'technical DM console must be guarded behind an explicit debug opt-in');
@@ -193,6 +196,13 @@ child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
 assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
 assert.equal(finishCalls,1);
 assert.equal(theatreWrites,1,'first return attempt failed after results committed');
+assert.equal(endModal.hidden,false,'the DM should see the reason without opening developer tools');
+const feedback=elements.get('dm-combat-end-feedback');
+assert.equal(feedback.hidden,false,'the error explanation must remain visible');
+assert.match(elements.get('dm-combat-end-feedback-step').textContent,/Regresar a Teatro/);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/conexión/);
+assert.match(elements.get('dm-combat-end-feedback-action').textContent,/VOLVER A TEATRO/);
+assert.equal(elements.get('dm-combat-end-victory').hidden,true,'do not offer another payout for a finished result');
 assert.equal(endEncounterButton.textContent,'VOLVER A TEATRO');
 assert.equal(window.LuminousDmCombatLiveViewer.state.returningToTheatre,true);
 assert.equal(await window.LuminousDmCombatLiveViewer.openEncounterOrReturn(),true);
@@ -200,5 +210,37 @@ assert.equal(theatreWrites,2,'safe retry only writes the Theatre instance');
 assert.equal(finishCalls,1,'safe retry must never finish the Encounter twice');
 assert.equal(endEncounterButton.textContent,'END ENCOUNTER');
 assert.equal(window.LuminousDmCombatLiveViewer.state.returningToTheatre,false);
+assert.equal(feedback.hidden,true,'the error disappears after the game returns to Theatre');
+
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('LOOT_LIVE_DEPENDENCY_FAILED:js/loot-instance-runtime.js'),{encounterEndStage:'loot'});
+};
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
+assert.match(elements.get('dm-combat-end-feedback-step').textContent,/Preparar el botín/);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/sistema de botín/);
+assert.match(elements.get('dm-combat-end-feedback-action').textContent,/Recarga el visor/);
+assert.equal(endModal.hidden,false);
+
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('ENCOUNTER_XP_PARTICIPANT_NOT_FOUND:secret-player-id'),{encounterEndStage:'experience'});
+};
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
+assert.match(elements.get('dm-combat-end-feedback-step').textContent,/Repartir experiencia/);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/ficha de participante/);
+assert.ok(!elements.get('dm-combat-end-feedback-reason').textContent.includes('secret-player-id'),'do not leak internal participant identifiers');
+
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('permission_denied'),{code:'PERMISSION_DENIED',encounterEndStage:'result'});
+};
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/autorización/);
+assert.match(elements.get('dm-combat-end-feedback-action').textContent,/cuenta del DM/);
+
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('PRIVATE_INTERNAL_RUNTIME_REFERENCE_9827'),{encounterEndStage:'claim'});
+};
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
+assert.match(elements.get('dm-combat-end-feedback-step').textContent,/Iniciar el cierre/);
+assert.ok(!elements.get('dm-combat-end-feedback-reason').textContent.includes('PRIVATE_INTERNAL'),'unknown internal errors must not become player-facing debug text');
 
 console.log('DM pantalla real visual-evidence Battle surface smoke: ok');
