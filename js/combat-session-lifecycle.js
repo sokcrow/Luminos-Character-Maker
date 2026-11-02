@@ -122,6 +122,13 @@
     if(message.startsWith('ENCOUNTER_XP_'))return 'No se pudo confirmar la experiencia. Vuelve a finalizar: el sistema no repartirá XP dos veces.';
     if(message==='DM_ONLY')return 'Entra con la cuenta del DM para finalizar este encuentro.';
     if(code.includes('network')||code.includes('unavailable'))return 'No se pudo conectar. Revisa tu conexión y vuelve a finalizar el encuentro.';
+    // The DM needs an actionable game-facing reason, never internal IDs/logs.
+    const stage=error?.encounterEndStage;
+    if(stage==='claim')return 'No se pudo registrar el cierre del combate. Revisa tu conexión e inténtalo de nuevo.';
+    if(stage==='sanity')return 'No se pudo guardar el estado final de los personajes. Vuelve a intentarlo; no se repetirán los efectos confirmados.';
+    if(stage==='loot')return 'No se pudo preparar el botín. Vuelve a intentarlo; el botín ya confirmado se conserva.';
+    if(stage==='experience')return 'No se pudo completar el reparto de experiencia. Vuelve a intentarlo; la XP entregada no se duplicará.';
+    if(stage==='result')return 'No se pudo confirmar el resultado final. Reintenta el cierre sin modificar los personajes ni las recompensas.';
     return 'No se pudo finalizar el encuentro. Vuelve a intentarlo; los resultados confirmados se conservan.';
   }
   async function claimEnd({db,uid,result,applyEffects}){
