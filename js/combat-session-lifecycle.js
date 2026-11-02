@@ -118,6 +118,10 @@
     if(code.includes('permission'))return 'Firebase rechazó guardar los resultados del encuentro. Publica las reglas actualizadas de combate y botín y vuelve a finalizar.';
     if(message.startsWith('LOOT_LIVE_DEPENDENCY_FAILED:')||message==='LOOT_LIVE_RUNTIME_DEPENDENCIES_INCOMPLETE')return 'El módulo de botín no terminó de cargar. Comprueba tu conexión y vuelve a intentar el cierre.';
     if(message.startsWith('LOOT_'))return 'No se pudo preparar el botín. Puedes volver a finalizar el encuentro sin repetir sus efectos.';
+    if(message==='ENCOUNTER_XP_TRANSACTION_INTERRUPTED')return 'Otra escritura de la ficha interrumpió el pago de XP. Espera a que terminen las ediciones simultáneas y reintenta el cierre; lo pagado no se duplicará.';
+    if(message==='ENCOUNTER_XP_PLAN_REQUIRED')return 'El plan de experiencia no se pudo guardar. Reintenta sin reiniciar el combate.';
+    if(message.startsWith('ENCOUNTER_XP_RECEIPT_MISMATCH:'))return 'La experiencia guardada no coincide con el reparto original. No cambies la XP manualmente; es necesario revisar el recibo.';
+    if(message.startsWith('ENCOUNTER_XP_AWARD_NOT_COMMITTED:'))return 'Un pago de XP no quedó confirmado. Reintenta el cierre; los pagos confirmados se conservan.';
     if(message.startsWith('ENCOUNTER_XP_PARTICIPANT_NOT_FOUND:'))return 'Falta la ficha guardada de un jugador que participó. Debe recuperarse para entregar su experiencia antes de cerrar el combate.';
     if(message.startsWith('ENCOUNTER_XP_'))return 'No se pudo confirmar la experiencia. Vuelve a finalizar: el sistema no repartirá XP dos veces.';
     if(message==='DM_ONLY')return 'Entra con la cuenta del DM para finalizar este encuentro.';
