@@ -230,6 +230,20 @@ assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/ficha de
 assert.ok(!elements.get('dm-combat-end-feedback-reason').textContent.includes('secret-player-id'),'do not leak internal participant identifiers');
 
 child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('ENCOUNTER_XP_TRANSACTION_INTERRUPTED'),{encounterEndStage:'experience',encounterXpStage:'payout'});
+};
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/Otro guardado de la ficha/);
+assert.match(elements.get('dm-combat-end-feedback-action').textContent,/Detén las ediciones/);
+
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('CLIENT_INTERNAL_EXCEPTION'),{encounterEndStage:'experience',encounterXpStage:'plan'});
+};
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/plan de reparto/);
+assert.ok(!elements.get('dm-combat-end-feedback-reason').textContent.includes('CLIENT_INTERNAL_EXCEPTION'));
+
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
   throw Object.assign(Error('permission_denied'),{code:'PERMISSION_DENIED',encounterEndStage:'result'});
 };
 assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
