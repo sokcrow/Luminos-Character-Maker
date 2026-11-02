@@ -9,11 +9,11 @@ const bridge=read('js/dm-combat-live-viewer.js');
 const dmConsole=read('js/battle-viewer-dm-console-074.js');
 
 assert.ok(dmPanel.includes('id="tab-combate"'),'actual pantalla_dm Combat pane must exist');
-assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261021-encounter-3"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
-assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261021-encounter-3'"),'real DM bootstrap must load the live Battle bridge');
+assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261102-dm-end-recovery-2"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
+assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261102-dm-end-recovery-2'"),'real DM bootstrap must load the live Battle bridge');
 assert.ok(bridge.includes("getElementById?.('tab-combate')"),'bridge must mount into the exact Combat tab shown to the DM');
 assert.ok(bridge.includes('src="about:blank"'),'DM Battle iframe must not initialize its renderer while the Combat tab is hidden');
-assert.ok(bridge.includes("BATTLE_SRC='Battle-viewer.html'"),'visible DM Combat tab must load the same canonical Battle Viewer as Players');
+assert.ok(bridge.includes("BATTLE_SRC='Battle-viewer.html?v=20261102-dm-end-recovery-2'"),'visible DM Combat tab must load the same canonical Battle Viewer as Players');
 assert.ok(bridge.includes('visibleSpriteCount'),'DM readiness must inspect actual visible sprite evidence, not only role/render state');
 assert.ok(bridge.includes('visualEvidence'),'DM bridge must expose an explicit visual-evidence gate');
 assert.ok(bridge.includes("visualMode==='dom-base-webgl-vfx'"),'DM bridge must require the DOM-base/WebGL-VFX composition mode');
@@ -127,7 +127,7 @@ assert.equal(frame.src,'about:blank','hidden Combat tab must not boot Battle Vie
 host._hidden=false;
 tabButton.dispatch('click');
 while(timers.length)timers.shift()();
-assert.equal(frame.src,'Battle-viewer.html','opening the real Combat tab must boot the canonical Battle Viewer while visible');
+assert.equal(frame.src,'Battle-viewer.html?v=20261102-dm-end-recovery-2','opening the real Combat tab must boot the canonical Battle Viewer while visible');
 frame.dispatch('load');
 while(timers.length)timers.shift()();
 
@@ -168,5 +168,32 @@ assert.match(elements.get('dm-combat-live-status').textContent,/DOM BASE \+ WEBG
 child.LuminousCombatLiveAdapter073.state.role='player';
 assert.equal(window.LuminousDmCombatLiveViewer.nudgeBattle(),false,'a measurable non-DM surface must not be reported as DM observer ready');
 assert.match(elements.get('dm-combat-live-status').textContent,/ROL PLAYER/,'status must retain the actual role instead of claiming DM observer readiness');
+
+// Actual DM END ENCOUNTER control: if sealing succeeded but Theatre is
+// temporarily unreachable, clicking again must navigate without a second payout.
+let theatreWrites=0,finishCalls=0;
+window.firebase={database:()=>({ref(path){
+  if(path==='campaña/combate/estado')return {once:async()=>({val:()=>({phase:'ENDED',active:false,result:'victory'})})};
+  if(path==='campaña/estado_mundo/instancia_activa')return {set:async value=>{
+    assert.equal(value,'teatro');
+    theatreWrites++;
+    if(theatreWrites===1)throw Error('NETWORK_UNAVAILABLE');
+  }};
+  throw Error('Unexpected Firebase path: '+path);
+}})};
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  finishCalls++;
+  throw Object.assign(Error('Theatre navigation unavailable'),{encounterEndCommitted:true,encounterEndStage:'theatre'});
+};
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
+assert.equal(finishCalls,1);
+assert.equal(theatreWrites,1,'first return attempt failed after results committed');
+assert.equal(endEncounterButton.textContent,'VOLVER A TEATRO');
+assert.equal(window.LuminousDmCombatLiveViewer.state.returningToTheatre,true);
+assert.equal(await window.LuminousDmCombatLiveViewer.openEncounterOrReturn(),true);
+assert.equal(theatreWrites,2,'safe retry only writes the Theatre instance');
+assert.equal(finishCalls,1,'safe retry must never finish the Encounter twice');
+assert.equal(endEncounterButton.textContent,'END ENCOUNTER');
+assert.equal(window.LuminousDmCombatLiveViewer.state.returningToTheatre,false);
 
 console.log('DM pantalla real visual-evidence Battle surface smoke: ok');
