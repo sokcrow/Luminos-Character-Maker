@@ -114,6 +114,13 @@
   function endErrorMessage(error){
     const message=String(error?.message||''),code=String(error?.code||'').toLowerCase();
     if(error?.encounterEndCommitted)return 'El resultado del combate ya se guardó, pero no se pudo volver a Teatro. Usa «Volver a Teatro» para continuar sin repetir recompensas.';
+    if(message==='ENCOUNTER_END_VICTORY_RECOVERY_REQUIRED')return 'Esta victoria quedó pendiente y puede tener recompensas confirmadas. Debes reintentar VICTORY; no es seguro cambiarla a DEFEAT.';
+    if(message==='ENCOUNTER_END_ROUND_IN_PROGRESS')return 'La ronda todavía está sellada o ejecutándose. Espera a que termine antes de cerrar el combate.';
+    if(message==='ENCOUNTER_END_PENDING_RESULT')return 'El encuentro ya tiene otro cierre pendiente. Continúa ese resultado antes de intentar cambiarlo.';
+    if(message==='ENCOUNTER_END_OWNED_BY_OTHER_DM')return 'Otro director inició el cierre del encuentro. Verifica la sesión activa del DM.';
+    if(message==='ENCOUNTER_END_ALREADY_CONFIRMED')return 'Este combate ya tiene un resultado confirmado. Usa «Volver a Teatro» para continuar.';
+    if(message==='ENCOUNTER_END_STATE_MISSING')return 'No existe un encuentro que pueda finalizarse. Abre el combate antes de intentar cerrarlo.';
+    if(message==='ENCOUNTER_END_CLAIM_REJECTED')return 'El estado del combate cambió al iniciar el cierre. Comprueba la ronda y vuelve a intentarlo.';
     if(message.startsWith('Espera a que termine la ronda')||message.startsWith('Ya se está finalizando'))return message;
     if(code.includes('permission'))return 'Firebase rechazó guardar los resultados del encuentro. Publica las reglas actualizadas de combate y botín y vuelve a finalizar.';
     if(message.startsWith('LOOT_LIVE_DEPENDENCY_FAILED:')||message==='LOOT_LIVE_RUNTIME_DEPENDENCIES_INCOMPLETE')return 'El módulo de botín no terminó de cargar. Comprueba tu conexión y vuelve a intentar el cierre.';
@@ -135,11 +142,27 @@
     if(stage==='result')return 'No se pudo confirmar el resultado final. Reintenta el cierre sin modificar los personajes ni las recompensas.';
     return 'No se pudo finalizar el encuentro. Vuelve a intentarlo; los resultados confirmados se conservan.';
   }
+  function endClaimRejection(raw,uid,result){
+    if(!raw)return 'ENCOUNTER_END_STATE_MISSING';
+    const state=raw.estado||{};
+    if(state.phase==='ENDED')return 'ENCOUNTER_END_ALREADY_CONFIRMED';
+    if(state.phase==='ENDING'){
+      if(state.ending?.uid!==uid)return 'ENCOUNTER_END_OWNED_BY_OTHER_DM';
+      if(state.ending?.result==='victory'&&result!=='victory')return 'ENCOUNTER_END_VICTORY_RECOVERY_REQUIRED';
+      return 'ENCOUNTER_END_PENDING_RESULT';
+    }
+    if(['sealed','running'].includes(String(raw.authority?.current?.phase||'').toLowerCase()))
+      return 'ENCOUNTER_END_ROUND_IN_PROGRESS';
+    return 'ENCOUNTER_END_CLAIM_REJECTED';
+  }
   async function claimEnd({db,uid,result,applyEffects}){
     const token=global.crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`;
     const response=await updateRoot(db,raw=>{
-      if(!raw||['sealed','running'].includes(String(raw.authority?.current?.phase||'').toLowerCase()))return;
+      if(!raw)return;
       if(!['victory','defeat','cancelled'].includes(result))return;
+      // A completed or partially closed encounter must be recoverable even
+      // when an older authority snapshot still says "sealed"/"running".
+      if(raw.estado?.phase==='ENDED')return raw.estado.endedBy===uid&&raw.estado.result===result?raw:undefined;
       if(raw.estado?.phase==='ENDING'){
         const ending=raw.estado.ending;
         if(ending?.uid!==uid)return;
@@ -150,12 +173,15 @@
         if(ending.result!==result&&ending.failed!==true&&ending.startedAt)return;
         return {...raw,estado:{...raw.estado,ending:{token:ending.result===result?ending.token:token,uid,result,startedAt:Date.now()}}};
       }
-      if(raw.estado?.phase==='ENDED')return raw.estado.endedBy===uid&&raw.estado.result===result?raw:undefined;
+      if(['sealed','running'].includes(String(raw.authority?.current?.phase||'').toLowerCase()))return;
       const combatants=JSON.parse(JSON.stringify(raw.combatants||{}));
       applyEffects?.(combatants);
       return {...raw,participants:participantIndex(raw),combatants:JSON.parse(JSON.stringify(combatants)),estado:{...(raw.estado||{}),phase:'ENDING',ending:{token,uid,result,startedAt:Date.now()}},plannedActions:null,readyPlayers:null};
     });
-    if(!response.committed)throw Error('Espera a que termine la ronda antes de finalizar el encuentro.');
+    if(!response.committed){
+      const rejected=endClaimRejection(response.snapshot?.val(),uid,result);
+      throw Error(rejected);
+    }
     return response.snapshot.val();
   }
   async function failEnd({db,uid,token}){
