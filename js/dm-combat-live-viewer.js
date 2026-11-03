@@ -2,7 +2,7 @@
   'use strict';
   if(global.LuminousDmCombatLiveViewer)return;
 
-  const state={mounted:false,host:null,panel:null,frame:null,status:null,observer:null,tabButton:null,retryTimers:[],loaded:false,loading:false,visualFallback:false,lastProbe:null,lastBootstrap:null,encounterModal:null,encounterBusy:false,returningToTheatre:false,endFailure:null};
+  const state={mounted:false,host:null,panel:null,frame:null,status:null,observer:null,tabButton:null,retryTimers:[],loaded:false,loading:false,visualFallback:false,lastProbe:null,lastBootstrap:null,encounterModal:null,encounterBusy:false,returningToTheatre:false,pendingVictory:false,endFailure:null};
   const BATTLE_SRC='Battle-viewer.html?v=20261102-xp-close-recovery-1';
 
   function combatTab(){return global.document?.getElementById?.('tab-combate')||null}
@@ -249,6 +249,21 @@
       /^(NETWORK_UNAVAILABLE|DISCONNECTED|DATABASE_NOT_READY)$/.test(raw)){
       reason='Se perdió la conexión con la campaña al guardar este paso.';
       action=committed?'Recupera la conexión y pulsa «VOLVER A TEATRO».':'Comprueba tu conexión y vuelve a intentar el cierre.';
+    }else if(raw==='ENCOUNTER_END_VICTORY_RECOVERY_REQUIRED'){
+      reason='Una victoria anterior ya inició el cierre y puede tener XP o botín entregados.';
+      action='Pulsa VICTORY de nuevo para recuperar el cierre pendiente. DEFEAT queda bloqueado para evitar duplicaciones.';
+    }else if(raw==='ENCOUNTER_END_ROUND_IN_PROGRESS'){
+      reason='La ronda está sellada o todavía se está ejecutando.';
+      action='Termina la ronda actual antes de intentar finalizar el combate.';
+    }else if(raw==='ENCOUNTER_END_ALREADY_CONFIRMED'){
+      reason='El resultado ya quedó confirmado y no debe procesarse de nuevo.';
+      action='Usa «VOLVER A TEATRO».';
+    }else if(raw==='ENCOUNTER_END_PENDING_RESULT'){
+      reason='El encuentro ya tiene otro cierre pendiente.';
+      action='Continúa primero el resultado que estaba en proceso.';
+    }else if(raw==='ENCOUNTER_END_OWNED_BY_OTHER_DM'){
+      reason='Otra sesión del director es responsable de este cierre.';
+      action='Comprueba qué cuenta de DM inició el encuentro.';
     }else if(raw.startsWith('Espera a que termine la ronda')){
       reason='Todavía hay una ronda en ejecución o pendiente de confirmación.';
       action='Termina la ronda antes de finalizar el combate.';
@@ -344,16 +359,23 @@
     return details;
   }
 
+  function updateEndChoices(){
+    for(const id of ['dm-combat-end-victory','dm-combat-end-defeat']){
+      const choice=global.document?.getElementById?.(id);
+      if(choice)choice.hidden=state.returningToTheatre||(id==='dm-combat-end-defeat'&&state.pendingVictory);
+    }
+    const retry=global.document?.getElementById?.('dm-combat-end-retry-theatre');
+    if(retry)retry.hidden=!state.returningToTheatre;
+  }
+  function setPendingVictory(pending){
+    state.pendingVictory=Boolean(pending);
+    updateEndChoices();
+  }
   function setReturnPending(pending){
     state.returningToTheatre=Boolean(pending);
     const button=global.document?.getElementById?.('dm-combat-end-encounter');
     if(button)button.textContent=state.returningToTheatre?'VOLVER A TEATRO':'END ENCOUNTER';
-    for(const id of ['dm-combat-end-victory','dm-combat-end-defeat']){
-      const choice=global.document?.getElementById?.(id);
-      if(choice)choice.hidden=state.returningToTheatre;
-    }
-    const retry=global.document?.getElementById?.('dm-combat-end-retry-theatre');
-    if(retry)retry.hidden=!state.returningToTheatre;
+    updateEndChoices();
   }
   async function completeTheatreReturn(){
     try{
@@ -395,9 +417,16 @@
       if(db?.ref){
         const result=(await db.ref('campaña/combate/estado').once('value')).val();
         if(result?.phase==='ENDED'&&result?.active===false){
+          setPendingVictory(false);
           setReturnPending(true);
           return returnToTheatre();
         }
+        if(result?.phase==='ENDING'&&result?.ending?.result==='victory'){
+          setPendingVictory(true);
+          showEndFailure(new Error('ENCOUNTER_END_VICTORY_RECOVERY_REQUIRED'),'claim');
+          return true;
+        }
+        setPendingVictory(false);
       }
     }catch(error){
       console.error('[DM Combat Live Viewer] Encounter state read failed',error);
@@ -489,6 +518,10 @@
     if(state.encounterBusy)return false;
     const normalized=String(result||'').trim().toLowerCase();
     if(normalized!=='victory'&&normalized!=='defeat')return false;
+    if(state.pendingVictory&&normalized!=='victory'){
+      showEndFailure(new Error('ENCOUNTER_END_VICTORY_RECOVERY_REQUIRED'),'claim');
+      return false;
+    }
     ensureLoaded();
     const api=encounterApi();
     if(!api){
@@ -508,6 +541,7 @@
       return true;
     }catch(error){
       console.error('[DM Combat Live Viewer] Encounter end failed',error);
+      if(error?.message==='ENCOUNTER_END_VICTORY_RECOVERY_REQUIRED')setPendingVictory(true);
       if(error?.encounterEndCommitted){
         setReturnPending(true);
         setStatus('RESULTADO GUARDADO · VOLVIENDO A TEATRO…');
