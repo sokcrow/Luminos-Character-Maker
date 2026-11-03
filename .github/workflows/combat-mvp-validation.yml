@@ -26,6 +26,7 @@ jobs:
       - run: npm install --no-save @playwright/test@1.55.0 firebase@8.10.1 firebase-tools@14.19.1
       - run: npx playwright install --with-deps chromium
       - run: npm run test:mvp
+      - run: node tests/combat-xp-cancelled-write-recovery-smoke.mjs
       - run: node tests/combat-victory-cr-xp-delivery-smoke.mjs
       - name: Private ballots and Firebase authorization
         run: npx firebase emulators:exec --project demo-combat-results --only auth,database --config combat-results-firebase.json 'node tests/session-mvp-rules-emulator.mjs'

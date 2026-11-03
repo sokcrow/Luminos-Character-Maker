@@ -309,22 +309,41 @@
   // Keep the complete value cached until the guarded transaction finishes.
   // once() detaches immediately; the SDK may otherwise call the updater with
   // an uncached null and abort before it reaches the server.
+  // Combat and character sheets share the Firebase connection. A concurrent
+  // same-client set() can cancel an entire-character transaction with "set".
+  // Reacquire the latest value before retrying; never retry a permission error
+  // or bypass a missing/rejected receipt.
+  function cancelledByConcurrentSet(error) {
+    return String(error?.message || error || '').toLowerCase() === 'set';
+  }
   async function cachedTransaction(ref, update) {
-    let listener;
-    try {
-      if (typeof ref.on === 'function') {
-        await new Promise((resolve, reject) => {
-          listener = () => resolve();
-          ref.on('value', listener, reject);
-        });
-      } else await ref.once('value');
-      return await ref.transaction(update, undefined, false);
-    } finally {
-      if (listener) ref.off('value', listener);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      let listener;
+      try {
+        if (typeof ref.on === 'function') {
+          await new Promise((resolve, reject) => {
+            listener = () => resolve();
+            ref.on('value', listener, reject);
+          });
+        } else await ref.once('value');
+        return await ref.transaction(update, undefined, false);
+      } catch (error) {
+        if (!cancelledByConcurrentSet(error)) throw error;
+        if (attempt === 3) {
+          const interrupted = new Error('ENCOUNTER_XP_TRANSACTION_INTERRUPTED');
+          interrupted.cause = error;
+          throw interrupted;
+        }
+      } finally {
+        if (listener) ref.off('value', listener);
+      }
     }
+    throw Error('ENCOUNTER_XP_TRANSACTION_INTERRUPTED');
   }
   async function awardVictoryXp({ db, encounter } = {}) {
     if (!db?.ref || !encounter || typeof encounter !== 'object') throw Error('ENCOUNTER_XP_CONTEXT_REQUIRED');
+    let xpStage = 'plan';
+    try {
     const estado = encounter.estado || {};
     const outcome = String(estado.ending?.result || estado.result || estado.outcome || '').toLowerCase();
     if (outcome !== 'victory' || !['ENDING', 'ENDED'].includes(String(estado.phase || '').toUpperCase()))
@@ -343,6 +362,7 @@
         ...participantIds.map(id => ({ kind: 'player', id, path: PLAYER_ROOT + '/' + id })),
         ...candidateNpcIds.map(id => ({ kind: 'npc', id, path: npcRecordPath(id) }))
       ];
+        xpStage = 'participants';
       const records = await Promise.all(candidates.map(row => db.ref(row.path).once('value').then(s => s.val())));
       // Deployed allied NPCs may carry a legacy npcId without an actual
       // persistent record. They remain in the result roster, but cannot be
@@ -354,6 +374,7 @@
       const missingNpcIds = absent.filter(row => row.kind === 'npc').map(row => row.id);
       const npcIds = candidateNpcIds.filter(id => !missingNpcIds.includes(id));
       const recipients = candidates.filter(row => row.kind === 'player' || !missingNpcIds.includes(row.id));
+      xpStage = 'enemies';
       const { enemies, missingCr } = await enemyDefinitionsForVictory(db, encounter);
       const result = resolveEncounterXp({
         enemies, participants: recipients.map(row => ({ id: row.kind + ':' + row.id })),
@@ -362,6 +383,7 @@
         bonusXp: estado.bonusXp ?? estado.experience?.bonusXp ?? 0
       });
       const proposal = {encounterId,participantIds,npcIds,missingNpcIds,mvp,recipients,result,missingCr};
+      xpStage = 'plan';
       const tx = await cachedTransaction(planRef, old => old || proposal);
       plan = tx.snapshot.val();
       if (!plan) throw Error('ENCOUNTER_XP_PLAN_REQUIRED');
@@ -369,6 +391,7 @@
     // Recover old frozen plans created before orphan-NPC filtering was added.
     // Keep the original divisor, amounts, MVP and any paid player receipts:
     // an interrupted victory must never recompute or double-award XP.
+    xpStage = 'recover';
     const plannedNpcs = (plan.recipients || []).filter(row => row.kind === 'npc');
     if (plannedNpcs.length) {
       const storedNpcs = await Promise.all(plannedNpcs.map(row => db.ref(row.path).once('value').then(s => s.val())));
@@ -390,6 +413,7 @@
     const missingNpcIds = Array.isArray(plan.missingNpcIds) ? plan.missingNpcIds : [];
     const awards = [];
     for (const recipient of recipients) {
+      xpStage = 'payout';
       const { id, kind, path } = recipient;
       const ref = db.ref(path);
       const isMvp = Boolean(mvp?.persistent && mvp.kind === kind && mvp.recordId === id);
@@ -418,6 +442,11 @@
       fixedEncounterXp: result.fixedEncounterXp, bonusXp: result.bonusXp,
       participantCount: result.participantCount, xpPerParticipant: result.xpPerParticipant,
       remainderXp: result.remainderXp, participantIds, npcIds, missingNpcIds, mvp, missingCr, awards };
+    } catch (error) {
+      // The UI receives the operation that failed, never a guessed reason.
+      if (error && typeof error === 'object' && !error.encounterXpStage) error.encounterXpStage = xpStage;
+      throw error;
+    }
   }
 
   function applyXpMetadata(unit = {}, input = {}) {

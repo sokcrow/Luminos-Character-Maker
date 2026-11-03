@@ -11,14 +11,14 @@ const battleBootstrap=read('Battle-viewer.html');
 const combatEntry=read('combate.html');
 
 assert.ok(dmPanel.includes('id="tab-combate"'),'actual pantalla_dm Combat pane must exist');
-assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261102-dm-end-feedback-1"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
-assert.ok(battleBootstrap.includes("asset+'?v=20261102-dm-end-recovery-2'"),'packed Battle must refresh DM console, XP, session and loot together');
-assert.ok(combatEntry.includes('js/combat-entry.js?v=20261102-dm-end-recovery-2'),'standalone Combat entry must refresh recovery UI');
-assert.ok(dmPanel.includes('js/combat-session-lifecycle.js?v=20261102-dm-end-recovery-2'),'DM page must not reuse previous session lifecycle');
-assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261102-dm-end-feedback-1'"),'real DM bootstrap must load the live Battle bridge');
+assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261102-xp-close-recovery-1"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
+assert.ok(battleBootstrap.includes("asset+'?v=20261102-xp-close-recovery-1'"),'packed Battle must refresh DM console, XP, session and loot together');
+assert.ok(combatEntry.includes('js/combat-entry.js?v=20261102-xp-close-recovery-1'),'standalone Combat entry must refresh recovery UI');
+assert.ok(dmPanel.includes('js/combat-session-lifecycle.js?v=20261102-xp-close-recovery-1'),'DM page must not reuse previous session lifecycle');
+assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261102-xp-close-recovery-1'"),'real DM bootstrap must load the live Battle bridge');
 assert.ok(bridge.includes("getElementById?.('tab-combate')"),'bridge must mount into the exact Combat tab shown to the DM');
 assert.ok(bridge.includes('src="about:blank"'),'DM Battle iframe must not initialize its renderer while the Combat tab is hidden');
-assert.ok(bridge.includes("BATTLE_SRC='Battle-viewer.html?v=20261102-dm-end-recovery-2'"),'visible DM Combat tab must load the same canonical Battle Viewer as Players');
+assert.ok(bridge.includes("BATTLE_SRC='Battle-viewer.html?v=20261102-xp-close-recovery-1'"),'visible DM Combat tab must load the same canonical Battle Viewer as Players');
 assert.ok(bridge.includes('visibleSpriteCount'),'DM readiness must inspect actual visible sprite evidence, not only role/render state');
 assert.ok(bridge.includes('visualEvidence'),'DM bridge must expose an explicit visual-evidence gate');
 assert.ok(bridge.includes("visualMode==='dom-base-webgl-vfx'"),'DM bridge must require the DOM-base/WebGL-VFX composition mode');
@@ -135,7 +135,7 @@ assert.equal(frame.src,'about:blank','hidden Combat tab must not boot Battle Vie
 host._hidden=false;
 tabButton.dispatch('click');
 while(timers.length)timers.shift()();
-assert.equal(frame.src,'Battle-viewer.html?v=20261102-dm-end-recovery-2','opening the real Combat tab must boot the canonical Battle Viewer while visible');
+assert.equal(frame.src,'Battle-viewer.html?v=20261102-xp-close-recovery-1','opening the real Combat tab must boot the canonical Battle Viewer while visible');
 frame.dispatch('load');
 while(timers.length)timers.shift()();
 
@@ -228,6 +228,20 @@ assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('vict
 assert.match(elements.get('dm-combat-end-feedback-step').textContent,/Repartir experiencia/);
 assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/ficha de participante/);
 assert.ok(!elements.get('dm-combat-end-feedback-reason').textContent.includes('secret-player-id'),'do not leak internal participant identifiers');
+
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('ENCOUNTER_XP_TRANSACTION_INTERRUPTED'),{encounterEndStage:'experience',encounterXpStage:'payout'});
+};
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/Otro guardado de la ficha/);
+assert.match(elements.get('dm-combat-end-feedback-action').textContent,/Detén las ediciones/);
+
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('CLIENT_INTERNAL_EXCEPTION'),{encounterEndStage:'experience',encounterXpStage:'plan'});
+};
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/plan de reparto/);
+assert.ok(!elements.get('dm-combat-end-feedback-reason').textContent.includes('CLIENT_INTERNAL_EXCEPTION'));
 
 child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
   throw Object.assign(Error('permission_denied'),{code:'PERMISSION_DENIED',encounterEndStage:'result'});

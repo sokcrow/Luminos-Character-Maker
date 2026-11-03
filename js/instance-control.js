@@ -223,7 +223,7 @@
     combatView.id = "player-instance-combat";
     combatView.title = "Combate táctico";
     combatView.allow = "autoplay";
-    combatView.dataset.battleSrc = "Battle-viewer.html?v=20261102-dm-end-recovery-2";
+    combatView.dataset.battleSrc = "Battle-viewer.html?v=20261102-xp-close-recovery-1";
     combatView.setAttribute("aria-hidden", "false");
     Object.assign(combatView.style, {
       display: "block", position: "fixed", inset: "0", width: "100vw",
@@ -645,7 +645,7 @@
       if (activeInstance === "combate" && previousInstance !== "combate") {
         const combatView = documentRef.getElementById("dm-combat-view");
         if (combatView && !combatView.getAttribute("src")) {
-          combatView.src = combatView.dataset.src || "Battle-viewer.html?v=20261102-dm-end-recovery-2";
+          combatView.src = combatView.dataset.src || "Battle-viewer.html?v=20261102-xp-close-recovery-1";
         }
         void beginCombatLoading({ db, doc: documentRef, role: "dm" });
       }
