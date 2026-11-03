@@ -374,9 +374,12 @@
       // A whole-record transaction prevents repeating the 50% reduction on
       // retries; the marker is scoped to one Encounter, not the current round.
       const path = `campaña/jugadores/${playerId}`;
-      const ref = db.ref(path);
-      await ref.once("value");
-      await ref.transaction(raw => {
+      // Retain the full character snapshot while transacting. A plain once()
+      // cannot protect the write from RTDB's uncached null callback or a
+      // concurrent same-client set() from the character manager.
+      const session=global.LuminousCombatSession;
+      if(!session?.updatePath)throw Error('POST_COMBAT_SANITY_RUNTIME_REQUIRED');
+      const tx=await session.updatePath(db,path,raw=>{
         if (!raw || raw.lastPostCombatSanityEncounterId === encounterId) return;
         const next = {...raw, sp:row.value, sp_actual:row.value,
           combatStats: {...(raw.combatStats || {}), sp_actual:row.value},
@@ -384,7 +387,11 @@
         if (Object.prototype.hasOwnProperty.call(next,"currentSp")) next.currentSp = row.value;
         if (Object.prototype.hasOwnProperty.call(next,"currentSP")) next.currentSP = row.value;
         return next;
-      }, undefined, false);
+      });
+      // No silent success on an aborted transaction or a deleted Player.
+      // Retries are idempotent because the encounter marker is durable.
+      if(tx?.snapshot?.val()?.lastPostCombatSanityEncounterId!==encounterId)
+        throw Error('POST_COMBAT_SANITY_NOT_CONFIRMED');
     }));
     return rows.size;
   }
