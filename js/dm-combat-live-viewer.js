@@ -288,7 +288,13 @@
       action='Detén las ediciones simultáneas de fichas y vuelve a finalizar. La XP entregada se conserva.';
     }else if(raw==='ENCOUNTER_XP_PLAN_REQUIRED'){
       reason='No se pudo guardar el reparto de experiencia del encuentro.';
-      action='Reintenta el cierre sin reiniciar el combate.';
+      action='Reintenta VICTORY sin reiniciar el combate.';
+    }else if(raw==='ENCOUNTER_XP_PLAN_INVALID_AMOUNTS'){
+      reason='La experiencia total calculada contiene una cantidad no válida.';
+      action='Revisa la XP y el CR de los enemigos configurados antes de reanudar VICTORY.';
+    }else if(stage==='experience'&&error?.encounterXpStage==='plan'&&/invalid data|contains undefined|invalid firebase|first argument contains undefined/i.test(raw)){
+      reason='Los datos de una criatura impiden guardar el reparto de experiencia.';
+      action='Actualiza el visor de combate y reanuda VICTORY. No borres las recompensas guardadas.';
     }else if(raw.startsWith('ENCOUNTER_XP_PARTICIPANT_NOT_FOUND')){
       reason='Falta una ficha de participante necesaria para entregar la experiencia.';
       action='Recupera la ficha faltante antes de intentar repartir XP otra vez.';
