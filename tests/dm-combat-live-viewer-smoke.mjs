@@ -276,4 +276,12 @@ assert.match(elements.get('dm-combat-end-feedback-action').textContent,/VICTORY/
 assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('defeat'),false);
 assert.equal(unsafeDefeatCalls,0,'UI refuses bypassing durable victory receipts');
 
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('POST_COMBAT_SANITY_NOT_CONFIRMED'),{encounterEndStage:'sanity'});
+};
+window.LuminousDmCombatLiveViewer.state.pendingVictory=false;
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('defeat'),false);
+assert.match(elements.get('dm-combat-end-feedback-step').textContent,/Guardar el estado de los personajes/);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/cordura final/);
+
 console.log('DM pantalla real visual-evidence Battle surface smoke: ok');
