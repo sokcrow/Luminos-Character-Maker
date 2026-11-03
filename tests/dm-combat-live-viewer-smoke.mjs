@@ -237,6 +237,16 @@ assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/Otro gua
 assert.match(elements.get('dm-combat-end-feedback-action').textContent,/Detén las ediciones/);
 
 child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('Invalid Firebase data: contains undefined in an enemy record'),{
+    encounterEndStage:'experience',encounterXpStage:'plan'});
+};
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/datos de una criatura/);
+assert.match(elements.get('dm-combat-end-feedback-action').textContent,/reanuda VICTORY/);
+assert.ok(!elements.get('dm-combat-end-feedback-reason').textContent.includes('Firebase data'),
+  'internal serialization details must stay out of player/DM UI');
+
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
   throw Object.assign(Error('CLIENT_INTERNAL_EXCEPTION'),{encounterEndStage:'experience',encounterXpStage:'plan'});
 };
 assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
