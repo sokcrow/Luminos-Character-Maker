@@ -11,14 +11,14 @@ const battleBootstrap=read('Battle-viewer.html');
 const combatEntry=read('combate.html');
 
 assert.ok(dmPanel.includes('id="tab-combate"'),'actual pantalla_dm Combat pane must exist');
-assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261102-xp-close-recovery-1"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
-assert.ok(battleBootstrap.includes("asset+'?v=20261102-xp-close-recovery-1'"),'packed Battle must refresh DM console, XP, session and loot together');
-assert.ok(combatEntry.includes('js/combat-entry.js?v=20261102-xp-close-recovery-1'),'standalone Combat entry must refresh recovery UI');
-assert.ok(dmPanel.includes('js/combat-session-lifecycle.js?v=20261102-xp-close-recovery-1'),'DM page must not reuse previous session lifecycle');
-assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261102-xp-close-recovery-1'"),'real DM bootstrap must load the live Battle bridge');
+assert.ok(dmPanel.includes('<script src="js/utils.js?v=20261102-end-state-recovery-1"></script>'),'actual pantalla_dm must load the bootstrap that installs Combat assets');
+assert.ok(battleBootstrap.includes("asset+'?v=20261102-end-state-recovery-1'"),'packed Battle must refresh DM console, XP, session and loot together');
+assert.ok(combatEntry.includes('js/combat-entry.js?v=20261102-end-state-recovery-1'),'standalone Combat entry must refresh recovery UI');
+assert.ok(dmPanel.includes('js/combat-session-lifecycle.js?v=20261102-end-state-recovery-1'),'DM page must not reuse previous session lifecycle');
+assert.ok(utils.includes("'js/dm-combat-live-viewer.js?v=20261102-end-state-recovery-1'"),'real DM bootstrap must load the live Battle bridge');
 assert.ok(bridge.includes("getElementById?.('tab-combate')"),'bridge must mount into the exact Combat tab shown to the DM');
 assert.ok(bridge.includes('src="about:blank"'),'DM Battle iframe must not initialize its renderer while the Combat tab is hidden');
-assert.ok(bridge.includes("BATTLE_SRC='Battle-viewer.html?v=20261102-xp-close-recovery-1'"),'visible DM Combat tab must load the same canonical Battle Viewer as Players');
+assert.ok(bridge.includes("BATTLE_SRC='Battle-viewer.html?v=20261102-end-state-recovery-1'"),'visible DM Combat tab must load the same canonical Battle Viewer as Players');
 assert.ok(bridge.includes('visibleSpriteCount'),'DM readiness must inspect actual visible sprite evidence, not only role/render state');
 assert.ok(bridge.includes('visualEvidence'),'DM bridge must expose an explicit visual-evidence gate');
 assert.ok(bridge.includes("visualMode==='dom-base-webgl-vfx'"),'DM bridge must require the DOM-base/WebGL-VFX composition mode');
@@ -135,7 +135,7 @@ assert.equal(frame.src,'about:blank','hidden Combat tab must not boot Battle Vie
 host._hidden=false;
 tabButton.dispatch('click');
 while(timers.length)timers.shift()();
-assert.equal(frame.src,'Battle-viewer.html?v=20261102-xp-close-recovery-1','opening the real Combat tab must boot the canonical Battle Viewer while visible');
+assert.equal(frame.src,'Battle-viewer.html?v=20261102-end-state-recovery-1','opening the real Combat tab must boot the canonical Battle Viewer while visible');
 frame.dispatch('load');
 while(timers.length)timers.shift()();
 
@@ -256,5 +256,32 @@ child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
 assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('victory'),false);
 assert.match(elements.get('dm-combat-end-feedback-step').textContent,/Iniciar el cierre/);
 assert.ok(!elements.get('dm-combat-end-feedback-reason').textContent.includes('PRIVATE_INTERNAL'),'unknown internal errors must not become player-facing debug text');
+
+// A failed Victory can leave durable XP/loot receipts. The DM must be
+// shown why Defeat cannot be substituted to bypass that partial award.
+let unsafeDefeatCalls=0;
+window.firebase={database:()=>({ref(path){
+  if(path==='campaña/combate/estado')return {once:async()=>({val:()=>({
+    phase:'ENDING',active:true,ending:{uid:'dm',result:'victory',failed:true}
+  })})};
+  throw Error('Unexpected encounter state path: '+path);
+}})};
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{unsafeDefeatCalls++;return {result:'defeat'};};
+assert.equal(await window.LuminousDmCombatLiveViewer.openEncounterOrReturn(),true);
+assert.equal(endModal.hidden,false);
+assert.equal(elements.get('dm-combat-end-defeat').hidden,true,'Defeat cannot replace a partially paid Victory');
+assert.equal(elements.get('dm-combat-end-victory').hidden,false);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/victoria anterior/);
+assert.match(elements.get('dm-combat-end-feedback-action').textContent,/VICTORY/);
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('defeat'),false);
+assert.equal(unsafeDefeatCalls,0,'UI refuses bypassing durable victory receipts');
+
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{
+  throw Object.assign(Error('POST_COMBAT_SANITY_NOT_CONFIRMED'),{encounterEndStage:'sanity'});
+};
+window.LuminousDmCombatLiveViewer.state.pendingVictory=false;
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('defeat'),false);
+assert.match(elements.get('dm-combat-end-feedback-step').textContent,/Guardar el estado de los personajes/);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/cordura final/);
 
 console.log('DM pantalla real visual-evidence Battle surface smoke: ok');
