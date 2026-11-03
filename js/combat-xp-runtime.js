@@ -382,7 +382,27 @@
         fixedEncounterXp: estado.fixedEncounterXp ?? estado.experience?.fixedEncounterXp ?? 0,
         bonusXp: estado.bonusXp ?? estado.experience?.bonusXp ?? 0
       });
-      const proposal = {encounterId,participantIds,npcIds,missingNpcIds,mvp,recipients,result,missingCr};
+      // Keep only immutable reward numbers in Firebase. resolveEncounterXp()
+      // also returns contributions[].unit (whole battle/canonical Unit data).
+      // Optional fields such as challengeRating can be undefined, which RTDB
+      // rejects; duplicating full Unit records here also bloats the receipt.
+      // The local rich result remains available for calculations, but does
+      // not belong in the frozen payout plan.
+      const frozenResult = Object.fromEntries([
+        'totalXp','enemyXp','fixedEncounterXp','bonusXp',
+        'participantCount','xpPerParticipant','remainderXp'
+      ].map(key => [key, result[key]]));
+      if (Object.values(frozenResult).some(value => !Number.isFinite(value)))
+        throw Error('ENCOUNTER_XP_PLAN_INVALID_AMOUNTS');
+      const frozenMvp = mvp ? {
+        id: String(mvp.id||''), unitId: String(mvp.unitId||''),
+        kind: String(mvp.kind||''), recordId: String(mvp.recordId||''),
+        persistent: mvp.persistent===true, name: String(mvp.name||''),
+        portrait: String(mvp.portrait||''), level: Number(mvp.level)||1,
+        hostile: mvp.hostile===true, metricScore: Number(mvp.metricScore)||0
+      } : null;
+      const proposal = {encounterId,participantIds,npcIds,missingNpcIds,
+        mvp:frozenMvp,recipients,result:frozenResult,missingCr};
       xpStage = 'plan';
       const tx = await cachedTransaction(planRef, old => old || proposal);
       plan = tx.snapshot.val();
