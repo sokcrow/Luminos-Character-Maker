@@ -249,6 +249,12 @@
       /^(NETWORK_UNAVAILABLE|DISCONNECTED|DATABASE_NOT_READY)$/.test(raw)){
       reason='Se perdió la conexión con la campaña al guardar este paso.';
       action=committed?'Recupera la conexión y pulsa «VOLVER A TEATRO».':'Comprueba tu conexión y vuelve a intentar el cierre.';
+    }else if(raw==='POST_COMBAT_SANITY_NOT_CONFIRMED'){
+      reason='Al menos una ficha de personaje no confirmó el guardado de la cordura final.';
+      action='Comprueba la conexión y reintenta el mismo resultado. La reducción ya confirmada no se repite.';
+    }else if(raw==='POST_COMBAT_SANITY_RUNTIME_REQUIRED'){
+      reason='No se pudo cargar el sistema de guardado final de los personajes.';
+      action='Recarga el visor y vuelve a intentar cerrar el combate.';
     }else if(raw==='ENCOUNTER_END_VICTORY_RECOVERY_REQUIRED'){
       reason='Una victoria anterior ya inició el cierre y puede tener XP o botín entregados.';
       action='Pulsa VICTORY de nuevo para recuperar el cierre pendiente. DEFEAT queda bloqueado para evitar duplicaciones.';
