@@ -257,4 +257,23 @@ assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('vict
 assert.match(elements.get('dm-combat-end-feedback-step').textContent,/Iniciar el cierre/);
 assert.ok(!elements.get('dm-combat-end-feedback-reason').textContent.includes('PRIVATE_INTERNAL'),'unknown internal errors must not become player-facing debug text');
 
+// A failed Victory can leave durable XP/loot receipts. The DM must be
+// shown why Defeat cannot be substituted to bypass that partial award.
+let unsafeDefeatCalls=0;
+window.firebase={database:()=>({ref(path){
+  if(path==='campaña/combate/estado')return {once:async()=>({val:()=>({
+    phase:'ENDING',active:true,ending:{uid:'dm',result:'victory',failed:true}
+  })})};
+  throw Error('Unexpected encounter state path: '+path);
+}})};
+child.LuminousBattleViewerDmConsole074.finishEncounter=async()=>{unsafeDefeatCalls++;return {result:'defeat'};};
+assert.equal(await window.LuminousDmCombatLiveViewer.openEncounterOrReturn(),true);
+assert.equal(endModal.hidden,false);
+assert.equal(elements.get('dm-combat-end-defeat').hidden,true,'Defeat cannot replace a partially paid Victory');
+assert.equal(elements.get('dm-combat-end-victory').hidden,false);
+assert.match(elements.get('dm-combat-end-feedback-reason').textContent,/victoria anterior/);
+assert.match(elements.get('dm-combat-end-feedback-action').textContent,/VICTORY/);
+assert.equal(await window.LuminousDmCombatLiveViewer.finishEncounterFromUi('defeat'),false);
+assert.equal(unsafeDefeatCalls,0,'UI refuses bypassing durable victory receipts');
+
 console.log('DM pantalla real visual-evidence Battle surface smoke: ok');
