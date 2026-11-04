@@ -1,0 +1,27 @@
+name: Complete combat source execution
+on:
+  pull_request:
+    paths:
+      - 'js/combat-source-execution.js'
+      - 'js/combat-action-adapters.js'
+      - 'js/battle-viewer-spell-adapter-074.js'
+      - 'js/combat-v073-*.js'
+      - 'js/unit-independent-actions.js'
+      - 'combat/**'
+      - 'Battle-viewer.html'
+      - 'tests/combat-source-execution-smoke.mjs'
+      - 'tests/unit-independent-actions-smoke.mjs'
+      - '.github/workflows/combat-source-execution.yml'
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/build-combat-live.mjs --check
+      - run: node tests/combat-source-execution-smoke.mjs
+      - run: node tests/unit-independent-actions-smoke.mjs
+      - run: node tests/unit-ai-kit-adapter-real-engine-smoke.mjs
+      - run: node tests/combat-universal-spells-sp01-smoke.mjs

@@ -89,11 +89,15 @@
           // Only targeting and casting choices come from the Player. Definitions
           // used by the sealed executor must come from the DM's own catalog.
           const definition=clone(result.spell);
+          const choiceKey=definition.mechanics?.requiresChoice?.key;
+          const choiceValue=choiceKey?(raw.actionData?.choice?.[choiceKey]??raw.actionData?.[choiceKey]??(choiceKey==='element'?raw.actionData?.selectedElement:undefined)):undefined;
+          const castingChoice=choiceKey&&choiceValue!=null?{[choiceKey]:choiceValue}:{};
+          if(choiceKey&&!definition.mechanics.requiresChoice.values?.includes(choiceValue))throw new Error('SPELL_PLAN_REJECTED:SPELL_CHOICE_REQUIRED');
           raw.spellId=definition.spellId||definition.id||spellId;
           raw.classId=result.classId;
           raw.actionName=definition.name;
           raw.actionData={...definition,id:raw.spellId,spellId:raw.spellId,
-            kind:'spell',sourceType:'spell',classId:result.classId};
+            kind:'spell',sourceType:'spell',classId:result.classId,choice:castingChoice};
           delete raw.data;
 
         }
@@ -605,5 +609,6 @@
   global.LuminousCombatAuthority073=Object.freeze({version:'0.7.3-authority.9-step-rng',ROOT,state,start,stop,isDm,isPlayer,random,resetRandom,withAuthorityRandom,canonicalPlayerId,classEntries,isSpellcaster,validateSpellPlans,queueEntryKind,isItemQueueEntry,persistPlayerInventory,compactUnit,snapshotRuntime,digest,checkpointDigest,queueCheckpoint,publishPresentation,sealRound,applyAuthority,applySnapshot,combatantFirebaseUpdates,playerVitalSnapshot,playerVitalFirebaseUpdates,afterRound,installHooks,requestStartRound,serializeRuntimePlan,preparePlanningState,readyComplete,allReadySnapshot,maybeAutoStart});
   start();
 })(window);
+
 
 
