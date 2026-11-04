@@ -42,7 +42,7 @@
     const existing=$('combat-entry-view'),encounterId=state.encounter?.estado?.encounterId||'';
     if(active&&existing&&((!ended&&existing.dataset.ended==='true')||(existing.dataset.encounter&&existing.dataset.encounter!==encounterId)))existing.remove();
     if(active&&!$('combat-entry-view')){
-      const frame=doc.createElement('iframe');frame.id='combat-entry-view';frame.title='Encuentro de combate';frame.allow='autoplay';frame.src='Battle-viewer.html?v=20261103-frozen-xp-plan-1';$('combat-entry-main').appendChild(frame);
+      const frame=doc.createElement('iframe');frame.id='combat-entry-view';frame.title='Encuentro de combate';frame.allow='autoplay';frame.src='Battle-viewer.html?v=20261104-single-player-xp-recovery-1';$('combat-entry-main').appendChild(frame);
       frame.dataset.encounter=encounterId;
     }
     // Keep the ended viewer alive for the normal result/loot lifecycle. It is

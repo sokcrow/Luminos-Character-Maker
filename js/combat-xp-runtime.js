@@ -200,13 +200,13 @@
   const PLAYER_ROOT = 'campaña/jugadores';
   const UNIT_ROOT = 'campaña/base_datos_unidades';
   const validFirebaseKey = value => typeof value === 'string'
-    && value.length > 0 && !/[.#$\\/\\[\\]]/.test(value);
+    && value.length > 0 && !/[.#$\/\[\]\u0000-\u001f\u007f]/.test(value);
   const cleanId = value => String(value ?? '').trim();
   const isPlayer = unit => unit?.isPlayer === true
     || String(unit?.actorCategory || unit?.category || unit?.canonicalScope || '').toLowerCase() === 'player';
   const playerIdFor = unit => cleanId(unit?.canonicalPlayerKey || unit?.ownerPlayerId
     || unit?.playerId || unit?.characterLink?.playerId);
-  const unitLibraryId = unit => cleanId(unit?.libraryUnitId || unit?.catalogId
+  const unitLibraryId = unit => cleanId(unit?.libraryUnitId || unit?.unitRef?.id || unit?.actorRef?.id || unit?.catalogId
     || unit?.sourceUnitId || unit?.templateUnitId || unit?.unitId || unit?.id);
   function isEnemy(unit = {}) {
     if (isPlayer(unit)) return false;
@@ -326,7 +326,15 @@
             ref.on('value', listener, reject);
           });
         } else await ref.once('value');
-        return await ref.transaction(update, undefined, false);
+        // A retried SDK updater must abort explicitly if calculation throws;
+        // otherwise older SDKs can leave the closing promise unresolved.
+        let updateError;
+        const tx = await ref.transaction(current => {
+          try { return update(current); }
+          catch (error) { updateError = error; return undefined; }
+        }, undefined, false);
+        if (updateError) throw updateError;
+        return tx;
       } catch (error) {
         if (!cancelledByConcurrentSet(error)) throw error;
         if (attempt === 3) {
@@ -541,4 +549,5 @@
 
   global.LuminousCombatXpRuntime = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+
 
