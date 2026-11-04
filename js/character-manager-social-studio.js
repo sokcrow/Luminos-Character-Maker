@@ -121,7 +121,8 @@
   function collect() {
     const npc = $("character-manager-type")?.value !== "Jugador" && !$("character-manager-player")?.value;
     return social.normalizeLink({ ...draft, enabled:npc && $("character-manager-social-enabled")?.checked === true,
-      combatant:$("character-manager-social-kind")?.value === "combatant",
+      combatant:$("character-manager-social-combatant")?.checked === true,
+      arcana:$("character-manager-social-arcana")?.value || "",
       description:$("character-manager-social-description")?.value || "" });
   }
 
@@ -133,7 +134,8 @@
     scheduleGrouping(true);
     if (!$("character-manager-social-enabled")) return;
     $("character-manager-social-enabled").checked = draft.enabled;
-    $("character-manager-social-kind").value = draft.combatant ? "combatant" : "civilian";
+    $("character-manager-social-combatant").checked = draft.combatant;
+    $("character-manager-social-arcana").value = draft.arcana;
     $("character-manager-social-description").value = draft.description;
     renderPlayers();
     updateEnabled();
@@ -149,6 +151,16 @@
     $("character-manager-social-help").textContent = npc
       ? "Desbloquea este vínculo únicamente para los jugadores que selecciones. Guarda el NPC para publicar los cambios."
       : "Social Link corresponde a un NPC, no a la asignación de un personaje de jugador.";
+  }
+
+  function renderArcana() {
+    const select = $("character-manager-social-arcana");
+    if (!select) return;
+    select.replaceChildren();
+    const placeholder=doc.createElement("option"); placeholder.value=""; placeholder.textContent="Seleccionar Arcano"; select.append(placeholder);
+    social.ARCANA.forEach(arcana => {
+      const option=doc.createElement("option"); option.value=arcana.id; option.textContent=arcana.name; select.append(option);
+    });
   }
 
   function renderPlayers() {
@@ -244,7 +256,7 @@
     if (!$("character-manager-tags")) {
       const row = doc.createElement("label"); row.className = "cm-field cm-wide";
       row.innerHTML = '<span>ETIQUETAS</span><input id="character-manager-tags" type="text" placeholder="aliado, contacto" autocomplete="off">';
-      panel.querySelector('[data-module="assignment"] .cm-field-grid')?.append(row);
+      panel.querySelector('[data-module="identity"] .cm-field-grid')?.append(row);
     }
     if (!$("character-manager-relations")) {
       const section = doc.createElement("section"); section.id = "character-manager-relations";
@@ -253,12 +265,14 @@
         <label class="cm-social-toggle"><input id="character-manager-social-enabled" type="checkbox"><span>Social Link</span></label>
         <p id="character-manager-social-help" class="cm-social-help"></p>
         <div id="character-manager-social-fields" hidden>
-          <label class="cm-social-field"><span>Tipo de vínculo</span><select id="character-manager-social-kind"><option value="civilian">No combatiente</option><option value="combatant">Combatiente</option></select></label>
+          <label class="cm-social-field"><span>Arcano</span><select id="character-manager-social-arcana" aria-label="Arcano"></select></label>
+          <label class="cm-social-combatant"><input id="character-manager-social-combatant" type="checkbox"><span>Participa en combate</span></label>
           <label class="cm-social-field"><span>Presentación del vínculo · visible para los jugadores seleccionados</span><textarea id="character-manager-social-description" rows="3" maxlength="4000"></textarea></label>
           <fieldset class="cm-social-recipients"><legend>Desbloquear para</legend><div id="character-manager-social-players"></div></fieldset>
           <h4>Progreso individual</h4><div id="character-manager-relations-list"></div>
         </div>`;
       panel.querySelector('[data-module="assignment"]')?.append(section);
+      renderArcana();
       $("character-manager-social-enabled").addEventListener("change",updateEnabled);
       ["character-manager-type","character-manager-player"].forEach(id => $(id)?.addEventListener("change",updateEnabled));
       load(currentRecord());

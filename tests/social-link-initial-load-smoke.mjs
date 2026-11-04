@@ -10,7 +10,7 @@ class Element {
   setAttribute(){}
   querySelector(){return null;}
 }
-const ids=Object.fromEntries(['dashboard-actores','character-manager-tags','character-manager-social-enabled','character-manager-social-kind','character-manager-social-description','character-manager-social-fields','character-manager-social-help','character-manager-relations-list','character-manager-type','character-manager-player'].map(id=>[id,new Element()]));
+const ids=Object.fromEntries(['dashboard-actores','character-manager-tags','character-manager-social-enabled','character-manager-social-arcana','character-manager-social-combatant','character-manager-social-description','character-manager-social-fields','character-manager-social-help','character-manager-relations-list','character-manager-type','character-manager-player'].map(id=>[id,new Element()]));
 ids['character-manager-type'].value='NPC';
 const doc={readyState:'loading',getElementById:id=>ids[id]||null,querySelector:()=>null,createElement:tag=>new Element(tag),addEventListener(){}};
 let deliver;

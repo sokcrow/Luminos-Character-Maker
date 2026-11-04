@@ -31,11 +31,11 @@
     if(!list.some(row=>row.id===state.selected))state.selected=list[0].id;
     const roster=node("nav","sl-roster");roster.setAttribute("aria-label","Tus vínculos conocidos");
     list.forEach(({id,view})=>{const b=node("button","sl-person"+(id===state.selected?" is-selected":""));b.type="button";b.setAttribute("aria-pressed",String(id===state.selected));
-      b.append(portrait(view,"sl-thumb"));const copy=node("span","sl-person-copy");copy.append(node("strong","",view.name),node("small","",view.combatant?"Combatiente":"No combatiente"));b.append(copy,node("span","sl-person-rank",roman[view.rank]));
+      b.append(portrait(view,"sl-thumb"));const copy=node("span","sl-person-copy");copy.append(node("strong","",view.name),node("small","",view.arcana?"Arcano · "+view.arcana:(view.combatant?"Combatiente":"No combatiente")));b.append(copy,node("span","sl-person-rank",roman[view.rank]));
       b.onclick=()=>{state.selected=id;render();host.querySelector('.sl-person[aria-pressed="true"]')?.focus();};roster.append(b);});
     const view=list.find(row=>row.id===state.selected).view;
     const detail=node("article","sl-detail");detail.append(portrait(view,"sl-portrait"));
-    const title=node("div","sl-nameplate");title.append(node("span","sl-kicker",view.title|| (view.combatant?"Combatiente":"No combatiente")),node("h3","",view.name));detail.append(title);
+    const title=node("div","sl-nameplate");title.append(node("span","sl-kicker",view.title|| (view.combatant?"Combatiente":"No combatiente")),node("h3","",view.name));if(view.arcana)title.append(node("p","sl-arcana","Arcano · "+view.arcana));detail.append(title);
     const progress=node("section","sl-progress");progress.setAttribute("aria-label","Progreso del vínculo");
     const heading=node("div","sl-progress-heading");heading.append(node("span","","Rango "+roman[view.rank]+" / X"),node("span","",view.threshold==null?"Vínculo máximo":view.affinity+" / "+view.threshold+" de afinidad"));progress.append(heading);
     const meter=node("div","sl-meter");meter.setAttribute("role","progressbar");meter.setAttribute("aria-label","Afinidad hacia el siguiente rango");meter.setAttribute("aria-valuemin","0");meter.setAttribute("aria-valuemax",String(view.threshold||1));meter.setAttribute("aria-valuenow",String(view.threshold==null?1:Math.min(view.threshold,Math.max(0,view.affinity))));
