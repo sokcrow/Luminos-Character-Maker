@@ -60,5 +60,31 @@ try{
   const again=await globalThis.LuminousCombatXpRuntime.awardVictoryXp({db:dm.db,encounter:raw});
   assert.ok(again.awards.every(row=>!row.awarded));
  }
- console.log('Firebase MVP: private ballots, cache-safe session closure, coins, idempotent session rewards, NPC/player/empty encounter payouts passed.');
+ // Exercise the reported single-player encounter through the real SDK/rules.
+ await dm.db.ref('campaña/base_datos_unidades/kobold_dagger').set({challengeRating:0.125});
+ const xp=globalThis.LuminousCombatXpRuntime,lifecycle=globalThis.LuminousCombatSession;
+ for(const [kind,enemy] of Object.entries({
+  dagger:{libraryUnitId:'kobold_dagger',faction:'enemy',hp:0,challengeRating:0.125},
+  legacy:{unitRef:{scope:'units',id:'kobold_dagger'},faction:'enemy',hp:0},
+  explicitXp:{faction:'enemy',hp:0,xpValue:25}
+ })){
+  const encounterId='single-sdk-'+kind;
+  const before=(await dm.db.ref('campaña/jugadores/a/xp').once('value')).val();
+  const fight={estado:{phase:'ENDING',active:true,encounterId,ending:{uid:dm.uid,token:'original',result:'victory',failed:true}},
+   authority:{current:{phase:'running'}},participants:{a:true},
+   combatants:{hero:{isPlayer:true,playerId:'a',faction:'ally'},enemy}};
+  await dm.db.ref('campaña/combate').set(fight);
+  const claimed=await lifecycle.claimEnd({db:dm.db,uid:dm.uid,result:'victory'});
+  const award=await xp.awardVictoryXp({db:dm.db,encounter:claimed});
+  assert.equal(award.enemyXp,25);assert.equal(award.mvp.id,'player:a');
+  assert.equal((await dm.db.ref('campaña/jugadores/a/xp').once('value')).val(),before+28);
+  const ended=await lifecycle.commitEnd({db:dm.db,uid:dm.uid,result:'victory',token:'original',xpAward:award});
+  assert.equal(ended.phase,'ENDED');
+  const raw=(await dm.db.ref('campaña/combate').once('value')).val();
+  await xp.awardVictoryXp({db:dm.db,encounter:raw});
+  assert.equal((await dm.db.ref('campaña/jugadores/a/xp').once('value')).val(),before+28);
+  assert.equal(raw.xpPlans[encounterId].result.contributions,undefined);
+ }
+ console.log('Firebase MVP: private ballots, receipts, single-player Dagger Kobold, legacy identity and explicit XP without CR passed.');
 }finally{await Promise.all(clients.map(c=>c.app.delete()));}
+

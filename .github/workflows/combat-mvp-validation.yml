@@ -12,6 +12,8 @@ on:
       - 'tests/*mvp*'
       - 'tests/combat-end-shared-state-smoke.mjs'
       - 'tests/combat-end-sanity-recovery-smoke.mjs'
+      - 'tests/combat-xp-limbo-plan-recovery-smoke.mjs'
+      - 'tests/combat-single-player-victory-recovery-smoke.mjs'
       - 'tests/dm-combat-live-viewer-smoke.mjs'
       - '.github/workflows/combat-mvp-validation.yml'
 jobs:
@@ -32,6 +34,8 @@ jobs:
       - run: node tests/combat-xp-cancelled-write-recovery-smoke.mjs
       - run: node tests/combat-end-shared-state-smoke.mjs
       - run: node tests/combat-end-sanity-recovery-smoke.mjs
+      - run: node tests/combat-xp-limbo-plan-recovery-smoke.mjs
+      - run: node tests/combat-single-player-victory-recovery-smoke.mjs
       - run: node tests/dm-combat-live-viewer-smoke.mjs
       - run: node tests/combat-victory-cr-xp-delivery-smoke.mjs
       - name: Private ballots and Firebase authorization
@@ -45,3 +49,4 @@ jobs:
           name: mvp-ui-results
           path: test-results
           if-no-files-found: ignore
+

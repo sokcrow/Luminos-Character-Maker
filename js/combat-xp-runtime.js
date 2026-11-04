@@ -200,13 +200,13 @@
   const PLAYER_ROOT = 'campaña/jugadores';
   const UNIT_ROOT = 'campaña/base_datos_unidades';
   const validFirebaseKey = value => typeof value === 'string'
-    && value.length > 0 && !/[.#$\\/\\[\\]]/.test(value);
+    && value.length > 0 && !/[.#$\/\[\]\u0000-\u001f\u007f]/.test(value);
   const cleanId = value => String(value ?? '').trim();
   const isPlayer = unit => unit?.isPlayer === true
     || String(unit?.actorCategory || unit?.category || unit?.canonicalScope || '').toLowerCase() === 'player';
   const playerIdFor = unit => cleanId(unit?.canonicalPlayerKey || unit?.ownerPlayerId
     || unit?.playerId || unit?.characterLink?.playerId);
-  const unitLibraryId = unit => cleanId(unit?.libraryUnitId || unit?.catalogId
+  const unitLibraryId = unit => cleanId(unit?.libraryUnitId || unit?.unitRef?.id || unit?.actorRef?.id || unit?.catalogId
     || unit?.sourceUnitId || unit?.templateUnitId || unit?.unitId || unit?.id);
   function isEnemy(unit = {}) {
     if (isPlayer(unit)) return false;
@@ -326,7 +326,15 @@
             ref.on('value', listener, reject);
           });
         } else await ref.once('value');
-        return await ref.transaction(update, undefined, false);
+        // A retried SDK updater must abort explicitly if calculation throws;
+        // otherwise older SDKs can leave the closing promise unresolved.
+        let updateError;
+        const tx = await ref.transaction(current => {
+          try { return update(current); }
+          catch (error) { updateError = error; return undefined; }
+        }, undefined, false);
+        if (updateError) throw updateError;
+        return tx;
       } catch (error) {
         if (!cancelledByConcurrentSet(error)) throw error;
         if (attempt === 3) {
@@ -382,7 +390,29 @@
         fixedEncounterXp: estado.fixedEncounterXp ?? estado.experience?.fixedEncounterXp ?? 0,
         bonusXp: estado.bonusXp ?? estado.experience?.bonusXp ?? 0
       });
-      const proposal = {encounterId,participantIds,npcIds,missingNpcIds,mvp,recipients,result,missingCr};
+      xpStage = 'plan';
+      // Keep only immutable reward numbers in Firebase. resolveEncounterXp()
+      // also returns contributions[].unit (whole battle/canonical Unit data).
+      // Optional fields such as challengeRating can be undefined, which RTDB
+      // rejects; duplicating full Unit records here also bloats the receipt.
+      // The local rich result remains available for calculations, but does
+      // not belong in the frozen payout plan.
+      const frozenResult = Object.fromEntries([
+        'totalXp','enemyXp','fixedEncounterXp','bonusXp',
+        'participantCount','xpPerParticipant','remainderXp'
+      ].map(key => [key, result[key]]));
+      if (Object.values(frozenResult).some(value => !Number.isFinite(value)))
+        throw Error('ENCOUNTER_XP_PLAN_INVALID_AMOUNTS');
+      const frozenMvp = mvp ? {
+        id: String(mvp.id||''), unitId: String(mvp.unitId||''),
+        kind: String(mvp.kind||''), recordId: String(mvp.recordId||''),
+        persistent: mvp.persistent===true, name: String(mvp.name||''),
+        portrait: String(mvp.portrait||''), level: Number.isFinite(Number(mvp.level)) ? Number(mvp.level) : 1,
+        hostile: mvp.hostile===true,
+        metricScore: Number.isFinite(Number(mvp.metricScore)) ? Number(mvp.metricScore) : 0
+      } : null;
+      const proposal = {encounterId,participantIds,npcIds,missingNpcIds,
+        mvp:frozenMvp,recipients,result:frozenResult,missingCr};
       xpStage = 'plan';
       const tx = await cachedTransaction(planRef, old => old || proposal);
       plan = tx.snapshot.val();
@@ -519,4 +549,5 @@
 
   global.LuminousCombatXpRuntime = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+
 
