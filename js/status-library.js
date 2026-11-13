@@ -197,6 +197,27 @@
     return core[id] || runtimeExtensions[id] || null;
   }
   function has(statusId) { return Boolean(get(statusId)); }
+  // Authoring eligibility is independent of mechanical support. Existing combat
+  // instances remain readable even when their definition has no assigned icon.
+  function hasAssignedIcon(statusId) {
+    const icon = get(statusId)?.icon;
+    return typeof icon === 'string' && icon.trim().length > 0;
+  }
+  function iconlessEffectStatuses(value) {
+    const found = new Set();
+    const seen = new WeakSet();
+    function visit(node) {
+      if (!node || typeof node !== 'object' || seen.has(node)) return;
+      seen.add(node);
+      if (['status', 'scale_power'].includes(node.type) && node.status) {
+        const id = resolveId(node.status);
+        if (!hasAssignedIcon(id)) found.add(id);
+      }
+      Object.values(node).forEach(visit);
+    }
+    visit(value);
+    return [...found];
+  }
   function list() { return [...Object.values(core), ...Object.values(runtimeExtensions)]; }
   function registerExtension(statusId, definition = {}) {
     const id = resolveId(statusId);
@@ -311,6 +332,8 @@
     resolveId,
     get,
     has,
+    hasAssignedIcon,
+    iconlessEffectStatuses,
     list,
     registerExtension,
     canonicalizeUnit,
