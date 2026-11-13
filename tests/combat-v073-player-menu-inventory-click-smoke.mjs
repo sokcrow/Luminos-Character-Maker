@@ -151,6 +151,7 @@ assert.equal(categoryBody.children.length, 1, 'Items renderer must create one ac
 const itemList = categoryBody.children[0];
 assert.equal(itemList.children.length, 1, 'Items renderer must create one clickable row for the valid stack');
 const itemButton = itemList.children[0];
+assert.ok(!itemButton.className.includes('focused'), 'Items must never preselect the first entry');
 assert.equal(itemButton.dataset.itemInstanceId, 'med_live_1');
 assert.match(
   itemButton.innerHTML,
@@ -264,10 +265,11 @@ globalThis.activeMenu = 'global';
 categoryBody.children = [];
 selected = null;
 menu.renderCleanList();
-assert.equal(categoryBody.children.length, 2, 'Actions renderer must build the canonical action list and description');
+assert.equal(categoryBody.children.length, 1, 'Actions renderer must display only the list until a click opens a description');
 const actionList = categoryBody.children[0];
 assert.equal(actionList.children.length, 1);
 const actionButton = actionList.children[0];
+assert.ok(!actionButton.className.includes('focused'), 'the first Action row must not be highlighted before a click');
 assert.equal(typeof actionButton.onclick, 'function', 'Action row must have a click handler');
 actionButton.onclick();
 assert.ok(selected, 'clicking an Action row must reach selection');

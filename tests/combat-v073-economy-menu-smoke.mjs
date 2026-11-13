@@ -71,5 +71,7 @@ assert.equal(api.normalizeEconomyCost({ activation: { actionCost: 'reaction' } }
 assert.equal(api.normalizeEconomyCost({ actionCost: 'action' }), 'action');
 assert.equal(api.normalizeEconomyCost({ cost: 'Quick Action' }), 'action', 'display cost text must not decide economy classification');
 assert.equal(api.economyTabFor({ activation: { actionCost: 'quick_action' } }), 'quick_action');
+assert.equal(api.descriptionForMenu({}), 'Sin descripción registrada.', 'every clicked Action should show an explicit description fallback');
+assert.equal(api.descriptionForMenu({ description: '<script>x</script><br>One' }), '&lt;script&gt;x&lt;/script&gt;<br>One', 'the detail formatter must escape arbitrary HTML while keeping line breaks');
 
 console.log('combat v0.7.3 Action/Quick Action/Reaction menu smoke: ok');
