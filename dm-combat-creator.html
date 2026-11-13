@@ -1239,6 +1239,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <!-- Limbus Combat Logic -->
+    <script src="js/status-library.js"></script>
     <script src="js/statusManager.js"></script>
 
     <!-- MODAL VINCULADOR DE HABILIDADES -->
@@ -1412,6 +1413,7 @@
                     div.innerHTML = `<span>${skill.name} <small style="color:#888;">(${skill.dmgType || ''})</small></span> <span style="color:#c49a00; font-size: 12px;">VINCULAR</span>`;
 
                     div.onclick = () => {
+                        if (!validateStatusIconsForSave(skill)) return;
                         unitActionSlots.push(id);
                         renderLinkedSkills();
                         closeSkillModal();
@@ -1458,12 +1460,21 @@
             renderLinkedSkills();
         }
 
+        // Validate authored effects, including pre-existing selections, before writing.
+        function validateStatusIconsForSave(value) {
+            const missing = window.LuminousStatusLibrary.iconlessEffectStatuses(value);
+            if (!missing.length) return true;
+            alert('Asigna un icono a estos estados antes de guardar: ' + missing.map(id => window.LuminousStatusLibrary.get(id)?.name || id).join(', '));
+            return false;
+        }
+
         // 4. SAVE DB LOGIC
         function saveSkillToDB() {
             const name = document.getElementById('sb-name').value;
             if(!name) { alert('[!] El nombre de la Habilidad es requerido para guardar.'); return; }
 
             const skillObj = generateSkillObject();
+            if (!validateStatusIconsForSave(skillObj)) return;
             const currentId = document.getElementById("sb-current-id").value;
             const uuid = Date.now().toString() + "_" + Math.random().toString(36).substring(2, 7);
             const id = currentId || document.getElementById("sb-id").value || "db_skill_" + uuid;
@@ -1730,7 +1741,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const btnSaveUnit = document.getElementById('btnSaveUnit');
             if(btnSaveUnit) {
-                btnSaveUnit.addEventListener('click', () => {
+                btnSaveUnit.addEventListener('click', async () => {
                     const name = document.getElementById('metaName').value;
                     if (!name) { alert("Nombre requerido"); return; }
 
@@ -1758,6 +1769,15 @@
                         };
                     }
 
+                    try {
+                        const snapshot = await db.ref('campaña/base_datos_skills/').once('value');
+                        const skills = window.processSkillsData(snapshot.val()) || {};
+                        const linkedSkills = unitActionSlots.map(id => skills[id]).filter(Boolean);
+                        if (!validateStatusIconsForSave(linkedSkills)) return;
+                    } catch (err) {
+                        alert('No se pudieron verificar los estados de las habilidades. Intenta guardar de nuevo.');
+                        return;
+                    }
                     const id = 'unit_' + Date.now();
                     db.ref('campaña/base_datos_unidades/' + id).set(unitPayload).then(() => {
                         alert('Unidad guardada exitosamente.');
@@ -2317,6 +2337,7 @@
                 function generateStatusOptions() {
             let html = '';
             for (const [id, data] of Object.entries(STATUS_REGISTRY)) {
+                if (!window.LuminousStatusLibrary.hasAssignedIcon(id)) continue;
                 const iconHtml = data.icon ? `<img src="${data.icon}" style="width: 14px; height: 14px; margin-right: 4px;">` : `<div style="width: 14px; height: 14px; margin-right: 4px; border-radius: 50%; border: 1px dashed #555;"></div>`;
                 html += `
                     <div class="stat-grid-item status-list-item" data-val="${id}" title="${data.name}" style="width: 100%; justify-content: flex-start; padding: 4px; height: auto;">
@@ -2354,7 +2375,7 @@
                 <div class="stat-grid-section">
             `;
             for (const [id, data] of Object.entries(STATUS_REGISTRY)) {
-                if (data.icon) {
+                if (window.LuminousStatusLibrary.hasAssignedIcon(id)) {
                     html += `<div class="stat-grid-item stat-item" data-val="${id}" title="${data.name}"><img src="${data.icon}"></div>`;
                 }
             }
@@ -2928,6 +2949,7 @@
                 } else if (e.target.closest('.status-list-item')) {
                     const item = e.target.closest('.status-list-item');
                     const val = item.getAttribute('data-val');
+                    if (!window.LuminousStatusLibrary.hasAssignedIcon(val)) return;
                     const selector = item.closest('.status-grid-selector');
                     selector.querySelector('.eff-status').value = val;
                     const btnLabel = selector.querySelector('.status-btn-label');
