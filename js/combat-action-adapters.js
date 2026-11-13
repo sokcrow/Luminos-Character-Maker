@@ -183,6 +183,14 @@
   }
 
   function compileSpellToCombatAction(actor, spell = {}, options = {}) {
+    const execution = global.LuminousCombatSourceExecution || (typeof require === "function" ? require("./combat-source-execution.js") : null);
+    if (spell.mechanics && !execution) throw new Error("spell_execution_runtime_required");
+    if (spell.mechanics && execution) {
+      const prepared = execution.prepare(actor, spell, options);
+      if (!prepared.ok) throw new Error(prepared.reason);
+      spell = prepared.definition;
+      options = { ...options, classId: prepared.classId, slotLevel: prepared.slotLevel, saveDC: spell.spellDC };
+    }
     const sourceId = spell.id || spell.spellId || options.sourceId || "spell";
     return schema.createCombatAction({
       ...baseInput(actor, "spell", sourceId, options),
@@ -382,3 +390,4 @@
   global.LuminousCombatActionAdapters = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
+
