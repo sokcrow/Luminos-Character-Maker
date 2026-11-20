@@ -171,6 +171,7 @@
       if (opposed) threshold.value = "";
     }
     if (opposed) populateRivalPlayers();
+    doc.dispatchEvent(new global.CustomEvent("luminous:theatre-check-mode", {detail:{mode:opposed ? "opposed" : "individual"}}));
   }
 
   function mountDmUi() {

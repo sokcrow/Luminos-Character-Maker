@@ -313,7 +313,7 @@
     function collectChecks() {
       for (const id of ["theatre-check-director", "theatre-npc-roll-director"]) {
         const node = document.getElementById(id);
-        if (node && node.parentElement !== checks) checks.appendChild(node);
+        if (node && !checks.contains(node)) checks.appendChild(node);
       }
       checksLoading.hidden = Boolean(checks.querySelector("#theatre-check-director"));
     }
