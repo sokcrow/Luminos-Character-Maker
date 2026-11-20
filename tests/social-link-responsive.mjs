@@ -21,12 +21,14 @@ try {
     for(const path of ['css/character-manager-studio.css','css/character-manager-social.css','css/social-link-hud.css'])await page.addStyleTag({content:source(path)});
     for(const path of ['js/social-link-core.js','js/character-manager-engine.js','js/bond-engine.js','js/character-manager-studio.js','js/character-manager-social-studio.js'])await page.addScriptTag({content:source(path)});
     await page.locator('#character-manager-name').fill('Hopkins');
-    await page.getByRole('button',{name:'Asignación',exact:true}).click();
+    await page.getByRole('button',{name:'Configurar Social Links',exact:true}).click();
     await page.getByLabel('Social Link',{exact:true}).check();
     await page.getByLabel('Alice',{exact:true}).check();
-    await page.getByLabel('Tipo de vínculo').selectOption('combatant');
+    await page.getByLabel('Arcano',{exact:true}).selectOption('strength');
+    await page.getByLabel('Participa en combate',{exact:true}).check();
     await page.getByRole('button',{name:'Guardar actor',exact:true}).click();
     await page.locator('#character-manager-feedback').filter({hasText:'SINCRONIZADO'}).waitFor();
+    assert.equal(await page.locator('#character-manager-social-arcana').inputValue(),'strength');
     const progress=page.locator('.cm-social-progress');await progress.locator('summary').click();
     await page.getByLabel('Rango (0–10)',{exact:true}).fill('5');
     await page.getByLabel('Afinidad hacia el siguiente rango',{exact:true}).fill('24');

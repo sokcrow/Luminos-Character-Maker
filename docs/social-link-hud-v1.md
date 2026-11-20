@@ -1,8 +1,8 @@
 # Social Link: NPC publishing and player consultation HUD
 
-The Character Manager's Assignment tab now contains **Social Link**. The DM can enable it before the NPC's first save, classify it as combatant/noncombatant, and select one or more existing players. This is separate from assigning an actor as a player's character.
+The Character Manager now has a dedicated **Social Link** tab, without the legacy actor-to-player assignment dropdown. That ownership assignment remains under **Ajustes**, and actor classification/faction stays in **Identidad**. The Social Link tab uses a named **Arcano** dropdown with the 30 agreed major/special Arcanos (no numerals in the player UI), plus a separate combatant toggle. The DM can enable it before the NPC's first save, classify it as combatant/noncombatant, and select one or more existing players. This is separate from assigning an actor as a player's character.
 
-Saving the NPC publishes its name, title, portrait and public introduction only to the selected players' HUD records. Recipient edits, actor metadata and publication changes share one RTDB root update. Removing a recipient or disabling Social Link withdraws the published entry but preserves the canonical bond's rank, affinity, memories and benefits for a later reactivation. Deleting the actor also withdraws its entries.
+Saving the NPC publishes its name, title, portrait, selected Arcano ID and public introduction only to the selected players' HUD records. The player HUD resolves and displays the Arcano's Spanish name without Roman numerals. Existing links with no Arcano remain readable; when an enabled link is edited in the DM editor, an Arcano selection is required before saving. Recipient edits, actor metadata and publication changes share one RTDB root update. Removing a recipient or disabling Social Link withdraws the published entry but preserves the canonical bond's rank, affinity, memories and benefits for a later reactivation. Deleting the actor also withdraws its entries.
 
 The per-player progress editor supports ranks 0–10, signed affinity, public story, memories and benefits. Memories and benefits are entered as one entry per line. A benefit may use `Name — Effect and conditions` to give the player an expandable detail. These are DM-authored descriptions; they do not execute gameplay effects.
 
@@ -10,7 +10,7 @@ The player opens **Vínculos** from the character-sheet HUD. The view contains o
 
 ## Data and compatibility
 
-- `campaña/base_datos_npcs/{actor}/socialLink` (or the actor's existing legacy root): enable flag, classification, recipients and public introduction.
+- `campaña/base_datos_npcs/{actor}/socialLink` (or the actor's existing legacy root): enable flag, combatant classification, `arcana` (stable ID), recipients and public introduction.
 - `campaña/estado_mundo/vinculos/{player}/{actor}`: existing canonical bond; ranks now normalize to 0–10. Old progress is not rescaled or reset.
 - `campaña/estado_mundo/vinculos_publicados/{player}/{actor}`: explicit HUD projection with public metadata and a public progress snapshot. DM `notas` never enter this projection, and the HUD never subscribes to canonical DM bond records or the complete NPC directory.
 - Identity knowledge continues to use its existing Theatre path.
