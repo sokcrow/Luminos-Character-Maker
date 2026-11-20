@@ -571,7 +571,16 @@
     trigger.setAttribute("aria-label", "Opciones de sonido");
     trigger.innerHTML = '<span class="luminous-audio-symbol" aria-hidden="true">♫</span><span>Sonido</span>';
     if (hudMenu) hudMenu.appendChild(trigger);
-    else doc.body.appendChild(trigger);
+    else {
+      let dock = doc.getElementById("luminous-quick-action-dock");
+      if (!dock) {
+        dock = doc.createElement("nav");
+        dock.id = "luminous-quick-action-dock";
+        dock.setAttribute("aria-label", "Acciones rápidas");
+        doc.body.appendChild(dock);
+      }
+      dock.appendChild(trigger);
+    }
 
     panel = doc.createElement(doc.body.classList.contains("on-game-dashboard") ? "dialog" : "section");
     panel.className = "luminous-audio-panel";
