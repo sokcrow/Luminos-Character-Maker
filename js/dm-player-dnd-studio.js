@@ -309,11 +309,11 @@
   function skillEditorMarkup() {
     return ABILITIES.filter((ability) => ability.skills.length).map((ability) => `
       <section class="dm-player-dnd-skill-group" data-skill-ability="${ability.id}">
-        <header><b>${ability.code}</b><span>${ability.name} Skills</span></header>
+        <header><img class="dm-player-dnd-ability-icon" src="Assets/Icons/stats/${ability.id}.png" alt="" loading="lazy"><b>${ability.code}</b><span>${ability.spanish} · Competencias</span></header>
         <div class="dm-player-dnd-skill-grid">
           ${ability.skills.map((skill) => `
             <label class="dm-player-dnd-skill">
-              <span>${skill.name}<small>${skill.spanish}</small></span>
+              <span class="dm-player-dnd-skill-name"><img class="dm-player-dnd-skill-icon" src="Assets/Icons/skills/${skill.id}.png" alt="" loading="lazy"><span>${skill.spanish}<small>${skill.name}</small></span></span>
               <select id="dm-player-skill-${skill.id}">${proficiencyOptions()}</select>
               <b data-skill-total="${skill.id}">+0</b>
             </label>`).join("")}
@@ -417,8 +417,17 @@
         </div>
 
         <h5 class="dm-player-dnd-section-title">ABILITY SCORES &amp; SAVING THROW PROFICIENCY</h5>
-        <div class="dm-player-dnd-abilities">
-          ${ABILITIES.map((ability) => `<label class="dm-player-dnd-ability"><b>${ability.code}</b><span>${ability.name}</span><input id="dm-player-stat-${ability.id}" type="number" step="1" min="1" value="10"><select id="dm-player-prof-${ability.id}">${proficiencyOptions()}</select></label>`).join("")}
+        <div class="dm-player-dnd-abilities dm-player-dnd-scores">
+          ${ABILITIES.map((ability) => `<label class="dm-player-dnd-ability dm-player-dnd-ability--score">
+            <img class="dm-player-dnd-ability-icon" src="Assets/Icons/stats/${ability.id}.png" alt="" loading="lazy">
+            <span class="dm-player-dnd-ability-name"><b>${ability.code}</b><small>${ability.spanish}</small></span>
+            <strong class="dm-player-dnd-modifier" id="dm-player-ability-mod-${ability.id}">+0</strong>
+            <span class="dm-player-dnd-field-label">PUNTUACIÓN</span>
+            <input id="dm-player-stat-${ability.id}" type="number" step="1" min="1" value="10" aria-label="Puntuación de ${ability.spanish}">
+            <span class="dm-player-dnd-field-label">COMPETENCIA EN SALVACIÓN</span>
+            <select id="dm-player-prof-${ability.id}" aria-label="Competencia en salvación de ${ability.spanish}">${proficiencyOptions()}</select>
+            <span class="dm-player-dnd-save-preview" id="dm-player-save-${ability.id}">Salvación +0</span>
+          </label>`).join("")}
         </div>
         <div class="dm-player-dnd-prof-rules">
           <span><i data-prof-state="none"></i>Not Proficient = PROF × 0</span>
@@ -731,6 +740,15 @@
     setCombatRow("offensive", offensive);
     setCombatRow("defensive", defensive);
     updateSkillTotalsFromForm(xpData.level);
+    ABILITIES.forEach((ability) => {
+      const modifier=abilityModifier(effectiveAbilityScore(ability.id));
+      const proficiency=PROFICIENCY_STATES.find((entry)=>entry.value===field("dm-player-prof-"+ability.id)?.value);
+      const saveBonus=modifier+Math.floor(proficiencyBonus(xpData.level)*(proficiency?.multiplier||0));
+      const modifierNode=field("dm-player-ability-mod-"+ability.id);
+      const saveNode=field("dm-player-save-"+ability.id);
+      if(modifierNode)modifierNode.textContent=formatSigned(modifier);
+      if(saveNode)saveNode.textContent="Salvación "+formatSigned(saveBonus);
+    });
     const hpMax = field("dm-player-hp-max");
     if (hpMax) hpMax.value = String(calculatedHpMax(defensive.total, buildCalculation));
   }

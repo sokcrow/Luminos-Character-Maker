@@ -4040,20 +4040,42 @@ float paperFXSignedCoastAt(vec2 worldXZ){
   function createToonFire({parent=scene,position=new THREE.Vector3(),scale=1,light=null,smoke=true,sparks=true,outerColor=0xf05a1f,middleColor=0xffa12b,coreColor=0xffef9a}={}){
     try{
       if(!enabled)return null;
-      const root=new THREE.Group();root.name='PaperFXToonFire';root.position.copy(position?.isVector3?position:new THREE.Vector3(...(Array.isArray(position)?position:[0,0,0])));parent.add(root);
-      const outer=fireSprite(['fireToonA','fireToonB','fireToonC','fireToonD'],outerColor,{parent:root,width:.48*scale,height:.92*scale,y:.46*scale,z:0});
-      const middle=fireSprite(['fireToonC','fireToonA','fireToonD','fireToonB'],middleColor,{parent:root,width:.34*scale,height:.70*scale,y:.37*scale,z:.006*scale,opacity:.98});
-      const core=fireSprite(['fireCoreA','fireCoreB','fireCoreC','fireCoreD'],coreColor,{parent:root,width:.22*scale,height:.48*scale,y:.26*scale,z:.012*scale,opacity:.98});
+      const root=new THREE.Group();
+      root.name='PaperFXToonFire3D';
+      root.position.copy(position?.isVector3?position:new THREE.Vector3(...(Array.isArray(position)?position:[0,0,0])));
+      parent.add(root);
+      // Fuego volumétrico low-poly: la silueta cambia de verdad con la cámara.
+      // Conservamos humo, chispas y luz nocturna del sistema PaperFX original.
+      const materials=[outerColor,middleColor,coreColor].map((color,index)=>new THREE.MeshBasicMaterial({
+        color,transparent:true,opacity:[.77,.83,.94][index],
+        side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending
+      }));
+      const lobes=[
+        [0,-.11,-.045,.75,.16,-.14],[0,.12,-.06,.64,.13,.17],
+        [0,-.03,.12,.82,.14,-.08],[0,.14,.08,.58,.11,.19],
+        [1,-.07,.01,.70,.12,-.10],[1,.10,.045,.58,.10,.12],
+        [1,.005,-.07,.78,.11,.04],
+        [2,-.015,0,.58,.075,-.05],[2,.045,.025,.48,.065,.09]
+      ];
+      const flameParts=[];
+      for(const [layer,dx,dz,h,r,lean] of lobes){
+        const mesh=new THREE.Mesh(new THREE.ConeGeometry(r*scale,h*scale,7,3),materials[layer]);
+        mesh.position.set(dx*scale,h*scale*.52,dz*scale);
+        mesh.rotation.z=lean;mesh.renderOrder=12+layer;
+        root.add(mesh);
+        flameParts.push({mesh,baseX:dx*scale,baseZ:dz*scale,baseY:h*scale*.52,lean,phase:Math.random()*Math.PI*2,layer});
+      }
       const emberMat=new THREE.MeshBasicMaterial({color:0xe64d18,transparent:true,opacity:.62,side:THREE.DoubleSide,depthWrite:false});
-      const ember=new THREE.Mesh(new THREE.CircleGeometry(.25*scale,18),emberMat);ember.rotation.x=-Math.PI/2;ember.position.y=.018*scale;root.add(ember);
+      const ember=new THREE.Mesh(new THREE.CircleGeometry(.25*scale,18),emberMat);
+      ember.rotation.x=-Math.PI/2;ember.position.y=.018*scale;root.add(ember);
       let sparkEmitter=null,smokeEmitter=null;
       if(sparks)sparkEmitter=createEmitter('sparkDot',{parent:root,position:new THREE.Vector3(0,.60*scale,0),color:0xffc04a,opacity:.94,interval:.16,life:.48,startScale:.045*scale,endScale:.012*scale,velocity:new THREE.Vector3(.012*scale,.82*scale,.006*scale),drift:new THREE.Vector3(.12*scale,0,.10*scale),riseCurve:.045*scale,depthTest:true});
       if(smoke)smokeEmitter=createEmitter(['smokeToonA','smokeToonB','smokeToonC','smokeToonD'],{parent:root,position:new THREE.Vector3(0,.76*scale,0),color:0xefe7d6,opacity:.66,interval:.50,life:1.95,startScale:.14*scale,endScale:.64*scale,rotationSpeed:.38,velocity:new THREE.Vector3(.003*scale,.095*scale,-.002*scale),drift:new THREE.Vector3(.09*scale,.006*scale,.08*scale),riseCurve:.035*scale,depthTest:true});
-      const fire={id:`paperfx-fire${++serial}`,root,outer,middle,core,ember,emberMat,light,sparkEmitter,smokeEmitter,age:Math.random()*4,phase:Math.random()*Math.PI*2,frame:-1,lastLightApplied:light?.intensity??null,nominalLight:light?.intensity??null};
+      const fire={id:'paperfx-fire'+(++serial),root,flameParts,ember,emberMat,light,sparkEmitter,smokeEmitter,age:Math.random()*4,phase:Math.random()*Math.PI*2,lastLightApplied:light?.intensity??null,nominalLight:light?.intensity??null};
       fires.push(fire);return fire;
     }catch(err){console.warn('PaperFX.createToonFire fallback',err);return null}
   }
-  function removeToonFire(fire){
+function removeToonFire(fire){
     const i=fires.indexOf(fire);if(i>=0)fires.splice(i,1);
     if(fire?.sparkEmitter)fire.sparkEmitter.enabled=false;if(fire?.smokeEmitter)fire.smokeEmitter.enabled=false;
     fire?.root?.removeFromParent?.();
@@ -4061,22 +4083,27 @@ float paperFXSignedCoastAt(vec2 worldXZ){
   function updateToonFires(dt){
     for(let i=fires.length-1;i>=0;i--){
       const f=fires[i];if(!f.root?.parent){fires.splice(i,1);continue}f.age+=dt;
-      const frame=(Math.floor(f.age/.095))%4;
-      if(frame!==f.frame){f.frame=frame;for(const layer of [f.outer,f.middle,f.core])if(layer?.maps?.length){layer.material.map=layer.maps[frame%layer.maps.length];layer.material.needsUpdate=true}}
-      const pulse=Math.sin(f.age*14.2+f.phase)*.055+Math.sin(f.age*25.7+f.phase*.6)*.028;
-      const lean=Math.sin(f.age*8.1+f.phase)*.035;
-      if(f.outer){f.outer.sprite.scale.set(f.outer.baseWidth*(1-pulse*.55),f.outer.baseHeight*(1+pulse),1);f.outer.sprite.position.x=lean*f.outer.baseWidth;f.outer.material.rotation=lean*.50;}
-      if(f.middle){const p2=Math.sin(f.age*17.4+f.phase+1.1)*.045;f.middle.sprite.scale.set(f.middle.baseWidth*(1-p2*.5),f.middle.baseHeight*(1+p2),1);f.middle.sprite.position.x=-lean*f.middle.baseWidth*.45;f.middle.material.rotation=-lean*.32;}
-      if(f.core){const p3=Math.sin(f.age*20.8+f.phase+2.2)*.055;f.core.sprite.scale.set(f.core.baseWidth*(1-p3*.45),f.core.baseHeight*(1+p3),1);f.core.sprite.position.x=lean*f.core.baseWidth*.22;}
+      for(const flame of f.flameParts||[]){
+        const t=f.age,phase=flame.phase;
+        const flicker=Math.sin(t*12.6+phase)*.08+Math.sin(t*21.3+phase*.8)*.035;
+        const sway=Math.sin(t*7.8+phase)*.11;
+        flame.mesh.scale.set(1-flicker*.24,1+flicker,1-flicker*.24);
+        flame.mesh.position.x=flame.baseX+sway*.12;
+        flame.mesh.position.z=flame.baseZ+Math.cos(t*6.4+phase)*.018;
+        flame.mesh.position.y=flame.baseY+Math.sin(t*11.1+phase)*.014;
+        flame.mesh.rotation.z=flame.lean+sway;
+        flame.mesh.rotation.x=Math.sin(t*6.3+phase)*.09;
+      }
       if(f.emberMat)f.emberMat.opacity=.52+.15*(.5+.5*Math.sin(f.age*11.3+f.phase));
       if(f.light?.parent){
         if(f.lastLightApplied==null||Math.abs(f.light.intensity-f.lastLightApplied)>.0001)f.nominalLight=f.light.intensity;
         const lf=.92+.11*(.5+.5*Math.sin(f.age*13.6+f.phase))+.045*(.5+.5*Math.sin(f.age*23.1+f.phase*.4));
-        f.light.intensity=Math.max(0,(f.nominalLight??f.light.intensity)*lf);f.lastLightApplied=f.light.intensity;
+        f.light.intensity=Math.max(0,(f.nominalLight??f.light.intensity)*lf);
+        f.lastLightApplied=f.light.intensity;
       }
     }
   }
-  function update(dt){
+function update(dt){
     if(!enabled||!Number.isFinite(dt)||dt<=0)return;
     // ToonWater comparte este update: tiempo shader + interacciones; no existe RAF adicional.
     for(const kit of toonWaterKits.values())kit.uniforms.time.value+=dt;
@@ -8122,6 +8149,19 @@ function paperPitchedRoof(g,x0,x1,z0,z1,kind='roofRed',riseTiles=.72){
     wallOccluders.push(m);
   }
   box(g,W+.08,.13,.14,wt(cx),baseY+rise+.02,wt(cz),mat('wood'));
+  // Frontones triangulares sólidos que cierran ambos extremos del tejado.
+  for(const endX of [wt(x0),wt(x1)]){
+    const positions=[endX,baseY,wt(z0),endX,baseY,wt(z1),endX,baseY+rise,wt(cz)];
+    const geometry=new THREE.BufferGeometry();
+    geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+    geometry.computeVertexNormals();
+    const gableMaterial=mat('wood').clone();
+    gableMaterial.side=THREE.DoubleSide;
+    const gable=new THREE.Mesh(geometry,gableMaterial);
+    gable.castShadow=gable.receiveShadow=true;
+    gable.userData.cameraWallOccluder=true;
+    wallOccluders.push(gable);g.add(gable);
+  }
 }
 function naturalPlacementYAtTiles(xTiles,zTiles){
   if(!isOverworldSector(mapId))return 0;
@@ -8428,9 +8468,20 @@ function streetAwning(g,cxTiles,czTiles,wTiles=2.2,depthTiles=.9,y=wt(1.95),side
   }
   return grp;
 }
-function chimney(g,xTiles,zTiles,h=1.15){
-  box(g,.40,h,.40,wt(xTiles),wt(4)+h/2,wt(zTiles),mat('brick'));
-  box(g,.52,.10,.52,wt(xTiles),wt(4)+h+.05,wt(zTiles),mat('stone'));
+function chimney(g,xTiles,zTiles,{roofTiles=4,extensionTiles=2,baseTiles=0}={}){
+  // 1 tile = 5 ft. El conducto exterior sube desde el suelo y supera
+  // la cubierta por 2 tiles (+10 ft). No toca colisión ni navegación interior.
+  const bottomY=tileY(baseTiles),topY=tileY(roofTiles+extensionTiles);
+  const height=Math.max(wt(.5),topY-bottomY),x=wt(xTiles),z=wt(zTiles);
+  const shaft=box(g,wt(.42),height,wt(.42),x,bottomY+height/2,z,mat('brick'));
+  shaft.castShadow=shaft.receiveShadow=true;
+  for(let level=baseTiles+1;level<roofTiles+extensionTiles;level+=2){
+    box(g,wt(.48),.055,wt(.48),x,tileY(level),z,mat('stone'));
+  }
+  box(g,wt(.56),.16,wt(.56),x,topY+.045,z,mat('stone'));
+  const opening=new THREE.Mesh(new THREE.PlaneGeometry(wt(.28),wt(.28)),
+    new THREE.MeshBasicMaterial({color:0x201b19,side:THREE.DoubleSide}));
+  opening.rotation.x=-Math.PI/2;opening.position.set(x,topY+.132,z);g.add(opening);
 }
 function stoop(g,x0,x1,z0,z1,y=.02,kind='stone'){
   return slabGrid(g,x0,x1,z0,z1,y,kind);
@@ -12665,8 +12716,8 @@ function buildCanal(){
   box(ext,.16,wt(2.15),.16,wt(-4.15),wt(1.075),wt(-5.15),mat('wood'));
   box(ext,wt(1.86),.16,.16,wt(-5),wt(2.08),wt(-5.15),mat('wood'));
   paperFlowerPatch(ext,-5.85,-5.45,.48);paperGrassTuft(ext,-4.15,-5.45,.48,.7);
-  chimney(ext,-9,-7.1,1.05);
-  chimney(ext,8,-7.0,1.00);
+  chimney(ext,-9,-7.1);
+  chimney(ext,8,-7.0);
   facadeWindow(ext,-10,-5,1.5,'south',1,1);
   facadeWindow(ext,-7,-5,1.5,'south',1,1);
   facadeWindow(ext,2,-5,1.5,'south',1,1);
@@ -12698,6 +12749,7 @@ function buildCanal(){
 
   const roomDoor=makeHingedDoor(ext,cellCenter(-6),5,1);
   roofTrimBlock(-7,-3,5,9);
+  paperPitchedRoof(ext,-7,-3,5,9,'roofBlue',.82);
   facadeWindow(ext,-6,5,3.0,'north',.9,.9);
   facadeWindow(ext,-5,8,2.6,'south',.9,.9);
   stoop(ext,-6,-5,4,5,.02,'stone');
@@ -12728,6 +12780,8 @@ function buildCanal(){
   ]);
   roofTrimBlock(-3,3,5,8);
   roofTrimBlock(4,8,5,8);
+  paperPitchedRoof(ext,-3,3,5,8,'roofRed',.76);
+  paperPitchedRoof(ext,4,8,5,8,'roofBlue',.76);
   kokiriHouseDress(-3,3,5,'north');
   kokiriHouseDress(4,8,5,'north');
   streetAwning(ext,0,5,3.4,1.0,wt(1.95),'north','cloth');
@@ -12767,11 +12821,12 @@ function buildCanal(){
   staticDoor(cellCenter(14),-5,'south');
   staticDoor(cellCenter(20),-5,'south');
   chimney(ext,16,-6.8,.95);
-  chimney(ext,21,-7.0,1.05);
+  chimney(ext,21,-7.0);
 
   // Edificio mayor al este. La plaza queda libre al oeste del volumen.
   buildingGrid(ext,18,24,5,11,4,'stone');
   roofTrimBlock(18,24,5,11);
+  paperPitchedRoof(ext,18,24,5,11,'roofBlue',1.0);
   facadeWindow(ext,19,5,1.5,'north',1,1);
   facadeWindow(ext,22,5,1.5,'north',1,1);
   staticDoor(cellCenter(20),5,'north');
@@ -12786,7 +12841,7 @@ function buildCanal(){
   facadeWindow(ext,22,11,1.5,'north',1,1);
   staticDoor(cellCenter(20),11,'north');
   chimney(ext,20,8,.95);
-  chimney(ext,23,8,1.05);
+  chimney(ext,23,8);
 
   // Plaza = espacio de respiración y combate.
   // NO parche gigante pintado, NO colección de props en sus cuatro esquinas.
@@ -12941,7 +12996,7 @@ function buildCanal(){
   roofTrimBlock(4,12,12,15);
   chimney(ext,-10,13.6,.95);
   chimney(ext,-1,13.5,.82);
-  chimney(ext,8,13.5,1.05);
+  chimney(ext,8,13.5);
 
   // Fachadas norte reales: se ven desde la calle posterior z=15..18.
   functionalFacadeMarker(cellCenter(-10),15,'Leer','Vivienda trasera','Residencia de la calle posterior.','north');
@@ -13748,9 +13803,8 @@ function addCabinExteriorDetails(g,{cx=0,cz=6,w=6,d=4,doorX=.5}={}){
   const lanternL=registerSpriteLocalLight(new THREE.PointLight(0xffd28a,.48,2.2,2),{spriteStrength:.62});lanternL.position.set(wt(doorX-1.12),wt(1.34),wt(front-.18));g.add(lanternL);
   box(g,.12,.42,.12,wt(doorX+1.12),wt(1.26),wt(front-.10),mat('wood'));
   const lanternR=registerSpriteLocalLight(new THREE.PointLight(0xffd28a,.48,2.2,2),{spriteStrength:.62});lanternR.position.set(wt(doorX+1.12),wt(1.34),wt(front-.18));g.add(lanternR);
-  // Chimenea corta y ancha, pegada a la pendiente del techo.
-  box(g,.50,1.00,.50,wt(left+.92),wt(2)+.62,wt(cz+.75),mat('brick'));
-  box(g,.62,.11,.62,wt(left+.92),wt(2)+1.12,wt(cz+.75),mat('stone'));
+  // Conducto visible desde tierra y extendido +10 ft sobre el tejado.
+  chimney(g,left+.92,cz+.75,{roofTiles:MAP_HEIGHTS.structureStory,extensionTiles:2});
 }
 function addShedExteriorDetails(g,{cx=7,cz=6.5,w=4,d=3,doorX=7.5}={}){
   const front=cz-d/2,back=cz+d/2,left=cx-w/2,right=cx+w/2;
